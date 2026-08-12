@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { createAsset, ApiError, searchSymbols } from "../api";
+import { createAsset, fetchHouseholds, ApiError, searchSymbols } from "../api";
 import Toast from "./Toast";
 import { safeNumber } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, ACCOUNT_TYPES } from "../constants/enums";
@@ -25,7 +25,10 @@ export default function AddAsset() {
     purchase_date: new Date().toISOString().split("T")[0], // Default to today
     notes: "",
     tags: "",
+    household_id: "",
   });
+
+  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -68,8 +71,9 @@ export default function AddAsset() {
         purchase_date: new Date().toISOString().split("T")[0],
         notes: "",
         tags: "",
+        household_id: "",
       });
-      
+
       // Optionally navigate to assets page
       setTimeout(() => {
         navigate("/assets");
@@ -356,6 +360,9 @@ export default function AddAsset() {
     if (form.tags) {
       payload.tags = form.tags.trim(); // Comma-separated tags
     }
+    if (form.household_id) {
+      payload.household_id = form.household_id;
+    }
 
     createMutation.mutate(payload);
   }
@@ -487,6 +494,33 @@ export default function AddAsset() {
                 Optional - defaults to "Account 1" if not provided
               </p>
             </div>
+
+            {households && households.length > 0 && (
+              <div>
+                <label htmlFor="household" style={labelStyle}>
+                  Share with Household
+                </label>
+                <select
+                  id="household"
+                  name="household_id"
+                  value={form.household_id}
+                  onChange={handleChange}
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                >
+                  <option value="">Private (only me)</option>
+                  {households.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.5rem", marginBottom: 0, lineHeight: "1.5" }}>
+                  Shared assets are visible and editable by every household member
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

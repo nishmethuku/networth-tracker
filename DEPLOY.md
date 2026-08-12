@@ -1,171 +1,79 @@
 # Deployment Guide
 
-## Quick Deploy Options
+Architecture: **Vercel** (frontend) + **Render** (Flask backend, Docker) + **Supabase** (Postgres + Auth).
 
-### Option 1: Railway (Recommended - Easiest)
+## 1. Supabase (already set up if you're reading this after initial setup)
 
-1. **Sign up at [Railway](https://railway.app)**
+- Project created, schema applied (`supabase/migrations/0001_init.sql`)
+- Auth → Providers → Google enabled (see below) if you want Google sign-in
+- Collect: `SUPABASE_URL`, `DATABASE_URL` (Session pooler variant), `SNAPSHOT_SECRET` (any random string you generate)
 
-2. **Create New Project**
-   - Click "New Project"
-   - Select "Deploy from GitHub repo" (or use Railway CLI)
+### Enabling Google OAuth
 
-3. **Configure Environment Variables**
-   ```
-   FLASK_APP=backend.app
-   PYTHONPATH=/app
-   FINNHUB_API_KEY=your_api_key_here (optional)
-   PORT=5001
-   ```
+1. [Google Cloud Console](https://console.cloud.google.com) → create/select a project → **APIs & Services → Credentials**
+2. **Create Credentials → OAuth client ID** → Application type: **Web application**
+3. Authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback`
+4. Copy the generated **Client ID** and **Client Secret**
+5. In Supabase: **Authentication → Providers → Google** → paste the Client ID/Secret → Save
 
-4. **Railway Auto-Detection**
-   - Railway will detect the Dockerfile
-   - Or set build command: `docker build -t networth-tracker .`
-   - Set start command: `python -m flask run --host=0.0.0.0 --port=$PORT`
+## 2. Backend → Render
 
-5. **Deploy**
-   - Railway will build and deploy automatically
-   - Get your app URL from Railway dashboard
+1. [render.com](https://render.com) → **New → Blueprint** → connect this GitHub repo (it will pick up `render.yaml`)
+2. Render will prompt for the env vars marked `sync: false`: `DATABASE_URL`, `SUPABASE_URL`, `SNAPSHOT_SECRET`, `FINNHUB_API_KEY`, `FRONTEND_URL` (fill this in once you have the Vercel URL from step 3, then redeploy)
+3. Deploy — the Dockerfile runs `flask db upgrade` before starting gunicorn, so any pending Alembic migrations apply automatically on every deploy
+4. Note the resulting backend URL (e.g. `https://networth-tracker-backend.onrender.com`)
 
-**Note:** For frontend-only deployment, you can also deploy just the frontend to Vercel/Netlify and point it to a separate backend URL.
+Render's free tier spins down after 15 minutes of inactivity — the first request after idle will be slow (cold start). Fine for personal/family use; upgrade the plan if that's annoying.
 
----
+## 3. Frontend → Vercel
 
-### Option 2: Render
+1. [vercel.com](https://vercel.com) → **New Project** → import this repo, set **Root Directory** to `frontend`
+2. Environment variables: `VITE_API_URL` (your Render backend URL from step 2), `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+3. Deploy — `frontend/vercel.json` handles the SPA rewrite so React Router routes survive a page refresh
+4. Go back to Render and set `FRONTEND_URL` to this Vercel URL, then redeploy the backend (needed for CORS)
 
-1. **Sign up at [Render](https://render.com)**
+## 4. Daily net worth snapshot (GitHub Actions)
 
-2. **Create New Web Service**
-   - Connect your GitHub repository
-   - Select "Docker" as the environment
+`.github/workflows/daily-snapshot.yml` calls `POST /internal/snapshot` once a day. In your GitHub repo: **Settings → Secrets and variables → Actions**, add:
 
-3. **Configure Build Settings**
-   ```
-   Build Command: docker build -t networth-tracker .
-   Start Command: python -m flask run --host=0.0.0.0 --port=$PORT
-   ```
+- `BACKEND_URL` — your Render backend URL
+- `SNAPSHOT_SECRET` — must match the value set on Render
 
-4. **Environment Variables**
-   ```
-   FLASK_APP=backend.app
-   PYTHONPATH=/app
-   FINNHUB_API_KEY=your_api_key (optional)
-   ```
+You can trigger it manually from the **Actions** tab (`workflow_dispatch`) to test before waiting for the schedule.
 
-5. **Deploy**
-   - Render will build from Dockerfile
-   - Auto-deploys on git push
+## Environment Variable Reference
 
----
+### Backend (Render)
+| Var | Purpose |
+|---|---|
+| `DATABASE_URL` | Supabase Postgres connection string (Session pooler) |
+| `SUPABASE_URL` | Used to verify user JWTs via the project's JWKS endpoint |
+| `SNAPSHOT_SECRET` | Shared secret for `/internal/snapshot`, must match the GitHub Actions secret |
+| `FINNHUB_API_KEY` | Live stock price lookups (free tier) |
+| `FRONTEND_URL` | Vercel URL, used for CORS in production |
+| `FLASK_ENV` | Set to `production` (restricts CORS to `FRONTEND_URL`) |
 
-### Option 3: Fly.io
+### Frontend (Vercel)
+| Var | Purpose |
+|---|---|
+| `VITE_API_URL` | Render backend URL |
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/publishable key (safe for client use) |
 
-1. **Install Fly CLI**
-   ```bash
-   curl -L https://fly.io/install.sh | sh
-   ```
+## Local Development
 
-2. **Login and Create App**
-   ```bash
-   fly auth login
-   fly launch
-   ```
-
-3. **Create `fly.toml`** (see below)
-
-4. **Deploy**
-   ```bash
-   fly deploy
-   ```
-
----
-
-## Manual Docker Deployment
-
-### Build Image
 ```bash
-docker build -t networth-tracker .
+# Backend
+cd backend && python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cd .. && cp .env.example .env  # fill in real values
+./start_backend.sh
+
+# Frontend (separate terminal)
+cd frontend
+cp .env.example .env  # fill in real values
+npm install
+npm run dev
 ```
 
-### Run Locally
-```bash
-docker run -p 5001:5001 \
-  -e FINNHUB_API_KEY=your_key \
-  networth-tracker
-```
-
-### Push to Registry
-```bash
-# Tag for your registry
-docker tag networth-tracker your-registry/networth-tracker
-
-# Push
-docker push your-registry/networth-tracker
-```
-
----
-
-## Environment Variables
-
-### Required
-- `FLASK_APP=backend.app` - Flask application entry point
-- `PYTHONPATH=/app` - Python path for imports
-
-### Optional
-- `FINNHUB_API_KEY` - For real-time stock prices (get free key at finnhub.io)
-- `PORT` - Server port (default: 5001)
-- `DATABASE_URL` - If using PostgreSQL instead of SQLite (future enhancement)
-
-### Frontend
-- `VITE_API_URL` - Backend API URL (default: http://localhost:5001)
-  - For production: Set to your deployed backend URL
-  - Example: `VITE_API_URL=https://your-app.railway.app`
-
----
-
-## Production Considerations
-
-### Database
-- Current setup uses SQLite (file-based)
-- For production, consider PostgreSQL:
-  1. Use `DATABASE_URL` environment variable
-  2. Update `app.py` to use PostgreSQL if `DATABASE_URL` is set
-  3. Most platforms (Railway, Render) provide managed PostgreSQL
-
-### Static Files
-- Current Dockerfile serves frontend from `/backend/static`
-- For better performance, consider:
-  - CDN for static assets
-  - Separate frontend deployment (Vercel/Netlify)
-
-### Security
-- Add CORS restrictions in production
-- Use environment variables for secrets
-- Consider adding authentication (future enhancement)
-
----
-
-## Troubleshooting
-
-### Port Issues
-- Railway/Render use dynamic `$PORT` environment variable
-- Update start command to use `--port=$PORT` instead of hardcoded 5001
-
-### Build Failures
-- Ensure all dependencies are in `requirements.txt`
-- Check Node.js and Python versions match Dockerfile
-
-### Database Issues
-- Ensure data directory is writable
-- For SQLite on platforms: Use volume mounts or switch to PostgreSQL
-
----
-
-## Quick Deploy Checklist
-
-- [ ] Repository pushed to GitHub
-- [ ] Environment variables configured
-- [ ] Dockerfile tested locally
-- [ ] Backend URL configured for frontend (if separate deployment)
-- [ ] Database initialized (first run)
-- [ ] Domain configured (optional)
+Schema changes going forward: edit `backend/models.py`, then `flask db migrate -m "description"` and `flask db upgrade` (with `FLASK_APP=backend.app` and your `.env` loaded).

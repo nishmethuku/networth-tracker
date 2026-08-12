@@ -1,0 +1,28 @@
+name: Daily Net Worth Snapshot
+
+# Runs once a day and hits the backend's /internal/snapshot endpoint, which
+# computes and stores that day's net worth for every user and household.
+# Requires two repo secrets (Settings -> Secrets and variables -> Actions):
+#   BACKEND_URL      e.g. https://networth-tracker.onrender.com
+#   SNAPSHOT_SECRET   must match the backend's SNAPSHOT_SECRET env var
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
+  workflow_dispatch: {} # allows manually triggering a run from the Actions tab
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger snapshot
+        run: |
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
+            "${{ secrets.BACKEND_URL }}/internal/snapshot" \
+            -H "X-Snapshot-Secret: ${{ secrets.SNAPSHOT_SECRET }}")
+          echo "Response ($status):"
+          cat /tmp/response.json
+          if [ "$status" != "200" ]; then
+            echo "Snapshot request failed with status $status"
+            exit 1
+          fi

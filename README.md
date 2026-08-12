@@ -1,225 +1,75 @@
 # Net Worth Tracker
 
-A comprehensive full-stack application for tracking personal net worth, assets, and investments with analytics and insights.
+A full-stack app for tracking personal net worth, assets, and investments across accounts, countries, and family members.
+
+## Stack
+
+- **Frontend**: React 18, Vite, React Router, TanStack Query, Recharts
+- **Backend**: Flask, SQLAlchemy, Flask-Migrate (Alembic)
+- **Database & Auth**: Supabase (Postgres + Auth — email/password and Google OAuth)
+- **Live prices**: Finnhub (US), NSE libraries + mftool (India stocks/mutual funds)
+- **Deployment**: Vercel (frontend) + Render (backend, Docker) + GitHub Actions (daily snapshot cron)
 
 ## Features
 
-### ✅ Core Features Implemented
-
-1. **Centralized API Layer**
-   - Unified API client with error handling, timeout, and base URL configuration
-   - Data mapping layer to normalize backend responses
-   - Consistent field names across frontend
-
-2. **React Query Integration**
-   - Automatic caching and refetching
-   - Optimistic UI updates
-   - Query invalidation on mutations
-
-3. **Comprehensive Loading & Error States**
-   - Reusable LoadingState component
-   - Reusable ErrorState component with retry
-   - EmptyState component for better UX
-   - Consistent error handling across all pages
-
-4. **Asset Management**
-   - Add assets with validation (stocks, mutual funds, real estate, metals, cash, deposits, loans)
-   - Edit assets functionality
-   - Delete assets with confirmation modal
-   - Form validation and success toasts
-
-5. **Stocks Page**
-   - Dedicated `/stocks` endpoint
-   - Edit and delete with confirmation
-   - Real-time price updates (when API key configured)
-
-6. **Analytics Dashboard**
-   - Net worth over time with time range selector
-   - Portfolio allocation pie chart with legends and tooltips
-   - CAGR histogram by asset
-   - CAGR explanations and tooltips
-
-7. **Financial Correctness**
-   - Division by zero protection
-   - Negative value handling (loans)
-   - Zero buy value handling
-   - Consistent rounding at display layer only
-
-8. **Service Layer Architecture**
-   - Separated calculation logic from Flask routes
-   - Testable business logic
-   - Reusable metric calculations
-
-9. **Domain Enums**
-   - Asset type validation
-   - Country constants
-   - Type-safe constants on frontend and backend
-
-10. **Filters & Search**
-    - Filter by asset type, country, account
-    - Tag-based search with autocomplete
-    - Clear filters functionality
-    - Applied across Dashboard, Assets, and Portfolio
-
-11. **Notes & Tags**
-    - Add personal notes to any asset
-    - Tag assets for organization (e.g., "retirement", "dividend", "long-term")
-    - Search assets by tags
-    - Tags displayed as badges on asset cards
-
-12. **Tests (Minimal but Critical)**
-    - Backend tests for financial correctness (CAGR, profit calculations)
-    - Frontend tests for data mapping validation
-    - Prevents regression in financial calculations
-
-13. **Production Ready**
-    - Dockerfile for containerized deployment
-    - Deployment guides for Railway, Render, Fly.io
-    - Environment-based configuration
-    - Static file serving in production
+- Email/password and Google sign-in via Supabase Auth; every user sees only their own data
+- Manual asset tracking: stocks, mutual funds, real estate, precious metals, cash, deposits, loans — with live price lookup and autocomplete for stocks/mutual funds
+- Dashboard with net worth, P/L, and CAGR broken down by country → account → holding
+- Household sharing: create a household, invite family members by email, and any member can view/add/edit assets explicitly shared into it — private assets stay private
+- Daily net worth snapshots stored in the database and charted over time (in addition to a same-day estimate for accounts too new to have snapshot history yet)
+- Light/dark theme, filters by asset type/country/account/tag, notes and tags on any asset
 
 ## Project Structure
 
 ```
 networth_tracker/
 ├── backend/
-│   ├── app.py              # Flask routes (orchestration only)
-│   ├── models.py           # SQLAlchemy models
-│   ├── services.py         # Business logic and calculations
-│   ├── finance.py          # CAGR and financial calculations
-│   ├── utils.py            # Stock price fetching
-│   ├── enums.py            # Domain enums
-│   └── requirements.txt    # Python dependencies
+│   ├── app.py               # Flask routes (auth-scoped, orchestration only)
+│   ├── auth.py               # Supabase JWT verification
+│   ├── models.py              # SQLAlchemy models (Postgres)
+│   ├── services.py            # Asset metric calculations
+│   ├── household_service.py   # Household/invite/membership logic
+│   ├── snapshot_service.py    # Daily net worth snapshot computation
+│   ├── finance.py             # CAGR calculation
+│   └── utils.py                # Live price fetching (Finnhub/NSE/mftool) + caching
 ├── frontend/
-│   ├── src/
-│   │   ├── api/            # API client and data mapping
-│   │   │   ├── client.js   # Centralized API client
-│   │   │   ├── mappers.js  # Data normalization
-│   │   │   └── index.js    # API functions
-│   │   ├── components/     # React components
-│   │   ├── constants/      # Enums and constants
-│   │   ├── utils/          # Formatters and utilities
-│   │   └── queryClient.js  # React Query configuration
-│   └── package.json
-└── README.md
+│   └── src/
+│       ├── contexts/          # Auth + Theme React contexts
+│       ├── components/        # Pages and UI components
+│       ├── api/                 # API client, auth-token attachment, response mapping
+│       └── lib/supabaseClient.js
+├── supabase/migrations/       # Initial schema + RLS policies (raw SQL, applied once)
+├── migrations/                 # Flask-Migrate/Alembic migrations (schema changes going forward)
+└── .github/workflows/          # Daily snapshot cron
 ```
 
-## Setup
+## Local Setup
 
-### Backend
+See [DEPLOY.md](./DEPLOY.md) for full setup (Supabase project, environment variables) and deployment instructions.
 
-1. Create virtual environment:
+Quick start once `.env` files are filled in:
+
 ```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Backend
+./start_backend.sh
+
+# Frontend (separate terminal)
+cd frontend && npm install && npm run dev
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+## API Overview
 
-3. Set environment variables:
-```bash
-export FINNHUB_API_KEY=your_api_key_here  # Optional, for stock price fetching
-```
+All endpoints except `/internal/snapshot` require an `Authorization: Bearer <supabase-access-token>` header. Add `?household_id=<uuid>` to `/assets`, `/stocks`, `/summary`, `/analytics` to view a shared household's data instead of your own.
 
-4. Run the backend:
-```bash
-python -m backend.app
-# Or
-flask run --port 5001
-```
-
-### Frontend
-
-1. Install dependencies:
-```bash
-cd frontend
-npm install
-```
-
-2. Set environment variables (optional):
-```bash
-# Create .env file
-VITE_API_URL=http://localhost:5001
-```
-
-3. Run the frontend:
-```bash
-npm run dev
-```
-
-4. Build for production:
-```bash
-npm run build
-```
-
-## API Endpoints
-
-### Assets
-- `GET /assets` - Get all assets
-- `GET /assets/:id` - Get single asset
-- `POST /assets` - Create asset
-- `PUT /assets/:id` - Update asset
-- `DELETE /assets/:id` - Delete asset
-
-### Summary
-- `GET /summary` - Get dashboard summary with aggregates
-
-### Stocks
-- `GET /stocks` - Get all stocks (derived from assets)
-
-### Analytics
-- `GET /analytics` - Get analytics data (time series, allocation, CAGR)
-
-## Environment Variables
-
-### Backend
-- `FINNHUB_API_KEY` - API key for Finnhub stock price service (optional)
-
-### Frontend
-- `VITE_API_URL` - Backend API base URL (default: http://localhost:5001)
-
-## Improvements Made
-
-### Critical Fixes ✅
-1. ✅ Fixed broken data mapping - No more undefined/NaN values
-2. ✅ Centralized API configuration - Single source of truth
-3. ✅ Added loading/error states everywhere
-4. ✅ Fixed Stocks page backend mismatch
-5. ✅ Improved Add Asset UX with validation
-6. ✅ Added delete/update flows with confirmation
-7. ✅ Integrated React Query for caching
-8. ✅ Enhanced Analytics with tooltips, legends, time range
-9. ✅ Financial correctness safeguards
-10. ✅ Separated calculation logic from routes
-11. ✅ Domain enums for type safety
-
-### Remaining Enhancements (Future Work)
-- [ ] Authentication and user separation
-- [ ] Production deployment setup (Docker, etc.)
-- [ ] Time series accuracy with historical snapshots
-- [ ] UX hierarchy improvements
-- [ ] Filters and drilldowns
-- [ ] User notes and tags
-- [ ] Unit and integration tests
-- [ ] Comprehensive documentation
-
-## Technologies Used
-
-### Backend
-- Flask
-- SQLAlchemy
-- Python 3.12+
-
-### Frontend
-- React 18
-- React Router
-- TanStack Query (React Query)
-- Recharts
-- Vite
+- `GET/POST /assets`, `GET/PUT/DELETE /assets/:id` — asset CRUD
+- `GET /stocks` — stocks/mutual funds view
+- `GET /summary` — dashboard aggregates (country → account → holding)
+- `GET /analytics` — allocation pie, CAGR histogram, estimated net worth over time
+- `GET /net-worth-history` — real daily snapshot history
+- `GET /search-symbols` — stock/mutual fund autocomplete
+- `POST /households`, `GET /households`, `GET /households/:id/members`, `POST /households/:id/invites`, `POST /households/:id/leave`, `DELETE /households/:id/members/:userId`
+- `GET /invites`, `POST /invites/:id/accept`
+- `POST /internal/snapshot` — secret-protected, called by the daily cron job
 
 ## License
 

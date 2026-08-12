@@ -16,7 +16,8 @@ export async function fetchAssets(filters = {}) {
   if (filters.country) params.append("country", filters.country);
   if (filters.account) params.append("account", filters.account);
   if (filters.tag) params.append("tag", filters.tag);
-  
+  if (filters.householdId) params.append("household_id", filters.householdId);
+
   const endpoint = params.toString() ? `/assets?${params.toString()}` : "/assets";
   const data = await api.get(endpoint);
   return (data || []).map(mapAsset);
@@ -29,6 +30,7 @@ export async function fetchSummary(filters = {}) {
   const params = new URLSearchParams();
   if (filters.assetType) params.append("asset_type", filters.assetType);
   if (filters.country) params.append("country", filters.country);
+  if (filters.householdId) params.append("household_id", filters.householdId);
   const endpoint = params.toString() ? `/summary?${params.toString()}` : "/summary";
   const data = await api.get(endpoint);
   return mapSummary(data);
@@ -37,8 +39,9 @@ export async function fetchSummary(filters = {}) {
 /**
  * Fetch analytics data
  */
-export async function fetchAnalytics() {
-  const data = await api.get("/analytics");
+export async function fetchAnalytics(householdId = null) {
+  const endpoint = householdId ? `/analytics?household_id=${householdId}` : "/analytics";
+  const data = await api.get(endpoint);
   return mapAnalytics(data);
 }
 
@@ -117,6 +120,51 @@ export async function searchSymbols(query, country = "", assetType = "") {
   if (assetType) params.append("asset_type", assetType);
   const data = await api.get(`/search-symbols?${params.toString()}`);
   return data || [];
+}
+
+/**
+ * Households / family sharing
+ */
+export async function fetchHouseholds() {
+  return (await api.get("/households")) || [];
+}
+
+export async function createHousehold(name) {
+  return api.post("/households", { name });
+}
+
+export async function fetchHouseholdMembers(householdId) {
+  return (await api.get(`/households/${householdId}/members`)) || [];
+}
+
+export async function inviteToHousehold(householdId, email) {
+  return api.post(`/households/${householdId}/invites`, { email });
+}
+
+export async function fetchMyInvites() {
+  return (await api.get("/invites")) || [];
+}
+
+export async function acceptInvite(inviteId) {
+  return api.post(`/invites/${inviteId}/accept`, {});
+}
+
+export async function leaveHousehold(householdId) {
+  return api.post(`/households/${householdId}/leave`, {});
+}
+
+export async function removeHouseholdMember(householdId, userId) {
+  return api.delete(`/households/${householdId}/members/${userId}`);
+}
+
+/**
+ * Real daily net worth history (from net_worth_snapshots)
+ */
+export async function fetchNetWorthHistory(householdId = null) {
+  const endpoint = householdId
+    ? `/net-worth-history?household_id=${householdId}`
+    : "/net-worth-history";
+  return (await api.get(endpoint)) || [];
 }
 
 export { api } from "./client";

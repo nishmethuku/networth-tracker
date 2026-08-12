@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: networth-tracker-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Supabase connection string (Session pooler)
+      - key: SUPABASE_URL
+        sync: false
+      - key: SNAPSHOT_SECRET
+        sync: false # must match the GitHub Actions repo secret of the same name
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false # your Vercel deployment URL, e.g. https://networth-tracker.vercel.app

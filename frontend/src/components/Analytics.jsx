@@ -19,7 +19,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
-import { fetchAnalytics, fetchAssets, ApiError } from "../api";
+import { fetchAnalytics, fetchAssets, fetchNetWorthHistory, ApiError } from "../api";
 import { formatCurrency, formatPercent, safeNumber, formatCurrencyCompact, convertCountryValueToDisplay, formatCompactNumber, convertCurrency } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, getAssetTypeLabel } from "../constants/enums";
 
@@ -65,6 +65,15 @@ export default function Analytics() {
     queryFn: () => fetchAssets({}),
     enabled: true, // Always fetch to calculate per-asset-type values
   });
+
+  // Real daily snapshots (net_worth_snapshots table) — starts empty and fills
+  // in day by day as the scheduled snapshot job runs, unlike the estimate above
+  // which projects today's prices backward across purchase dates.
+  const { data: realHistory } = useQuery({
+    queryKey: ["net-worth-history"],
+    queryFn: () => fetchNetWorthHistory(),
+  });
+
   const hasAnalytics = !!analytics;
 
   // Filter analytics data based on asset type filters, time range, and currency
@@ -711,6 +720,39 @@ export default function Analytics() {
                       />
                     );
                   })}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+
+        {/* Real Daily Net Worth History (from stored snapshots, not projected) */}
+        <Card title="Net Worth History (Daily Snapshots)">
+          <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "1rem", lineHeight: 1.5 }}>
+            Built from a real snapshot stored once a day, rather than an estimate. Starts empty
+            and fills in day by day.
+          </p>
+          {!realHistory || realHistory.length === 0 ? (
+            <EmptyState message="No daily snapshots yet — check back after the first scheduled run." />
+          ) : (
+            <div style={{ width: "100%", height: 350, marginTop: "1rem" }}>
+              <ResponsiveContainer>
+                <LineChart data={realHistory.map((s) => ({ date: s.snapshot_date, netWorth: s.total_net_worth }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                    tickFormatter={(d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                    tickFormatter={(value) => `$${formatYAxisValue(value)}`}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`$${formatYAxisValue(value)}`, "Net Worth"]}
+                    labelFormatter={(d) => new Date(d).toLocaleDateString()}
+                  />
+                  <Line type="monotone" dataKey="netWorth" stroke="#2563eb" strokeWidth={3} name="Net Worth" dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

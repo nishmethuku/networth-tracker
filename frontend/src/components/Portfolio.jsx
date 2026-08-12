@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { fetchAssets, fetchSummary, fetchAnalytics, deleteAsset, ApiError } from "../api";
+import { fetchAssets, fetchSummary, fetchAnalytics, fetchHouseholds, deleteAsset, ApiError } from "../api";
 import Card from "./Card";
 import { convertCountryValueToDisplay, convertCurrency, formatCurrency, formatCurrencyCompact, formatCurrencyForCountry, formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import LoadingState from "./LoadingState";
@@ -487,6 +487,14 @@ export default function Portfolio() {
   const [filters, setFilters] = useState({});
   const [displayCurrency, setDisplayCurrency] = useState("INR");
   const [assetsByTypeCurrency, setAssetsByTypeCurrency] = useState("INR");
+  const [householdId, setHouseholdId] = useState(""); // "" = my own portfolio
+
+  const { data: households } = useQuery({
+    queryKey: ["households"],
+    queryFn: fetchHouseholds,
+  });
+
+  const scopedFilters = householdId ? { ...filters, householdId } : filters;
 
   const {
     data: assets,
@@ -495,8 +503,8 @@ export default function Portfolio() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["assets", filters],
-    queryFn: () => fetchAssets(filters),
+    queryKey: ["assets", scopedFilters],
+    queryFn: () => fetchAssets(scopedFilters),
   });
 
   // Fetch ALL summary for top cards + holdings drilldown (by country/account/stock)
@@ -507,8 +515,8 @@ export default function Portfolio() {
     error: summaryError,
     refetch: refetchSummary,
   } = useQuery({
-    queryKey: ["summary", "all"],
-    queryFn: () => fetchSummary({}),
+    queryKey: ["summary", "all", householdId],
+    queryFn: () => fetchSummary(householdId ? { householdId } : {}),
   });
 
   // Fetch analytics for day P/L (net worth over time)
@@ -519,8 +527,8 @@ export default function Portfolio() {
     error: analyticsError,
     refetch: refetchAnalytics,
   } = useQuery({
-    queryKey: ["analytics", "portfolio"],
-    queryFn: fetchAnalytics,
+    queryKey: ["analytics", "portfolio", householdId],
+    queryFn: () => fetchAnalytics(householdId || null),
   });
 
   // NOTE: Hooks must be called unconditionally on every render.
@@ -647,8 +655,32 @@ export default function Portfolio() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-        <h2 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>Portfolio</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          <h2 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>Portfolio</h2>
+          {households && households.length > 0 && (
+            <select
+              value={householdId}
+              onChange={(e) => setHouseholdId(e.target.value)}
+              style={{
+                padding: "0.5rem 0.875rem",
+                borderRadius: "var(--radius)",
+                border: "1px solid var(--border)",
+                background: "var(--card)",
+                color: "var(--text)",
+                fontSize: "0.875rem",
+                cursor: "pointer",
+              }}
+            >
+              <option value="">Viewing: My Portfolio</option>
+              {households.map((h) => (
+                <option key={h.id} value={h.id}>
+                  Viewing: {h.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
         <button
           onClick={() => navigate("/add-asset")}
           style={{

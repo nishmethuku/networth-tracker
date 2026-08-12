@@ -1,14 +1,73 @@
+import uuid
 from datetime import datetime, date
+
 from flask_sqlalchemy import SQLAlchemy
-import math
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 db = SQLAlchemy()
+
+
+class Household(db.Model):
+    __tablename__ = "households"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = db.Column(db.Text, nullable=False)
+    owner_id = db.Column(UUID(as_uuid=True), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "owner_id": str(self.owner_id),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class HouseholdMember(db.Model):
+    __tablename__ = "household_members"
+
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), primary_key=True)
+    role = db.Column(db.String(16), nullable=False, default="member")
+    joined_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "household_id": str(self.household_id),
+            "user_id": str(self.user_id),
+            "role": self.role,
+            "joined_at": self.joined_at.isoformat() if self.joined_at else None,
+        }
+
+
+class HouseholdInvite(db.Model):
+    __tablename__ = "household_invites"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=False)
+    invited_email = db.Column(db.Text, nullable=False)
+    invited_by = db.Column(UUID(as_uuid=True), nullable=False)
+    status = db.Column(db.String(16), nullable=False, default="pending")
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "household_id": str(self.household_id),
+            "invited_email": self.invited_email,
+            "invited_by": str(self.invited_by),
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class Asset(db.Model):
     __tablename__ = "assets"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
 
     # Core (ALL assets)
     asset_type = db.Column(db.String(32), nullable=False)   # stock, real_estate, cash, etc
@@ -16,9 +75,9 @@ class Asset(db.Model):
     account = db.Column(db.String(64), nullable=False)
     purchase_date = db.Column(db.Date, nullable=False)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
     updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # Market assets (stocks, mutual funds)
@@ -79,6 +138,8 @@ class Asset(db.Model):
 
         return {
             "id": self.id,
+            "user_id": str(self.user_id),
+            "household_id": str(self.household_id) if self.household_id else None,
             "asset_type": self.asset_type,
             "country": self.country,
             "account": self.account,
@@ -103,4 +164,34 @@ class Asset(db.Model):
             # Notes and tags
             "notes": self.notes,
             "tags": self.tags,
+        }
+
+
+class NetWorthSnapshot(db.Model):
+    __tablename__ = "net_worth_snapshots"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=True)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
+    snapshot_date = db.Column(db.Date, nullable=False)
+    total_net_worth = db.Column(db.Float, nullable=False)
+    total_stock_value = db.Column(db.Float, nullable=False, default=0.0)
+    total_property_value = db.Column(db.Float, nullable=False, default=0.0)
+    total_profit_loss = db.Column(db.Float, nullable=False, default=0.0)
+    by_asset_type = db.Column(JSONB, nullable=False, default=dict)
+    currency = db.Column(db.String(8), nullable=False, default="USD")
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": str(self.user_id) if self.user_id else None,
+            "household_id": str(self.household_id) if self.household_id else None,
+            "snapshot_date": self.snapshot_date.isoformat(),
+            "total_net_worth": self.total_net_worth,
+            "total_stock_value": self.total_stock_value,
+            "total_property_value": self.total_property_value,
+            "total_profit_loss": self.total_profit_loss,
+            "by_asset_type": self.by_asset_type,
+            "currency": self.currency,
         }

@@ -1,6 +1,7 @@
 /**
  * Centralized API client with error handling, timeout, and base URL configuration
  */
+import { supabase } from "../lib/supabaseClient";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 const API_TIMEOUT = 10000; // 10 seconds
@@ -26,11 +27,15 @@ async function fetchWithTimeout(url, options = {}) {
       delete sanitizedOptions.body;
     }
 
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+
     const response = await fetch(url, {
       ...sanitizedOptions,
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...sanitizedOptions.headers,
       },
     });
