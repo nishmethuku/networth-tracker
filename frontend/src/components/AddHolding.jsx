@@ -50,6 +50,29 @@ const METALS = [
 
 const QUANTITY_BASED_SET = new Set(["stock", "mutual_fund", "crypto", "commodity"]);
 const NAME_BASED_SET = new Set(["real_estate", "fixed_deposit", "ppf", "epf", "cash", "loan"]);
+// "Account" (a specific brokerage/exchange/bank account) doesn't map to
+// anything real for these — Name + Institution already identify them.
+const ACCOUNT_LESS_TYPES = new Set(["real_estate", "fixed_deposit", "ppf", "epf"]);
+// Loans accrue interest and have a payoff date, same shape as FD/PPF/EPF's
+// interest-rate + maturity-date fields, just labeled for a payoff instead.
+const INTEREST_BEARING_TYPES = new Set(["fixed_deposit", "ppf", "epf", "loan"]);
+
+const ACCOUNT_PLACEHOLDERS = {
+  stock: "e.g., Fidelity, Zerodha",
+  mutual_fund: "e.g., Zerodha Coin, Groww",
+  crypto: "e.g., Coinbase, Ledger wallet",
+  commodity: "e.g., Bank locker, Digital gold account",
+  cash: "e.g., Checking, Savings",
+  loan: "e.g., Loan account number",
+};
+
+const INSTITUTION_PLACEHOLDERS = {
+  fixed_deposit: "e.g., HDFC Bank, Chase",
+  ppf: "e.g., SBI, Post Office",
+  epf: "e.g., EPFO, employer name",
+  cash: "e.g., Chase, HDFC Bank",
+  loan: "e.g., Wells Fargo, SBI",
+};
 
 function FieldError({ message }) {
   if (!message) return null;
@@ -125,7 +148,7 @@ export default function AddHolding() {
         symbol: form.assetType === "commodity" ? form.symbol : (form.symbol || null),
         name: form.name || form.symbol,
         country: form.country,
-        account: form.account || "Account 1",
+        account: ACCOUNT_LESS_TYPES.has(form.assetType) ? "" : (form.account || "Account 1"),
         institution: form.institution || null,
         currency: form.currency || "USD",
         household_id: form.household_id || null,
@@ -133,7 +156,7 @@ export default function AddHolding() {
         notes: form.notes || null,
         tags: form.tags || null,
       };
-      if (form.assetType === "fixed_deposit" || form.assetType === "ppf" || form.assetType === "epf") {
+      if (INTEREST_BEARING_TYPES.has(form.assetType)) {
         if (form.interest_rate) holdingPayload.interest_rate = parseFloat(form.interest_rate);
         if (form.maturity_date) holdingPayload.maturity_date = form.maturity_date;
       }
@@ -234,6 +257,7 @@ export default function AddHolding() {
                   setValue("assetType", e.target.value);
                   setValue("symbol", "");
                   setValue("name", "");
+                  setValue("account", "");
                 }}
                 style={{ ...inputStyle, cursor: "pointer" }}
               >
@@ -258,11 +282,6 @@ export default function AddHolding() {
                 <option value="">Auto (from country)</option>
                 {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-            </div>
-
-            <div>
-              <label style={labelStyle}>Account</label>
-              <input {...register("account")} placeholder="e.g., Schwab Brokerage" style={inputStyle} />
             </div>
 
             {households && households.length > 0 && (
@@ -324,6 +343,13 @@ export default function AddHolding() {
             </div>
           )}
 
+          {QUANTITY_BASED_SET.has(assetType) && !ACCOUNT_LESS_TYPES.has(assetType) && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={labelStyle}>Account</label>
+              <input {...register("account")} placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Brokerage name"} style={inputStyle} />
+            </div>
+          )}
+
           {NAME_BASED_SET.has(assetType) && (
             <div style={{ display: "grid", gap: "1.5rem", marginBottom: "1.5rem" }}>
               <div>
@@ -334,17 +360,23 @@ export default function AddHolding() {
               {assetType !== "real_estate" && (
                 <div>
                   <label style={labelStyle}>Institution</label>
-                  <input {...register("institution")} placeholder="e.g., Chase Bank" style={inputStyle} />
+                  <input {...register("institution")} placeholder={INSTITUTION_PLACEHOLDERS[assetType] || "e.g., Bank or provider name"} style={inputStyle} />
                 </div>
               )}
-              {(assetType === "fixed_deposit" || assetType === "ppf" || assetType === "epf") && (
+              {!ACCOUNT_LESS_TYPES.has(assetType) && (
+                <div>
+                  <label style={labelStyle}>Account</label>
+                  <input {...register("account")} placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Account name"} style={inputStyle} />
+                </div>
+              )}
+              {INTEREST_BEARING_TYPES.has(assetType) && (
                 <>
                   <div>
                     <label style={labelStyle}>Interest Rate (%)</label>
                     <NumericInput control={control} name="interest_rate" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Maturity Date</label>
+                    <label style={labelStyle}>{assetType === "loan" ? "Payoff Date" : "Maturity Date"}</label>
                     <input type="date" {...register("maturity_date")} style={inputStyle} />
                   </div>
                 </>
