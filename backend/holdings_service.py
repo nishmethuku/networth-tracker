@@ -27,6 +27,7 @@ def compute_position(transactions: List[HoldingTransaction]) -> Dict:
     quantity = 0.0
     total_cost = 0.0
     realized_gain = 0.0
+    realized_events = []  # [{date, amount}] — one per sell, for tax-year bucketing
 
     for t in sorted(transactions, key=lambda t: (t.transaction_date, t.id or 0)):
         if t.transaction_type == "buy":
@@ -35,7 +36,9 @@ def compute_position(transactions: List[HoldingTransaction]) -> Dict:
         elif t.transaction_type == "sell":
             avg_cost = (total_cost / quantity) if quantity > 0 else 0.0
             sell_qty = min(t.quantity, quantity)  # guard against bad data over-selling
-            realized_gain += (t.price_per_unit - avg_cost) * sell_qty - t.fees
+            event_gain = (t.price_per_unit - avg_cost) * sell_qty - t.fees
+            realized_gain += event_gain
+            realized_events.append({"date": t.transaction_date, "amount": event_gain})
             total_cost -= avg_cost * sell_qty
             quantity -= sell_qty
 
@@ -43,6 +46,7 @@ def compute_position(transactions: List[HoldingTransaction]) -> Dict:
 
     return {
         "quantity": quantity,
+        "realized_events": realized_events,
         "avg_cost": avg_cost,
         "cost_basis": total_cost,
         "realized_gain": realized_gain,

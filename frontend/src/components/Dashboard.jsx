@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   LineChart,
@@ -18,12 +19,102 @@ import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
-import { fetchDashboard, fetchNetWorthHistory, fetchHouseholds, ApiError } from "../api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchDashboard, fetchNetWorthHistory, fetchHouseholds, fetchMilestones, acknowledgeMilestone, fetchBenchmark, ApiError } from "../api";
 import { formatCurrencyCompact, formatPercent, safeNumber } from "../utils/formatters";
 import { getAssetTypeLabel } from "../constants/enums";
 
 const COLORS = ["#2563eb", "#16a34a", "#f97316", "#e11d48", "#22c55e", "#a855f7", "#eab308", "#06b6d4", "#8b5cf6", "#f43f5e"];
 const CURRENCIES = ["USD", "INR", "AUD"];
+const BENCHMARKS = [
+  { value: "SPY", label: "S&P 500 (SPY)" },
+  { value: "NIFTYBEES.NS", label: "Nifty 50 (NIFTYBEES)" },
+];
+
+function MilestoneBanner({ householdId }) {
+  const queryClient = useQueryClient();
+  const { data: milestones } = useQuery({
+    queryKey: ["milestones", householdId],
+    queryFn: () => fetchMilestones(householdId || null),
+  });
+
+  const ackMutation = useMutation({
+    mutationFn: acknowledgeMilestone,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["milestones"] }),
+  });
+
+  const unacknowledged = (milestones || []).filter((m) => !m.acknowledged);
+  if (unacknowledged.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
+      {unacknowledged.map((m) => (
+        <div
+          key={m.id}
+          style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "1rem 1.5rem", borderRadius: "var(--radius-md)",
+            background: "linear-gradient(135deg, var(--primary-light), var(--success-light))",
+            border: "1px solid var(--primary)",
+          }}
+        >
+          <span style={{ fontWeight: 600, color: "var(--text)" }}>
+            🎉 You crossed {m.threshold.toLocaleString()} {m.currency}!
+          </span>
+          <button
+            onClick={() => ackMutation.mutate(m.id)}
+            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "0.875rem" }}
+          >
+            Dismiss
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BenchmarkCard({ householdId }) {
+  const [symbol, setSymbol] = useState("SPY");
+  const { data: benchmark, isLoading } = useQuery({
+    queryKey: ["benchmark", symbol, householdId],
+    queryFn: () => fetchBenchmark(symbol, householdId || null),
+    retry: false,
+  });
+
+  return (
+    <Card title="You vs the Market">
+      <div style={{ marginBottom: "1rem", marginTop: "0.5rem" }}>
+        <select
+          value={symbol}
+          onChange={(e) => setSymbol(e.target.value)}
+          style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", fontSize: "0.875rem" }}
+        >
+          {BENCHMARKS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+        </select>
+      </div>
+      {isLoading ? (
+        <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>Loading...</p>
+      ) : !benchmark || benchmark.portfolioXirr == null || benchmark.benchmarkXirr == null ? (
+        <EmptyState message="Not enough buy history with available prices to compare yet." />
+      ) : (
+        <div style={{ display: "flex", gap: "2rem" }}>
+          <div>
+            <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>Your Return</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: benchmark.portfolioXirr >= 0 ? "var(--success)" : "var(--danger)" }}>
+              {formatPercent(benchmark.portfolioXirr * 100)}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>{benchmark.benchmarkLabel}</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: benchmark.benchmarkXirr >= 0 ? "var(--success)" : "var(--danger)" }}>
+              {formatPercent(benchmark.benchmarkXirr * 100)}
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 function formatYAxis(value, currency) {
   const num = Math.round(safeNumber(value));
@@ -127,6 +218,14 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+        <Link to="/alerts" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🔔 Alerts</Link>
+        <Link to="/tax-summary" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🧾 Tax Summary</Link>
+        <Link to="/import" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>📥 Import CSV</Link>
+      </div>
+
+      <MilestoneBanner householdId={householdId} />
+
       {!hasHoldings ? (
         <EmptyState message="No holdings yet. Add your first one from the Portfolio page." />
       ) : (
@@ -221,6 +320,10 @@ export default function Dashboard() {
                 ))}
               </div>
             </Card>
+          </div>
+
+          <div style={{ marginBottom: "1.5rem" }}>
+            <BenchmarkCard householdId={householdId} />
           </div>
 
           {/* Country breakdown */}

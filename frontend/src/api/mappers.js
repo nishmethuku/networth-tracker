@@ -131,3 +131,53 @@ export function mapPriceHistory(rows) {
     source: r.source,
   }));
 }
+
+export function mapAlert(a) {
+  if (!a) return null;
+  return {
+    id: a.id,
+    holdingId: a.holding_id,
+    symbol: a.symbol,
+    assetType: a.asset_type,
+    alertType: a.alert_type,
+    threshold: safeNumber(a.threshold),
+    currency: a.currency,
+    status: a.status,
+    createdAt: a.created_at,
+    triggeredAt: a.triggered_at,
+  };
+}
+
+export function mapMilestone(m) {
+  if (!m) return null;
+  return {
+    id: m.id,
+    userId: m.user_id,
+    householdId: m.household_id,
+    threshold: safeNumber(m.threshold),
+    currency: m.currency,
+    achievedDate: m.achieved_date,
+    acknowledged: !!m.acknowledged,
+  };
+}
+
+export function mapTaxSummary(rows) {
+  return (rows || []).map((r) => ({
+    financialYear: r.financial_year,
+    country: r.country,
+    realizedGain: safeNumber(r.realized_gain),
+    byHolding: (r.by_holding || []).map((h) => ({ name: h.name, realizedGain: safeNumber(h.realized_gain) })),
+  }));
+}
+
+export function mapBenchmark(b) {
+  if (!b) return null;
+  return {
+    benchmarkSymbol: b.benchmark_symbol,
+    benchmarkLabel: b.benchmark_label,
+    portfolioXirr: b.portfolio_xirr != null ? safeNumber(b.portfolio_xirr) : null,
+    benchmarkXirr: b.benchmark_xirr != null ? safeNumber(b.benchmark_xirr) : null,
+    buysUsed: b.buys_used,
+    buysSkipped: b.buys_skipped_no_price,
+  };
+}

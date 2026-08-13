@@ -226,6 +226,55 @@ def _get_price_from_nsepy(ticker: str):
         return None
 
 
+def get_historical_price_from_nsepy(ticker: str, target_date: date):
+    """Historical close price for an NSE stock on/just before target_date.
+    Widens the lookback window to cover weekends/holidays."""
+    if not NSEPY_AVAILABLE:
+        return None
+    try:
+        symbol = ticker.upper().replace(".NS", "").replace(".NSE", "")
+        start_date = target_date - timedelta(days=7)
+        hist = nsepy_get_history(symbol=symbol, start=start_date, end=target_date)
+        if hist is None or hist.empty:
+            return None
+        price = float(hist["Close"].iloc[-1])
+        return price if price > 0 else None
+    except Exception as e:
+        print(f"NSEpy historical price fetch failed for {ticker}: {e}")
+        return None
+
+
+def get_historical_price_from_finnhub(ticker: str, target_date: date):
+    """
+    Historical daily close for a US stock via Finnhub's /stock/candle
+    endpoint. Free-tier access to this endpoint has varied over time —
+    treat a None return as "unavailable", same as any other price source.
+    """
+    if not FINNHUB_API_KEY:
+        return None
+    try:
+        import calendar
+
+        start = target_date - timedelta(days=5)
+        from_ts = calendar.timegm(start.timetuple())
+        to_ts = calendar.timegm((target_date + timedelta(days=1)).timetuple())
+
+        response = requests.get(
+            "https://finnhub.io/api/v1/stock/candle",
+            params={"symbol": ticker.upper(), "resolution": "D", "from": from_ts, "to": to_ts, "token": FINNHUB_API_KEY},
+            timeout=8,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("s") != "ok" or not data.get("c"):
+            return None
+        price = float(data["c"][-1])
+        return price if price > 0 else None
+    except Exception as e:
+        print(f"Finnhub historical price fetch failed for {ticker}: {e}")
+        return None
+
+
 
 def _get_price_from_mftool(scheme_code: str):
     """

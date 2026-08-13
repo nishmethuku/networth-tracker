@@ -131,3 +131,45 @@ a {
 a:hover {
   color: var(--primary-hover);
 }
+
+/* ---------------------------------------------------------------------
+   Mobile layout: top nav swaps for a bottom tab bar below 640px, and the
+   page content gets bottom padding so it doesn't sit under the tab bar.
+   --------------------------------------------------------------------- */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .desktop-top-nav {
+    display: none !important;
+  }
+
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+    padding: 0.25rem 0;
+    padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-bottom-nav a,
+  .mobile-bottom-nav button {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  .page-content {
+    padding: 0 1rem 5rem !important;
+  }
+
+  .page-content table {
+    font-size: 0.8125rem;
+  }
+}

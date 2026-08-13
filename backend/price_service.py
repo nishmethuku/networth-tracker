@@ -14,6 +14,8 @@ from .utils import (
     get_crypto_price,
     get_crypto_historical_price,
     get_metal_price,
+    get_historical_price_from_nsepy,
+    get_historical_price_from_finnhub,
     get_exchange_rate as _fetch_exchange_rate,
 )
 
@@ -70,11 +72,11 @@ def _get_mftool_historical_nav(scheme_code: str, target_date: date) -> Optional[
 
 def get_historical_price(asset_type: str, symbol: str, target_date: date, currency: str = "USD") -> Optional[float]:
     """
-    Historical price on a specific date, DB-cached. Only crypto (CoinGecko)
-    and Indian mutual funds (mftool) have reliable historical lookups here —
-    US stock and NSE historical support is weak on the free tiers available,
-    so this returns None for those and the frontend offers manual entry
-    instead, exactly as scoped in the plan.
+    Historical price on a specific date, DB-cached. Crypto (CoinGecko) and
+    Indian mutual funds (mftool) have the most reliable historical lookups;
+    US stocks (Finnhub candles) and NSE stocks (NSEpy) are best-effort —
+    free-tier/scraping-based sources that can come back empty, in which case
+    this returns None and the frontend offers manual entry instead.
     """
     cached = PriceHistory.query.filter_by(
         asset_type=asset_type, symbol=symbol, price_date=target_date
@@ -90,6 +92,14 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
     elif asset_type == "mutual_fund":
         price = _get_mftool_historical_nav(symbol, target_date)
         source = "mftool"
+    elif asset_type in ("stock", "commodity"):
+        is_nse = symbol.upper().endswith(".NS") or symbol.upper().endswith(".NSE")
+        if is_nse:
+            price = get_historical_price_from_nsepy(symbol, target_date)
+            source = "nsepy"
+        else:
+            price = get_historical_price_from_finnhub(symbol, target_date)
+            source = "finnhub"
 
     if price is not None:
         _cache_price(asset_type, symbol, target_date, price, currency, source)

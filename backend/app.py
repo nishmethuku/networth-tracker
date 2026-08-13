@@ -5,7 +5,7 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 import requests
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, Milestone
 from .auth import require_auth
 from .utils import FINNHUB_API_KEY, MFTOOL_AVAILABLE
 from .services import safe_float
@@ -26,6 +26,10 @@ from .household_service import (
 )
 from .snapshot_service import snapshot_all_users
 from .digest_service import build_weekly_digest
+from .alert_service import check_all_alerts
+from .benchmark_service import get_benchmark_comparison
+from .tax_service import get_tax_summary
+from .csv_import_service import parse_csv, confirm_import, SUPPORTED_BROKERS
 
 # Import mf instance if available
 try:
@@ -378,6 +382,129 @@ def create_app():
         rates = {t: (1.0 if t == base else price_service.get_rate(base, t)) for t in targets}
         return jsonify({"base": base, "rates": rates})
 
+    # ---------------- BENCHMARK COMPARISON ----------------
+
+    @app.route("/benchmark", methods=["GET"])
+    @require_auth
+    def get_benchmark():
+        symbol = request.args.get("symbol", "SPY")
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        result = get_benchmark_comparison(
+            g.user_id if not household_id_param else None, symbol, household_id_param
+        )
+        if result is None:
+            return jsonify({"error": "Not enough transaction/price data to compute a comparison"}), 404
+        return jsonify(result)
+
+    # ---------------- TAX SUMMARY ----------------
+
+    @app.route("/tax-summary", methods=["GET"])
+    @require_auth
+    def tax_summary():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        result = get_tax_summary(
+            g.user_id if not household_id_param else None, household_id_param
+        )
+        return jsonify(result)
+
+    # ---------------- PRICE ALERTS ----------------
+
+    @app.route("/alerts", methods=["GET"])
+    @require_auth
+    def list_alerts():
+        alerts = PriceAlert.query.filter_by(user_id=g.user_id).order_by(PriceAlert.created_at.desc()).all()
+        return jsonify([a.to_dict() for a in alerts])
+
+    @app.route("/alerts", methods=["POST"])
+    @require_auth
+    def create_alert():
+        data = request.get_json(force=True)
+        alert_type = data.get("alert_type")
+        if alert_type not in ("price_above", "price_below", "net_worth_above", "net_worth_below"):
+            return jsonify({"error": "Invalid alert_type"}), 400
+        alert = PriceAlert(
+            user_id=g.user_id,
+            holding_id=data.get("holding_id"),
+            symbol=data.get("symbol"),
+            asset_type=data.get("asset_type"),
+            alert_type=alert_type,
+            threshold=safe_float(data.get("threshold")),
+            currency=data.get("currency", "USD"),
+        )
+        db.session.add(alert)
+        db.session.commit()
+        return jsonify(alert.to_dict()), 201
+
+    @app.route("/alerts/<int:alert_id>", methods=["DELETE"])
+    @require_auth
+    def delete_alert(alert_id):
+        alert = PriceAlert.query.get_or_404(alert_id)
+        if str(alert.user_id) != str(g.user_id):
+            abort(403)
+        db.session.delete(alert)
+        db.session.commit()
+        return jsonify({"message": "Alert deleted"}), 200
+
+    # ---------------- MILESTONES ----------------
+
+    @app.route("/milestones", methods=["GET"])
+    @require_auth
+    def list_milestones():
+        household_id_param = request.args.get("household_id")
+        if household_id_param:
+            if household_id_param not in get_member_household_ids(g.user_id):
+                abort(403)
+            milestones = Milestone.query.filter_by(household_id=household_id_param)
+        else:
+            milestones = Milestone.query.filter_by(user_id=g.user_id)
+        milestones = milestones.order_by(Milestone.achieved_date.desc()).all()
+        return jsonify([m.to_dict() for m in milestones])
+
+    @app.route("/milestones/<int:milestone_id>/acknowledge", methods=["POST"])
+    @require_auth
+    def acknowledge_milestone(milestone_id):
+        milestone = Milestone.query.get_or_404(milestone_id)
+        owns_it = str(milestone.user_id) == str(g.user_id) if milestone.user_id else str(milestone.household_id) in get_member_household_ids(g.user_id)
+        if not owns_it:
+            abort(403)
+        milestone.acknowledged = True
+        db.session.commit()
+        return jsonify(milestone.to_dict())
+
+    # ---------------- CSV IMPORT ----------------
+
+    @app.route("/import/brokers", methods=["GET"])
+    @require_auth
+    def list_import_brokers():
+        return jsonify(SUPPORTED_BROKERS)
+
+    @app.route("/import/parse", methods=["POST"])
+    @require_auth
+    def import_parse():
+        data = request.get_json(force=True)
+        broker = data.get("broker")
+        csv_text = data.get("csv_text")
+        if not broker or not csv_text:
+            return jsonify({"error": "broker and csv_text are required"}), 400
+        result = parse_csv(broker, csv_text)
+        return jsonify(result)
+
+    @app.route("/import/confirm", methods=["POST"])
+    @require_auth
+    def import_confirm():
+        data = request.get_json(force=True)
+        rows = data.get("rows", [])
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        if not rows:
+            return jsonify({"error": "No rows to import"}), 400
+        result = confirm_import(g.user_id, rows, household_id=household_id)
+        return jsonify(result), 201
+
     # ---------------- NET WORTH HISTORY (real daily snapshots) ----------------
 
     @app.route("/net-worth-history", methods=["GET"])
@@ -492,15 +619,23 @@ def create_app():
     @app.route("/internal/weekly-digest", methods=["POST"])
     def trigger_weekly_digest():
         """Called weekly by a GitHub Actions cron workflow. Computes a real
-        digest per user/household but only logs/returns it — actual email
-        delivery needs a provider (Resend/SendGrid/SES) and is deferred."""
+        digest per user/household and emails each recipient via Resend
+        (email_service.send) — falls back to logging if RESEND_API_KEY isn't
+        set, so this is safe to run either way."""
         provided = request.headers.get("X-Snapshot-Secret")
         if not DIGEST_SECRET or provided != DIGEST_SECRET:
             return jsonify({"error": "Unauthorized"}), 401
         digests = build_weekly_digest()
-        for d in digests:
-            print(f"[weekly-digest] {d}")
-        return jsonify({"digests_built": len(digests), "sent": False, "note": "email delivery not yet configured"}), 200
+        return jsonify({"digests_built": len(digests)}), 200
+
+    @app.route("/internal/check-alerts", methods=["POST"])
+    def trigger_check_alerts():
+        """Called every few hours by a GitHub Actions cron workflow."""
+        provided = request.headers.get("X-Snapshot-Secret")
+        if not SNAPSHOT_SECRET or provided != SNAPSHOT_SECRET:
+            return jsonify({"error": "Unauthorized"}), 401
+        result = check_all_alerts()
+        return jsonify(result), 200
 
     # ---------------- SEARCH SYMBOLS (AUTOCOMPLETE) ----------------
 

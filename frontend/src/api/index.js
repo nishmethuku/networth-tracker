@@ -10,6 +10,10 @@ import {
   mapDashboard,
   mapNetWorthHistory,
   mapPriceHistory,
+  mapAlert,
+  mapMilestone,
+  mapTaxSummary,
+  mapBenchmark,
 } from "./mappers";
 
 /**
@@ -184,6 +188,71 @@ export async function leaveHousehold(householdId) {
 
 export async function removeHouseholdMember(householdId, userId) {
   return api.delete(`/households/${householdId}/members/${userId}`);
+}
+
+/**
+ * Price alerts
+ */
+export async function fetchAlerts() {
+  const data = await api.get("/alerts");
+  return (data || []).map(mapAlert);
+}
+
+export async function createAlert(payload) {
+  const data = await api.post("/alerts", payload);
+  return mapAlert(data);
+}
+
+export async function deleteAlert(id) {
+  await api.delete(`/alerts/${id}`);
+}
+
+/**
+ * Milestones
+ */
+export async function fetchMilestones(householdId = null) {
+  const endpoint = householdId ? `/milestones?household_id=${householdId}` : "/milestones";
+  const data = await api.get(endpoint);
+  return (data || []).map(mapMilestone);
+}
+
+export async function acknowledgeMilestone(id) {
+  const data = await api.post(`/milestones/${id}/acknowledge`, {});
+  return mapMilestone(data);
+}
+
+/**
+ * Tax summary
+ */
+export async function fetchTaxSummary(householdId = null) {
+  const endpoint = householdId ? `/tax-summary?household_id=${householdId}` : "/tax-summary";
+  const data = await api.get(endpoint);
+  return mapTaxSummary(data);
+}
+
+/**
+ * Benchmark comparison
+ */
+export async function fetchBenchmark(symbol = "SPY", householdId = null) {
+  const params = new URLSearchParams({ symbol });
+  if (householdId) params.append("household_id", householdId);
+  const data = await api.get(`/benchmark?${params.toString()}`);
+  return mapBenchmark(data);
+}
+
+/**
+ * CSV import
+ */
+export async function fetchImportBrokers() {
+  return (await api.get("/import/brokers")) || [];
+}
+
+export async function importParse(broker, csvText) {
+  return api.post("/import/parse", { broker, csv_text: csvText });
+}
+
+export async function importConfirm(rows, householdId = null) {
+  return api.post("/import/confirm", { rows, household_id: householdId });
 }
 
 export { api } from "./client";

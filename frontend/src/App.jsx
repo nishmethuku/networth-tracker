@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import ThemeToggle from "./components/ThemeToggle";
 
@@ -7,6 +7,9 @@ import Portfolio from "./components/Portfolio";
 import HoldingDetail from "./components/HoldingDetail";
 import AddHolding from "./components/AddHolding";
 import Transactions from "./components/Transactions";
+import ImportTransactions from "./components/ImportTransactions";
+import Alerts from "./components/Alerts";
+import TaxSummary from "./components/TaxSummary";
 import Households from "./components/Households";
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -40,13 +43,53 @@ function NavLink({ to, children, highlight }) {
   );
 }
 
+const BOTTOM_TABS = [
+  { to: "/", icon: "🏠", label: "Home" },
+  { to: "/portfolio", icon: "📊", label: "Portfolio" },
+  { to: "/add-holding", icon: "➕", label: "Add" },
+  { to: "/transactions", icon: "📋", label: "History" },
+  { to: "/households", icon: "👪", label: "Family" },
+];
+
+function MobileBottomNav() {
+  const location = useLocation();
+  return (
+    <nav className="mobile-bottom-nav">
+      {BOTTOM_TABS.map((tab) => {
+        const active = location.pathname === tab.to;
+        return (
+          <Link
+            key={tab.to}
+            to={tab.to}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.15rem",
+              color: active ? "var(--primary)" : "var(--text-secondary)",
+              fontSize: "0.6875rem",
+              fontWeight: active ? 600 : 500,
+            }}
+          >
+            <span style={{ fontSize: "1.25rem" }}>{tab.icon}</span>
+            {tab.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 function AppShell() {
   const { user, signOut } = useAuth();
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", transition: "background-color 0.2s ease" }}>
-      {/* Top Navigation */}
+      {/* Top Navigation (desktop) */}
       <nav
+        className="desktop-top-nav"
         style={{
           background: "var(--card)",
           padding: "1rem 2rem",
@@ -67,6 +110,9 @@ function AppShell() {
           </Link>
           <NavLink to="/portfolio">Portfolio</NavLink>
           <NavLink to="/transactions">Transactions</NavLink>
+          <NavLink to="/import">Import CSV</NavLink>
+          <NavLink to="/alerts">Alerts</NavLink>
+          <NavLink to="/tax-summary">Tax Summary</NavLink>
           <NavLink to="/households">Household</NavLink>
           <NavLink to="/add-holding" highlight>+ Add Holding</NavLink>
         </div>
@@ -94,7 +140,7 @@ function AppShell() {
       </nav>
 
       {/* Page Content */}
-      <div style={{ padding: "0 2rem 2rem" }}>
+      <div className="page-content" style={{ padding: "0 2rem 2rem" }}>
         <ErrorBoundary>
           <Routes>
             <Route index element={<Dashboard />} />
@@ -102,11 +148,16 @@ function AppShell() {
             <Route path="portfolio/:id" element={<HoldingDetail />} />
             <Route path="add-holding" element={<AddHolding />} />
             <Route path="transactions" element={<Transactions />} />
+            <Route path="import" element={<ImportTransactions />} />
+            <Route path="alerts" element={<Alerts />} />
+            <Route path="tax-summary" element={<TaxSummary />} />
             <Route path="households" element={<Households />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ErrorBoundary>
       </div>
+
+      <MobileBottomNav />
     </div>
   );
 }

@@ -18,5 +18,7 @@ services:
         sync: false
       - key: METALS_API_KEY
         sync: false # free key from metals-api.com, for gold/silver/platinum prices
+      - key: RESEND_API_KEY
+        sync: false # free key from resend.com, for digest/alert/milestone emails
       - key: FRONTEND_URL
         sync: false # your Vercel deployment URL, e.g. https://networth-tracker.vercel.app

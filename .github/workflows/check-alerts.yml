@@ -1,0 +1,29 @@
+name: Check Price Alerts
+
+# Runs every 4 hours and hits the backend's /internal/check-alerts endpoint,
+# which evaluates every active alert against current prices/net worth and
+# emails any that triggered.
+# Requires the same two repo secrets as the other internal-cron workflows:
+#   BACKEND_URL      e.g. https://networth-tracker.onrender.com
+#   SNAPSHOT_SECRET   must match the backend's SNAPSHOT_SECRET env var
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger alert check
+        run: |
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
+            "${{ secrets.BACKEND_URL }}/internal/check-alerts" \
+            -H "X-Snapshot-Secret: ${{ secrets.SNAPSHOT_SECRET }}")
+          echo "Response ($status):"
+          cat /tmp/response.json
+          if [ "$status" != "200" ]; then
+            echo "Alert check request failed with status $status"
+            exit 1
+          fi
