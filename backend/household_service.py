@@ -3,7 +3,7 @@ Household CRUD and membership logic.
 Kept separate from app.py per the existing convention: routes stay thin,
 business logic lives in a service module.
 """
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import text
 
@@ -13,6 +13,17 @@ from .models import db, Household, HouseholdMember, HouseholdInvite
 def get_member_household_ids(user_id) -> List[str]:
     rows = HouseholdMember.query.filter_by(user_id=user_id).all()
     return [str(r.household_id) for r in rows]
+
+
+def get_role(household_id, user_id) -> Optional[str]:
+    """The caller's role in a household ('owner'/'editor'/'viewer'), or None
+    if they're not a member at all."""
+    member = HouseholdMember.query.filter_by(household_id=household_id, user_id=user_id).first()
+    return member.role if member else None
+
+
+def can_edit_household(household_id, user_id) -> bool:
+    return get_role(household_id, user_id) in ("owner", "editor")
 
 
 def list_members_with_email(household_id) -> List[dict]:
@@ -63,11 +74,14 @@ def list_members(household_id) -> List[HouseholdMember]:
     return HouseholdMember.query.filter_by(household_id=household_id).all()
 
 
-def create_invite(household_id, invited_by, invited_email) -> HouseholdInvite:
+def create_invite(household_id, invited_by, invited_email, role="editor") -> HouseholdInvite:
+    if role not in ("editor", "viewer"):
+        raise ValueError("role must be 'editor' or 'viewer'")
     invite = HouseholdInvite(
         household_id=household_id,
         invited_by=invited_by,
         invited_email=invited_email.lower().strip(),
+        role=role,
     )
     db.session.add(invite)
     db.session.commit()
@@ -89,7 +103,7 @@ def accept_invite(invite_id, user_id, user_email) -> HouseholdInvite:
     if invite.invited_email.lower() != (user_email or "").lower():
         raise PermissionError("This invite was sent to a different email address")
 
-    member = HouseholdMember(household_id=invite.household_id, user_id=user_id, role="member")
+    member = HouseholdMember(household_id=invite.household_id, user_id=user_id, role=invite.role)
     db.session.merge(member)
     invite.status = "accepted"
     db.session.commit()

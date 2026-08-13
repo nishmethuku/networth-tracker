@@ -5,13 +5,16 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 import requests
 
-from .models import db, Asset
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory
 from .auth import require_auth
-from .utils import get_current_stock_price, FINNHUB_API_KEY, NSELIB_AVAILABLE, MFTOOL_AVAILABLE
-from .finance import calculate_cagr
-from .services import calculate_asset_metrics, aggregate_cash_by_account, safe_float
+from .utils import FINNHUB_API_KEY, MFTOOL_AVAILABLE
+from .services import safe_float
+from . import price_service
+from .holdings_service import list_holdings_with_metrics, build_dashboard
 from .household_service import (
     get_member_household_ids,
+    get_role,
+    can_edit_household,
     create_household,
     list_my_households,
     list_members_with_email,
@@ -22,6 +25,7 @@ from .household_service import (
     remove_member,
 )
 from .snapshot_service import snapshot_all_users
+from .digest_service import build_weekly_digest
 
 # Import mf instance if available
 try:
@@ -31,6 +35,7 @@ except (ImportError, AttributeError):
     MFTOOL_AVAILABLE = False
 
 SNAPSHOT_SECRET = os.environ.get("SNAPSHOT_SECRET")
+DIGEST_SECRET = os.environ.get("DIGEST_SECRET") or SNAPSHOT_SECRET
 
 
 def create_app():
@@ -53,497 +58,325 @@ def create_app():
     else:
         CORS(app)
 
-    # ---------------- SCOPE HELPERS ----------------
+    # ---------------- SCOPE / AUTHORIZATION HELPERS ----------------
 
-    def scoped_asset_query(household_id_param):
-        """Base query for the caller's accessible assets.
-        No household_id param -> the caller's own (possibly shared) assets.
-        household_id param -> that household's shared pool, if the caller is a member.
-        """
+    def scoped_holdings_query(household_id_param):
+        """Base query for the caller's viewable holdings.
+        No household_id param -> the caller's own holdings.
+        household_id param -> that household's shared (non-private) holdings,
+        visible to any member (owner/editor/viewer)."""
         if household_id_param:
             member_ids = get_member_household_ids(g.user_id)
             if household_id_param not in member_ids:
                 abort(403, description="Not a member of this household")
-            return Asset.query.filter(Asset.household_id == household_id_param)
-        return Asset.query.filter(Asset.user_id == g.user_id)
+            return Holding.query.filter(
+                Holding.household_id == household_id_param, Holding.is_private == False  # noqa: E712
+            )
+        return Holding.query.filter(Holding.user_id == g.user_id)
 
-    def get_authorized_asset(asset_id):
-        """Fetch an asset the caller may read/write: owner, or a member of the
-        household it's shared into (full co-edit)."""
-        asset = Asset.query.get_or_404(asset_id)
-        member_ids = set(get_member_household_ids(g.user_id))
-        is_owner = str(asset.user_id) == str(g.user_id)
-        is_household_member = asset.household_id is not None and str(asset.household_id) in member_ids
-        if not is_owner and not is_household_member:
-            abort(403)
-        return asset
+    def get_authorized_holding(holding_id, require_write=False):
+        """Fetch a holding the caller may read (owner, or a household member
+        with a non-private holding) or write (owner, or owner/editor role)."""
+        holding = Holding.query.get_or_404(holding_id)
+        if str(holding.user_id) == str(g.user_id):
+            return holding
+        if holding.household_id:
+            role = get_role(str(holding.household_id), g.user_id)
+            if role:
+                if require_write and role in ("owner", "editor"):
+                    return holding
+                if not require_write and not holding.is_private:
+                    return holding
+        abort(403)
 
     def validate_household_id_for_write(household_id):
         if not household_id:
             return
-        member_ids = get_member_household_ids(g.user_id)
-        if household_id not in member_ids:
-            abort(403, description="Not a member of this household")
+        if not can_edit_household(household_id, g.user_id):
+            abort(403, description="You need editor access to this household")
 
-    # ---------------- CREATE ASSET ----------------
+    def get_authorized_transaction(transaction_id, require_write=False):
+        tx = HoldingTransaction.query.get_or_404(transaction_id)
+        get_authorized_holding(tx.holding_id, require_write=require_write)
+        return tx
 
-    @app.route("/assets", methods=["POST"])
+    # ---------------- HOLDINGS ----------------
+
+    @app.route("/holdings", methods=["POST"])
     @require_auth
-    def create_asset():
+    def create_holding():
         data = request.get_json(force=True)
         household_id = data.get("household_id")
         validate_household_id_for_write(household_id)
 
-        asset = Asset(
+        holding = Holding(
             user_id=g.user_id,
             household_id=household_id,
             asset_type=data["asset_type"],
+            symbol=data.get("symbol"),
+            name=data["name"],
             country=data["country"],
             account=data["account"],
-            purchase_date=date.fromisoformat(data["purchase_date"]),
-            symbol=data.get("symbol"),
-            units=data.get("units"),
-            buy_price=data.get("buy_price"),
-            name=data.get("name"),
-            buy_value=data.get("buy_value"),
-            current_value=data.get("current_value"),
             institution=data.get("institution"),
-            value=data.get("value"),
+            currency=data["currency"],
+            interest_rate=data.get("interest_rate"),
+            maturity_date=date.fromisoformat(data["maturity_date"]) if data.get("maturity_date") else None,
+            is_private=bool(data.get("is_private", False)),
             notes=data.get("notes"),
             tags=data.get("tags"),
         )
-
-        db.session.add(asset)
+        db.session.add(holding)
         db.session.commit()
-        return jsonify(asset.to_dict()), 201
+        return jsonify(holding.to_dict()), 201
 
-    # ---------------- GET ASSETS ----------------
-
-    @app.route("/assets", methods=["GET"])
+    @app.route("/holdings", methods=["GET"])
     @require_auth
-    def get_assets():
-        """
-        Assets visible to the caller, with computed metrics for each holding.
-        - household_id: view a shared household's assets instead of the caller's own
-        - asset_type / country / account / tag: filters, same as before
-
-        Special handling for cash assets: when asset_type=cash, returns grouped
-        cash accounts instead of individual entries.
-        """
+    def get_holdings():
         household_id_param = request.args.get("household_id")
-        query = scoped_asset_query(household_id_param)
+        display_currency = request.args.get("currency", "USD").upper()
+        query = scoped_holdings_query(household_id_param)
 
         asset_type = request.args.get("asset_type")
         if asset_type:
-            query = query.filter(Asset.asset_type == asset_type)
-
+            query = query.filter(Holding.asset_type == asset_type)
         country = request.args.get("country")
         if country:
-            query = query.filter(Asset.country == country)
+            query = query.filter(Holding.country == country)
 
-        account = request.args.get("account")
-        if account:
-            query = query.filter(Asset.account == account)
+        holdings = query.order_by(Holding.created_at.desc()).all()
+        return jsonify(list_holdings_with_metrics(holdings, display_currency=display_currency))
 
-        tag_search = request.args.get("tag")
-        if tag_search:
-            query = query.filter(Asset.tags.like(f"%{tag_search}%"))
-
-        assets = query.order_by(Asset.purchase_date.desc(), Asset.updated_at.desc()).all()
-
-        if asset_type == "cash":
-            cash_assets = [a for a in assets if a.asset_type == "cash"]
-            grouped_accounts = aggregate_cash_by_account(cash_assets)
-            if country:
-                grouped_accounts = [acc for acc in grouped_accounts if acc["country"] == country]
-            if account:
-                grouped_accounts = [acc for acc in grouped_accounts if acc["account"] == account]
-            grouped_accounts.sort(key=lambda x: x.get("purchase_date", ""), reverse=True)
-            return jsonify(grouped_accounts)
-
-        results = []
-        for a in assets:
-            fetch_live = a.asset_type in ("stock", "mutual_fund")
-            metrics = calculate_asset_metrics(a, fetch_live_price=fetch_live)
-            results.append({**a.to_dict(), **metrics})
-
-        results.sort(
-            key=lambda x: (x.get("purchase_date", ""), x.get("created_at", "")),
-            reverse=True,
-        )
-        return jsonify(results)
-
-    # ---------------- UPDATE ASSET ----------------
-
-    @app.route("/assets/<int:asset_id>", methods=["PUT"])
+    @app.route("/holdings/<int:holding_id>", methods=["GET"])
     @require_auth
-    def update_asset(asset_id):
-        asset = get_authorized_asset(asset_id)
+    def get_holding(holding_id):
+        holding = get_authorized_holding(holding_id)
+        display_currency = request.args.get("currency", "USD").upper()
+        [metrics] = list_holdings_with_metrics([holding], display_currency=display_currency)
+        return jsonify(metrics)
+
+    @app.route("/holdings/<int:holding_id>", methods=["PUT"])
+    @require_auth
+    def update_holding(holding_id):
+        holding = get_authorized_holding(holding_id, require_write=True)
         data = request.get_json(force=True)
 
         if "household_id" in data:
             validate_household_id_for_write(data["household_id"])
-            asset.household_id = data["household_id"]
-        if "asset_type" in data:
-            asset.asset_type = data["asset_type"]
-        if "country" in data:
-            asset.country = data["country"]
-        if "account" in data:
-            asset.account = data["account"]
-        if "purchase_date" in data:
-            asset.purchase_date = date.fromisoformat(data["purchase_date"])
-        if "symbol" in data:
-            asset.symbol = data.get("symbol")
-        if "units" in data:
-            asset.units = data.get("units")
-        if "buy_price" in data:
-            asset.buy_price = data.get("buy_price")
-        if "name" in data:
-            asset.name = data.get("name")
-        if "buy_value" in data:
-            asset.buy_value = data.get("buy_value")
-        if "current_value" in data:
-            asset.current_value = data.get("current_value")
-        if "institution" in data:
-            asset.institution = data.get("institution")
-        if "value" in data:
-            asset.value = data.get("value")
+            holding.household_id = data["household_id"]
+        for field in ("asset_type", "symbol", "name", "country", "account", "institution", "currency", "notes", "tags", "status"):
+            if field in data:
+                setattr(holding, field, data[field])
+        if "interest_rate" in data:
+            holding.interest_rate = data["interest_rate"]
+        if "maturity_date" in data:
+            holding.maturity_date = date.fromisoformat(data["maturity_date"]) if data["maturity_date"] else None
+        if "is_private" in data:
+            holding.is_private = bool(data["is_private"])
+
+        db.session.commit()
+        [metrics] = list_holdings_with_metrics([holding])
+        return jsonify(metrics)
+
+    @app.route("/holdings/<int:holding_id>", methods=["DELETE"])
+    @require_auth
+    def delete_holding(holding_id):
+        holding = get_authorized_holding(holding_id, require_write=True)
+        db.session.delete(holding)
+        db.session.commit()
+        return jsonify({"message": "Holding deleted"}), 200
+
+    # ---------------- TRANSACTIONS (buy/sell ledger) ----------------
+
+    @app.route("/holdings/<int:holding_id>/transactions", methods=["GET"])
+    @require_auth
+    def list_holding_transactions(holding_id):
+        get_authorized_holding(holding_id)
+        txs = (
+            HoldingTransaction.query.filter_by(holding_id=holding_id)
+            .order_by(HoldingTransaction.transaction_date.desc())
+            .all()
+        )
+        return jsonify([t.to_dict() for t in txs])
+
+    @app.route("/holdings/<int:holding_id>/transactions", methods=["POST"])
+    @require_auth
+    def create_holding_transaction(holding_id):
+        holding = get_authorized_holding(holding_id, require_write=True)
+        data = request.get_json(force=True)
+        tx = HoldingTransaction(
+            holding_id=holding_id,
+            user_id=g.user_id,
+            transaction_type=data["transaction_type"],
+            transaction_date=date.fromisoformat(data["transaction_date"]),
+            quantity=safe_float(data["quantity"]),
+            price_per_unit=safe_float(data["price_per_unit"]),
+            currency=data.get("currency", holding.currency),
+            fees=safe_float(data.get("fees", 0)),
+            notes=data.get("notes"),
+        )
+        db.session.add(tx)
+        db.session.commit()
+        return jsonify(tx.to_dict()), 201
+
+    @app.route("/transactions/<int:transaction_id>", methods=["PUT"])
+    @require_auth
+    def update_transaction(transaction_id):
+        tx = get_authorized_transaction(transaction_id, require_write=True)
+        data = request.get_json(force=True)
+        if "transaction_type" in data:
+            tx.transaction_type = data["transaction_type"]
+        if "transaction_date" in data:
+            tx.transaction_date = date.fromisoformat(data["transaction_date"])
+        if "quantity" in data:
+            tx.quantity = safe_float(data["quantity"])
+        if "price_per_unit" in data:
+            tx.price_per_unit = safe_float(data["price_per_unit"])
+        if "fees" in data:
+            tx.fees = safe_float(data["fees"])
         if "notes" in data:
-            asset.notes = data.get("notes")
-        if "tags" in data:
-            asset.tags = data.get("tags")
-
+            tx.notes = data["notes"]
         db.session.commit()
+        return jsonify(tx.to_dict())
 
-        fetch_live = asset.asset_type in ("stock", "mutual_fund")
-        metrics = calculate_asset_metrics(asset, fetch_live_price=fetch_live)
-        return jsonify({**asset.to_dict(), **metrics})
-
-    # ---------------- DELETE ASSET ----------------
-
-    @app.route("/assets/<int:asset_id>", methods=["DELETE"])
+    @app.route("/transactions/<int:transaction_id>", methods=["DELETE"])
     @require_auth
-    def delete_asset(asset_id):
-        asset = get_authorized_asset(asset_id)
-        db.session.delete(asset)
+    def delete_transaction(transaction_id):
+        tx = get_authorized_transaction(transaction_id, require_write=True)
+        db.session.delete(tx)
         db.session.commit()
-        return jsonify({"message": "Asset deleted successfully"}), 200
+        return jsonify({"message": "Transaction deleted"}), 200
 
-    # ---------------- GET SINGLE ASSET ----------------
-
-    @app.route("/assets/<int:asset_id>", methods=["GET"])
+    @app.route("/transactions", methods=["GET"])
     @require_auth
-    def get_asset(asset_id):
-        asset = get_authorized_asset(asset_id)
-        fetch_live = asset.asset_type in ("stock", "mutual_fund")
-        metrics = calculate_asset_metrics(asset, fetch_live_price=fetch_live)
-        return jsonify({**asset.to_dict(), **metrics})
-
-    # ---------------- STOCKS ENDPOINT (derived from assets) ----------------
-
-    @app.route("/stocks", methods=["GET"])
-    @require_auth
-    def get_stocks():
-        """Stocks/mutual funds visible to the caller (own, or a shared household's)."""
+    def list_all_transactions():
+        """Global transaction log, filterable by asset type / date range / country."""
         household_id_param = request.args.get("household_id")
-        assets = scoped_asset_query(household_id_param).filter(
-            Asset.asset_type.in_(["stock", "mutual_fund"])
-        ).all()
-        results = []
-
-        for a in assets:
-            metrics = calculate_asset_metrics(a, fetch_live_price=True)
-
-            current_price = None
-            if a.symbol and a.units:
-                units = float(a.units) if a.units else 1.0
-                if units > 0 and metrics["current_value"] > 0:
-                    current_price = metrics["current_value"] / units
-                else:
-                    price = get_current_stock_price(a.symbol)
-                    current_price = float(price) if price else None
-
-            results.append(
-                {
-                    "id": a.id,
-                    "symbol": a.symbol,
-                    "ticker": a.symbol,
-                    "asset_type": a.asset_type,
-                    "units": float(a.units) if a.units else 0.0,
-                    "shares": float(a.units) if a.units else 0.0,
-                    "buy_price": float(a.buy_price) if a.buy_price else 0.0,
-                    "current_price": current_price,
-                    "buy_value": metrics["buy_value"],
-                    "current_value": metrics["current_value"],
-                    "market_value": metrics["current_value"],
-                    "profit": metrics["profit"],
-                    "profit_loss": metrics["profit"],
-                    "profit_pct": metrics["profit_pct"],
-                    "cagr": metrics["cagr"],
-                    "country": a.country,
-                    "account": a.account,
-                    "purchase_date": a.purchase_date.isoformat(),
-                    "created_at": a.created_at.isoformat(),
-                }
-            )
-
-        return jsonify(results)
-
-    # ---------------- DASHBOARD SUMMARY ----------------
-
-    @app.route("/summary", methods=["GET"])
-    @require_auth
-    def get_summary():
-        """
-        High-level dashboard summary and hierarchical aggregates for the caller's
-        accessible assets (own, or a shared household's via ?household_id=).
-        """
-        household_id_param = request.args.get("household_id")
-        query = scoped_asset_query(household_id_param)
+        holdings = scoped_holdings_query(household_id_param).all()
+        holdings_by_id = {h.id: h for h in holdings}
 
         asset_type = request.args.get("asset_type")
-        if asset_type:
-            query = query.filter(Asset.asset_type == asset_type)
-
         country = request.args.get("country")
-        if country:
-            query = query.filter(Asset.country == country)
-
-        assets = query.all()
-
-        total_net_worth = 0.0
-        total_stock_value = 0.0
-        total_property_value = 0.0
-        total_profit_loss = 0.0
-
-        grand_totals = {
-            "buy_value": 0.0,
-            "current_value": 0.0,
-            "profit": 0.0,
-            "profit_pct": 0.0,
-            "cagr": 0.0,
-        }
-
-        countries = {}
-
-        for a in assets:
-            fetch_live = a.asset_type in ("stock", "mutual_fund")
-            metrics = calculate_asset_metrics(a, fetch_live_price=fetch_live)
-            buy_value = metrics["buy_value"]
-            current_value = metrics["current_value"]
-            profit = metrics["profit"]
-
-            total_net_worth += current_value
-            total_profit_loss += profit
-            grand_totals["buy_value"] += buy_value
-            grand_totals["current_value"] += current_value
-            grand_totals["profit"] += profit
-
-            if a.asset_type in ("stock", "mutual_fund"):
-                total_stock_value += current_value
-            if a.asset_type in ("real_estate", "metal"):
-                total_property_value += current_value
-
-            country_name = a.country
-            account_name = a.account
-
-            country_entry = countries.setdefault(
-                country_name,
-                {
-                    "country": country_name,
-                    "totals": {
-                        "buy_value": 0.0,
-                        "current_value": 0.0,
-                        "profit": 0.0,
-                        "profit_pct": 0.0,
-                        "cagr": 0.0,
-                    },
-                    "accounts": {},
-                },
-            )
-
-            account_entry = country_entry["accounts"].setdefault(
-                account_name,
-                {
-                    "account": account_name,
-                    "totals": {
-                        "buy_value": 0.0,
-                        "current_value": 0.0,
-                        "profit": 0.0,
-                        "profit_pct": 0.0,
-                        "cagr": 0.0,
-                    },
-                    "per_stock": {},
-                },
-            )
-
-            for target in (country_entry["totals"], account_entry["totals"]):
-                target["buy_value"] += buy_value
-                target["current_value"] += current_value
-                target["profit"] += profit
-
-            if a.asset_type in ("stock", "mutual_fund"):
-                purchase_date = a.purchase_date or date.today()
-                symbol = a.symbol or f"asset_{a.id}"
-                stock_bucket = account_entry["per_stock"].setdefault(
-                    symbol,
-                    {
-                        "symbol": a.symbol,
-                        "asset_type": a.asset_type,
-                        "country": country_name,
-                        "account": account_name,
-                        "units": 0.0,
-                        "buy_value": 0.0,
-                        "current_value": 0.0,
-                        "profit": 0.0,
-                        "profit_pct": 0.0,
-                        "cagr": 0.0,
-                        "earliest_purchase_date": purchase_date,
-                        "buy_price": 0.0,
-                        "current_price": 0.0,
-                    },
-                )
-
-                stock_bucket["units"] += float(a.units or 0.0)
-                stock_bucket["buy_value"] += buy_value
-                stock_bucket["current_value"] += current_value
-                stock_bucket["profit"] += profit
-
-                if purchase_date < stock_bucket["earliest_purchase_date"]:
-                    stock_bucket["earliest_purchase_date"] = purchase_date
-
-        def finalize_totals(t):
-            if t["buy_value"]:
-                t["profit_pct"] = (t["profit"] / t["buy_value"]) * 100.0
-                earliest_date = min(
-                    (a.purchase_date for a in assets if a.purchase_date),
-                    default=date.today(),
-                )
-                t["cagr"] = calculate_cagr(
-                    abs(t["buy_value"]), abs(t["current_value"]), earliest_date
-                )
-
-        finalize_totals(grand_totals)
-
-        for country_entry in countries.values():
-            finalize_totals(country_entry["totals"])
-
-            for account_entry in country_entry["accounts"].values():
-                finalize_totals(account_entry["totals"])
-
-                for stock_bucket in account_entry["per_stock"].values():
-                    units = stock_bucket["units"] or 0.0
-                    if units:
-                        stock_bucket["buy_price"] = stock_bucket["buy_value"] / units
-                        stock_bucket["current_price"] = stock_bucket["current_value"] / units
-
-                    if stock_bucket["buy_value"]:
-                        stock_bucket["profit_pct"] = (
-                            stock_bucket["profit"] / stock_bucket["buy_value"]
-                        ) * 100.0
-                        stock_bucket["cagr"] = calculate_cagr(
-                            abs(stock_bucket["buy_value"]),
-                            abs(stock_bucket["current_value"]),
-                            stock_bucket["earliest_purchase_date"],
-                        )
-
-                account_entry["per_stock"] = list(account_entry["per_stock"].values())
-
-            country_entry["accounts"] = list(country_entry["accounts"].values())
-
-        countries_list = list(countries.values())
-
-        return jsonify(
-            {
-                "total_net_worth": total_net_worth,
-                "total_stock_value": total_stock_value,
-                "total_property_value": total_property_value,
-                "total_profit_loss": total_profit_loss,
-                "grand_totals": grand_totals,
-                "countries": countries_list,
-            }
-        )
-
-    # ---------------- ANALYTICS (TIME SERIES & HISTOGRAMS) ----------------
-
-    @app.route("/analytics", methods=["GET"])
-    @require_auth
-    def get_analytics():
-        """
-        Returns net worth/assets over time, allocation pie, and CAGR histogram
-        for the caller's accessible assets (own, or a shared household's).
-
-        NOTE: net_worth_over_time here is still the backward-projection estimate
-        (today's valuations applied back to each asset's purchase date), not the
-        real daily net_worth_snapshots history. The frontend prefers real
-        snapshot data when enough of it exists and falls back to this.
-        """
-        household_id_param = request.args.get("household_id")
-        assets = scoped_asset_query(household_id_param).order_by(Asset.purchase_date.asc()).all()
-
-        per_asset = []
-        for a in assets:
-            fetch_live = a.asset_type in ("stock", "mutual_fund")
-            metrics = calculate_asset_metrics(a, fetch_live_price=fetch_live)
-            purchase_date = a.purchase_date or date.today()
-            per_asset.append(
-                {
-                    "asset": a,
-                    "buy_value": metrics["buy_value"],
-                    "current_value": metrics["current_value"],
-                    "profit": metrics["profit"],
-                    "cagr": metrics["cagr"],
-                    "purchase_date": purchase_date,
-                }
-            )
-
-        unique_dates = sorted(
-            {item["purchase_date"] for item in per_asset if item["purchase_date"]}
-        )
-        net_worth_over_time = []
-
-        for d in unique_dates:
-            net_worth = 0.0
-            assets_value = 0.0
-            for item in per_asset:
-                if item["purchase_date"] <= d:
-                    net_worth += item["current_value"]
-                    assets_value += item["buy_value"]
-            net_worth_over_time.append(
-                {"date": d.isoformat(), "net_worth": net_worth, "assets_value": assets_value}
-            )
-
-        allocation_map = {}
-        for item in per_asset:
-            asset_type = item["asset"].asset_type
-            allocation_map.setdefault(asset_type, 0.0)
-            allocation_map[asset_type] += item["current_value"]
-
-        allocation = [
-            {"label": asset_type, "value": value} for asset_type, value in allocation_map.items()
+        matching_ids = [
+            h.id for h in holdings
+            if (not asset_type or h.asset_type == asset_type)
+            and (not country or h.country == country)
         ]
 
-        cagr_histogram = []
-        for item in per_asset:
-            a = item["asset"]
-            label = a.symbol or a.name or a.institution or f"Asset #{a.id}"
-            cagr_histogram.append(
-                {
-                    "label": label,
-                    "asset_type": a.asset_type,
-                    "country": a.country,
-                    "account": a.account,
-                    "cagr": item["cagr"],
-                }
-            )
+        query = HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(matching_ids))
 
-        return jsonify(
-            {
-                "net_worth_over_time": net_worth_over_time,
-                "allocation": allocation,
-                "cagr_histogram": cagr_histogram,
-            }
+        date_from = request.args.get("date_from")
+        if date_from:
+            query = query.filter(HoldingTransaction.transaction_date >= date.fromisoformat(date_from))
+        date_to = request.args.get("date_to")
+        if date_to:
+            query = query.filter(HoldingTransaction.transaction_date <= date.fromisoformat(date_to))
+
+        txs = query.order_by(HoldingTransaction.transaction_date.desc()).all()
+        results = []
+        for t in txs:
+            holding = holdings_by_id.get(t.holding_id)
+            results.append({
+                **t.to_dict(),
+                "holding_name": holding.name if holding else None,
+                "holding_symbol": holding.symbol if holding else None,
+                "asset_type": holding.asset_type if holding else None,
+                "country": holding.country if holding else None,
+            })
+        return jsonify(results)
+
+    # ---------------- VALUATIONS (non-tradeable holdings) ----------------
+
+    @app.route("/holdings/<int:holding_id>/valuations", methods=["GET"])
+    @require_auth
+    def list_holding_valuations(holding_id):
+        get_authorized_holding(holding_id)
+        vals = (
+            HoldingValuation.query.filter_by(holding_id=holding_id)
+            .order_by(HoldingValuation.valuation_date.desc())
+            .all()
         )
+        return jsonify([v.to_dict() for v in vals])
+
+    @app.route("/holdings/<int:holding_id>/valuations", methods=["POST"])
+    @require_auth
+    def create_holding_valuation(holding_id):
+        holding = get_authorized_holding(holding_id, require_write=True)
+        data = request.get_json(force=True)
+        val = HoldingValuation(
+            holding_id=holding_id,
+            user_id=g.user_id,
+            valuation_date=date.fromisoformat(data["valuation_date"]),
+            value=safe_float(data["value"]),
+            currency=data.get("currency", holding.currency),
+            notes=data.get("notes"),
+        )
+        db.session.add(val)
+        db.session.commit()
+        return jsonify(val.to_dict()), 201
+
+    @app.route("/valuations/<int:valuation_id>", methods=["DELETE"])
+    @require_auth
+    def delete_valuation(valuation_id):
+        val = HoldingValuation.query.get_or_404(valuation_id)
+        get_authorized_holding(val.holding_id, require_write=True)
+        db.session.delete(val)
+        db.session.commit()
+        return jsonify({"message": "Valuation deleted"}), 200
+
+    # ---------------- PRICE HISTORY / LOOKUP ----------------
+
+    @app.route("/holdings/<int:holding_id>/price-history", methods=["GET"])
+    @require_auth
+    def get_holding_price_history(holding_id):
+        holding = get_authorized_holding(holding_id)
+        if holding.asset_type not in ("stock", "mutual_fund", "crypto", "commodity") or not holding.symbol:
+            return jsonify([])
+        rows = (
+            PriceHistory.query.filter_by(asset_type=holding.asset_type, symbol=holding.symbol)
+            .order_by(PriceHistory.price_date.asc())
+            .all()
+        )
+        return jsonify([r.to_dict() for r in rows])
+
+    @app.route("/price-lookup", methods=["GET"])
+    @require_auth
+    def price_lookup():
+        """Used by the Add Transaction form's 'fetch historical price' button."""
+        asset_type = request.args.get("asset_type", "")
+        symbol = request.args.get("symbol", "")
+        target_date = request.args.get("date")
+        currency = request.args.get("currency", "USD")
+        if not asset_type or not symbol:
+            return jsonify({"error": "asset_type and symbol are required"}), 400
+
+        if target_date:
+            price = price_service.get_historical_price(asset_type, symbol, date.fromisoformat(target_date), currency)
+        else:
+            price = price_service.get_current_price(asset_type, symbol, currency)
+
+        return jsonify({"price": price})
+
+    # ---------------- DASHBOARD ----------------
+
+    @app.route("/dashboard", methods=["GET"])
+    @require_auth
+    def get_dashboard():
+        household_id_param = request.args.get("household_id")
+        display_currency = request.args.get("currency", "USD").upper()
+        holdings = scoped_holdings_query(household_id_param).all()
+        holdings_by_id = {h.id: h for h in holdings}
+        holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency=display_currency)
+        return jsonify(build_dashboard(holdings_with_metrics, holdings_by_id, display_currency=display_currency))
+
+    # ---------------- EXCHANGE RATES ----------------
+
+    @app.route("/exchange-rates", methods=["GET"])
+    @require_auth
+    def get_exchange_rates():
+        base = request.args.get("base", "USD").upper()
+        targets = ["USD", "INR", "AUD"]
+        rates = {t: (1.0 if t == base else price_service.get_rate(base, t)) for t in targets}
+        return jsonify({"base": base, "rates": rates})
 
     # ---------------- NET WORTH HISTORY (real daily snapshots) ----------------
 
@@ -582,7 +415,9 @@ def create_app():
     @require_auth
     def list_households_route():
         households = list_my_households(g.user_id)
-        return jsonify([h.to_dict() for h in households])
+        return jsonify([
+            {**h.to_dict(), "my_role": get_role(str(h.id), g.user_id)} for h in households
+        ])
 
     @app.route("/households/<uuid:household_id>/members", methods=["GET"])
     @require_auth
@@ -596,13 +431,16 @@ def create_app():
     @require_auth
     def create_invite_route(household_id):
         household_id = str(household_id)
-        if household_id not in get_member_household_ids(g.user_id):
-            abort(403)
+        if not can_edit_household(household_id, g.user_id):
+            abort(403, description="Only the owner or an editor can invite members")
         data = request.get_json(force=True)
         email = (data.get("email") or "").strip()
+        role = data.get("role", "editor")
         if not email:
             return jsonify({"error": "email is required"}), 400
-        invite = create_invite(household_id, g.user_id, email)
+        if role not in ("editor", "viewer"):
+            return jsonify({"error": "role must be 'editor' or 'viewer'"}), 400
+        invite = create_invite(household_id, g.user_id, email, role=role)
         return jsonify(invite.to_dict()), 201
 
     @app.route("/invites", methods=["GET"])
@@ -639,7 +477,7 @@ def create_app():
             return jsonify({"error": str(e)}), 403
         return jsonify({"message": "Member removed"})
 
-    # ---------------- INTERNAL: DAILY SNAPSHOT TRIGGER ----------------
+    # ---------------- INTERNAL: DAILY SNAPSHOT / WEEKLY DIGEST TRIGGERS ----------------
 
     @app.route("/internal/snapshot", methods=["POST"])
     def trigger_snapshot():
@@ -650,6 +488,19 @@ def create_app():
             return jsonify({"error": "Unauthorized"}), 401
         result = snapshot_all_users()
         return jsonify(result), 200
+
+    @app.route("/internal/weekly-digest", methods=["POST"])
+    def trigger_weekly_digest():
+        """Called weekly by a GitHub Actions cron workflow. Computes a real
+        digest per user/household but only logs/returns it — actual email
+        delivery needs a provider (Resend/SendGrid/SES) and is deferred."""
+        provided = request.headers.get("X-Snapshot-Secret")
+        if not DIGEST_SECRET or provided != DIGEST_SECRET:
+            return jsonify({"error": "Unauthorized"}), 401
+        digests = build_weekly_digest()
+        for d in digests:
+            print(f"[weekly-digest] {d}")
+        return jsonify({"digests_built": len(digests), "sent": False, "note": "email delivery not yet configured"}), 200
 
     # ---------------- SEARCH SYMBOLS (AUTOCOMPLETE) ----------------
 
@@ -708,6 +559,25 @@ def create_app():
                     unique_results.append(result)
 
         return jsonify(unique_results[:20])
+
+    @app.route("/search-crypto", methods=["GET"])
+    @require_auth
+    def search_crypto():
+        """Search CoinGecko's coin list for the Add Holding form's crypto autocomplete."""
+        query = request.args.get("q", "").strip().lower()
+        if not query:
+            return jsonify([])
+        try:
+            response = requests.get("https://api.coingecko.com/api/v3/search", params={"query": query}, timeout=5)
+            response.raise_for_status()
+            coins = response.json().get("coins", [])[:10]
+            return jsonify([
+                {"symbol": c["id"], "displaySymbol": c.get("symbol", "").upper(), "description": c.get("name", "")}
+                for c in coins
+            ])
+        except Exception as e:
+            print(f"CoinGecko search failed: {e}")
+            return jsonify([])
 
     def _search_finnhub_symbols(query):
         if not FINNHUB_API_KEY:

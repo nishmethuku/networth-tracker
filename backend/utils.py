@@ -359,6 +359,158 @@ def _fetch_price_with_fallbacks(ticker: str, asset_type: str = None):
             price = _get_price_from_finnhub(ticker)
             if price:
                 return price
-    
+
     # No price found
     return None
+
+
+# ---------------------------------------------------------------------------
+# Crypto (CoinGecko — free, keyless), commodities (metals-api.com — free key),
+# and FX (frankfurter.app — free, keyless). Same in-memory 5-minute cache
+# pattern as the stock price fetching above; persistent caching into
+# price_history/exchange_rates is layered on top in price_service.py.
+# ---------------------------------------------------------------------------
+
+METALS_API_KEY = os.environ.get("METALS_API_KEY")
+
+# metals-api.com symbol for each supported commodity
+METAL_SYMBOLS = {"gold": "XAU", "silver": "XAG", "platinum": "XPT"}
+
+
+def get_crypto_price(coingecko_id: str, currency: str = "usd"):
+    """Live price for a CoinGecko coin id (e.g. 'bitcoin', 'ethereum') in the
+    given currency. Free public endpoint, no API key required."""
+    coingecko_id = (coingecko_id or "").strip().lower()
+    currency = (currency or "usd").strip().lower()
+    if not coingecko_id:
+        return None
+
+    cache_key = f"crypto_{coingecko_id}_{currency}"
+    current_time = time()
+    if cache_key in _PRICE_CACHE:
+        cached_price, cached_time = _PRICE_CACHE[cache_key]
+        if current_time - cached_time < _CACHE_TTL:
+            return cached_price
+
+    try:
+        response = requests.get(
+            "https://api.coingecko.com/api/v3/simple/price",
+            params={"ids": coingecko_id, "vs_currencies": currency},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+        price = data.get(coingecko_id, {}).get(currency)
+        if price is None:
+            return None
+        price = float(price)
+        _PRICE_CACHE[cache_key] = (price, current_time)
+        return price
+    except Exception as e:
+        print(f"CoinGecko price fetch failed for {coingecko_id}: {e}")
+        return None
+
+
+def get_crypto_historical_price(coingecko_id: str, target_date: date, currency: str = "usd"):
+    """Historical price for a CoinGecko coin on a specific date."""
+    coingecko_id = (coingecko_id or "").strip().lower()
+    if not coingecko_id:
+        return None
+    try:
+        response = requests.get(
+            f"https://api.coingecko.com/api/v3/coins/{coingecko_id}/history",
+            params={"date": target_date.strftime("%d-%m-%Y"), "localization": "false"},
+            timeout=8,
+        )
+        response.raise_for_status()
+        data = response.json()
+        price = data.get("market_data", {}).get("current_price", {}).get(currency.lower())
+        return float(price) if price is not None else None
+    except Exception as e:
+        print(f"CoinGecko historical price fetch failed for {coingecko_id}: {e}")
+        return None
+
+
+def get_metal_price(metal: str, currency: str = "USD"):
+    """
+    Live price for one troy ounce of gold/silver/platinum, via metals-api.com.
+    Requires METALS_API_KEY (free tier). Returns None if the key isn't set
+    or the request fails — callers should treat that as "price unavailable",
+    same as an unconfigured FINNHUB_API_KEY.
+    """
+    if not METALS_API_KEY:
+        return None
+
+    symbol = METAL_SYMBOLS.get((metal or "").strip().lower())
+    if not symbol:
+        return None
+
+    currency = (currency or "USD").strip().upper()
+    cache_key = f"metal_{symbol}_{currency}"
+    current_time = time()
+    if cache_key in _PRICE_CACHE:
+        cached_price, cached_time = _PRICE_CACHE[cache_key]
+        if current_time - cached_time < _CACHE_TTL:
+            return cached_price
+
+    try:
+        response = requests.get(
+            "https://metals-api.com/api/latest",
+            params={"access_key": METALS_API_KEY, "base": currency, "symbols": symbol},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if not data.get("success", True) and "rates" not in data:
+            print(f"metals-api error: {data.get('error')}")
+            return None
+        # metals-api returns rates as "units of the metal per 1 unit of base
+        # currency" (a troy-oz fraction), not a price — invert to get price.
+        rate = data.get("rates", {}).get(symbol)
+        if not rate or rate <= 0:
+            return None
+        price = 1.0 / float(rate)
+        _PRICE_CACHE[cache_key] = (price, current_time)
+        return price
+    except Exception as e:
+        print(f"metals-api price fetch failed for {metal}: {e}")
+        return None
+
+
+def get_exchange_rate(from_currency: str, to_currency: str, target_date: date = None):
+    """
+    FX rate (1 from_currency = X to_currency) via frankfurter.app — free,
+    keyless, ECB-based. target_date=None fetches the latest rate.
+    """
+    from_currency = (from_currency or "").strip().upper()
+    to_currency = (to_currency or "").strip().upper()
+    if not from_currency or not to_currency:
+        return None
+    if from_currency == to_currency:
+        return 1.0
+
+    cache_key = f"fx_{from_currency}_{to_currency}_{target_date or 'latest'}"
+    current_time = time()
+    if cache_key in _PRICE_CACHE:
+        cached_rate, cached_time = _PRICE_CACHE[cache_key]
+        if current_time - cached_time < _CACHE_TTL:
+            return cached_rate
+
+    try:
+        path = target_date.isoformat() if target_date else "latest"
+        response = requests.get(
+            f"https://api.frankfurter.app/{path}",
+            params={"from": from_currency, "to": to_currency},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+        rate = data.get("rates", {}).get(to_currency)
+        if rate is None:
+            return None
+        rate = float(rate)
+        _PRICE_CACHE[cache_key] = (rate, current_time)
+        return rate
+    except Exception as e:
+        print(f"frankfurter.app FX fetch failed for {from_currency}->{to_currency}: {e}")
+        return None

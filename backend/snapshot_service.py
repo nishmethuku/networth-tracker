@@ -1,36 +1,39 @@
 """
-Daily net worth snapshot computation.
-Called by the /internal/snapshot endpoint, which a scheduled job (GitHub
-Actions cron) hits once a day. Upserts so a manual re-run for the same day
-is safe.
+Daily net worth snapshot computation. Called by the /internal/snapshot
+endpoint, which a scheduled job (GitHub Actions cron) hits once a day.
+Upserts so a manual re-run for the same day is safe.
 """
 from datetime import date
 from typing import Optional
 
-from .models import db, Asset, NetWorthSnapshot
-from .services import calculate_asset_metrics
+from .models import db, Holding, NetWorthSnapshot
+from .holdings_service import list_holdings_with_metrics, QUANTITY_BASED_TYPES
 
 
-def _compute_totals(assets):
+def _compute_totals(holdings):
+    holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency="USD")
+
     total_net_worth = 0.0
     total_stock_value = 0.0
     total_property_value = 0.0
     total_profit_loss = 0.0
     by_asset_type = {}
 
-    for a in assets:
-        fetch_live = a.asset_type in ("stock", "mutual_fund")
-        metrics = calculate_asset_metrics(a, fetch_live_price=fetch_live)
-        current_value = metrics["current_value"]
-
+    for h in holdings_with_metrics:
+        current_value = h["display_value"]
         total_net_worth += current_value
-        total_profit_loss += metrics["profit"]
-        if a.asset_type in ("stock", "mutual_fund"):
+
+        if h["asset_type"] in ("stock", "mutual_fund"):
             total_stock_value += current_value
-        if a.asset_type in ("real_estate", "metal"):
+        if h["asset_type"] == "real_estate":
             total_property_value += current_value
 
-        by_asset_type[a.asset_type] = by_asset_type.get(a.asset_type, 0.0) + current_value
+        if h["asset_type"] in QUANTITY_BASED_TYPES:
+            total_profit_loss += h.get("total_gain", 0.0)
+        else:
+            total_profit_loss += h.get("gain", 0.0)
+
+        by_asset_type[h["asset_type"]] = by_asset_type.get(h["asset_type"], 0.0) + current_value
 
     return {
         "total_net_worth": round(total_net_worth, 2),
@@ -62,23 +65,23 @@ def _upsert_snapshot(user_id, household_id, snapshot_date, totals):
 
 
 def snapshot_all_users(snapshot_date: Optional[date] = None):
-    """Compute and store one snapshot row per user with assets, and one per
-    household with shared assets, for the given date (default: today)."""
+    """Compute and store one snapshot row per user with holdings, and one per
+    household with shared holdings, for the given date (default: today)."""
     snapshot_date = snapshot_date or date.today()
 
-    user_ids = [row[0] for row in db.session.query(Asset.user_id).distinct()]
+    user_ids = [row[0] for row in db.session.query(Holding.user_id).distinct()]
     for user_id in user_ids:
-        assets = Asset.query.filter_by(user_id=user_id).all()
-        totals = _compute_totals(assets)
+        holdings = Holding.query.filter_by(user_id=user_id).all()
+        totals = _compute_totals(holdings)
         _upsert_snapshot(user_id=user_id, household_id=None, snapshot_date=snapshot_date, totals=totals)
 
     household_ids = [
         row[0] for row in
-        db.session.query(Asset.household_id).filter(Asset.household_id.isnot(None)).distinct()
+        db.session.query(Holding.household_id).filter(Holding.household_id.isnot(None)).distinct()
     ]
     for household_id in household_ids:
-        assets = Asset.query.filter_by(household_id=household_id).all()
-        totals = _compute_totals(assets)
+        holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
+        totals = _compute_totals(holdings)
         _upsert_snapshot(user_id=None, household_id=household_id, snapshot_date=snapshot_date, totals=totals)
 
     db.session.commit()

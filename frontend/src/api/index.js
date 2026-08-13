@@ -3,122 +3,151 @@
  */
 
 import api from "./client";
-import { mapAsset, mapSummary, mapAnalytics } from "./mappers";
-import { safeNumber } from "../utils/formatters";
+import {
+  mapHolding,
+  mapTransaction,
+  mapValuation,
+  mapDashboard,
+  mapNetWorthHistory,
+  mapPriceHistory,
+} from "./mappers";
 
 /**
- * Fetch all assets with optional filters
- * @param {Object} filters - Optional filters {assetType, country, account, tag}
+ * Holdings
  */
-export async function fetchAssets(filters = {}) {
-  const params = new URLSearchParams();
-  if (filters.assetType) params.append("asset_type", filters.assetType);
-  if (filters.country) params.append("country", filters.country);
-  if (filters.account) params.append("account", filters.account);
-  if (filters.tag) params.append("tag", filters.tag);
-  if (filters.householdId) params.append("household_id", filters.householdId);
-
-  const endpoint = params.toString() ? `/assets?${params.toString()}` : "/assets";
-  const data = await api.get(endpoint);
-  return (data || []).map(mapAsset);
-}
-
-/**
- * Fetch dashboard summary
- */
-export async function fetchSummary(filters = {}) {
+export async function fetchHoldings(filters = {}) {
   const params = new URLSearchParams();
   if (filters.assetType) params.append("asset_type", filters.assetType);
   if (filters.country) params.append("country", filters.country);
   if (filters.householdId) params.append("household_id", filters.householdId);
-  const endpoint = params.toString() ? `/summary?${params.toString()}` : "/summary";
+  if (filters.currency) params.append("currency", filters.currency);
+  const endpoint = params.toString() ? `/holdings?${params.toString()}` : "/holdings";
   const data = await api.get(endpoint);
-  return mapSummary(data);
+  return (data || []).map(mapHolding);
+}
+
+export async function fetchHolding(id, currency = "USD") {
+  const data = await api.get(`/holdings/${id}?currency=${currency}`);
+  return mapHolding(data);
+}
+
+export async function createHolding(payload) {
+  const data = await api.post("/holdings", payload);
+  return mapHolding(data);
+}
+
+export async function updateHolding(id, payload) {
+  const data = await api.put(`/holdings/${id}`, payload);
+  return mapHolding(data);
+}
+
+export async function deleteHolding(id) {
+  await api.delete(`/holdings/${id}`);
 }
 
 /**
- * Fetch analytics data
+ * Transactions (buy/sell ledger for stock/mutual_fund/crypto/commodity)
  */
-export async function fetchAnalytics(householdId = null) {
-  const endpoint = householdId ? `/analytics?household_id=${householdId}` : "/analytics";
+export async function fetchHoldingTransactions(holdingId) {
+  const data = await api.get(`/holdings/${holdingId}/transactions`);
+  return (data || []).map(mapTransaction);
+}
+
+export async function createTransaction(holdingId, payload) {
+  const data = await api.post(`/holdings/${holdingId}/transactions`, payload);
+  return mapTransaction(data);
+}
+
+export async function updateTransaction(id, payload) {
+  const data = await api.put(`/transactions/${id}`, payload);
+  return mapTransaction(data);
+}
+
+export async function deleteTransaction(id) {
+  await api.delete(`/transactions/${id}`);
+}
+
+export async function fetchAllTransactions(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.assetType) params.append("asset_type", filters.assetType);
+  if (filters.country) params.append("country", filters.country);
+  if (filters.householdId) params.append("household_id", filters.householdId);
+  if (filters.dateFrom) params.append("date_from", filters.dateFrom);
+  if (filters.dateTo) params.append("date_to", filters.dateTo);
+  const endpoint = params.toString() ? `/transactions?${params.toString()}` : "/transactions";
   const data = await api.get(endpoint);
-  return mapAnalytics(data);
+  return (data || []).map(mapTransaction);
 }
 
 /**
- * Fetch stocks (uses dedicated /stocks endpoint)
+ * Valuations (periodic value/balance entries for real_estate/fixed_deposit/ppf/epf/cash/loan)
  */
-export async function fetchStocks() {
-  const data = await api.get("/stocks");
-  // The /stocks endpoint returns already-formatted stock data
-  return (data || []).map((stock) => ({
-    id: stock.id ?? null,
-    symbol: stock.symbol ?? stock.ticker ?? null,
-    ticker: stock.ticker ?? stock.symbol ?? null,
-    assetType: stock.asset_type ?? "stock",
-    units: safeNumber(stock.units ?? stock.shares),
-    shares: safeNumber(stock.shares ?? stock.units),
-    buyPrice: safeNumber(stock.buy_price),
-    currentPrice: safeNumber(stock.current_price),
-    buyValue: safeNumber(stock.buy_value),
-    currentValue: safeNumber(stock.current_value),
-    marketValue: safeNumber(stock.market_value ?? stock.current_value),
-    profit: safeNumber(stock.profit),
-    profitLoss: safeNumber(stock.profit_loss ?? stock.profit),
-    profitPercent: safeNumber(stock.profit_pct),
-    cagr: safeNumber(stock.cagr),
-    country: stock.country ?? "",
-    account: stock.account ?? "",
-    purchaseDate: stock.purchase_date ?? "",
-    createdAt: stock.created_at ?? "",
-  }));
+export async function fetchHoldingValuations(holdingId) {
+  const data = await api.get(`/holdings/${holdingId}/valuations`);
+  return (data || []).map(mapValuation);
+}
+
+export async function createValuation(holdingId, payload) {
+  const data = await api.post(`/holdings/${holdingId}/valuations`, payload);
+  return mapValuation(data);
+}
+
+export async function deleteValuation(id) {
+  await api.delete(`/valuations/${id}`);
 }
 
 /**
- * Create a new asset
+ * Price history / lookup
  */
-export async function createAsset(assetData) {
-  const data = await api.post("/assets", assetData);
-  return mapAsset(data);
+export async function fetchHoldingPriceHistory(holdingId) {
+  const data = await api.get(`/holdings/${holdingId}/price-history`);
+  return mapPriceHistory(data);
+}
+
+export async function priceLookup({ assetType, symbol, date, currency = "USD" }) {
+  const params = new URLSearchParams({ asset_type: assetType, symbol, currency });
+  if (date) params.append("date", date);
+  const data = await api.get(`/price-lookup?${params.toString()}`);
+  return data?.price ?? null;
 }
 
 /**
- * Update an asset
+ * Dashboard / net worth history / exchange rates
  */
-export async function updateAsset(id, assetData) {
-  const data = await api.put(`/assets/${id}`, assetData);
-  return mapAsset(data);
+export async function fetchDashboard(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.householdId) params.append("household_id", filters.householdId);
+  if (filters.currency) params.append("currency", filters.currency);
+  const endpoint = params.toString() ? `/dashboard?${params.toString()}` : "/dashboard";
+  const data = await api.get(endpoint);
+  return mapDashboard(data);
+}
+
+export async function fetchNetWorthHistory(householdId = null) {
+  const endpoint = householdId ? `/net-worth-history?household_id=${householdId}` : "/net-worth-history";
+  const data = await api.get(endpoint);
+  return mapNetWorthHistory(data);
+}
+
+export async function fetchExchangeRates(base = "USD") {
+  return api.get(`/exchange-rates?base=${base}`);
 }
 
 /**
- * Delete an asset
- */
-export async function deleteAsset(id) {
-  await api.delete(`/assets/${id}`);
-}
-
-/**
- * Fetch a single asset by ID
- */
-export async function fetchAsset(id) {
-  const assets = await fetchAssets();
-  return assets.find((a) => a.id === parseInt(id)) || null;
-}
-
-/**
- * Search for stock symbols (autocomplete)
- * @param {string} query - Search query
- * @param {string} country - Optional country filter
- * @param {string} assetType - Optional asset type filter (e.g., "mutual_fund", "stock")
+ * Symbol search (autocomplete)
  */
 export async function searchSymbols(query, country = "", assetType = "") {
-  if (!query || query.trim().length < 1) {
-    return [];
-  }
+  if (!query || query.trim().length < 1) return [];
   const params = new URLSearchParams({ q: query.trim() });
   if (country) params.append("country", country);
   if (assetType) params.append("asset_type", assetType);
   const data = await api.get(`/search-symbols?${params.toString()}`);
+  return data || [];
+}
+
+export async function searchCrypto(query) {
+  if (!query || query.trim().length < 1) return [];
+  const data = await api.get(`/search-crypto?q=${encodeURIComponent(query.trim())}`);
   return data || [];
 }
 
@@ -137,8 +166,8 @@ export async function fetchHouseholdMembers(householdId) {
   return (await api.get(`/households/${householdId}/members`)) || [];
 }
 
-export async function inviteToHousehold(householdId, email) {
-  return api.post(`/households/${householdId}/invites`, { email });
+export async function inviteToHousehold(householdId, email, role = "editor") {
+  return api.post(`/households/${householdId}/invites`, { email, role });
 }
 
 export async function fetchMyInvites() {
@@ -155,16 +184,6 @@ export async function leaveHousehold(householdId) {
 
 export async function removeHouseholdMember(householdId, userId) {
   return api.delete(`/households/${householdId}/members/${userId}`);
-}
-
-/**
- * Real daily net worth history (from net_worth_snapshots)
- */
-export async function fetchNetWorthHistory(householdId = null) {
-  const endpoint = householdId
-    ? `/net-worth-history?household_id=${householdId}`
-    : "/net-worth-history";
-  return (await api.get(endpoint)) || [];
 }
 
 export { api } from "./client";

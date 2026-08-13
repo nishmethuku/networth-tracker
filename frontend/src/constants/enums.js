@@ -4,41 +4,57 @@
  */
 
 export const ASSET_TYPES = {
-  CASH: "cash",
   STOCK: "stock",
   MUTUAL_FUND: "mutual_fund",
+  CRYPTO: "crypto",
+  COMMODITY: "commodity",
   REAL_ESTATE: "real_estate",
-  METAL: "metal",
-  DEPOSIT: "deposit",
+  FIXED_DEPOSIT: "fixed_deposit",
+  PPF: "ppf",
+  EPF: "epf",
+  CASH: "cash",
   LOAN: "loan",
 };
 
 export const ASSET_TYPE_LABELS = {
-  [ASSET_TYPES.CASH]: "Cash",
-  [ASSET_TYPES.STOCK]: "Stock",
-  [ASSET_TYPES.MUTUAL_FUND]: "Mutual Fund",
+  [ASSET_TYPES.STOCK]: "Stocks",
+  [ASSET_TYPES.MUTUAL_FUND]: "Mutual Funds",
+  [ASSET_TYPES.CRYPTO]: "Crypto",
+  [ASSET_TYPES.COMMODITY]: "Gold & Metals",
   [ASSET_TYPES.REAL_ESTATE]: "Real Estate",
-  [ASSET_TYPES.METAL]: "Metal",
-  [ASSET_TYPES.DEPOSIT]: "Deposit",
-  [ASSET_TYPES.LOAN]: "Loan",
+  [ASSET_TYPES.FIXED_DEPOSIT]: "Fixed Deposits",
+  [ASSET_TYPES.PPF]: "PPF",
+  [ASSET_TYPES.EPF]: "EPF",
+  [ASSET_TYPES.CASH]: "Cash & Bank Accounts",
+  [ASSET_TYPES.LOAN]: "Loans",
 };
 
-// Create options array with specific order as requested
-export const ASSET_TYPE_OPTIONS = [
-  { value: ASSET_TYPES.CASH, label: ASSET_TYPE_LABELS[ASSET_TYPES.CASH] },
-  { value: ASSET_TYPES.STOCK, label: ASSET_TYPE_LABELS[ASSET_TYPES.STOCK] },
-  { value: ASSET_TYPES.MUTUAL_FUND, label: ASSET_TYPE_LABELS[ASSET_TYPES.MUTUAL_FUND] },
-  { value: ASSET_TYPES.REAL_ESTATE, label: ASSET_TYPE_LABELS[ASSET_TYPES.REAL_ESTATE] },
-  { value: ASSET_TYPES.METAL, label: ASSET_TYPE_LABELS[ASSET_TYPES.METAL] },
-  { value: ASSET_TYPES.DEPOSIT, label: ASSET_TYPE_LABELS[ASSET_TYPES.DEPOSIT] },
-  { value: ASSET_TYPES.LOAN, label: ASSET_TYPE_LABELS[ASSET_TYPES.LOAN] },
+// Types that track buy/sell transactions (quantity + price per unit)
+export const QUANTITY_BASED_TYPES = [
+  ASSET_TYPES.STOCK,
+  ASSET_TYPES.MUTUAL_FUND,
+  ASSET_TYPES.CRYPTO,
+  ASSET_TYPES.COMMODITY,
 ];
 
-export const COUNTRIES = [
-  "Australia",
-  "United States",
-  "India",
+// Types that track periodic value updates instead (no "buy/sell", just a balance/value)
+export const VALUATION_BASED_TYPES = [
+  ASSET_TYPES.REAL_ESTATE,
+  ASSET_TYPES.FIXED_DEPOSIT,
+  ASSET_TYPES.PPF,
+  ASSET_TYPES.EPF,
+  ASSET_TYPES.CASH,
+  ASSET_TYPES.LOAN,
 ];
+
+export const ASSET_TYPE_OPTIONS = Object.values(ASSET_TYPES).map((value) => ({
+  value,
+  label: ASSET_TYPE_LABELS[value],
+}));
+
+export const COUNTRIES = ["Australia", "United States", "India"];
+
+export const CURRENCIES = ["USD", "INR", "AUD"];
 
 export const ACCOUNT_TYPES = [
   "Brokerage",
@@ -49,10 +65,19 @@ export const ACCOUNT_TYPES = [
   "Other",
 ];
 
+export const HOUSEHOLD_ROLES = [
+  { value: "editor", label: "Editor — can add and edit" },
+  { value: "viewer", label: "Viewer — can only see" },
+];
+
 export function isValidAssetType(value) {
   return Object.values(ASSET_TYPES).includes(value);
 }
 
 export function getAssetTypeLabel(value) {
   return ASSET_TYPE_LABELS[value] || value;
+}
+
+export function isQuantityBased(assetType) {
+  return QUANTITY_BASED_TYPES.includes(assetType);
 }

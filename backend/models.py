@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, date
+from datetime import datetime
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -48,6 +48,7 @@ class HouseholdInvite(db.Model):
     household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=False)
     invited_email = db.Column(db.Text, nullable=False)
     invited_by = db.Column(UUID(as_uuid=True), nullable=False)
+    role = db.Column(db.String(16), nullable=False, default="editor")
     status = db.Column(db.String(16), nullable=False, default="pending")
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
@@ -57,113 +58,158 @@ class HouseholdInvite(db.Model):
             "household_id": str(self.household_id),
             "invited_email": self.invited_email,
             "invited_by": str(self.invited_by),
+            "role": self.role,
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
-class Asset(db.Model):
-    __tablename__ = "assets"
+class Holding(db.Model):
+    __tablename__ = "holdings"
 
     id = db.Column(db.BigInteger, primary_key=True)
     user_id = db.Column(UUID(as_uuid=True), nullable=False)
     household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
 
-    # Core (ALL assets)
-    asset_type = db.Column(db.String(32), nullable=False)   # stock, real_estate, cash, etc
+    asset_type = db.Column(db.String(32), nullable=False)
+    symbol = db.Column(db.String(32))
+    name = db.Column(db.String(128), nullable=False)
     country = db.Column(db.String(64), nullable=False)
     account = db.Column(db.String(64), nullable=False)
-    purchase_date = db.Column(db.Date, nullable=False)
+    institution = db.Column(db.String(128))
+    currency = db.Column(db.String(8), nullable=False)
+
+    interest_rate = db.Column(db.Float)
+    maturity_date = db.Column(db.Date)
+
+    is_private = db.Column(db.Boolean, nullable=False, default=False)
+    notes = db.Column(db.Text)
+    tags = db.Column(db.String(512))
+    status = db.Column(db.String(16), nullable=False, default="active")
 
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    # Market assets (stocks, mutual funds)
-    symbol = db.Column(db.String(16))
-    units = db.Column(db.Float)
-    buy_price = db.Column(db.Float)
-
-    # Real assets (real estate, metals)
-    name = db.Column(db.String(128))
-    buy_value = db.Column(db.Float)
-    current_value = db.Column(db.Float)
-
-    # Cash / deposits / loans
-    institution = db.Column(db.String(128))
-    value = db.Column(db.Float)
-
-    # User notes and tags
-    notes = db.Column(db.Text)
-    tags = db.Column(db.String(512))  # Comma-separated tags
-
     def to_dict(self):
-        today = date.today()
-
-        # ---------- BUY VALUE ----------
-        buy_value = 0.0
-        if self.asset_type in ["stock", "mutual_fund"]:
-            if self.units and self.buy_price:
-                buy_value = self.units * self.buy_price
-        elif self.asset_type in ["real_estate", "metal"]:
-            buy_value = self.buy_value or 0.0
-        else:  # cash, deposit, loan
-            buy_value = self.value or 0.0
-
-        # ---------- CURRENT VALUE ----------
-        current_value = 0.0
-        if self.asset_type in ["stock", "mutual_fund"]:
-            # frontend/backend will inject live price later
-            current_value = self.current_value or buy_value
-        elif self.asset_type in ["real_estate", "metal"]:
-            current_value = self.current_value or buy_value
-        else:
-            current_value = self.value or 0.0
-
-        # ---------- PROFIT ----------
-        profit = current_value - buy_value
-
-        # ---------- PROFIT % ----------
-        profit_pct = (profit / buy_value * 100) if buy_value > 0 else 0.0
-
-        # ---------- YEARS HELD ----------
-        years_held = max((today - self.purchase_date).days / 365.25, 0.0001)
-
-        # ---------- CAGR ----------
-        try:
-            cagr = (current_value / buy_value) ** (1 / years_held) - 1
-        except Exception:
-            cagr = 0.0
-
         return {
             "id": self.id,
             "user_id": str(self.user_id),
             "household_id": str(self.household_id) if self.household_id else None,
             "asset_type": self.asset_type,
-            "country": self.country,
-            "account": self.account,
-            "purchase_date": self.purchase_date.isoformat(),
-            "created_at": self.created_at.isoformat(),
-
-            # Identity
             "symbol": self.symbol,
             "name": self.name,
+            "country": self.country,
+            "account": self.account,
             "institution": self.institution,
-
-            # Values
-            "units": self.units,
-            "buy_price": self.buy_price,
-
-            "buy_value": round(buy_value, 2),
-            "current_value": round(current_value, 2),
-            "profit": round(profit, 2),
-            "profit_pct": round(profit_pct, 2),
-            "cagr": round(cagr, 6),
-
-            # Notes and tags
+            "currency": self.currency,
+            "interest_rate": self.interest_rate,
+            "maturity_date": self.maturity_date.isoformat() if self.maturity_date else None,
+            "is_private": self.is_private,
             "notes": self.notes,
             "tags": self.tags,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class HoldingTransaction(db.Model):
+    __tablename__ = "holding_transactions"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id"), nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    transaction_type = db.Column(db.String(8), nullable=False)  # buy | sell
+    transaction_date = db.Column(db.Date, nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    price_per_unit = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(8), nullable=False)
+    fees = db.Column(db.Float, nullable=False, default=0.0)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "holding_id": self.holding_id,
+            "user_id": str(self.user_id),
+            "transaction_type": self.transaction_type,
+            "transaction_date": self.transaction_date.isoformat(),
+            "quantity": self.quantity,
+            "price_per_unit": self.price_per_unit,
+            "currency": self.currency,
+            "fees": self.fees,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class HoldingValuation(db.Model):
+    __tablename__ = "holding_valuations"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id"), nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    valuation_date = db.Column(db.Date, nullable=False)
+    value = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(8), nullable=False)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "holding_id": self.holding_id,
+            "user_id": str(self.user_id),
+            "valuation_date": self.valuation_date.isoformat(),
+            "value": self.value,
+            "currency": self.currency,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class PriceHistory(db.Model):
+    __tablename__ = "price_history"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    asset_type = db.Column(db.String(32), nullable=False)
+    symbol = db.Column(db.String(32), nullable=False)
+    price_date = db.Column(db.Date, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(8), nullable=False)
+    source = db.Column(db.String(32))
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "asset_type": self.asset_type,
+            "symbol": self.symbol,
+            "price_date": self.price_date.isoformat(),
+            "price": self.price,
+            "currency": self.currency,
+            "source": self.source,
+        }
+
+
+class ExchangeRate(db.Model):
+    __tablename__ = "exchange_rates"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    base_currency = db.Column(db.String(8), nullable=False)
+    quote_currency = db.Column(db.String(8), nullable=False)
+    rate_date = db.Column(db.Date, nullable=False)
+    rate = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "base_currency": self.base_currency,
+            "quote_currency": self.quote_currency,
+            "rate_date": self.rate_date.isoformat(),
+            "rate": self.rate,
         }
 
 

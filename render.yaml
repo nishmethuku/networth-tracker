@@ -16,5 +16,7 @@ services:
         sync: false # must match the GitHub Actions repo secret of the same name
       - key: FINNHUB_API_KEY
         sync: false
+      - key: METALS_API_KEY
+        sync: false # free key from metals-api.com, for gold/silver/platinum prices
       - key: FRONTEND_URL
         sync: false # your Vercel deployment URL, e.g. https://networth-tracker.vercel.app

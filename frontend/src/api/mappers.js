@@ -1,219 +1,133 @@
 /**
- * Data mapping layer: Normalize backend responses into frontend-friendly objects
- * This ensures consistent field names and handles undefined/NaN values
+ * Data mapping layer: normalize backend responses into frontend-friendly objects
  */
-
 import { safeNumber } from "../utils/formatters";
 
-/**
- * Map backend asset to frontend asset format
- * Backend sends both raw fields from to_dict() and computed fields separately
- * 
- * Special handling for grouped cash accounts (is_grouped === true)
- */
-export function mapAsset(backendAsset) {
-  if (!backendAsset) return null;
-
-  // Handle grouped cash accounts
-  if (backendAsset.is_grouped && backendAsset.asset_type === "cash") {
-    return {
-      id: backendAsset.id ?? null,
-      assetType: backendAsset.asset_type ?? "cash",
-      country: backendAsset.country ?? "",
-      account: backendAsset.account ?? "",
-      purchaseDate: backendAsset.purchase_date ?? "", // Last updated date
-      createdAt: backendAsset.created_at ?? "", // First entry date
-      
-      // Identity fields
-      institution: backendAsset.institution ?? backendAsset.account ?? "",
-      
-      // Cash account specific
-      currentBalance: safeNumber(backendAsset.current_balance ?? backendAsset.current_value),
-      currentValue: safeNumber(backendAsset.current_value ?? backendAsset.current_balance),
-      buyValue: safeNumber(backendAsset.buy_value ?? backendAsset.current_balance),
-      profit: 0,
-      profitPercent: 0,
-      cagr: 0,
-      
-      // History for grouped cash accounts
-      history: (backendAsset.history || []).map((entry) => ({
-        date: entry.date ?? "",
-        balance: safeNumber(entry.balance),
-        change: safeNumber(entry.change),
-        entryId: entry.entry_id ?? null,
-        notes: entry.notes ?? "",
-        tags: entry.tags || [],
-      })),
-      entryCount: backendAsset.entry_count ?? 0,
-      
-      // Notes and tags (from latest entry)
-      notes: backendAsset.notes ?? "",
-      tags: backendAsset.tags ? backendAsset.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
-      
-      // Display helpers
-      displayName: backendAsset.institution ?? backendAsset.account ?? "Cash Account",
-      isGrouped: true,
-    };
-  }
-
-  // Regular asset mapping (non-grouped)
+export function mapHolding(h) {
+  if (!h) return null;
   return {
-    id: backendAsset.id ?? null,
-    assetType: backendAsset.asset_type ?? "unknown",
-    country: backendAsset.country ?? "",
-    account: backendAsset.account ?? "",
-    purchaseDate: backendAsset.purchase_date ?? "",
-    createdAt: backendAsset.created_at ?? "",
+    id: h.id,
+    userId: h.user_id,
+    householdId: h.household_id,
+    assetType: h.asset_type,
+    symbol: h.symbol ?? null,
+    name: h.name ?? "",
+    country: h.country ?? "",
+    account: h.account ?? "",
+    institution: h.institution ?? null,
+    currency: h.currency ?? "USD",
+    interestRate: h.interest_rate ?? null,
+    maturityDate: h.maturity_date ?? null,
+    isPrivate: !!h.is_private,
+    notes: h.notes ?? "",
+    tags: h.tags ? h.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+    status: h.status ?? "active",
+    createdAt: h.created_at ?? "",
+    updatedAt: h.updated_at ?? "",
 
-    // Identity fields
-    symbol: backendAsset.symbol ?? null,
-    name: backendAsset.name ?? null,
-    institution: backendAsset.institution ?? null,
+    // Quantity-based metrics (stock/mutual_fund/crypto/commodity)
+    quantity: h.quantity != null ? safeNumber(h.quantity) : null,
+    avgCost: h.avg_cost != null ? safeNumber(h.avg_cost) : null,
+    costBasis: h.cost_basis != null ? safeNumber(h.cost_basis) : null,
+    currentPrice: h.current_price != null ? safeNumber(h.current_price) : null,
+    realizedGain: h.realized_gain != null ? safeNumber(h.realized_gain) : null,
+    unrealizedGain: h.unrealized_gain != null ? safeNumber(h.unrealized_gain) : null,
+    totalGain: h.total_gain != null ? safeNumber(h.total_gain) : null,
+    xirr: h.xirr != null ? safeNumber(h.xirr) : null,
 
-    // Market assets (stocks, mutual funds) - raw fields
-    units: safeNumber(backendAsset.units),
-    buyPrice: safeNumber(backendAsset.buy_price),
+    // Valuation-based metrics (real_estate/fixed_deposit/ppf/epf/cash/loan)
+    firstValue: h.first_value != null ? safeNumber(h.first_value) : null,
+    gain: h.gain != null ? safeNumber(h.gain) : null,
+    history: h.history || null,
 
-    // Real assets (real estate, metals) - raw fields
-    rawBuyValue: safeNumber(backendAsset.buy_value),
-    rawCurrentValue: safeNumber(backendAsset.current_value),
+    // Common
+    currentValue: safeNumber(h.current_value),
+    displayValue: safeNumber(h.display_value ?? h.current_value),
 
-    // Cash/deposits/loans - raw fields
-    value: safeNumber(backendAsset.value),
-
-    // Computed values (from backend calculation)
-    // These override the raw computed values from to_dict()
-    buyValue: safeNumber(backendAsset.buy_value ?? backendAsset.buy_value),
-    currentValue: safeNumber(backendAsset.current_value ?? backendAsset.current_value),
-    profit: safeNumber(backendAsset.profit ?? 0),
-    profitPercent: safeNumber(backendAsset.profit_pct ?? 0),
-    cagr: safeNumber(backendAsset.cagr ?? 0),
-
-    // Notes and tags
-    notes: backendAsset.notes ?? "",
-    tags: backendAsset.tags ? backendAsset.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
-
-    // Display helpers
-    displayName:
-      backendAsset.symbol ??
-      backendAsset.name ??
-      backendAsset.institution ??
-      `Asset #${backendAsset.id ?? "?"}`,
-    isGrouped: false,
+    displayName: h.symbol || h.name || `Holding #${h.id}`,
   };
 }
 
-/**
- * Map backend summary to frontend summary format
- */
-export function mapSummary(backendSummary) {
-  if (!backendSummary) return null;
-
+export function mapTransaction(t) {
+  if (!t) return null;
   return {
-    totalNetWorth: safeNumber(backendSummary.total_net_worth),
-    totalStockValue: safeNumber(backendSummary.total_stock_value),
-    totalPropertyValue: safeNumber(backendSummary.total_property_value),
-    totalProfitLoss: safeNumber(backendSummary.total_profit_loss),
-
-    grandTotals: mapTotals(backendSummary.grand_totals),
-
-    countries: (backendSummary.countries || []).map(mapCountry),
+    id: t.id,
+    holdingId: t.holding_id,
+    holdingName: t.holding_name ?? null,
+    holdingSymbol: t.holding_symbol ?? null,
+    assetType: t.asset_type ?? null,
+    country: t.country ?? null,
+    transactionType: t.transaction_type,
+    transactionDate: t.transaction_date,
+    quantity: safeNumber(t.quantity),
+    pricePerUnit: safeNumber(t.price_per_unit),
+    currency: t.currency ?? "USD",
+    fees: safeNumber(t.fees),
+    notes: t.notes ?? "",
+    createdAt: t.created_at ?? "",
   };
 }
 
-/**
- * Map country structure
- */
-function mapCountry(backendCountry) {
+export function mapValuation(v) {
+  if (!v) return null;
   return {
-    country: backendCountry.country ?? "",
-    totals: mapTotals(backendCountry.totals),
-    accounts: (backendCountry.accounts || []).map(mapAccount),
+    id: v.id,
+    holdingId: v.holding_id,
+    valuationDate: v.valuation_date,
+    value: safeNumber(v.value),
+    currency: v.currency ?? "USD",
+    notes: v.notes ?? "",
+    createdAt: v.created_at ?? "",
   };
 }
 
-/**
- * Map account structure
- */
-function mapAccount(backendAccount) {
+export function mapDashboard(d) {
+  if (!d) return null;
   return {
-    account: backendAccount.account ?? "",
-    totals: mapTotals(backendAccount.totals),
-    perStock: (backendAccount.per_stock || []).map(mapStockBucket),
-  };
-}
-
-/**
- * Map stock bucket (aggregated stock holdings)
- */
-function mapStockBucket(backendStock) {
-  return {
-    symbol: backendStock.symbol ?? null,
-    assetType: backendStock.asset_type ?? "stock",
-    country: backendStock.country ?? "",
-    account: backendStock.account ?? "",
-    units: safeNumber(backendStock.units),
-    buyPrice: safeNumber(backendStock.buy_price),
-    currentPrice: safeNumber(backendStock.current_price),
-    buyValue: safeNumber(backendStock.buy_value),
-    currentValue: safeNumber(backendStock.current_value),
-    profit: safeNumber(backendStock.profit),
-    profitPercent: safeNumber(backendStock.profit_pct),
-    cagr: safeNumber(backendStock.cagr),
-    earliestPurchaseDate: backendStock.earliest_purchase_date ?? "",
-  };
-}
-
-/**
- * Map totals structure
- */
-function mapTotals(backendTotals) {
-  if (!backendTotals) {
-    return {
-      buyValue: 0,
-      currentValue: 0,
-      profit: 0,
-      profitPercent: 0,
-      cagr: 0,
-    };
-  }
-
-  return {
-    buyValue: safeNumber(backendTotals.buy_value),
-    currentValue: safeNumber(backendTotals.current_value),
-    profit: safeNumber(backendTotals.profit),
-    profitPercent: safeNumber(backendTotals.profit_pct),
-    cagr: safeNumber(backendTotals.cagr),
-  };
-}
-
-/**
- * Map analytics data
- */
-export function mapAnalytics(backendAnalytics) {
-  if (!backendAnalytics) return null;
-
-  return {
-    netWorthOverTime: (backendAnalytics.net_worth_over_time || []).map((point) => ({
-      date: point.date ?? "",
-      netWorth: safeNumber(point.net_worth),
-      assetsValue: safeNumber(point.assets_value),
+    totalNetWorth: safeNumber(d.total_net_worth),
+    currency: d.currency ?? "USD",
+    allocationByType: (d.allocation_by_type || []).map((a) => ({
+      label: a.label,
+      value: safeNumber(a.value),
     })),
-
-    allocation: (backendAnalytics.allocation || []).map((item) => ({
-      label: item.label ?? "Unknown",
-      value: safeNumber(item.value),
-      name: item.label ?? "Unknown", // For charts
+    allocationByCountry: (d.allocation_by_country || []).map((a) => ({
+      label: a.label,
+      value: safeNumber(a.value),
     })),
-
-    cagrHistogram: (backendAnalytics.cagr_histogram || []).map((item) => ({
-      label: item.label ?? "Unknown",
-      assetType: item.asset_type ?? "unknown",
-      country: item.country ?? "",
-      account: item.account ?? "",
-      cagr: safeNumber(item.cagr),
-      cagrPercent: safeNumber(item.cagr) * 100, // For charts
-    })),
+    topGainers: (d.top_gainers || []).map(mapMover),
+    topLosers: (d.top_losers || []).map(mapMover),
+    realizedGain: safeNumber(d.realized_gain),
+    unrealizedGain: safeNumber(d.unrealized_gain),
   };
 }
 
+function mapMover(m) {
+  return {
+    id: m.id,
+    name: m.name,
+    symbol: m.symbol,
+    assetType: m.asset_type,
+    changePct: safeNumber(m.change_pct),
+    currentValue: safeNumber(m.current_value),
+  };
+}
+
+export function mapNetWorthHistory(rows) {
+  return (rows || []).map((r) => ({
+    date: r.snapshot_date,
+    netWorth: safeNumber(r.total_net_worth),
+    stockValue: safeNumber(r.total_stock_value),
+    propertyValue: safeNumber(r.total_property_value),
+    profitLoss: safeNumber(r.total_profit_loss),
+    byAssetType: r.by_asset_type || {},
+  }));
+}
+
+export function mapPriceHistory(rows) {
+  return (rows || []).map((r) => ({
+    date: r.price_date,
+    price: safeNumber(r.price),
+    currency: r.currency,
+    source: r.source,
+  }));
+}

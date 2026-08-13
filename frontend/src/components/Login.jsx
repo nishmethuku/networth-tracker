@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, user } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState("signin"); // "signin" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Once authenticated (password sign-in success, or landing back here after
+  // a Google OAuth redirect), leave the login page. Nothing else does this —
+  // /login isn't wrapped in ProtectedRoute, so the router has no other way
+  // to know a session just appeared.
+  useEffect(() => {
+    if (user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, navigate]);
 
   const inputStyle = {
     width: "100%",

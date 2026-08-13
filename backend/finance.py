@@ -1,22 +1,72 @@
 from datetime import date
-from math import pow
+from typing import List, Optional, Tuple
 
 
-def years_between(start: date, end: date) -> float:
-    # Avoid extremely tiny year fractions which can cause huge exponents
-    # and overflow in CAGR calculation.
-    raw_years = (end - start).days / 365.25
-    return max(raw_years, 0.01)
+def _xnpv(rate: float, cash_flows: List[Tuple[date, float]]) -> float:
+    """Net present value of dated cash flows at `rate`, using Actual/365 day counting."""
+    if rate <= -1.0:
+        return float("inf")
+    t0 = cash_flows[0][0]
+    return sum(
+        cf / (1.0 + rate) ** ((d - t0).days / 365.0) for d, cf in cash_flows
+    )
 
 
-def calculate_cagr(buy_value: float, current_value: float, purchase_date: date) -> float:
-    if buy_value <= 0 or current_value <= 0:
-        return 0.0
+def _xnpv_derivative(rate: float, cash_flows: List[Tuple[date, float]]) -> float:
+    if rate <= -1.0:
+        return float("inf")
+    t0 = cash_flows[0][0]
+    result = 0.0
+    for d, cf in cash_flows:
+        years = (d - t0).days / 365.0
+        result += -years * cf / (1.0 + rate) ** (years + 1)
+    return result
 
-    years = years_between(purchase_date, date.today())
-    try:
-        return pow(current_value / buy_value, 1 / years) - 1
-    except OverflowError:
-        # If for any reason the math still overflows (e.g. extreme ratios),
-        # fall back to 0 instead of crashing the request.
-        return 0.0
+
+def xirr(cash_flows: List[Tuple[date, float]], guess: float = 0.1) -> Optional[float]:
+    """
+    True annualized return from a series of dated cash flows (buys negative,
+    sells/current value positive) — the same calculation as Excel/Sheets XIRR.
+    Solved via Newton's method with a bisection fallback. Returns None if the
+    flows don't have both an inflow and an outflow, or if no root is found.
+    """
+    if not cash_flows or len(cash_flows) < 2:
+        return None
+
+    flows = sorted(cash_flows, key=lambda cf: cf[0])
+
+    if not any(amount < 0 for _, amount in flows) or not any(amount > 0 for _, amount in flows):
+        return None
+
+    rate = guess
+    for _ in range(100):
+        f = _xnpv(rate, flows)
+        df = _xnpv_derivative(rate, flows)
+        if df == 0:
+            break
+        new_rate = rate - f / df
+        if new_rate <= -1.0:
+            new_rate = -0.999999
+        if abs(new_rate - rate) < 1e-6:
+            return new_rate
+        rate = new_rate
+
+    # Newton's method didn't converge from this guess — fall back to bisection
+    # over a wide, sane range.
+    low, high = -0.999999, 10.0
+    f_low = _xnpv(low, flows)
+    f_high = _xnpv(high, flows)
+    if f_low * f_high > 0:
+        return None
+
+    for _ in range(200):
+        mid = (low + high) / 2
+        f_mid = _xnpv(mid, flows)
+        if abs(f_mid) < 1e-6:
+            return mid
+        if f_low * f_mid < 0:
+            high = mid
+        else:
+            low, f_low = mid, f_mid
+
+    return None

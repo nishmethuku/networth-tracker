@@ -2,12 +2,11 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-ro
 import { useAuth } from "./contexts/AuthContext";
 import ThemeToggle from "./components/ThemeToggle";
 
-import Stocks from "./components/Stocks";
-import Assets from "./components/Assets";
-import Analytics from "./components/Analytics";
-import AddAsset from "./components/AddAsset";
-import EditAsset from "./components/EditAsset";
+import Dashboard from "./components/Dashboard";
 import Portfolio from "./components/Portfolio";
+import HoldingDetail from "./components/HoldingDetail";
+import AddHolding from "./components/AddHolding";
+import Transactions from "./components/Transactions";
 import Households from "./components/Households";
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -64,13 +63,12 @@ function AppShell() {
       >
         <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
           <Link to="/" style={{ fontWeight: 600, color: "var(--text)", fontSize: "1.125rem" }}>
-            Portfolio
+            Net Worth
           </Link>
-          <NavLink to="/stocks">Stocks</NavLink>
-          <NavLink to="/assets">Assets</NavLink>
+          <NavLink to="/portfolio">Portfolio</NavLink>
+          <NavLink to="/transactions">Transactions</NavLink>
           <NavLink to="/households">Household</NavLink>
-          <NavLink to="/analytics">Analytics</NavLink>
-          <NavLink to="/add-asset" highlight>+ Add Asset</NavLink>
+          <NavLink to="/add-holding" highlight>+ Add Holding</NavLink>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           {user && (
@@ -99,13 +97,12 @@ function AppShell() {
       <div style={{ padding: "0 2rem 2rem" }}>
         <ErrorBoundary>
           <Routes>
-            <Route index element={<Portfolio />} />
-            <Route path="stocks" element={<Stocks />} />
-            <Route path="assets" element={<Assets />} />
-            <Route path="add-asset" element={<AddAsset />} />
-            <Route path="assets/:id/edit" element={<EditAsset />} />
+            <Route index element={<Dashboard />} />
+            <Route path="portfolio" element={<Portfolio />} />
+            <Route path="portfolio/:id" element={<HoldingDetail />} />
+            <Route path="add-holding" element={<AddHolding />} />
+            <Route path="transactions" element={<Transactions />} />
             <Route path="households" element={<Households />} />
-            <Route path="analytics" element={<Analytics />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ErrorBoundary>

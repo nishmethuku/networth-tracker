@@ -16,6 +16,7 @@ import {
   ApiError,
 } from "../api";
 import { useAuth } from "../contexts/AuthContext";
+import { HOUSEHOLD_ROLES } from "../constants/enums";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -41,6 +42,7 @@ function HouseholdCard({ household }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("editor");
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
   const { data: members } = useQuery({
@@ -49,7 +51,7 @@ function HouseholdCard({ household }) {
   });
 
   const inviteMutation = useMutation({
-    mutationFn: (email) => inviteToHousehold(household.id, email),
+    mutationFn: ({ email, role }) => inviteToHousehold(household.id, email, role),
     onSuccess: () => {
       setInviteEmail("");
       setToast({ visible: true, message: `Invite sent to ${inviteEmail}`, type: "success" });
@@ -69,9 +71,11 @@ function HouseholdCard({ household }) {
   });
 
   const isOwner = household.owner_id === user?.id;
+  const myRole = household.my_role || (isOwner ? "owner" : null);
+  const canInvite = myRole === "owner" || myRole === "editor";
 
   return (
-    <Card title={household.name} subtitle={isOwner ? "You own this household" : "Member"}>
+    <Card title={household.name} subtitle={isOwner ? "You own this household" : `You: ${myRole}`}>
       <Toast
         message={toast.message}
         type={toast.type}
@@ -91,24 +95,35 @@ function HouseholdCard({ household }) {
           ))}
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (inviteEmail.trim()) inviteMutation.mutate(inviteEmail.trim());
-          }}
-          style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}
-        >
-          <input
-            type="email"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder="Invite by email"
-            style={{ ...inputStyle, flex: 1 }}
-          />
-          <button type="submit" disabled={inviteMutation.isPending} style={buttonStyle}>
-            {inviteMutation.isPending ? "Sending..." : "Invite"}
-          </button>
-        </form>
+        {canInvite ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (inviteEmail.trim()) inviteMutation.mutate({ email: inviteEmail.trim(), role: inviteRole });
+            }}
+            style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}
+          >
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="Invite by email"
+              style={{ ...inputStyle, flex: 1, minWidth: "160px" }}
+            />
+            <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={inputStyle}>
+              {HOUSEHOLD_ROLES.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+            <button type="submit" disabled={inviteMutation.isPending} style={buttonStyle}>
+              {inviteMutation.isPending ? "Sending..." : "Invite"}
+            </button>
+          </form>
+        ) : (
+          <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+            Viewers can't invite new members.
+          </p>
+        )}
 
         {!isOwner && (
           <button
@@ -174,8 +189,9 @@ export default function Households() {
         Household
       </h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
-        Share a household with family members. Assets you assign to a household are visible and
-        editable by every member — everything else stays private to you.
+        Share a household with family members. Holdings you assign to a household are visible to
+        every member — editors can add and edit them, viewers can only look. Everything else stays
+        private to you.
       </p>
 
       {invites && invites.length > 0 && (
