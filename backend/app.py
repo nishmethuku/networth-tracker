@@ -14,7 +14,7 @@ import requests
 from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, Milestone
 from .auth import require_auth
 from .utils import FINNHUB_API_KEY, MFTOOL_AVAILABLE
-from .services import safe_float
+from .services import safe_float, rank_symbol_results
 from . import price_service
 from . import ai_service
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
@@ -826,6 +826,7 @@ def create_app():
                     seen.add(key)
                     unique_results.append(result)
 
+        unique_results = rank_symbol_results(unique_results, query)
         return jsonify(unique_results[:20])
 
     @app.route("/search-crypto", methods=["GET"])
