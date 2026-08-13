@@ -1,12 +1,13 @@
 # Net Worth Tracker
 
-A full-stack family net worth tracker: real transaction-based portfolio accounting (average cost basis, realized/unrealized gains, XIRR), ten asset types across multiple countries and currencies, household sharing with editor/viewer roles, broker CSV import, price alerts, benchmark comparison, and a weekly email digest.
+A full-stack family net worth tracker: real transaction-based portfolio accounting (average cost basis, realized/unrealized gains, XIRR), ten asset types across multiple countries and currencies, household sharing with editor/viewer roles, broker CSV import, price alerts, benchmark comparison, a weekly email digest, and an optional Claude-powered AI copilot.
 
 ## Stack
 
-- **Frontend**: React 18, Vite, React Router, TanStack Query, Recharts
-- **Backend**: Flask, SQLAlchemy, Flask-Migrate (Alembic)
+- **Frontend**: React 18, Vite (route-level code-splitting + PWA plugin), React Router, TanStack Query, Recharts, framer-motion, react-hook-form + zod, react-i18next
+- **Backend**: Flask, SQLAlchemy, Flask-Migrate (Alembic), Flask-Limiter
 - **Database & Auth**: Supabase (Postgres + Auth — email/password and Google OAuth)
+- **AI**: Anthropic Claude (copilot chat, AI-narrated digest, allocation advisor, transaction categorizer, natural-language search) — fully optional, degrades to a clean "not configured" response without an API key
 - **Live/historical prices**: Finnhub (US live), Yahoo Finance (historical + NSE fallback, unofficial/keyless), NSE libraries + mftool (India), CoinGecko (crypto), metals-api.com (gold/silver/platinum), frankfurter.app (FX)
 - **Email**: Resend (weekly digest, price alerts, milestone celebrations)
 - **Deployment**: Vercel (frontend) + Render (backend, Docker) + GitHub Actions (daily snapshot, weekly digest, alert-check crons)
@@ -18,12 +19,15 @@ A full-stack family net worth tracker: real transaction-based portfolio accounti
 - **Multi-currency**: every holding is denominated in its native currency; the dashboard converts to your chosen display currency (USD/INR/AUD) using live FX rates, cached daily
 - **Broker CSV import**: Zerodha, Groww (stocks + mutual funds), Fidelity, Robinhood — parsed into a preview you review and confirm before anything is saved
 - **Household sharing**: create a household, invite members as editor (can add/edit) or viewer (read-only), holdings can be flagged private to stay out of the shared view entirely
-- **Dashboard**: net worth, allocation by type/country, top gainers/losers, realized vs unrealized gains, net worth vs S&P 500 (SPY) / Nifty 50 (NIFTYBEES) comparison, net worth milestone celebrations
-- **Tax summary**: realized gains grouped by financial year (India Apr–Mar, elsewhere calendar year)
+- **Dashboard**: net worth chart (range pills, milestone markers), drill-down allocation donut (type/country), gainers/losers heat-map with sparklines, returns by asset type, net worth vs S&P 500 (SPY) / Nifty 50 (NIFTYBEES) comparison, milestone celebrations, pull-to-refresh on mobile
+- **AI copilot** (optional, owner/editor only): floating chat with full portfolio context (streamed), AI-narrated weekly digest, allocation advisor with real rebalance math, transaction tag suggestions, natural-language portfolio search (Cmd+K)
+- **Tax summary**: realized gains grouped by financial year (India Apr–Mar, elsewhere calendar year), short-term/long-term split with a rough tax liability estimate, year-over-year comparison
+- **Recurring investments (SIP)**: mark a holding as a recurring contribution, see upcoming dates and a projected future value
 - **Price alerts**: per-holding price thresholds or net worth thresholds, checked every 4 hours, delivered by email
-- **Weekly email digest**: net worth, this week's change, top movers
+- **Weekly email digest**: net worth, this week's change, top movers, one-click unsubscribe
 - Daily net worth snapshots stored in the database and charted over time
-- Light/dark theme, mobile bottom nav below 640px width
+- **Settings**: profile, display currency/language, data export (JSON), delete-my-data
+- Light/dark theme, installable PWA, English/Hindi language toggle, keyboard shortcuts (`?` for the list), full mobile UX (bottom nav, swipe-to-delete, bottom sheets, card layouts, offline indicator)
 
 ## Project Structure
 
@@ -102,8 +106,20 @@ All endpoints except `/internal/*` require an `Authorization: Bearer <supabase-a
 **Symbol search**
 - `GET /search-symbols` (stocks/mutual funds), `GET /search-crypto`
 
+**AI (owner/editor only, requires `ANTHROPIC_API_KEY`)**
+- `POST /api/ai/chat` — SSE-streamed copilot chat
+- `POST /api/ai/allocation-advisor`, `POST /api/ai/search`
+- `POST /transactions/:id/suggest-tags`
+
+**Recurring investments (SIP)**
+- `GET /holdings/:id/sip-projection?years=N` — upcoming dates + projected future value (SIP fields are set via `PUT /holdings/:id`)
+
+**Account (Settings page)**
+- `GET /account/export`, `DELETE /account/data` (body: `{"confirm": "DELETE"}`)
+- `GET /price-cache-status`
+
 **Internal (secret-protected, called by GitHub Actions crons)**
-- `POST /internal/snapshot`, `POST /internal/weekly-digest`, `POST /internal/check-alerts`
+- `POST /internal/snapshot`, `POST /internal/weekly-digest`, `POST /internal/check-alerts`, `GET /internal/unsubscribe?token=...`
 
 ## License
 

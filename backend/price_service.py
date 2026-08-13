@@ -5,8 +5,10 @@ Checks price_history/exchange_rates first, calls out to the live APIs on a
 miss, and writes the result back — so repeat lookups and the daily snapshot
 job don't re-hit rate-limited free tiers every time.
 """
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Optional
+
+from sqlalchemy import func
 
 from .models import db, PriceHistory, ExchangeRate
 from .utils import (
@@ -144,6 +146,44 @@ def get_rate(from_currency: str, to_currency: str, target_date: Optional[date] =
         ))
         db.session.commit()
     return rate
+
+
+def get_cache_status() -> dict:
+    """DB-cache health snapshot for the /price-cache-status endpoint. Reports
+    table-level stats (row counts, freshness, breakdown by asset type) —
+    there's no per-lookup hit/miss counter kept anywhere in this app, so this
+    is cache *composition*, not a literal hit-rate percentage."""
+    total_prices = db.session.query(func.count(PriceHistory.id)).scalar() or 0
+    distinct_symbols = db.session.query(func.count(func.distinct(PriceHistory.symbol))).scalar() or 0
+    by_asset_type = dict(
+        db.session.query(PriceHistory.asset_type, func.count(PriceHistory.id)).group_by(PriceHistory.asset_type).all()
+    )
+    added_last_24h = (
+        db.session.query(func.count(PriceHistory.id))
+        .filter(PriceHistory.created_at >= datetime.utcnow() - timedelta(hours=24))
+        .scalar()
+        or 0
+    )
+    oldest_price_date = db.session.query(func.min(PriceHistory.price_date)).scalar()
+    newest_price_date = db.session.query(func.max(PriceHistory.price_date)).scalar()
+
+    total_rates = db.session.query(func.count(ExchangeRate.id)).scalar() or 0
+    newest_rate_date = db.session.query(func.max(ExchangeRate.rate_date)).scalar()
+
+    return {
+        "price_history": {
+            "total_rows": total_prices,
+            "distinct_symbols": distinct_symbols,
+            "rows_added_last_24h": added_last_24h,
+            "by_asset_type": by_asset_type,
+            "oldest_price_date": oldest_price_date.isoformat() if oldest_price_date else None,
+            "newest_price_date": newest_price_date.isoformat() if newest_price_date else None,
+        },
+        "exchange_rates": {
+            "total_rows": total_rates,
+            "newest_rate_date": newest_rate_date.isoformat() if newest_rate_date else None,
+        },
+    }
 
 
 def convert(amount: float, from_currency: str, to_currency: str) -> float:

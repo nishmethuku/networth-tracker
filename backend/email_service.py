@@ -13,6 +13,10 @@ import requests
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 FROM_ADDRESS = os.environ.get("EMAIL_FROM", "Net Worth Tracker <onboarding@resend.dev>")
+# RENDER_EXTERNAL_URL is set automatically by Render for web services — no
+# manual env var needed in the common case; BACKEND_PUBLIC_URL overrides it
+# for local/other-host testing.
+BACKEND_URL = os.environ.get("BACKEND_PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_URL") or ""
 
 
 def send(to_email: str, subject: str, html: str) -> bool:
@@ -45,7 +49,7 @@ def _card(label: str, value: str) -> str:
     )
 
 
-def render_digest_email(digest: dict) -> str:
+def render_digest_email(digest: dict, narrative: str = None, unsubscribe_token: str = None) -> str:
     movers_html = "".join(
         f'<li>{m["name"]}: {"+" if m["unrealized_gain"] >= 0 else ""}{m["unrealized_gain"]:.2f}</li>'
         for m in digest.get("top_movers", [])
@@ -53,14 +57,30 @@ def render_digest_email(digest: dict) -> str:
     change = digest.get("change_this_week")
     change_html = f'{"+" if change and change >= 0 else ""}{change:.2f}' if change is not None else "—"
 
+    narrative_html = (
+        "".join(f'<p style="color:#334155;line-height:1.6;">{p}</p>' for p in narrative.strip().split("\n\n"))
+        if narrative
+        else ""
+    )
+
+    unsubscribe_html = ""
+    if unsubscribe_token and BACKEND_URL:
+        unsubscribe_url = f"{BACKEND_URL}/internal/unsubscribe?token={unsubscribe_token}"
+        unsubscribe_html = (
+            f'<p style="margin-top:24px;font-size:12px;color:#94a3b8;">'
+            f'<a href="{unsubscribe_url}" style="color:#94a3b8;">Unsubscribe from weekly digests</a></p>'
+        )
+
     return f"""
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
       <h2 style="color:#0f172a;">Your Weekly Net Worth Digest</h2>
+      {narrative_html}
       <div>
         {_card("Net Worth", f'${digest.get("net_worth", 0):,.2f}')}
         {_card("Change This Week", change_html)}
       </div>
       {f'<h3 style="color:#0f172a;">Top Movers</h3><ul>{movers_html}</ul>' if movers_html else ""}
+      {unsubscribe_html}
     </div>
     """
 

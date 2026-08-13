@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { createHolding, createTransaction, createValuation, searchSymbols, searchCrypto, fetchHouseholds, ApiError } from "../api";
-import { useQuery } from "@tanstack/react-query";
-import Toast from "./Toast";
+import { useToast } from "../contexts/ToastContext";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, CURRENCIES, isQuantityBased } from "../constants/enums";
 import { currencyForCountry } from "../utils/formatters";
+import { holdingSchema } from "../utils/holdingSchema";
+import NumericInput from "./NumericInput";
 
 const inputStyle = {
   width: "100%",
@@ -17,12 +20,20 @@ const inputStyle = {
   fontSize: "0.9375rem",
 };
 
+const inputErrorStyle = { ...inputStyle, borderColor: "var(--danger)" };
+
 const labelStyle = {
   display: "block",
   marginBottom: "0.625rem",
   fontWeight: 500,
   fontSize: "0.875rem",
   color: "var(--text)",
+};
+
+const errorTextStyle = {
+  color: "var(--danger)",
+  fontSize: "0.8125rem",
+  marginTop: "0.4rem",
 };
 
 const sectionStyle = {
@@ -37,32 +48,60 @@ const METALS = [
   { value: "platinum", label: "Platinum" },
 ];
 
+const QUANTITY_BASED_SET = new Set(["stock", "mutual_fund", "crypto", "commodity"]);
+const NAME_BASED_SET = new Set(["real_estate", "fixed_deposit", "ppf", "epf", "cash", "loan"]);
+
+function FieldError({ message }) {
+  if (!message) return null;
+  return <p style={errorTextStyle}>{message}</p>;
+}
+
 export default function AddHolding() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
-  const [assetType, setAssetType] = useState("stock");
-  const [form, setForm] = useState({
-    symbol: "",
-    name: "",
-    country: "",
-    account: "",
-    institution: "",
-    currency: "",
-    interest_rate: "",
-    maturity_date: "",
-    household_id: "",
-    is_private: false,
-    notes: "",
-    tags: "",
-    // initial entry fields
-    date: new Date().toISOString().split("T")[0],
-    quantity: "",
-    price_per_unit: "",
-    value: "",
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(holdingSchema),
+    mode: "onBlur",
+    defaultValues: {
+      assetType: "stock",
+      country: "",
+      currency: "",
+      account: "",
+      household_id: "",
+      is_private: false,
+      notes: "",
+      tags: "",
+      date: new Date().toISOString().split("T")[0],
+      symbol: "",
+      name: "",
+      institution: "",
+      interest_rate: "",
+      maturity_date: "",
+      quantity: "",
+      price_per_unit: "",
+      value: "",
+      sip_enabled: false,
+      sip_amount: "",
+      sip_frequency: "monthly",
+      sip_start_date: new Date().toISOString().split("T")[0],
+    },
   });
-  const [error, setError] = useState(null);
-  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+
+  const assetType = watch("assetType");
+  const country = watch("country");
+  const currency = watch("currency");
+  const symbol = watch("symbol");
+  const sipEnabled = watch("sip_enabled");
+  const quantityBased = isQuantityBased(assetType);
 
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -70,22 +109,20 @@ export default function AddHolding() {
   const suggestionsRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds });
-
-  const quantityBased = isQuantityBased(assetType);
+  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   useEffect(() => {
-    if (form.country && !form.currency) {
-      setForm((f) => ({ ...f, currency: currencyForCountry(form.country) }));
+    if (country && !currency) {
+      setValue("currency", currencyForCountry(country));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.country]);
+  }, [country]);
 
   const createHoldingMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (form) => {
       const holdingPayload = {
-        asset_type: assetType,
-        symbol: assetType === "commodity" ? form.symbol : (form.symbol || null),
+        asset_type: form.assetType,
+        symbol: form.assetType === "commodity" ? form.symbol : (form.symbol || null),
         name: form.name || form.symbol,
         country: form.country,
         account: form.account || "Account 1",
@@ -96,14 +133,19 @@ export default function AddHolding() {
         notes: form.notes || null,
         tags: form.tags || null,
       };
-      if (assetType === "fixed_deposit" || assetType === "ppf" || assetType === "epf") {
+      if (form.assetType === "fixed_deposit" || form.assetType === "ppf" || form.assetType === "epf") {
         if (form.interest_rate) holdingPayload.interest_rate = parseFloat(form.interest_rate);
         if (form.maturity_date) holdingPayload.maturity_date = form.maturity_date;
+      }
+      if (isQuantityBased(form.assetType) && form.sip_enabled && form.sip_amount) {
+        holdingPayload.sip_amount = parseFloat(form.sip_amount);
+        holdingPayload.sip_frequency = form.sip_frequency;
+        holdingPayload.sip_start_date = form.sip_start_date;
       }
 
       const holding = await createHolding(holdingPayload);
 
-      if (quantityBased) {
+      if (isQuantityBased(form.assetType)) {
         await createTransaction(holding.id, {
           transaction_type: "buy",
           transaction_date: form.date,
@@ -123,21 +165,13 @@ export default function AddHolding() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      setToast({ visible: true, message: "Holding added! ✔", type: "success" });
+      toast.success("Holding added! ✔");
       setTimeout(() => navigate("/portfolio"), 1200);
     },
     onError: (err) => {
-      const message = err instanceof ApiError ? err.message : "Failed to add holding";
-      setError(message);
-      setToast({ visible: true, message, type: "error" });
+      toast.error(err instanceof ApiError ? err.message : "Failed to add holding");
     },
   });
-
-  function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    setError(null);
-  }
 
   async function handleSymbolSearch(query) {
     if (!query || query.length < 1) {
@@ -146,7 +180,7 @@ export default function AddHolding() {
       return;
     }
     try {
-      const results = assetType === "crypto" ? await searchCrypto(query) : await searchSymbols(query, form.country, assetType);
+      const results = assetType === "crypto" ? await searchCrypto(query) : await searchSymbols(query, country, assetType);
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
     } catch {
@@ -156,13 +190,14 @@ export default function AddHolding() {
 
   function handleSymbolChange(e) {
     const value = e.target.value;
-    setForm((prev) => ({ ...prev, symbol: value }));
+    setValue("symbol", value, { shouldValidate: true });
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => handleSymbolSearch(value.trim()), 300);
   }
 
   function selectSuggestion(s) {
-    setForm((prev) => ({ ...prev, symbol: s.symbol, name: s.description || s.displaySymbol || s.symbol }));
+    setValue("symbol", s.symbol, { shouldValidate: true });
+    setValue("name", s.description || s.displaySymbol || s.symbol);
     setShowSuggestions(false);
     setSuggestions([]);
   }
@@ -177,44 +212,28 @@ export default function AddHolding() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function isFormValid() {
-    if (!form.country || !form.date) return false;
-    if (["stock", "mutual_fund", "crypto"].includes(assetType) && !form.symbol) return false;
-    if (assetType === "commodity" && !form.symbol) return false;
-    if (["real_estate", "fixed_deposit", "ppf", "epf", "cash", "loan"].includes(assetType) && !form.name && !form.institution) return false;
-    if (quantityBased) {
-      return form.quantity && form.price_per_unit && parseFloat(form.quantity) > 0 && parseFloat(form.price_per_unit) >= 0;
-    }
-    return form.value && parseFloat(form.value) >= 0;
+  function onSubmit(data) {
+    createHoldingMutation.mutate(data);
   }
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    setError(null);
-    if (!isFormValid()) {
-      setError("Please fill in the required fields");
-      return;
-    }
-    createHoldingMutation.mutate();
-  }
+  const submitting = isSubmitting || createHoldingMutation.isPending;
 
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "2rem 1rem" }}>
       <h2 style={{ marginBottom: "2.5rem", fontSize: "1.75rem", fontWeight: 700, color: "var(--text)" }}>Add Holding</h2>
 
-      <Toast message={toast.message} type={toast.type} isVisible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
-
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div style={sectionStyle}>
           <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>What are you adding?</h3>
           <div style={{ display: "grid", gap: "1.5rem" }}>
             <div>
               <label style={labelStyle}>Type *</label>
               <select
-                value={assetType}
+                {...register("assetType")}
                 onChange={(e) => {
-                  setAssetType(e.target.value);
-                  setForm((f) => ({ ...f, symbol: "", name: "" }));
+                  setValue("assetType", e.target.value);
+                  setValue("symbol", "");
+                  setValue("name", "");
                 }}
                 style={{ ...inputStyle, cursor: "pointer" }}
               >
@@ -226,15 +245,16 @@ export default function AddHolding() {
 
             <div>
               <label style={labelStyle}>Country *</label>
-              <select name="country" value={form.country} onChange={handleChange} required style={{ ...inputStyle, cursor: "pointer" }}>
+              <select {...register("country")} style={{ ...(errors.country ? inputErrorStyle : inputStyle), cursor: "pointer" }}>
                 <option value="">Select country...</option>
                 {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
+              <FieldError message={errors.country?.message} />
             </div>
 
             <div>
               <label style={labelStyle}>Currency</label>
-              <select name="currency" value={form.currency} onChange={handleChange} style={{ ...inputStyle, cursor: "pointer" }}>
+              <select {...register("currency")} style={{ ...inputStyle, cursor: "pointer" }}>
                 <option value="">Auto (from country)</option>
                 {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -242,13 +262,13 @@ export default function AddHolding() {
 
             <div>
               <label style={labelStyle}>Account</label>
-              <input name="account" value={form.account} onChange={handleChange} placeholder="e.g., Schwab Brokerage" style={inputStyle} />
+              <input {...register("account")} placeholder="e.g., Schwab Brokerage" style={inputStyle} />
             </div>
 
             {households && households.length > 0 && (
               <div>
                 <label style={labelStyle}>Share with household</label>
-                <select name="household_id" value={form.household_id} onChange={handleChange} style={{ ...inputStyle, cursor: "pointer" }}>
+                <select {...register("household_id")} style={{ ...inputStyle, cursor: "pointer" }}>
                   <option value="">Keep private</option>
                   {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
                 </select>
@@ -260,19 +280,17 @@ export default function AddHolding() {
         <div style={sectionStyle}>
           <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>Details</h3>
 
-          {(assetType === "stock" || assetType === "mutual_fund" || assetType === "crypto") && (
+          {QUANTITY_BASED_SET.has(assetType) && assetType !== "commodity" && (
             <div style={{ position: "relative", marginBottom: "1.5rem" }}>
               <label style={labelStyle}>Symbol *</label>
               <input
                 ref={symbolInputRef}
-                name="symbol"
-                value={form.symbol}
+                value={symbol}
                 onChange={handleSymbolChange}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                 placeholder={assetType === "crypto" ? "e.g., Bitcoin" : "e.g., AAPL"}
-                style={inputStyle}
+                style={errors.symbol ? inputErrorStyle : inputStyle}
                 autoComplete="off"
-                required
               />
               {showSuggestions && suggestions.length > 0 && (
                 <div ref={suggestionsRef} style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: "0.25rem", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", boxShadow: "var(--shadow-md)", zIndex: 1000, maxHeight: 260, overflowY: "auto" }}>
@@ -284,40 +302,50 @@ export default function AddHolding() {
                   ))}
                 </div>
               )}
+              <FieldError message={errors.symbol?.message} />
             </div>
           )}
 
           {assetType === "commodity" && (
             <div style={{ marginBottom: "1.5rem" }}>
               <label style={labelStyle}>Metal *</label>
-              <select name="symbol" value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value, name: METALS.find((m) => m.value === e.target.value)?.label || "" })} style={{ ...inputStyle, cursor: "pointer" }} required>
+              <select
+                value={symbol}
+                onChange={(e) => {
+                  setValue("symbol", e.target.value, { shouldValidate: true });
+                  setValue("name", METALS.find((m) => m.value === e.target.value)?.label || "");
+                }}
+                style={{ ...(errors.symbol ? inputErrorStyle : inputStyle), cursor: "pointer" }}
+              >
                 <option value="">Select metal...</option>
                 {METALS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
+              <FieldError message={errors.symbol?.message} />
             </div>
           )}
 
-          {["real_estate", "fixed_deposit", "ppf", "epf", "cash", "loan"].includes(assetType) && (
+          {NAME_BASED_SET.has(assetType) && (
             <div style={{ display: "grid", gap: "1.5rem", marginBottom: "1.5rem" }}>
               <div>
                 <label style={labelStyle}>Name *</label>
-                <input name="name" value={form.name} onChange={handleChange} placeholder={assetType === "real_estate" ? "e.g., My House" : "e.g., HDFC FD #1"} style={inputStyle} />
+                <input {...register("name")} placeholder={assetType === "real_estate" ? "e.g., My House" : "e.g., HDFC FD #1"} style={errors.name ? inputErrorStyle : inputStyle} />
+                <FieldError message={errors.name?.message} />
               </div>
               {assetType !== "real_estate" && (
                 <div>
                   <label style={labelStyle}>Institution</label>
-                  <input name="institution" value={form.institution} onChange={handleChange} placeholder="e.g., Chase Bank" style={inputStyle} />
+                  <input {...register("institution")} placeholder="e.g., Chase Bank" style={inputStyle} />
                 </div>
               )}
               {(assetType === "fixed_deposit" || assetType === "ppf" || assetType === "epf") && (
                 <>
                   <div>
                     <label style={labelStyle}>Interest Rate (%)</label>
-                    <input type="number" step="0.01" name="interest_rate" value={form.interest_rate} onChange={handleChange} style={inputStyle} />
+                    <NumericInput control={control} name="interest_rate" style={inputStyle} />
                   </div>
                   <div>
                     <label style={labelStyle}>Maturity Date</label>
-                    <input type="date" name="maturity_date" value={form.maturity_date} onChange={handleChange} style={inputStyle} />
+                    <input type="date" {...register("maturity_date")} style={inputStyle} />
                   </div>
                 </>
               )}
@@ -327,23 +355,27 @@ export default function AddHolding() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.5rem" }}>
             <div>
               <label style={labelStyle}>{quantityBased ? "Purchase Date *" : "Date *"}</label>
-              <input type="date" name="date" value={form.date} max={new Date().toISOString().split("T")[0]} onChange={handleChange} style={inputStyle} required />
+              <input type="date" {...register("date")} max={new Date().toISOString().split("T")[0]} style={errors.date ? inputErrorStyle : inputStyle} />
+              <FieldError message={errors.date?.message} />
             </div>
             {quantityBased ? (
               <>
                 <div>
                   <label style={labelStyle}>Quantity *</label>
-                  <input type="number" step="any" min="0.0001" name="quantity" value={form.quantity} onChange={handleChange} style={inputStyle} required />
+                  <NumericInput control={control} name="quantity" style={errors.quantity ? inputErrorStyle : inputStyle} />
+                  <FieldError message={errors.quantity?.message} />
                 </div>
                 <div>
                   <label style={labelStyle}>Price / unit *</label>
-                  <input type="number" step="any" min="0" name="price_per_unit" value={form.price_per_unit} onChange={handleChange} style={inputStyle} required />
+                  <NumericInput control={control} name="price_per_unit" style={errors.price_per_unit ? inputErrorStyle : inputStyle} />
+                  <FieldError message={errors.price_per_unit?.message} />
                 </div>
               </>
             ) : (
               <div>
                 <label style={labelStyle}>{assetType === "loan" ? "Amount Owed *" : "Value *"}</label>
-                <input type="number" step="any" min="0" name="value" value={form.value} onChange={handleChange} style={inputStyle} required />
+                <NumericInput control={control} name="value" style={errors.value ? inputErrorStyle : inputStyle} />
+                <FieldError message={errors.value?.message} />
               </div>
             )}
           </div>
@@ -354,32 +386,55 @@ export default function AddHolding() {
           <div style={{ display: "grid", gap: "1.5rem", marginBottom: "2rem" }}>
             <div>
               <label style={labelStyle}>Notes</label>
-              <textarea name="notes" value={form.notes} onChange={handleChange} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+              <textarea {...register("notes")} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
             </div>
             <div>
               <label style={labelStyle}>Tags</label>
-              <input name="tags" value={form.tags} onChange={handleChange} placeholder="retirement, long-term" style={inputStyle} />
+              <input {...register("tags")} placeholder="retirement, long-term" style={inputStyle} />
             </div>
-          </div>
 
-          {error && (
-            <div style={{ padding: "1rem 1.25rem", background: "var(--danger-light)", border: "1px solid var(--danger)", borderRadius: "var(--radius)", color: "var(--danger)", marginBottom: "1.5rem", fontSize: "0.875rem" }}>
-              {error}
-            </div>
-          )}
+            {quantityBased && (
+              <div>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500, color: "var(--text)" }}>
+                  <input type="checkbox" {...register("sip_enabled")} />
+                  This is a recurring investment (SIP)
+                </label>
+                {sipEnabled && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginTop: "1rem" }}>
+                    <div>
+                      <label style={labelStyle}>Amount per contribution</label>
+                      <NumericInput control={control} name="sip_amount" style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Frequency</label>
+                      <select {...register("sip_frequency")} style={{ ...inputStyle, cursor: "pointer" }}>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Start date</label>
+                      <input type="date" {...register("sip_start_date")} style={inputStyle} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <button
             type="submit"
-            disabled={createHoldingMutation.isPending || !isFormValid()}
+            disabled={submitting}
             style={{
               width: "100%", padding: "1.125rem", borderRadius: "var(--radius)", border: "none",
-              background: createHoldingMutation.isPending || !isFormValid() ? "var(--bg-secondary)" : "var(--primary)",
-              color: createHoldingMutation.isPending || !isFormValid() ? "var(--text-muted)" : "var(--text-inverse)",
-              cursor: createHoldingMutation.isPending || !isFormValid() ? "not-allowed" : "pointer",
+              background: submitting ? "var(--bg-secondary)" : "var(--primary)",
+              color: submitting ? "var(--text-muted)" : "var(--text-inverse)",
+              cursor: submitting ? "not-allowed" : "pointer",
               fontWeight: 600, fontSize: "1rem",
             }}
           >
-            {createHoldingMutation.isPending ? "Adding..." : "Add Holding"}
+            {submitting ? "Adding..." : "Add Holding"}
           </button>
         </div>
       </form>

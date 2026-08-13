@@ -19,7 +19,7 @@ Architecture: **Vercel** (frontend) + **Render** (Flask backend, Docker) + **Sup
 ## 2. Backend → Render
 
 1. [render.com](https://render.com) → **New → Blueprint** → connect this GitHub repo (it will pick up `render.yaml`)
-2. Render will prompt for the env vars marked `sync: false`: `DATABASE_URL`, `SUPABASE_URL`, `SNAPSHOT_SECRET`, `FINNHUB_API_KEY`, `METALS_API_KEY`, `RESEND_API_KEY`, `FRONTEND_URL` (fill this in once you have the Vercel URL from step 3, then redeploy). `METALS_API_KEY` and `RESEND_API_KEY` are optional — without them, commodity prices show as unavailable and emails are logged instead of sent, everything else still works.
+2. Render will prompt for the env vars marked `sync: false`: `DATABASE_URL`, `SUPABASE_URL`, `SNAPSHOT_SECRET`, `FINNHUB_API_KEY`, `METALS_API_KEY`, `RESEND_API_KEY`, `ANTHROPIC_API_KEY`, `FRONTEND_URL` (fill this in once you have the Vercel URL from step 3, then redeploy). `METALS_API_KEY`, `RESEND_API_KEY`, and `ANTHROPIC_API_KEY` are all optional — without them, commodity prices show as unavailable, emails are logged instead of sent, and AI features (copilot chat, allocation advisor, transaction categorizer, natural-language search, AI digest narrative) return a clean "not configured" response. Everything else still works.
 3. Deploy — the Dockerfile runs `flask db upgrade` before starting gunicorn, so any pending Alembic migrations apply automatically on every deploy
 4. Note the resulting backend URL (e.g. `https://networth-tracker-backend.onrender.com`)
 
@@ -59,6 +59,7 @@ You can trigger any of them manually from the **Actions** tab (`workflow_dispatc
 | `FINNHUB_API_KEY` | Live US stock price lookups (free tier) |
 | `METALS_API_KEY` | Optional — gold/silver/platinum prices via metals-api.com (free tier) |
 | `RESEND_API_KEY` | Optional — real email delivery for digest/alerts/milestones; without it, emails are logged instead |
+| `ANTHROPIC_API_KEY` | Optional — powers the AI copilot chat, AI digest narrative, allocation advisor, transaction categorizer, and natural-language search; without it, those features return a clean "not configured" response |
 | `EMAIL_FROM` | Optional — sender address, defaults to Resend's shared `onboarding@resend.dev` |
 | `FRONTEND_URL` | Vercel URL, used for CORS in production |
 | `FLASK_ENV` | Set to `production` (restricts CORS to `FRONTEND_URL`) |

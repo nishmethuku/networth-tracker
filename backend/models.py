@@ -82,6 +82,12 @@ class Holding(db.Model):
     interest_rate = db.Column(db.Float)
     maturity_date = db.Column(db.Date)
 
+    # Recurring investment (SIP) tracking — optional, only meaningful for
+    # quantity-based types. sip_frequency: 'weekly' | 'monthly' | 'quarterly'.
+    sip_amount = db.Column(db.Float)
+    sip_frequency = db.Column(db.String(16))
+    sip_start_date = db.Column(db.Date)
+
     is_private = db.Column(db.Boolean, nullable=False, default=False)
     notes = db.Column(db.Text)
     tags = db.Column(db.String(512))
@@ -106,6 +112,9 @@ class Holding(db.Model):
             "currency": self.currency,
             "interest_rate": self.interest_rate,
             "maturity_date": self.maturity_date.isoformat() if self.maturity_date else None,
+            "sip_amount": self.sip_amount,
+            "sip_frequency": self.sip_frequency,
+            "sip_start_date": self.sip_start_date.isoformat() if self.sip_start_date else None,
             "is_private": self.is_private,
             "notes": self.notes,
             "tags": self.tags,
@@ -128,6 +137,7 @@ class HoldingTransaction(db.Model):
     currency = db.Column(db.String(8), nullable=False)
     fees = db.Column(db.Float, nullable=False, default=0.0)
     notes = db.Column(db.Text)
+    tags = db.Column(JSONB)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
     def to_dict(self):
@@ -142,6 +152,7 @@ class HoldingTransaction(db.Model):
             "currency": self.currency,
             "fees": self.fees,
             "notes": self.notes,
+            "tags": self.tags or [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -215,6 +226,10 @@ class ExchangeRate(db.Model):
 
 class NetWorthSnapshot(db.Model):
     __tablename__ = "net_worth_snapshots"
+    __table_args__ = (
+        db.Index("net_worth_snapshots_user_date_idx", "user_id", "snapshot_date"),
+        db.Index("net_worth_snapshots_household_date_idx", "household_id", "snapshot_date"),
+    )
 
     id = db.Column(db.BigInteger, primary_key=True)
     user_id = db.Column(UUID(as_uuid=True), nullable=True)
@@ -270,6 +285,19 @@ class PriceAlert(db.Model):
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "triggered_at": self.triggered_at.isoformat() if self.triggered_at else None,
+        }
+
+
+class EmailUnsubscribe(db.Model):
+    __tablename__ = "email_unsubscribes"
+
+    email = db.Column(db.Text, primary_key=True)
+    unsubscribed_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "email": self.email,
+            "unsubscribed_at": self.unsubscribed_at.isoformat() if self.unsubscribed_at else None,
         }
 
 

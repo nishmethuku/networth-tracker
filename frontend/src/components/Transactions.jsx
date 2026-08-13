@@ -6,8 +6,13 @@ import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
+import VirtualTransactionList from "./VirtualTransactionList";
+import TransactionCard from "./TransactionCard";
+import useIsMobile from "../hooks/useIsMobile";
 import { formatCurrencyForDisplay } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, getAssetTypeLabel } from "../constants/enums";
+
+const VIRTUALIZE_THRESHOLD = 50;
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -20,12 +25,14 @@ const inputStyle = {
 
 export default function Transactions() {
   const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "", householdId: "" });
+  const isMobile = useIsMobile();
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds });
+  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const { data: transactions, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["transactions", filters],
     queryFn: () => fetchAllTransactions(filters),
+    staleTime: 1000 * 30,
   });
 
   if (isLoading) return <LoadingState message="Loading transactions..." />;
@@ -65,6 +72,16 @@ export default function Transactions() {
 
       {!transactions || transactions.length === 0 ? (
         <EmptyState message="No transactions found." />
+      ) : transactions.length > VIRTUALIZE_THRESHOLD ? (
+        <Card>
+          <VirtualTransactionList transactions={transactions} />
+        </Card>
+      ) : isMobile ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+          {transactions.map((t) => (
+            <TransactionCard key={t.id} t={t} />
+          ))}
+        </div>
       ) : (
         <Card>
           <div style={{ overflowX: "auto" }}>

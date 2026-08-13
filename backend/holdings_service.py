@@ -38,7 +38,7 @@ def compute_position(transactions: List[HoldingTransaction]) -> Dict:
             sell_qty = min(t.quantity, quantity)  # guard against bad data over-selling
             event_gain = (t.price_per_unit - avg_cost) * sell_qty - t.fees
             realized_gain += event_gain
-            realized_events.append({"date": t.transaction_date, "amount": event_gain})
+            realized_events.append({"date": t.transaction_date, "amount": event_gain, "quantity": sell_qty})
             total_cost -= avg_cost * sell_qty
             quantity -= sell_qty
 
@@ -173,6 +173,22 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
         results.append({**h.to_dict(), **metrics})
 
     return results
+
+
+# Fields the Portfolio list view / dashboard aggregation actually use.
+# Everything else (notes, institution, interest_rate, maturity_date,
+# timestamps, is_private, status) is only needed on the holding detail page,
+# which fetches a single holding via GET /holdings/:id — never trimmed.
+SUMMARY_FIELDS = (
+    "id", "household_id", "asset_type", "symbol", "name", "country", "account", "currency",
+    "quantity", "avg_cost", "current_price", "current_value", "display_value",
+    "realized_gain", "unrealized_gain", "total_gain", "xirr",
+    "first_value", "gain", "cost_basis",
+)
+
+
+def to_summary(holding_dict: Dict) -> Dict:
+    return {k: holding_dict.get(k) for k in SUMMARY_FIELDS}
 
 
 def build_dashboard(holdings_with_metrics: List[Dict], holdings_by_id: Dict[int, Holding], display_currency: str = "USD") -> Dict:

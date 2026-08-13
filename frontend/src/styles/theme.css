@@ -172,4 +172,16 @@ a:hover {
   .page-content table {
     font-size: 0.8125rem;
   }
+
+  .toast-container {
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    top: 0.75rem !important;
+    align-items: stretch !important;
+  }
+
+  .toast-container > * {
+    min-width: 0 !important;
+    max-width: none !important;
+  }
 }

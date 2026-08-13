@@ -18,6 +18,9 @@ export function mapHolding(h) {
     currency: h.currency ?? "USD",
     interestRate: h.interest_rate ?? null,
     maturityDate: h.maturity_date ?? null,
+    sipAmount: h.sip_amount ?? null,
+    sipFrequency: h.sip_frequency ?? null,
+    sipStartDate: h.sip_start_date ?? null,
     isPrivate: !!h.is_private,
     notes: h.notes ?? "",
     tags: h.tags ? h.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
@@ -64,6 +67,7 @@ export function mapTransaction(t) {
     currency: t.currency ?? "USD",
     fees: safeNumber(t.fees),
     notes: t.notes ?? "",
+    tags: t.tags ?? [],
     createdAt: t.created_at ?? "",
   };
 }
@@ -161,13 +165,26 @@ export function mapMilestone(m) {
   };
 }
 
-export function mapTaxSummary(rows) {
-  return (rows || []).map((r) => ({
-    financialYear: r.financial_year,
-    country: r.country,
-    realizedGain: safeNumber(r.realized_gain),
-    byHolding: (r.by_holding || []).map((h) => ({ name: h.name, realizedGain: safeNumber(h.realized_gain) })),
-  }));
+export function mapTaxSummary(response) {
+  const rows = response?.rows || (Array.isArray(response) ? response : []);
+  return {
+    disclaimer: response?.disclaimer || null,
+    rows: rows.map((r) => ({
+      financialYear: r.financial_year,
+      country: r.country,
+      realizedGain: safeNumber(r.realized_gain),
+      shortTermGain: safeNumber(r.short_term_gain),
+      longTermGain: safeNumber(r.long_term_gain),
+      taxEstimate: r.tax_estimate
+        ? {
+            shortTermTax: safeNumber(r.tax_estimate.short_term_tax),
+            longTermTax: safeNumber(r.tax_estimate.long_term_tax),
+            totalTax: safeNumber(r.tax_estimate.total_tax),
+          }
+        : null,
+      byHolding: (r.by_holding || []).map((h) => ({ name: h.name, realizedGain: safeNumber(h.realized_gain) })),
+    })),
+  };
 }
 
 export function mapBenchmark(b) {

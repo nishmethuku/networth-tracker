@@ -4,7 +4,7 @@ import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
-import Toast from "./Toast";
+import { useToast } from "../contexts/ToastContext";
 import {
   fetchHouseholds,
   createHousehold,
@@ -43,7 +43,7 @@ function HouseholdCard({ household }) {
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("editor");
-  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+  const toast = useToast();
 
   const { data: members } = useQuery({
     queryKey: ["household-members", household.id],
@@ -53,15 +53,11 @@ function HouseholdCard({ household }) {
   const inviteMutation = useMutation({
     mutationFn: ({ email, role }) => inviteToHousehold(household.id, email, role),
     onSuccess: () => {
+      toast.success(`Invite sent to ${inviteEmail}`);
       setInviteEmail("");
-      setToast({ visible: true, message: `Invite sent to ${inviteEmail}`, type: "success" });
     },
     onError: (err) => {
-      setToast({
-        visible: true,
-        message: err instanceof ApiError ? err.message : "Failed to send invite",
-        type: "error",
-      });
+      toast.error(err instanceof ApiError ? err.message : "Failed to send invite");
     },
   });
 
@@ -76,13 +72,6 @@ function HouseholdCard({ household }) {
 
   return (
     <Card title={household.name} subtitle={isOwner ? "You own this household" : `You: ${myRole}`}>
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.visible}
-        onClose={() => setToast({ ...toast, visible: false })}
-      />
-
       <div style={{ marginTop: "1rem" }}>
         <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.5rem", fontWeight: 600 }}>
           Members ({members?.length || 0})

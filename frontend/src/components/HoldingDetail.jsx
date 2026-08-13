@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -6,7 +6,9 @@ import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
-import Toast from "./Toast";
+import { useToast } from "../contexts/ToastContext";
+import TagSuggestionCard from "./ai/TagSuggestionCard";
+import SipCard from "./SipCard";
 import {
   fetchHolding,
   fetchHoldingTransactions,
@@ -21,6 +23,7 @@ import {
 } from "../api";
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import { getAssetTypeLabel, isQuantityBased } from "../constants/enums";
+import { computeTransactionTimeline } from "../utils/transactionTimeline";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -35,14 +38,15 @@ function AddTransactionForm({ holding, onDone }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ transaction_type: "buy", transaction_date: new Date().toISOString().split("T")[0], quantity: "", price_per_unit: "", fees: "0" });
   const [fetchingPrice, setFetchingPrice] = useState(false);
+  const [createdTx, setCreatedTx] = useState(null);
 
   const mutation = useMutation({
     mutationFn: (payload) => createTransaction(holding.id, payload),
-    onSuccess: () => {
+    onSuccess: (tx) => {
       queryClient.invalidateQueries({ queryKey: ["holding", holding.id] });
       queryClient.invalidateQueries({ queryKey: ["holding-transactions", holding.id] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
-      onDone();
+      setCreatedTx(tx);
     },
   });
 
@@ -73,6 +77,21 @@ function AddTransactionForm({ holding, onDone }) {
       fees: parseFloat(form.fees || 0),
       currency: holding.currency,
     });
+  }
+
+  if (createdTx) {
+    return (
+      <div>
+        <p style={{ color: "var(--success)", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>Transaction added ✓</p>
+        <TagSuggestionCard transactionId={createdTx.id} holdingId={holding.id} onDismiss={onDone} />
+        <button
+          onClick={onDone}
+          style={{ marginTop: "0.75rem", padding: "0.5rem 1rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", cursor: "pointer", fontSize: "0.8125rem" }}
+        >
+          Done
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -157,7 +176,7 @@ export default function HoldingDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
-  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+  const toast = useToast();
 
   const { data: holding, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["holding", id],
@@ -171,6 +190,8 @@ export default function HoldingDetail() {
     queryFn: () => fetchHoldingTransactions(id),
     enabled: quantityBased,
   });
+
+  const timeline = useMemo(() => computeTransactionTimeline(transactions), [transactions]);
 
   const { data: valuations } = useQuery({
     queryKey: ["holding-valuations", id],
@@ -190,7 +211,9 @@ export default function HoldingDetail() {
       queryClient.invalidateQueries({ queryKey: ["holding", id] });
       queryClient.invalidateQueries({ queryKey: ["holding-transactions", id] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
+      toast.success("Transaction deleted");
     },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete transaction"),
   });
 
   const deleteValMutation = useMutation({
@@ -199,7 +222,9 @@ export default function HoldingDetail() {
       queryClient.invalidateQueries({ queryKey: ["holding", id] });
       queryClient.invalidateQueries({ queryKey: ["holding-valuations", id] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
+      toast.success("Entry deleted");
     },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete entry"),
   });
 
   if (isLoading) return <LoadingState message="Loading..." />;
@@ -215,8 +240,6 @@ export default function HoldingDetail() {
       <Link to="/portfolio" style={{ display: "inline-block", marginBottom: "1rem", color: "var(--text-secondary)" }}>
         ← Back to Portfolio
       </Link>
-
-      <Toast message={toast.message} type={toast.type} isVisible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
 
       <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)" }}>{holding.symbol || holding.name}</h1>
@@ -267,6 +290,12 @@ export default function HoldingDetail() {
         </Card>
       )}
 
+      {quantityBased && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <SipCard holding={holding} />
+        </div>
+      )}
+
       <div style={{ marginTop: "2rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text)" }}>
@@ -305,11 +334,15 @@ export default function HoldingDetail() {
                         <th style={{ padding: "0.6rem" }}>Quantity</th>
                         <th style={{ padding: "0.6rem" }}>Price</th>
                         <th style={{ padding: "0.6rem" }}>Fees</th>
+                        <th style={{ padding: "0.6rem" }} title="Running position after this transaction">Cost Basis After</th>
+                        <th style={{ padding: "0.6rem" }} title="Cumulative realized gain/loss after this transaction">Realized P&L</th>
                         <th style={{ padding: "0.6rem" }}></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {transactions.map((t) => (
+                      {transactions.map((t) => {
+                        const running = timeline[t.id];
+                        return (
                         <tr key={t.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
                           <td style={{ padding: "0.6rem" }}>{new Date(t.transactionDate).toLocaleDateString()}</td>
                           <td style={{ padding: "0.6rem", textTransform: "capitalize", color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
@@ -318,13 +351,20 @@ export default function HoldingDetail() {
                           <td style={{ padding: "0.6rem", fontFamily: "monospace" }}>{t.quantity.toFixed(4)}</td>
                           <td style={{ padding: "0.6rem", fontFamily: "monospace" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</td>
                           <td style={{ padding: "0.6rem", fontFamily: "monospace" }}>{formatCurrencyForDisplay(t.fees, t.currency)}</td>
+                          <td style={{ padding: "0.6rem", fontFamily: "monospace", color: "var(--text-secondary)" }}>
+                            {running ? formatCurrencyForDisplay(running.costBasisAfter, t.currency) : "—"}
+                          </td>
+                          <td style={{ padding: "0.6rem", fontFamily: "monospace", color: running && running.cumulativeRealizedGain >= 0 ? "var(--success)" : "var(--danger)" }}>
+                            {running ? `${running.cumulativeRealizedGain >= 0 ? "+" : ""}${formatCurrencyForDisplay(running.cumulativeRealizedGain, t.currency)}` : "—"}
+                          </td>
                           <td style={{ padding: "0.6rem" }}>
                             <button onClick={() => deleteTxMutation.mutate(t.id)} style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}>
                               Delete
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

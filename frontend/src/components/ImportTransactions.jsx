@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { importParse, importConfirm, fetchHouseholds, ApiError } from "../api";
 import { useQuery } from "@tanstack/react-query";
 import Card from "./Card";
-import Toast from "./Toast";
+import { useToast } from "../contexts/ToastContext";
 
 const BROKERS = [
   { value: "zerodha", label: "Zerodha (India)" },
@@ -31,9 +31,9 @@ export default function ImportTransactions() {
   const [preview, setPreview] = useState(null);
   const [included, setIncluded] = useState({});
   const [householdId, setHouseholdId] = useState("");
-  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+  const toast = useToast();
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds });
+  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const parseMutation = useMutation({
     mutationFn: () => importParse(broker, csvText),
@@ -46,7 +46,7 @@ export default function ImportTransactions() {
       setIncluded(defaults);
     },
     onError: (err) => {
-      setToast({ visible: true, message: err instanceof ApiError ? err.message : "Failed to parse file", type: "error" });
+      toast.error(err instanceof ApiError ? err.message : "Failed to parse file");
     },
   });
 
@@ -59,15 +59,11 @@ export default function ImportTransactions() {
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      setToast({
-        visible: true,
-        message: `Imported! ${result.holdings_created} holdings, ${result.transactions_created} transactions.`,
-        type: "success",
-      });
+      toast.success(`Imported! ${result.holdings_created} holdings, ${result.transactions_created} transactions.`);
       setTimeout(() => navigate("/portfolio"), 1500);
     },
     onError: (err) => {
-      setToast({ visible: true, message: err instanceof ApiError ? err.message : "Import failed", type: "error" });
+      toast.error(err instanceof ApiError ? err.message : "Import failed");
     },
   });
 
@@ -93,8 +89,6 @@ export default function ImportTransactions() {
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         Upload a transaction export from your broker. Nothing is saved until you review and confirm below.
       </p>
-
-      <Toast message={toast.message} type={toast.type} isVisible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
 
       <Card>
         <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>

@@ -3,6 +3,7 @@
  */
 
 import api from "./client";
+import { supabase } from "../lib/supabaseClient";
 import {
   mapHolding,
   mapTransaction,
@@ -25,6 +26,7 @@ export async function fetchHoldings(filters = {}) {
   if (filters.country) params.append("country", filters.country);
   if (filters.householdId) params.append("household_id", filters.householdId);
   if (filters.currency) params.append("currency", filters.currency);
+  if (filters.summary) params.append("summary", "true");
   const endpoint = params.toString() ? `/holdings?${params.toString()}` : "/holdings";
   const data = await api.get(endpoint);
   return (data || []).map(mapHolding);
@@ -253,6 +255,100 @@ export async function importParse(broker, csvText) {
 
 export async function importConfirm(rows, householdId = null) {
   return api.post("/import/confirm", { rows, household_id: householdId });
+}
+
+/**
+ * AI features (copilot chat, allocation advisor, transaction categorizer, NL search).
+ * All require owner/editor household role server-side and return a clean
+ * 503/{configured:false} shape until ANTHROPIC_API_KEY is set — never a crash.
+ */
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+
+/**
+ * Streams the copilot chat response as an async generator of text chunks.
+ * Bypasses api/client.js's 10s timeout (unsuitable for a streaming response)
+ * and parses the backend's SSE-formatted `data: {...}\n\n` frames by hand.
+ */
+export async function* streamAiChat({ messages, householdId, currency = "USD" }, signal) {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
+    method: "POST",
+    signal,
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ messages, household_id: householdId, currency }),
+  });
+
+  if (!response.ok) {
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch {
+      errorData = {};
+    }
+    const err = new Error(errorData.error || `HTTP ${response.status}`);
+    err.status = response.status;
+    err.code = errorData.code;
+    throw err;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) return;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop();
+    for (const frame of frames) {
+      if (!frame.startsWith("data: ")) continue;
+      const payload = frame.slice(6);
+      if (payload === "[DONE]") return;
+      const parsed = JSON.parse(payload);
+      if (parsed.error) throw new Error(parsed.error);
+      if (parsed.text) yield parsed.text;
+    }
+  }
+}
+
+export async function fetchAllocationAdvice({ targetAllocation, householdId, currency = "USD" }) {
+  return api.post("/api/ai/allocation-advisor", {
+    target_allocation: targetAllocation,
+    household_id: householdId,
+    currency,
+  });
+}
+
+export async function suggestTransactionTags(transactionId) {
+  return api.post(`/transactions/${transactionId}/suggest-tags`, {});
+}
+
+export async function aiSearch(query, householdId = null) {
+  return api.post("/api/ai/search", { query, household_id: householdId });
+}
+
+/**
+ * Account data (Settings page).
+ */
+export async function fetchAccountExport() {
+  return api.get("/account/export");
+}
+
+export async function deleteAllAccountData() {
+  return api.delete("/account/data", { confirm: "DELETE" });
+}
+
+/**
+ * SIP (recurring investment) projection.
+ */
+export async function fetchSipProjection(holdingId, years = 10) {
+  return api.get(`/holdings/${holdingId}/sip-projection?years=${years}`);
 }
 
 export { api } from "./client";

@@ -1,0 +1,114 @@
+import { useMemo, useState } from "react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { formatCurrencyCompact } from "../../utils/formatters";
+import { getAssetTypeLabel } from "../../constants/enums";
+
+const COLORS = ["#2563eb", "#16a34a", "#f97316", "#e11d48", "#22c55e", "#a855f7", "#eab308", "#06b6d4", "#8b5cf6", "#f43f5e"];
+
+export default function AllocationDonut({ allocationByType, allocationByCountry, holdings, currency }) {
+  const [view, setView] = useState("type"); // "type" | "country"
+  const [drill, setDrill] = useState(null); // { level: "type"|"country", key: string } | null
+
+  const topLevelData = view === "type" ? allocationByType : allocationByCountry;
+
+  const drillData = useMemo(() => {
+    if (!drill || !holdings) return null;
+    const matching = holdings.filter((h) => (drill.level === "type" ? h.assetType === drill.key : h.country === drill.key));
+    return matching
+      .map((h) => ({ label: h.symbol || h.name, value: h.displayValue }))
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [drill, holdings]);
+
+  const data = drillData || topLevelData;
+  const labelFor = (label) => (drillData ? label : view === "type" ? getAssetTypeLabel(label) : label);
+
+  function handleSliceClick(entry) {
+    if (drillData) return; // already drilled in, slices are individual holdings
+    setDrill({ level: view, key: entry.label });
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+        <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+          {drill ? (
+            <span>
+              <button onClick={() => setDrill(null)} style={breadcrumbBtnStyle}>All</button>
+              {" › "}
+              <span style={{ color: "var(--text)" }}>{drill.level === "type" ? getAssetTypeLabel(drill.key) : drill.key}</span>
+            </span>
+          ) : (
+            <span>&nbsp;</span>
+          )}
+        </div>
+        <div style={{ display: "inline-flex", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "999px", padding: "0.2rem", border: "1px solid var(--border)" }}>
+          {["type", "country"].map((v) => (
+            <button
+              key={v}
+              onClick={() => { setView(v); setDrill(null); }}
+              style={{
+                border: "none", borderRadius: "999px", padding: "0.25rem 0.625rem", fontSize: "0.75rem", cursor: "pointer",
+                background: view === v ? "var(--primary)" : "transparent",
+                color: view === v ? "var(--text-inverse)" : "var(--text-secondary)",
+                fontWeight: view === v ? 600 : 500,
+              }}
+            >
+              {v === "type" ? "Type" : "Country"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ width: "100%", height: 260 }}>
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="label"
+              cx="50%"
+              cy="50%"
+              innerRadius={55}
+              outerRadius={95}
+              paddingAngle={3}
+              onClick={handleSliceClick}
+              isAnimationActive={true}
+              cursor={drillData ? "default" : "pointer"}
+            >
+              {data.map((entry, index) => (
+                <Cell key={entry.label} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(v, name) => [formatCurrencyCompact(v, currency), labelFor(name)]}
+              contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", justifyContent: "center", marginTop: "0.25rem" }}>
+        {data.map((entry, index) => (
+          <div
+            key={entry.label}
+            onClick={() => handleSliceClick(entry)}
+            style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8125rem", cursor: drillData ? "default" : "pointer" }}
+          >
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[index % COLORS.length] }} />
+            <span>{labelFor(entry.label)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const breadcrumbBtnStyle = {
+  background: "none",
+  border: "none",
+  color: "var(--primary)",
+  fontSize: "0.8125rem",
+  cursor: "pointer",
+  padding: 0,
+  fontWeight: 500,
+};

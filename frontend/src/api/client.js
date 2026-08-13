@@ -49,6 +49,12 @@ async function fetchWithTimeout(url, options = {}) {
       } catch {
         errorData = { message: response.statusText };
       }
+
+      if (response.status === 429 && typeof window !== "undefined") {
+        const retryAfter = Number(response.headers.get("Retry-After")) || null;
+        window.dispatchEvent(new CustomEvent("api:rate-limited", { detail: { retryAfter } }));
+      }
+
       throw new ApiError(
         errorData.error || errorData.message || `HTTP ${response.status}`,
         response.status,
@@ -103,7 +109,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  delete: (endpoint) => request(endpoint, { method: "DELETE" }),
+  delete: (endpoint, data) =>
+    request(endpoint, {
+      method: "DELETE",
+      ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
+    }),
 };
 
 export { ApiError };

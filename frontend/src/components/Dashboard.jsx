@@ -1,30 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  CartesianGrid,
-} from "recharts";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import usePullToRefresh from "../hooks/usePullToRefresh";
+import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
+import { useAuth } from "../contexts/AuthContext";
 import Card from "./Card";
-import LoadingState from "./LoadingState";
+import ErrorBoundary from "./ErrorBoundary";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchDashboard, fetchNetWorthHistory, fetchHouseholds, fetchMilestones, acknowledgeMilestone, fetchBenchmark, ApiError } from "../api";
-import { formatCurrencyCompact, formatPercent, safeNumber } from "../utils/formatters";
-import { getAssetTypeLabel } from "../constants/enums";
+import NetWorthChart from "./dashboard/NetWorthChart";
+import DashboardSkeleton from "./dashboard/DashboardSkeleton";
+import AllocationDonut from "./dashboard/AllocationDonut";
+import MoverHeatGrid from "./dashboard/MoverHeatGrid";
+import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
+import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
+import AnimatedNumber from "./AnimatedNumber";
+import { fetchDashboard, fetchNetWorthHistory, fetchHouseholds, fetchHoldings, fetchMilestones, acknowledgeMilestone, fetchBenchmark, ApiError } from "../api";
+import { formatCurrencyCompact, formatPercent } from "../utils/formatters";
 
-const COLORS = ["#2563eb", "#16a34a", "#f97316", "#e11d48", "#22c55e", "#a855f7", "#eab308", "#06b6d4", "#8b5cf6", "#f43f5e"];
 const CURRENCIES = ["USD", "INR", "AUD"];
 const BENCHMARKS = [
   { value: "SPY", label: "S&P 500 (SPY)" },
@@ -116,20 +110,15 @@ function BenchmarkCard({ householdId }) {
   );
 }
 
-function formatYAxis(value, currency) {
-  const num = Math.round(safeNumber(value));
-  const abs = Math.abs(num);
-  const symbol = currency === "INR" ? "₹" : "$";
-  if (abs >= 1e6) return `${symbol}${Math.round(abs / 1e6)}M`;
-  if (abs >= 1e3) return `${symbol}${Math.round(abs / 1e3)}K`;
-  return `${symbol}${abs}`;
-}
-
 export default function Dashboard() {
-  const [currency, setCurrency] = useState("USD");
+  const { user } = useAuth();
+  const { t } = useTranslation();
+  const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
   const [householdId, setHouseholdId] = useState("");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const queryClient = useQueryClient();
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds });
+  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const {
     data: dashboard,
@@ -140,14 +129,44 @@ export default function Dashboard() {
   } = useQuery({
     queryKey: ["dashboard", currency, householdId],
     queryFn: () => fetchDashboard({ currency, householdId: householdId || undefined }),
+    staleTime: 1000 * 30,
+    placeholderData: keepPreviousData,
   });
 
   const { data: history } = useQuery({
     queryKey: ["net-worth-history", householdId],
     queryFn: () => fetchNetWorthHistory(householdId || null),
+    staleTime: 1000 * 60 * 5, // snapshots are written at most once/day
   });
 
-  if (isLoading) return <LoadingState message="Loading your dashboard..." />;
+  const { data: milestones } = useQuery({
+    queryKey: ["milestones", householdId],
+    queryFn: () => fetchMilestones(householdId || null),
+    staleTime: 1000 * 60,
+  });
+
+  const { data: holdings } = useQuery({
+    queryKey: ["holdings", "summary", currency, householdId],
+    queryFn: () => fetchHoldings({ currency, householdId: householdId || undefined, summary: true }),
+    staleTime: 1000 * 30,
+    placeholderData: keepPreviousData,
+  });
+
+  const { containerRef, pullDistance, refreshing, threshold } = usePullToRefresh(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    await queryClient.invalidateQueries({ queryKey: ["net-worth-history"] });
+    await queryClient.invalidateQueries({ queryKey: ["holdings"] });
+    await queryClient.invalidateQueries({ queryKey: ["milestones"] });
+  });
+
+  useEffect(() => {
+    if (!isLoading && dashboard && user && (dashboard.allocationByType?.length ?? 0) === 0 && !isOnboardingDismissed(user.id)) {
+      setShowOnboarding(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, dashboard, user]);
+
+  if (isLoading) return <DashboardSkeleton />;
   if (isError) {
     return (
       <ErrorState
@@ -161,7 +180,24 @@ export default function Dashboard() {
   const hasHoldings = dashboard.allocationByType.length > 0;
 
   return (
-    <div>
+    <div ref={containerRef}>
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: Math.max(pullDistance, refreshing ? threshold : 0),
+            overflow: "hidden",
+            transition: refreshing ? "height 0.15s ease" : "none",
+            color: "var(--primary)",
+            fontSize: "0.8125rem",
+            fontWeight: 600,
+          }}
+        >
+          {refreshing ? "Refreshing…" : pullDistance >= threshold ? "Release to refresh" : "Pull to refresh"}
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
           <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>
@@ -180,7 +216,7 @@ export default function Dashboard() {
                 fontSize: "0.875rem",
               }}
             >
-              <option value="">Just me</option>
+              <option value="">{t("dashboard.justMe")}</option>
               {households.map((h) => (
                 <option key={h.id} value={h.id}>{h.name}</option>
               ))}
@@ -222,6 +258,8 @@ export default function Dashboard() {
         <Link to="/alerts" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🔔 Alerts</Link>
         <Link to="/tax-summary" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🧾 Tax Summary</Link>
         <Link to="/import" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>📥 Import CSV</Link>
+        <Link to="/allocation-advisor" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🎯 Allocation Advisor</Link>
+        <Link to="/settings" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>⚙️ Settings</Link>
       </div>
 
       <MilestoneBanner householdId={householdId} />
@@ -239,16 +277,19 @@ export default function Dashboard() {
               marginBottom: "2rem",
             }}
           >
-            <Card title="Total Net Worth" value={formatCurrencyCompact(dashboard.totalNetWorth, currency)} />
             <Card
-              title="Unrealized Gains"
-              value={formatCurrencyCompact(dashboard.unrealizedGain, currency)}
-              subtitle="On what you still hold"
+              title={t("dashboard.totalNetWorth")}
+              value={<AnimatedNumber value={dashboard.totalNetWorth} format={(v) => formatCurrencyCompact(v, currency)} />}
             />
             <Card
-              title="Realized Gains"
+              title={t("dashboard.unrealizedGains")}
+              value={formatCurrencyCompact(dashboard.unrealizedGain, currency)}
+              subtitle={t("dashboard.unrealizedGainsSubtitle")}
+            />
+            <Card
+              title={t("dashboard.realizedGains")}
               value={formatCurrencyCompact(dashboard.realizedGain, currency)}
-              subtitle="Locked in from sales"
+              subtitle={t("dashboard.realizedGainsSubtitle")}
             />
           </div>
 
@@ -261,88 +302,38 @@ export default function Dashboard() {
             }}
           >
             {/* Net worth over time */}
-            <Card title="Net Worth Over Time">
-              {!history || history.length === 0 ? (
-                <EmptyState message="History builds up daily — check back tomorrow." />
-              ) : (
-                <div style={{ width: "100%", height: 300, marginTop: "1rem" }}>
-                  <ResponsiveContainer>
-                    <LineChart data={history}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-                      <YAxis
-                        tick={{ fontSize: 10, fill: "var(--text-muted)" }}
-                        tickFormatter={(v) => formatYAxis(v, "USD")}
-                      />
-                      <Tooltip
-                        formatter={(v) => formatCurrencyCompact(v, "USD")}
-                        contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
-                      />
-                      <Line type="monotone" dataKey="netWorth" stroke="#2563eb" strokeWidth={3} name="Net Worth" dot={{ r: 2 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+            <Card title={t("dashboard.netWorthOverTime")}>
+              <ErrorBoundary mode="section" fallbackMessage="The net worth chart couldn't load.">
+                <NetWorthChart history={history} currency={currency} milestones={milestones} />
+              </ErrorBoundary>
             </Card>
 
-            {/* Allocation donut */}
-            <Card title="Where Your Money Is">
-              <div style={{ width: "100%", height: 300, marginTop: "1rem" }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={dashboard.allocationByType}
-                      dataKey="value"
-                      nameKey="label"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={3}
-                    >
-                      {dashboard.allocationByType.map((entry, index) => (
-                        <Cell key={entry.label} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v, name) => [formatCurrencyCompact(v, currency), getAssetTypeLabel(name)]}
-                      contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", justifyContent: "center", marginTop: "0.5rem" }}>
-                {dashboard.allocationByType.map((entry, index) => (
-                  <div key={entry.label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8125rem" }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[index % COLORS.length] }} />
-                    <span>{getAssetTypeLabel(entry.label)}</span>
-                  </div>
-                ))}
-              </div>
+            {/* Allocation donut, drillable by type/country */}
+            <Card title={t("dashboard.whereYourMoneyIs")}>
+              <ErrorBoundary mode="section" fallbackMessage="The allocation chart couldn't load.">
+                <AllocationDonut
+                  allocationByType={dashboard.allocationByType}
+                  allocationByCountry={dashboard.allocationByCountry}
+                  holdings={holdings}
+                  currency={currency}
+                />
+              </ErrorBoundary>
             </Card>
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>
-            <BenchmarkCard householdId={householdId} />
+            <ErrorBoundary mode="section" fallbackMessage="Couldn't load the benchmark comparison.">
+              <BenchmarkCard householdId={householdId} />
+            </ErrorBoundary>
           </div>
 
-          {/* Country breakdown */}
-          <Card title="By Country" >
-            <div style={{ width: "100%", height: 220, marginTop: "1rem" }}>
-              <ResponsiveContainer>
-                <BarChart data={dashboard.allocationByCountry} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                  <XAxis type="number" tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => formatYAxis(v, currency)} />
-                  <YAxis type="category" dataKey="label" tick={{ fontSize: 12, fill: "var(--text)" }} width={100} />
-                  <Tooltip
-                    formatter={(v) => formatCurrencyCompact(v, currency)}
-                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
-                  />
-                  <Bar dataKey="value" fill="#2563eb" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+          <div style={{ marginBottom: "1.5rem" }}>
+            <Card title={t("dashboard.returnsByType")} subtitle="Value-weighted average return per type">
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't compute returns by asset type.">
+                <ReturnsByTypeChart holdings={holdings} />
+              </ErrorBoundary>
+            </Card>
+          </div>
 
           {/* Gainers / losers */}
           {(dashboard.topGainers.length > 0 || dashboard.topLosers.length > 0) && (
@@ -354,47 +345,29 @@ export default function Dashboard() {
                 marginTop: "1.5rem",
               }}
             >
-              <Card title="Top Gainers (this month)">
+              <Card title={t("dashboard.topGainers")}>
                 {dashboard.topGainers.length === 0 ? (
                   <EmptyState message="Not enough price history yet." />
                 ) : (
-                  <MoverList movers={dashboard.topGainers} currency={currency} />
+                  <ErrorBoundary mode="section" fallbackMessage="Couldn't load top gainers.">
+                    <MoverHeatGrid movers={dashboard.topGainers} currency={currency} />
+                  </ErrorBoundary>
                 )}
               </Card>
-              <Card title="Top Losers (this month)">
+              <Card title={t("dashboard.topLosers")}>
                 {dashboard.topLosers.length === 0 ? (
                   <EmptyState message="Not enough price history yet." />
                 ) : (
-                  <MoverList movers={dashboard.topLosers} currency={currency} />
+                  <ErrorBoundary mode="section" fallbackMessage="Couldn't load top losers.">
+                    <MoverHeatGrid movers={dashboard.topLosers} currency={currency} />
+                  </ErrorBoundary>
                 )}
               </Card>
             </div>
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function MoverList({ movers, currency }) {
-  return (
-    <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      {movers.map((m) => {
-        const positive = m.changePct >= 0;
-        return (
-          <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 600, color: "var(--text)" }}>{m.symbol || m.name}</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                {formatCurrencyCompact(m.currentValue, currency)}
-              </div>
-            </div>
-            <div style={{ color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
-              {positive ? "+" : ""}{formatPercent(m.changePct)}
-            </div>
-          </div>
-        );
-      })}
+      {showOnboarding && <OnboardingWizard onClose={() => setShowOnboarding(false)} />}
     </div>
   );
 }

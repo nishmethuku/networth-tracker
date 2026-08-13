@@ -1,0 +1,49 @@
+{
+  "nav": {
+    "netWorth": "कुल संपत्ति",
+    "portfolio": "पोर्टफोलियो",
+    "transactions": "लेन-देन",
+    "importCsv": "CSV आयात करें",
+    "alerts": "अलर्ट",
+    "taxSummary": "कर सारांश",
+    "allocationAdvisor": "आवंटन सलाहकार",
+    "household": "परिवार",
+    "settings": "सेटिंग्स",
+    "addHolding": "+ होल्डिंग जोड़ें",
+    "signOut": "साइन आउट",
+    "home": "होम",
+    "add": "जोड़ें",
+    "history": "इतिहास",
+    "family": "परिवार"
+  },
+  "dashboard": {
+    "totalNetWorth": "कुल संपत्ति",
+    "unrealizedGains": "अवास्तविक लाभ",
+    "unrealizedGainsSubtitle": "आपके पास मौजूद होल्डिंग्स पर",
+    "realizedGains": "वास्तविक लाभ",
+    "realizedGainsSubtitle": "बिक्री से प्राप्त",
+    "netWorthOverTime": "समय के साथ कुल संपत्ति",
+    "whereYourMoneyIs": "आपका पैसा कहाँ है",
+    "returnsByType": "प्रकार के अनुसार रिटर्न",
+    "topGainers": "शीर्ष लाभार्थी (इस महीने)",
+    "topLosers": "शीर्ष हानि (इस महीने)",
+    "justMe": "सिर्फ मैं"
+  },
+  "common": {
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "loading": "लोड हो रहा है...",
+    "retry": "पुनः प्रयास करें",
+    "close": "बंद करें"
+  },
+  "settings": {
+    "title": "सेटिंग्स",
+    "profile": "प्रोफ़ाइल",
+    "display": "प्रदर्शन",
+    "theme": "थीम",
+    "defaultCurrency": "डिफ़ॉल्ट मुद्रा",
+    "language": "भाषा"
+  }
+}

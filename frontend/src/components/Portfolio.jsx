@@ -1,19 +1,62 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useNavigate, useLocation } from "react-router-dom";
 import { fetchHoldings, fetchHouseholds, deleteHolding, ApiError } from "../api";
 import Card from "./Card";
-import LoadingState from "./LoadingState";
+import PortfolioSkeleton from "./PortfolioSkeleton";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import HoldingCard from "./HoldingCard";
+import useIsMobile from "../hooks/useIsMobile";
+import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
 
+function gainPct(h) {
+  if (isQuantityBased(h.assetType) && h.costBasis) return (h.totalGain / h.costBasis) * 100;
+  if (h.firstValue) return (h.gain / Math.abs(h.firstValue)) * 100;
+  return null;
+}
+
+/** Applies an AI-generated filter spec (see backend/ai_service.py's
+ * SEARCH_SYSTEM_PROMPT for the exact shape) against already-loaded holdings. */
+function matchesFilterSpec(h, spec) {
+  if (!spec) return true;
+  if (spec.asset_types?.length && !spec.asset_types.includes(h.assetType)) return false;
+  if (spec.countries?.length && !spec.countries.includes(h.country)) return false;
+  if (spec.min_value != null && h.displayValue < spec.min_value) return false;
+  if (spec.max_value != null && h.displayValue > spec.max_value) return false;
+
+  const pct = gainPct(h);
+  if (spec.min_gain_pct != null && (pct == null || pct < spec.min_gain_pct)) return false;
+  if (spec.max_gain_pct != null && (pct == null || pct > spec.max_gain_pct)) return false;
+  if (spec.gainers_only && (pct == null || pct <= 0)) return false;
+  if (spec.losers_only && (pct == null || pct >= 0)) return false;
+
+  if (spec.text) {
+    const needle = spec.text.toLowerCase();
+    const haystack = `${h.name} ${h.symbol || ""}`.toLowerCase();
+    if (!haystack.includes(needle)) return false;
+  }
+  return true;
+}
+
 function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
   const quantityBased = isQuantityBased(assetType);
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+        {holdings.map((h) => (
+          <HoldingCard key={h.id} holding={h} currency={currency} onOpen={() => navigate(`/portfolio/${h.id}`)} onDelete={onDelete} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -91,12 +134,16 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
 
 export default function Portfolio() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
   const [householdId, setHouseholdId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [aiFilter, setAiFilter] = useState(
+    location.state?.aiFilterSpec ? { spec: location.state.aiFilterSpec, query: location.state.aiFilterQuery } : null
+  );
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds });
+  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const {
     data: holdings,
@@ -105,8 +152,10 @@ export default function Portfolio() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["holdings", currency, householdId],
-    queryFn: () => fetchHoldings({ currency, householdId: householdId || undefined }),
+    queryKey: ["holdings", "summary", currency, householdId],
+    queryFn: () => fetchHoldings({ currency, householdId: householdId || undefined, summary: true }),
+    staleTime: 1000 * 30,
+    placeholderData: keepPreviousData,
   });
 
   const deleteMutation = useMutation({
@@ -118,14 +167,16 @@ export default function Portfolio() {
     },
   });
 
-  if (isLoading) return <LoadingState message="Loading portfolio..." />;
+  if (isLoading) return <PortfolioSkeleton />;
   if (isError) {
     return (
       <ErrorState error={error instanceof ApiError ? error.message : "Failed to load portfolio"} onRetry={refetch} />
     );
   }
 
-  const grouped = (holdings || []).reduce((acc, h) => {
+  const filteredHoldings = aiFilter ? (holdings || []).filter((h) => matchesFilterSpec(h, aiFilter.spec)) : holdings || [];
+
+  const grouped = filteredHoldings.reduce((acc, h) => {
     (acc[h.assetType] = acc[h.assetType] || []).push(h);
     return acc;
   }, {});
@@ -181,7 +232,21 @@ export default function Portfolio() {
         assetName={deleteTarget?.displayName}
       />
 
-      {orderedTypes.length === 0 ? (
+      {aiFilter && (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem", padding: "0.5rem 0.875rem", borderRadius: "var(--radius)", background: "var(--primary-light)", border: "1px solid var(--border)", width: "fit-content" }}>
+          <span style={{ fontSize: "0.8125rem", color: "var(--primary-dark)" }}>✨ Filtered by: "{aiFilter.query}"</span>
+          <button
+            onClick={() => setAiFilter(null)}
+            style={{ background: "none", border: "none", color: "var(--primary-dark)", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, padding: 0 }}
+          >
+            Clear ×
+          </button>
+        </div>
+      )}
+
+      {orderedTypes.length === 0 && aiFilter ? (
+        <EmptyState message={`No holdings match "${aiFilter.query}".`} />
+      ) : orderedTypes.length === 0 ? (
         <EmptyState
           message="No holdings yet. Add your first one!"
           action={

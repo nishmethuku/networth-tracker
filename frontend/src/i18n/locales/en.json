@@ -1,0 +1,49 @@
+{
+  "nav": {
+    "netWorth": "Net Worth",
+    "portfolio": "Portfolio",
+    "transactions": "Transactions",
+    "importCsv": "Import CSV",
+    "alerts": "Alerts",
+    "taxSummary": "Tax Summary",
+    "allocationAdvisor": "Allocation Advisor",
+    "household": "Household",
+    "settings": "Settings",
+    "addHolding": "+ Add Holding",
+    "signOut": "Sign Out",
+    "home": "Home",
+    "add": "Add",
+    "history": "History",
+    "family": "Family"
+  },
+  "dashboard": {
+    "totalNetWorth": "Total Net Worth",
+    "unrealizedGains": "Unrealized Gains",
+    "unrealizedGainsSubtitle": "On what you still hold",
+    "realizedGains": "Realized Gains",
+    "realizedGainsSubtitle": "Locked in from sales",
+    "netWorthOverTime": "Net Worth Over Time",
+    "whereYourMoneyIs": "Where Your Money Is",
+    "returnsByType": "Returns by Asset Type",
+    "topGainers": "Top Gainers (this month)",
+    "topLosers": "Top Losers (this month)",
+    "justMe": "Just me"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "retry": "Retry",
+    "close": "Close"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "display": "Display",
+    "theme": "Theme",
+    "defaultCurrency": "Default currency",
+    "language": "Language"
+  }
+}

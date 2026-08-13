@@ -20,8 +20,12 @@ export default function Alerts() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ kind: "price", holdingId: "", direction: "above", threshold: "", currency: "USD" });
 
-  const { data: alerts, isLoading, isError, error, refetch } = useQuery({ queryKey: ["alerts"], queryFn: fetchAlerts });
-  const { data: holdings } = useQuery({ queryKey: ["holdings", "USD", ""], queryFn: () => fetchHoldings({ currency: "USD" }) });
+  const { data: alerts, isLoading, isError, error, refetch } = useQuery({ queryKey: ["alerts"], queryFn: fetchAlerts, staleTime: 1000 * 30 });
+  const { data: holdings } = useQuery({
+    queryKey: ["holdings", "summary", "USD", ""],
+    queryFn: () => fetchHoldings({ currency: "USD", summary: true }),
+    staleTime: 1000 * 60,
+  });
 
   const quantityHoldings = (holdings || []).filter((h) => isQuantityBased(h.assetType));
 

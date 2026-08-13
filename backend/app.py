@@ -1,8 +1,14 @@
 from datetime import date
+import json
+import logging
 import os
-from flask import Flask, jsonify, request, g, abort
+import uuid
+from flask import Flask, jsonify, request, g, abort, Response
 from flask_cors import CORS
 from flask_migrate import Migrate
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from werkzeug.exceptions import HTTPException
 import requests
 
 from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, Milestone
@@ -10,7 +16,9 @@ from .auth import require_auth
 from .utils import FINNHUB_API_KEY, MFTOOL_AVAILABLE
 from .services import safe_float
 from . import price_service
-from .holdings_service import list_holdings_with_metrics, build_dashboard
+from . import ai_service
+from .allocation_service import compute_rebalance_plan, validate_target_allocation
+from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary
 from .household_service import (
     get_member_household_ids,
     get_role,
@@ -27,8 +35,11 @@ from .household_service import (
 from .snapshot_service import snapshot_all_users
 from .digest_service import build_weekly_digest
 from .alert_service import check_all_alerts
+from .unsubscribe_service import verify_unsubscribe_token, unsubscribe as unsubscribe_email
+from .account_service import export_user_data, delete_all_user_data
+from .sip_service import next_occurrences as next_sip_occurrences, project_future_value as project_sip_future_value
 from .benchmark_service import get_benchmark_comparison
-from .tax_service import get_tax_summary
+from .tax_service import get_tax_summary, TAX_DISCLAIMER
 from .csv_import_service import parse_csv, confirm_import, SUPPORTED_BROKERS
 
 # Import mf instance if available
@@ -40,6 +51,22 @@ except (ImportError, AttributeError):
 
 SNAPSHOT_SECRET = os.environ.get("SNAPSHOT_SECRET")
 DIGEST_SECRET = os.environ.get("DIGEST_SECRET") or SNAPSHOT_SECRET
+
+logger = logging.getLogger("networth_tracker")
+
+# Machine-readable codes for the standardized error shape. HTTPException
+# subclasses not listed here fall back to their class name, slugified.
+_ERROR_CODES = {
+    400: "bad_request",
+    401: "unauthorized",
+    403: "forbidden",
+    404: "not_found",
+    405: "method_not_allowed",
+    409: "conflict",
+    422: "unprocessable",
+    429: "rate_limited",
+    500: "internal_error",
+}
 
 
 def create_app():
@@ -58,9 +85,49 @@ def create_app():
     Migrate(app, db)
 
     if os.environ.get("FLASK_ENV") == "production":
-        CORS(app, origins=[os.environ.get("FRONTEND_URL", "*")])
+        CORS(app, origins=[os.environ.get("FRONTEND_URL", "*")], expose_headers=["X-Request-ID"])
     else:
-        CORS(app)
+        CORS(app, expose_headers=["X-Request-ID"])
+
+    # In-memory storage: fine for a single Render instance (matches the
+    # no-Redis decision); resets on deploy/restart and won't share state
+    # across multiple workers/instances if the app ever scales out.
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["60 per minute"],
+        storage_uri="memory://",
+        headers_enabled=True,
+    )
+    app.extensions["limiter"] = limiter
+
+    # ---------------- REQUEST ID + STANDARDIZED ERRORS ----------------
+
+    @app.before_request
+    def _assign_request_id():
+        g.request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+
+    @app.after_request
+    def _attach_request_id(response):
+        response.headers["X-Request-ID"] = getattr(g, "request_id", "")
+        return response
+
+    def _error_payload(message, status, code=None, details=None):
+        return {
+            "error": message,
+            "code": code or _ERROR_CODES.get(status, "error"),
+            "request_id": getattr(g, "request_id", None),
+            "details": details,
+        }
+
+    @app.errorhandler(HTTPException)
+    def _handle_http_exception(err):
+        return jsonify(_error_payload(err.description or err.name, err.code)), err.code
+
+    @app.errorhandler(Exception)
+    def _handle_unexpected_exception(err):
+        logger.exception("Unhandled exception (request_id=%s)", getattr(g, "request_id", None))
+        return jsonify(_error_payload("An unexpected error occurred", 500)), 500
 
     # ---------------- SCOPE / AUTHORIZATION HELPERS ----------------
 
@@ -99,6 +166,16 @@ def create_app():
         if not can_edit_household(household_id, g.user_id):
             abort(403, description="You need editor access to this household")
 
+    def require_ai_access(household_id_param):
+        """AI features are restricted to owner/editor household roles. A
+        caller viewing their own data (no household_id) always has access —
+        there's no lesser role to check against."""
+        if not household_id_param:
+            return
+        role = get_role(household_id_param, g.user_id)
+        if role not in ("owner", "editor"):
+            abort(403, description="AI features require owner or editor access to this household")
+
     def get_authorized_transaction(transaction_id, require_write=False):
         tx = HoldingTransaction.query.get_or_404(transaction_id)
         get_authorized_holding(tx.holding_id, require_write=require_write)
@@ -125,6 +202,9 @@ def create_app():
             currency=data["currency"],
             interest_rate=data.get("interest_rate"),
             maturity_date=date.fromisoformat(data["maturity_date"]) if data.get("maturity_date") else None,
+            sip_amount=data.get("sip_amount"),
+            sip_frequency=data.get("sip_frequency"),
+            sip_start_date=date.fromisoformat(data["sip_start_date"]) if data.get("sip_start_date") else None,
             is_private=bool(data.get("is_private", False)),
             notes=data.get("notes"),
             tags=data.get("tags"),
@@ -148,7 +228,10 @@ def create_app():
             query = query.filter(Holding.country == country)
 
         holdings = query.order_by(Holding.created_at.desc()).all()
-        return jsonify(list_holdings_with_metrics(holdings, display_currency=display_currency))
+        results = list_holdings_with_metrics(holdings, display_currency=display_currency)
+        if request.args.get("summary") == "true":
+            results = [to_summary(r) for r in results]
+        return jsonify(results)
 
     @app.route("/holdings/<int:holding_id>", methods=["GET"])
     @require_auth
@@ -176,6 +259,14 @@ def create_app():
             holding.maturity_date = date.fromisoformat(data["maturity_date"]) if data["maturity_date"] else None
         if "is_private" in data:
             holding.is_private = bool(data["is_private"])
+        if "sip_amount" in data:
+            holding.sip_amount = data["sip_amount"]
+        if "sip_frequency" in data:
+            if data["sip_frequency"] and data["sip_frequency"] not in ("weekly", "monthly", "quarterly"):
+                return jsonify({"error": "sip_frequency must be weekly, monthly, or quarterly"}), 400
+            holding.sip_frequency = data["sip_frequency"]
+        if "sip_start_date" in data:
+            holding.sip_start_date = date.fromisoformat(data["sip_start_date"]) if data["sip_start_date"] else None
 
         db.session.commit()
         [metrics] = list_holdings_with_metrics([holding])
@@ -188,6 +279,26 @@ def create_app():
         db.session.delete(holding)
         db.session.commit()
         return jsonify({"message": "Holding deleted"}), 200
+
+    @app.route("/holdings/<int:holding_id>/sip-projection", methods=["GET"])
+    @require_auth
+    def sip_projection(holding_id):
+        holding = get_authorized_holding(holding_id)
+        if not holding.sip_amount or not holding.sip_frequency or not holding.sip_start_date:
+            return jsonify({"error": "This holding isn't set up as a SIP yet"}), 400
+
+        years = safe_float(request.args.get("years", 10))
+        [metrics] = list_holdings_with_metrics([holding])
+
+        upcoming = next_sip_occurrences(holding.sip_start_date, holding.sip_frequency, count=3)
+        projection = project_sip_future_value(
+            current_value=metrics.get("current_value", 0.0),
+            sip_amount=holding.sip_amount,
+            frequency=holding.sip_frequency,
+            annual_rate=metrics.get("xirr"),
+            years=years,
+        )
+        return jsonify({"upcoming_dates": upcoming, "years": years, **projection})
 
     # ---------------- TRANSACTIONS (buy/sell ledger) ----------------
 
@@ -239,6 +350,8 @@ def create_app():
             tx.fees = safe_float(data["fees"])
         if "notes" in data:
             tx.notes = data["notes"]
+        if "tags" in data:
+            tx.tags = data["tags"]
         db.session.commit()
         return jsonify(tx.to_dict())
 
@@ -382,6 +495,11 @@ def create_app():
         rates = {t: (1.0 if t == base else price_service.get_rate(base, t)) for t in targets}
         return jsonify({"base": base, "rates": rates})
 
+    @app.route("/price-cache-status", methods=["GET"])
+    @require_auth
+    def price_cache_status():
+        return jsonify(price_service.get_cache_status())
+
     # ---------------- BENCHMARK COMPARISON ----------------
 
     @app.route("/benchmark", methods=["GET"])
@@ -409,7 +527,7 @@ def create_app():
         result = get_tax_summary(
             g.user_id if not household_id_param else None, household_id_param
         )
-        return jsonify(result)
+        return jsonify({"rows": result, "disclaimer": TAX_DISCLAIMER})
 
     # ---------------- PRICE ALERTS ----------------
 
@@ -607,6 +725,7 @@ def create_app():
     # ---------------- INTERNAL: DAILY SNAPSHOT / WEEKLY DIGEST TRIGGERS ----------------
 
     @app.route("/internal/snapshot", methods=["POST"])
+    @limiter.limit("10 per minute")
     def trigger_snapshot():
         """Called once a day by a GitHub Actions cron workflow, authenticated
         with a shared secret (not a user session)."""
@@ -617,6 +736,7 @@ def create_app():
         return jsonify(result), 200
 
     @app.route("/internal/weekly-digest", methods=["POST"])
+    @limiter.limit("10 per minute")
     def trigger_weekly_digest():
         """Called weekly by a GitHub Actions cron workflow. Computes a real
         digest per user/household and emails each recipient via Resend
@@ -628,7 +748,20 @@ def create_app():
         digests = build_weekly_digest()
         return jsonify({"digests_built": len(digests)}), 200
 
+    @app.route("/internal/unsubscribe", methods=["GET"])
+    @limiter.limit("30 per minute")
+    def unsubscribe_from_digest():
+        """One-click unsubscribe link from a digest email — no login required,
+        verified via an HMAC-signed token rather than a session."""
+        token = request.args.get("token", "")
+        email = verify_unsubscribe_token(token)
+        if not email:
+            return "<p>This unsubscribe link is invalid or has expired.</p>", 400
+        unsubscribe_email(email)
+        return f"<p>{email} has been unsubscribed from the weekly net worth digest.</p>", 200
+
     @app.route("/internal/check-alerts", methods=["POST"])
+    @limiter.limit("10 per minute")
     def trigger_check_alerts():
         """Called every few hours by a GitHub Actions cron workflow."""
         provided = request.headers.get("X-Snapshot-Secret")
@@ -834,6 +967,131 @@ def create_app():
         except Exception as e:
             print(f"[ERROR] Mutual fund symbol search failed: {e}")
             return []
+
+    # ---------------- AI FEATURES (owner/editor only, graceful when unconfigured) ----------------
+
+    def _portfolio_snapshot_for_caller(household_id, currency="USD"):
+        holdings = scoped_holdings_query(household_id).all()
+        holdings_by_id = {h.id: h for h in holdings}
+        holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency=currency)
+        dashboard = build_dashboard(holdings_with_metrics, holdings_by_id, display_currency=currency)
+        return ai_service.build_portfolio_snapshot(holdings_with_metrics, dashboard, currency), dashboard
+
+    @app.route("/api/ai/chat", methods=["POST"])
+    @require_auth
+    @limiter.limit("5 per minute")
+    def ai_chat():
+        if not ai_service.is_configured():
+            return jsonify({"error": "AI features aren't configured yet", "code": "ai_not_configured"}), 503
+
+        data = request.get_json(force=True) or {}
+        household_id = data.get("household_id")
+        require_ai_access(household_id)
+
+        messages = data.get("messages")
+        if not messages or not isinstance(messages, list):
+            return jsonify({"error": "messages is required"}), 400
+        messages = messages[-20:]  # cap history sent per request
+
+        currency = data.get("currency", "USD")
+        snapshot, _ = _portfolio_snapshot_for_caller(household_id, currency)
+
+        def generate():
+            try:
+                for chunk in ai_service.chat_stream(messages, snapshot):
+                    yield f"data: {json.dumps({'text': chunk})}\n\n"
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        return Response(
+            generate(),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    @app.route("/api/ai/allocation-advisor", methods=["POST"])
+    @require_auth
+    @limiter.limit("10 per minute")
+    def ai_allocation_advisor():
+        data = request.get_json(force=True) or {}
+        household_id = data.get("household_id")
+        require_ai_access(household_id)
+
+        target_allocation = data.get("target_allocation")
+        if not isinstance(target_allocation, dict):
+            return jsonify({"error": "target_allocation is required (asset_type -> percent)"}), 400
+        try:
+            validate_target_allocation(target_allocation)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+        currency = data.get("currency", "USD")
+        _, dashboard = _portfolio_snapshot_for_caller(household_id, currency)
+        plan = compute_rebalance_plan(dashboard["allocation_by_type"], dashboard["total_net_worth"], target_allocation)
+
+        narrative = None
+        if ai_service.is_configured():
+            current_allocation = {a["label"]: a["value"] for a in dashboard["allocation_by_type"]}
+            narrative = ai_service.generate_allocation_narrative(current_allocation, target_allocation, plan)
+
+        return jsonify({
+            "ai_configured": ai_service.is_configured(),
+            "rebalance_plan": plan,
+            "narrative": narrative,
+            "disclaimer": "This is informational only, generated from your own portfolio data, and is not financial advice.",
+        })
+
+    @app.route("/transactions/<int:transaction_id>/suggest-tags", methods=["POST"])
+    @require_auth
+    @limiter.limit("20 per minute")
+    def ai_suggest_transaction_tags(transaction_id):
+        tx = get_authorized_transaction(transaction_id, require_write=True)
+        holding = Holding.query.get(tx.holding_id)
+        require_ai_access(str(holding.household_id) if holding.household_id else None)
+
+        if not ai_service.is_configured():
+            return jsonify({"configured": False, "suggestion": None})
+
+        suggestion = ai_service.suggest_transaction_tags(
+            holding.name, holding.asset_type, tx.transaction_type, tx.quantity, tx.price_per_unit, tx.currency
+        )
+        return jsonify({"configured": True, "suggestion": suggestion})
+
+    @app.route("/api/ai/search", methods=["POST"])
+    @require_auth
+    @limiter.limit("20 per minute")
+    def ai_search():
+        data = request.get_json(force=True) or {}
+        household_id = data.get("household_id")
+        require_ai_access(household_id)
+
+        query = (data.get("query") or "").strip()
+        if not query:
+            return jsonify({"error": "query is required"}), 400
+
+        if not ai_service.is_configured():
+            return jsonify({"configured": False, "filter_spec": None})
+
+        filter_spec = ai_service.parse_search_query(query)
+        return jsonify({"configured": True, "filter_spec": filter_spec})
+
+    # ---------------- ACCOUNT DATA (Settings page: export / danger zone) ----------------
+
+    @app.route("/account/export", methods=["GET"])
+    @require_auth
+    def account_export():
+        return jsonify(export_user_data(g.user_id))
+
+    @app.route("/account/data", methods=["DELETE"])
+    @require_auth
+    @limiter.limit("5 per hour")
+    def account_delete_data():
+        data = request.get_json(silent=True) or {}
+        if data.get("confirm") != "DELETE":
+            return jsonify({"error": "Type DELETE to confirm this action"}), 400
+        result = delete_all_user_data(g.user_id)
+        return jsonify(result)
 
     return app
 
