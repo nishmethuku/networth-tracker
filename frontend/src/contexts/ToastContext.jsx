@@ -9,6 +9,7 @@ export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const timers = useRef({});
   const lastRateLimitToastAt = useRef(0);
+  const lastColdStartToastAt = useRef(0);
 
   const dismiss = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -44,6 +45,18 @@ export function ToastProvider({ children }) {
     }
     window.addEventListener("api:rate-limited", handleRateLimited);
     return () => window.removeEventListener("api:rate-limited", handleRateLimited);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    function handleColdStartRetry() {
+      const now = Date.now();
+      if (now - lastColdStartToastAt.current < 10000) return; // several parallel GETs can all hit this within the same cold start
+      lastColdStartToastAt.current = now;
+      push("Waking up the server — this can take up to a minute on the free tier…", "info", 8000);
+    }
+    window.addEventListener("api:cold-start-retry", handleColdStartRetry);
+    return () => window.removeEventListener("api:cold-start-retry", handleColdStartRetry);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

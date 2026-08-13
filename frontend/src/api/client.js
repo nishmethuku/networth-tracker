@@ -4,7 +4,13 @@
 import { supabase } from "../lib/supabaseClient";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
-const API_TIMEOUT = 10000; // 10 seconds
+const DEFAULT_TIMEOUT = 15000; // 15 seconds — comfortable for a warm backend
+// Render's free tier spins the backend down after 15 min idle; the first
+// request after that can take up to ~90s to wake it. Rather than make every
+// request wait that long by default, GET requests get one retry at this
+// longer timeout if the first attempt times out or fails at the network
+// level (see request() below) — writes are never auto-retried.
+const COLD_START_TIMEOUT = 60000;
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -15,9 +21,9 @@ class ApiError extends Error {
   }
 }
 
-async function fetchWithTimeout(url, options = {}) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     // Ensure GET requests never send a body
@@ -66,7 +72,7 @@ async function fetchWithTimeout(url, options = {}) {
   } catch (error) {
     clearTimeout(timeoutId);
     if (error.name === "AbortError") {
-      throw new ApiError("Request timeout. Please try again.", 408);
+      throw new ApiError("Request timed out.", 408);
     }
     if (error instanceof ApiError) {
       throw error;
@@ -78,19 +84,36 @@ async function fetchWithTimeout(url, options = {}) {
   }
 }
 
+async function parseResponse(response) {
+  // Handle empty responses (like 204 No Content)
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    return await response.json();
+  }
+  return null;
+}
+
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
+  const method = (options.method || "GET").toUpperCase();
 
   try {
-    const response = await fetchWithTimeout(url, options);
-    
-    // Handle empty responses (like 204 No Content)
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      return await response.json();
-    }
-    return null;
+    const response = await fetchWithTimeout(url, options, DEFAULT_TIMEOUT);
+    return await parseResponse(response);
   } catch (error) {
+    const looksLikeColdStart = error instanceof ApiError && (error.status === 408 || error.status === 0);
+    if (method === "GET" && looksLikeColdStart) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("api:cold-start-retry"));
+      }
+      try {
+        const response = await fetchWithTimeout(url, options, COLD_START_TIMEOUT);
+        return await parseResponse(response);
+      } catch (retryError) {
+        console.error(`API Error [${endpoint}]:`, retryError);
+        throw retryError;
+      }
+    }
     console.error(`API Error [${endpoint}]:`, error);
     throw error;
   }
