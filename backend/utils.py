@@ -246,9 +246,10 @@ def get_historical_price_from_nsepy(ticker: str, target_date: date):
 
 def get_historical_price_from_finnhub(ticker: str, target_date: date):
     """
-    Historical daily close for a US stock via Finnhub's /stock/candle
-    endpoint. Free-tier access to this endpoint has varied over time —
-    treat a None return as "unavailable", same as any other price source.
+    Historical daily close via Finnhub's /stock/candle endpoint. Kept as a
+    fallback, but verified (2026-08-13) that this endpoint returns 403 on
+    the free tier — it's paid-only despite live quotes working fine.
+    get_historical_price_from_yahoo is the primary historical source now.
     """
     if not FINNHUB_API_KEY:
         return None
@@ -272,6 +273,43 @@ def get_historical_price_from_finnhub(ticker: str, target_date: date):
         return price if price > 0 else None
     except Exception as e:
         print(f"Finnhub historical price fetch failed for {ticker}: {e}")
+        return None
+
+
+def get_historical_price_from_yahoo(ticker: str, target_date: date):
+    """
+    Historical daily close via Yahoo Finance's unofficial chart API — free,
+    keyless, and works for both US tickers (SPY) and NSE tickers
+    (RELIANCE.NS) with the same call, unlike Finnhub (US-only, paid-tier
+    candle endpoint) or NSEpy (NSE-only, scraping-based). This is the
+    primary historical price source; Finnhub/NSEpy remain as fallbacks
+    since this is an unofficial, undocumented endpoint that could change.
+    """
+    try:
+        import calendar
+
+        start = target_date - timedelta(days=5)
+        period1 = calendar.timegm(start.timetuple())
+        period2 = calendar.timegm((target_date + timedelta(days=1)).timetuple())
+
+        response = requests.get(
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker.upper()}",
+            params={"period1": period1, "period2": period2, "interval": "1d"},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=8,
+        )
+        response.raise_for_status()
+        result = response.json().get("chart", {}).get("result")
+        if not result:
+            return None
+        closes = result[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
+        closes = [c for c in closes if c is not None]
+        if not closes:
+            return None
+        price = float(closes[-1])
+        return price if price > 0 else None
+    except Exception as e:
+        print(f"Yahoo historical price fetch failed for {ticker}: {e}")
         return None
 
 
@@ -308,6 +346,16 @@ def _get_price_from_mftool(scheme_code: str):
     except Exception as e:
         print(f"mftool NAV fetch failed for scheme {scheme_code}: {e}")
         return None
+
+
+def _get_price_from_yahoo(ticker: str):
+    """Current price via Yahoo Finance's unofficial chart API (most recent
+    close within a lookback window) — works for both US and NSE tickers with
+    no key. Verified 2026-08-13: the entire nselib/nsepython/nsepy chain is
+    down against NSE's current site, and Finnhub 403s on NSE symbols on the
+    free tier, so this is the one source that reliably works for NSE stocks
+    right now."""
+    return get_historical_price_from_yahoo(ticker, date.today())
 
 
 def get_current_stock_price(ticker: str, asset_type: str = None):
@@ -390,17 +438,23 @@ def _fetch_price_with_fallbacks(ticker: str, asset_type: str = None):
         price = _get_price_from_finnhub(ticker)
         if price:
             return price
-        
+
+        # 5) Fallback to Yahoo Finance (unofficial, but currently the only
+        # source that reliably works for NSE stocks — see _get_price_from_yahoo)
+        price = _get_price_from_yahoo(ticker)
+        if price:
+            return price
+
         # No price found for NSE stock
         return None
-    
+
     # For US and other non-NSE stocks:
     # 1) Try Finnhub FIRST (primary for US stocks if API key is set)
     if FINNHUB_API_KEY:
         price = _get_price_from_finnhub(ticker)
         if price:
             return price
-    
+
     # If it's a mutual fund but mftool didn't work, try other sources
     if asset_type == "mutual_fund":
         # Try Finnhub as fallback for mutual funds (might have some MF data)
@@ -408,6 +462,13 @@ def _fetch_price_with_fallbacks(ticker: str, asset_type: str = None):
             price = _get_price_from_finnhub(ticker)
             if price:
                 return price
+
+    # Last resort for stocks: Yahoo Finance (covers the case where Finnhub
+    # is rate-limited, unset, or the symbol isn't one it knows)
+    if asset_type != "mutual_fund":
+        price = _get_price_from_yahoo(ticker)
+        if price:
+            return price
 
     # No price found
     return None

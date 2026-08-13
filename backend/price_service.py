@@ -14,6 +14,7 @@ from .utils import (
     get_crypto_price,
     get_crypto_historical_price,
     get_metal_price,
+    get_historical_price_from_yahoo,
     get_historical_price_from_nsepy,
     get_historical_price_from_finnhub,
     get_exchange_rate as _fetch_exchange_rate,
@@ -70,13 +71,24 @@ def _get_mftool_historical_nav(scheme_code: str, target_date: date) -> Optional[
         return None
 
 
+# Commodity holdings store 'gold'/'silver'/'platinum' (matching metals-api.com's
+# symbol keys for live pricing) — these are NOT valid Yahoo tickers. 'GOLD' in
+# particular silently resolves to an unrelated penny stock (Gold.com, Inc.),
+# not the price of gold, so this mapping to real futures tickers is required
+# for correctness, not just a nicety.
+COMMODITY_YAHOO_TICKERS = {"gold": "GC=F", "silver": "SI=F", "platinum": "PL=F"}
+
+
 def get_historical_price(asset_type: str, symbol: str, target_date: date, currency: str = "USD") -> Optional[float]:
     """
-    Historical price on a specific date, DB-cached. Crypto (CoinGecko) and
-    Indian mutual funds (mftool) have the most reliable historical lookups;
-    US stocks (Finnhub candles) and NSE stocks (NSEpy) are best-effort —
-    free-tier/scraping-based sources that can come back empty, in which case
-    this returns None and the frontend offers manual entry instead.
+    Historical price on a specific date, DB-cached. Crypto (CoinGecko),
+    Indian mutual funds (mftool), and stocks/commodities via Yahoo Finance
+    (works for both US and NSE symbols, no key needed) are all reasonably
+    reliable. Yahoo's endpoint is unofficial and undocumented, so NSEpy is
+    kept as a fallback for NSE symbols specifically if it ever stops
+    working; Finnhub's candle endpoint is confirmed 403/paid-only on the
+    free tier (verified 2026-08-13) and is a last-resort fallback only.
+    Returns None if nothing works, and the frontend offers manual entry.
     """
     cached = PriceHistory.query.filter_by(
         asset_type=asset_type, symbol=symbol, price_date=target_date
@@ -93,11 +105,13 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
         price = _get_mftool_historical_nav(symbol, target_date)
         source = "mftool"
     elif asset_type in ("stock", "commodity"):
-        is_nse = symbol.upper().endswith(".NS") or symbol.upper().endswith(".NSE")
-        if is_nse:
+        yahoo_symbol = COMMODITY_YAHOO_TICKERS.get(symbol.lower(), symbol) if asset_type == "commodity" else symbol
+        price = get_historical_price_from_yahoo(yahoo_symbol, target_date)
+        source = "yahoo"
+        if price is None and (symbol.upper().endswith(".NS") or symbol.upper().endswith(".NSE")):
             price = get_historical_price_from_nsepy(symbol, target_date)
             source = "nsepy"
-        else:
+        elif price is None and asset_type == "stock":
             price = get_historical_price_from_finnhub(symbol, target_date)
             source = "finnhub"
 
