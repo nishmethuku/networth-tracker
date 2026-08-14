@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { importParse, importConfirm, fetchHouseholds, ApiError } from "../api";
 import { useQuery } from "@tanstack/react-query";
 import Card from "./Card";
@@ -88,6 +88,9 @@ export default function ImportTransactions() {
       </h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         Upload a transaction export from your broker. Nothing is saved until you review and confirm below.
+      </p>
+      <p style={{ marginTop: "-1.5rem", marginBottom: "2rem", fontSize: "0.8125rem" }}>
+        Have a personal spreadsheet instead (not from a broker)? <Link to="/import-spreadsheet">Try AI import →</Link>
       </p>
 
       <Card>

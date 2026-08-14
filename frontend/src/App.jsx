@@ -24,6 +24,8 @@ const TaxSummary = lazy(() => import("./components/TaxSummary"));
 const Households = lazy(() => import("./components/Households"));
 const AllocationAdvisor = lazy(() => import("./components/ai/AllocationAdvisor"));
 const Settings = lazy(() => import("./components/Settings"));
+const Budget = lazy(() => import("./components/Budget"));
+const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -172,6 +174,7 @@ function AppShell() {
           </Link>
           <NavLink to="/portfolio">{t("nav.portfolio")}</NavLink>
           <NavLink to="/transactions">{t("nav.transactions")}</NavLink>
+          <NavLink to="/budget">{t("nav.budget")}</NavLink>
           <NavLink to="/import">{t("nav.importCsv")}</NavLink>
           <NavLink to="/alerts">{t("nav.alerts")}</NavLink>
           <NavLink to="/tax-summary">{t("nav.taxSummary")}</NavLink>
@@ -213,6 +216,8 @@ function AppShell() {
               <Route path="portfolio/:id" element={<HoldingDetail />} />
               <Route path="add-holding" element={<AddHolding />} />
               <Route path="transactions" element={<Transactions />} />
+              <Route path="budget" element={<Budget />} />
+              <Route path="import-spreadsheet" element={<ImportSpreadsheet />} />
               <Route path="import" element={<ImportTransactions />} />
               <Route path="alerts" element={<Alerts />} />
               <Route path="tax-summary" element={<TaxSummary />} />

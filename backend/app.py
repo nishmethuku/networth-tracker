@@ -11,7 +11,7 @@ from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException
 import requests
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, Milestone
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, Milestone, BudgetEntry
 from .auth import require_auth
 from .utils import FINNHUB_API_KEY, MFTOOL_AVAILABLE
 from .services import safe_float, rank_symbol_results
@@ -38,6 +38,8 @@ from .alert_service import check_all_alerts
 from .unsubscribe_service import verify_unsubscribe_token, unsubscribe as unsubscribe_email
 from .account_service import export_user_data, delete_all_user_data
 from .sip_service import next_occurrences as next_sip_occurrences, project_future_value as project_sip_future_value
+from .budget_service import get_monthly_summary, INCOME_CATEGORIES, EXPENSE_CATEGORIES
+from .smart_import_service import parse_spreadsheet, confirm_smart_import
 from .benchmark_service import get_benchmark_comparison
 from .tax_service import get_tax_summary, TAX_DISCLAIMER
 from .csv_import_service import parse_csv, confirm_import, SUPPORTED_BROKERS
@@ -80,6 +82,7 @@ def create_app():
         )
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8MB — plenty for a personal spreadsheet
 
     db.init_app(app)
     Migrate(app, db)
@@ -623,6 +626,36 @@ def create_app():
         result = confirm_import(g.user_id, rows, household_id=household_id)
         return jsonify(result), 201
 
+    @app.route("/import/smart-parse", methods=["POST"])
+    @require_auth
+    @limiter.limit("10 per hour")
+    def import_smart_parse():
+        """AI-assisted import of a freeform personal spreadsheet (owner/editor
+        only, same as the other AI features — reuses require_ai_access)."""
+        household_id = request.form.get("household_id") or None
+        require_ai_access(household_id)
+
+        file = request.files.get("file")
+        if not file or not file.filename:
+            return jsonify({"error": "file is required"}), 400
+        if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
+            return jsonify({"error": "Only .xlsx, .xls, or .csv files are supported"}), 400
+
+        result = parse_spreadsheet(file.read(), file.filename)
+        return jsonify(result)
+
+    @app.route("/import/smart-confirm", methods=["POST"])
+    @require_auth
+    def import_smart_confirm():
+        data = request.get_json(force=True)
+        rows = data.get("rows", [])
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        if not rows:
+            return jsonify({"error": "No rows to import"}), 400
+        result = confirm_smart_import(rows, g.user_id, household_id=household_id)
+        return jsonify(result), 201
+
     # ---------------- NET WORTH HISTORY (real daily snapshots) ----------------
 
     @app.route("/net-worth-history", methods=["GET"])
@@ -1092,6 +1125,131 @@ def create_app():
         if data.get("confirm") != "DELETE":
             return jsonify({"error": "Type DELETE to confirm this action"}), 400
         result = delete_all_user_data(g.user_id)
+        return jsonify(result)
+
+    # ---------------- BUDGET (income / expenses — independent of net worth) ----------------
+
+    def scoped_budget_query(household_id_param):
+        if household_id_param:
+            member_ids = get_member_household_ids(g.user_id)
+            if household_id_param not in member_ids:
+                abort(403, description="Not a member of this household")
+            return BudgetEntry.query.filter(
+                BudgetEntry.household_id == household_id_param, BudgetEntry.is_private == False  # noqa: E712
+            )
+        return BudgetEntry.query.filter(BudgetEntry.user_id == g.user_id)
+
+    def get_authorized_budget_entry(entry_id, require_write=False):
+        entry = BudgetEntry.query.get_or_404(entry_id)
+        if str(entry.user_id) == str(g.user_id):
+            return entry
+        if entry.household_id:
+            role = get_role(str(entry.household_id), g.user_id)
+            if role:
+                if require_write and role in ("owner", "editor"):
+                    return entry
+                if not require_write and not entry.is_private:
+                    return entry
+        abort(403)
+
+    @app.route("/budget/categories", methods=["GET"])
+    @require_auth
+    def budget_categories():
+        return jsonify({"income": INCOME_CATEGORIES, "expense": EXPENSE_CATEGORIES})
+
+    @app.route("/budget/entries", methods=["GET"])
+    @require_auth
+    def list_budget_entries():
+        household_id_param = request.args.get("household_id")
+        query = scoped_budget_query(household_id_param)
+
+        entry_type = request.args.get("entry_type")
+        if entry_type:
+            query = query.filter(BudgetEntry.entry_type == entry_type)
+        date_from = request.args.get("date_from")
+        if date_from:
+            query = query.filter(BudgetEntry.entry_date >= date.fromisoformat(date_from))
+        date_to = request.args.get("date_to")
+        if date_to:
+            query = query.filter(BudgetEntry.entry_date <= date.fromisoformat(date_to))
+
+        entries = query.order_by(BudgetEntry.entry_date.desc()).limit(500).all()
+        return jsonify([e.to_dict() for e in entries])
+
+    @app.route("/budget/entries", methods=["POST"])
+    @require_auth
+    def create_budget_entry():
+        data = request.get_json(force=True)
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+
+        entry_type = data.get("entry_type")
+        if entry_type not in ("income", "expense"):
+            return jsonify({"error": "entry_type must be 'income' or 'expense'"}), 400
+        category = data.get("category")
+        valid_categories = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
+        if category not in valid_categories:
+            return jsonify({"error": f"category must be one of {valid_categories}"}), 400
+
+        entry = BudgetEntry(
+            user_id=g.user_id,
+            household_id=household_id,
+            entry_type=entry_type,
+            entry_date=date.fromisoformat(data["entry_date"]),
+            amount=safe_float(data["amount"]),
+            currency=data.get("currency", "USD"),
+            category=category,
+            description=data.get("description"),
+            is_private=bool(data.get("is_private", False)),
+        )
+        db.session.add(entry)
+        db.session.commit()
+        return jsonify(entry.to_dict()), 201
+
+    @app.route("/budget/entries/<int:entry_id>", methods=["PUT"])
+    @require_auth
+    def update_budget_entry(entry_id):
+        entry = get_authorized_budget_entry(entry_id, require_write=True)
+        data = request.get_json(force=True)
+
+        if "entry_date" in data:
+            entry.entry_date = date.fromisoformat(data["entry_date"])
+        if "amount" in data:
+            entry.amount = safe_float(data["amount"])
+        if "currency" in data:
+            entry.currency = data["currency"]
+        if "category" in data:
+            valid_categories = INCOME_CATEGORIES if entry.entry_type == "income" else EXPENSE_CATEGORIES
+            if data["category"] not in valid_categories:
+                return jsonify({"error": f"category must be one of {valid_categories}"}), 400
+            entry.category = data["category"]
+        if "description" in data:
+            entry.description = data["description"]
+        if "is_private" in data:
+            entry.is_private = bool(data["is_private"])
+
+        db.session.commit()
+        return jsonify(entry.to_dict())
+
+    @app.route("/budget/entries/<int:entry_id>", methods=["DELETE"])
+    @require_auth
+    def delete_budget_entry(entry_id):
+        entry = get_authorized_budget_entry(entry_id, require_write=True)
+        db.session.delete(entry)
+        db.session.commit()
+        return jsonify({"message": "Entry deleted"}), 200
+
+    @app.route("/budget/summary", methods=["GET"])
+    @require_auth
+    def budget_summary():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        months = int(request.args.get("months", 6))
+        currency = request.args.get("currency", "USD").upper()
+        result = get_monthly_summary(
+            g.user_id if not household_id_param else None, household_id_param, months=months, currency=currency
+        )
         return jsonify(result)
 
     return app

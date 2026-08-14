@@ -15,6 +15,7 @@ import {
   mapMilestone,
   mapTaxSummary,
   mapBenchmark,
+  mapBudgetEntry,
 } from "./mappers";
 
 /**
@@ -258,6 +259,44 @@ export async function importConfirm(rows, householdId = null) {
 }
 
 /**
+ * AI-assisted import of a freeform spreadsheet (owner/editor only). The
+ * parse step is a real file upload (multipart), so it bypasses api/client.js
+ * the same way streamAiChat does below — JSON.stringify-ing a File doesn't
+ * work, and this can legitimately take longer than the default timeout.
+ */
+export async function smartImportParse(file, householdId = null) {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const formData = new FormData();
+  formData.append("file", file);
+  if (householdId) formData.append("household_id", householdId);
+
+  const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/import/smart-parse`, {
+    method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: formData,
+  });
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
+  }
+  if (!response.ok) {
+    const err = new Error(payload.error || `HTTP ${response.status}`);
+    err.status = response.status;
+    throw err;
+  }
+  return payload;
+}
+
+export async function smartImportConfirm(rows, householdId = null) {
+  return api.post("/import/smart-confirm", { rows, household_id: householdId });
+}
+
+/**
  * AI features (copilot chat, allocation advisor, transaction categorizer, NL search).
  * All require owner/editor household role server-side and return a clean
  * 503/{configured:false} shape until ANTHROPIC_API_KEY is set — never a crash.
@@ -349,6 +388,44 @@ export async function deleteAllAccountData() {
  */
 export async function fetchSipProjection(holdingId, years = 10) {
   return api.get(`/holdings/${holdingId}/sip-projection?years=${years}`);
+}
+
+/**
+ * Budget (income/expenses) — independent of holdings/net worth.
+ */
+export async function fetchBudgetCategories() {
+  return api.get("/budget/categories");
+}
+
+export async function fetchBudgetEntries(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.householdId) params.append("household_id", filters.householdId);
+  if (filters.entryType) params.append("entry_type", filters.entryType);
+  if (filters.dateFrom) params.append("date_from", filters.dateFrom);
+  if (filters.dateTo) params.append("date_to", filters.dateTo);
+  const endpoint = params.toString() ? `/budget/entries?${params.toString()}` : "/budget/entries";
+  const data = await api.get(endpoint);
+  return (data || []).map(mapBudgetEntry);
+}
+
+export async function createBudgetEntry(payload) {
+  const data = await api.post("/budget/entries", payload);
+  return mapBudgetEntry(data);
+}
+
+export async function updateBudgetEntry(id, payload) {
+  const data = await api.put(`/budget/entries/${id}`, payload);
+  return mapBudgetEntry(data);
+}
+
+export async function deleteBudgetEntry(id) {
+  await api.delete(`/budget/entries/${id}`);
+}
+
+export async function fetchBudgetSummary({ householdId, months = 6, currency = "USD" } = {}) {
+  const params = new URLSearchParams({ months: String(months), currency });
+  if (householdId) params.append("household_id", householdId);
+  return api.get(`/budget/summary?${params.toString()}`);
 }
 
 export { api } from "./client";

@@ -258,6 +258,7 @@ export default function Dashboard() {
         <Link to="/alerts" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🔔 Alerts</Link>
         <Link to="/tax-summary" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🧾 Tax Summary</Link>
         <Link to="/import" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>📥 Import CSV</Link>
+        <Link to="/import-spreadsheet" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>📄 Import Spreadsheet</Link>
         <Link to="/allocation-advisor" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🎯 Allocation Advisor</Link>
         <Link to="/settings" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>⚙️ Settings</Link>
       </div>

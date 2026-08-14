@@ -198,3 +198,19 @@ export function mapBenchmark(b) {
     buysSkipped: b.buys_skipped_no_price,
   };
 }
+
+export function mapBudgetEntry(e) {
+  if (!e) return null;
+  return {
+    id: e.id,
+    householdId: e.household_id,
+    entryType: e.entry_type,
+    entryDate: e.entry_date,
+    amount: safeNumber(e.amount),
+    currency: e.currency ?? "USD",
+    category: e.category,
+    description: e.description ?? "",
+    isPrivate: !!e.is_private,
+    createdAt: e.created_at ?? "",
+  };
+}

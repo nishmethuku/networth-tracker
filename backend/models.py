@@ -301,6 +301,47 @@ class EmailUnsubscribe(db.Model):
         }
 
 
+class BudgetEntry(db.Model):
+    """A single income or expense entry — the Budget section's cash-flow
+    ledger. Deliberately independent of Holding/net worth: logging a
+    paycheck here never touches a cash holding automatically, so there's
+    no risk of double-counting money you also track as a holding."""
+    __tablename__ = "budget_entries"
+    __table_args__ = (
+        db.Index("budget_entries_user_date_idx", "user_id", "entry_date"),
+        db.Index("budget_entries_household_date_idx", "household_id", "entry_date"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
+
+    entry_type = db.Column(db.String(8), nullable=False)  # 'income' | 'expense'
+    entry_date = db.Column(db.Date, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(8), nullable=False)
+    category = db.Column(db.String(32), nullable=False)
+    description = db.Column(db.Text)
+    is_private = db.Column(db.Boolean, nullable=False, default=False)
+
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": str(self.user_id),
+            "household_id": str(self.household_id) if self.household_id else None,
+            "entry_type": self.entry_type,
+            "entry_date": self.entry_date.isoformat(),
+            "amount": self.amount,
+            "currency": self.currency,
+            "category": self.category,
+            "description": self.description,
+            "is_private": self.is_private,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class Milestone(db.Model):
     __tablename__ = "milestones"
 

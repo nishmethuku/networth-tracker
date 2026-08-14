@@ -81,3 +81,25 @@ export function getAssetTypeLabel(value) {
 export function isQuantityBased(assetType) {
   return QUANTITY_BASED_TYPES.includes(assetType);
 }
+
+export const BUDGET_CATEGORY_LABELS = {
+  paycheck: "Paycheck",
+  bonus: "Bonus",
+  interest: "Interest",
+  gift: "Gift",
+  other_income: "Other income",
+  housing: "Housing",
+  food: "Food",
+  transport: "Transport",
+  utilities: "Utilities",
+  healthcare: "Healthcare",
+  entertainment: "Entertainment",
+  shopping: "Shopping",
+  education: "Education",
+  insurance: "Insurance",
+  other_expense: "Other expense",
+};
+
+export function getBudgetCategoryLabel(value) {
+  return BUDGET_CATEGORY_LABELS[value] || value;
+}
