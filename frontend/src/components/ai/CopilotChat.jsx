@@ -239,7 +239,7 @@ export default function CopilotChat() {
               <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {notConfigured ? (
                   <div style={{ color: "var(--text-muted)", fontSize: "0.875rem", textAlign: "center", marginTop: "2rem" }}>
-                    The AI copilot isn't set up yet — an Anthropic API key needs to be added on the backend first.
+                    The AI copilot isn't set up yet — a Gemini API key needs to be added on the backend first.
                   </div>
                 ) : messages.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>

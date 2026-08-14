@@ -107,23 +107,13 @@ def parse_spreadsheet(file_bytes: bytes, filename: str) -> Dict:
     if not sheet_text.strip():
         return {"configured": True, "rows": [], "warnings": ["The file appears to be empty."]}
 
-    client = ai_service.get_client()
+    raw = ai_service.generate_text(sheet_text, system=SMART_IMPORT_SYSTEM_PROMPT, max_tokens=4096)
+    if not raw:
+        return {"configured": True, "rows": [], "warnings": ["AI parsing failed — please try again."]}
     try:
-        response = client.messages.create(
-            model=ai_service.AI_MODEL,
-            max_tokens=4096,
-            system=SMART_IMPORT_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": sheet_text}],
-        )
-        raw = response.content[0].text.strip() if response.content else ""
-        if raw.startswith("```"):
-            raw = raw.strip("`")
-            raw = raw[raw.find("{"):]
-        parsed = json.loads(raw)
+        parsed = ai_service._extract_json(raw)
     except (json.JSONDecodeError, ValueError, IndexError, KeyError) as e:
         return {"configured": True, "rows": [], "warnings": [f"AI couldn't parse this file's structure: {e}"]}
-    except Exception as e:  # anthropic API errors etc.
-        return {"configured": True, "rows": [], "warnings": [f"AI parsing failed: {e}"]}
 
     rows = parsed.get("rows", []) if isinstance(parsed, dict) else []
     warnings = parsed.get("warnings", []) if isinstance(parsed, dict) else []

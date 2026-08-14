@@ -1,6 +1,6 @@
 """
-ai_service tests. No real Anthropic API calls — the client is mocked so
-these run in CI without an ANTHROPIC_API_KEY.
+ai_service tests. No real Gemini API calls — the client is mocked so
+these run in CI without a GEMINI_API_KEY.
 """
 import sys
 import os
@@ -12,25 +12,23 @@ from backend import ai_service
 
 
 def _fake_text_response(text):
-    block = MagicMock()
-    block.text = text
     response = MagicMock()
-    response.content = [block]
+    response.text = text
     return response
 
 
 def test_is_configured_false_without_key():
-    with patch.object(ai_service, "ANTHROPIC_API_KEY", None):
+    with patch.object(ai_service, "GEMINI_API_KEY", None):
         assert ai_service.is_configured() is False
 
 
 def test_is_configured_true_with_key():
-    with patch.object(ai_service, "ANTHROPIC_API_KEY", "sk-fake"):
+    with patch.object(ai_service, "GEMINI_API_KEY", "fake-key"):
         assert ai_service.is_configured() is True
 
 
 def test_get_client_returns_none_without_key():
-    with patch.object(ai_service, "ANTHROPIC_API_KEY", None):
+    with patch.object(ai_service, "GEMINI_API_KEY", None):
         assert ai_service.get_client() is None
 
 
@@ -81,7 +79,7 @@ def test_build_portfolio_snapshot_summarizes_quantity_and_valuation_holdings():
 def test_suggest_transaction_tags_parses_json_response():
     with patch.object(ai_service, "get_client") as mock_get_client:
         mock_client = MagicMock()
-        mock_client.messages.create.return_value = _fake_text_response(
+        mock_client.models.generate_content.return_value = _fake_text_response(
             '{"tags": ["Core-Holding", "Dip-Buy"], "note": "Bought the dip."}'
         )
         mock_get_client.return_value = mock_client
@@ -94,7 +92,7 @@ def test_suggest_transaction_tags_parses_json_response():
 def test_suggest_transaction_tags_returns_none_on_malformed_json():
     with patch.object(ai_service, "get_client") as mock_get_client:
         mock_client = MagicMock()
-        mock_client.messages.create.return_value = _fake_text_response("not json at all")
+        mock_client.models.generate_content.return_value = _fake_text_response("not json at all")
         mock_get_client.return_value = mock_client
 
         result = ai_service.suggest_transaction_tags("Apple", "stock", "buy", 10, 150.0, "USD")
@@ -111,7 +109,7 @@ def test_suggest_transaction_tags_returns_none_without_client():
 def test_parse_search_query_strips_code_fences():
     with patch.object(ai_service, "get_client") as mock_get_client:
         mock_client = MagicMock()
-        mock_client.messages.create.return_value = _fake_text_response(
+        mock_client.models.generate_content.return_value = _fake_text_response(
             '```json\n{"asset_types": ["crypto"], "countries": [], "min_value": null, '
             '"max_value": null, "min_gain_pct": null, "max_gain_pct": null, '
             '"gainers_only": true, "losers_only": false, "text": null}\n```'
@@ -137,6 +135,30 @@ def test_chat_stream_raises_when_not_configured():
             assert False, "expected RuntimeError"
         except RuntimeError:
             pass
+
+
+def test_chat_stream_maps_roles_and_yields_text_chunks():
+    with patch.object(ai_service, "get_client") as mock_get_client:
+        mock_client = MagicMock()
+        chunk1 = MagicMock()
+        chunk1.text = "Hello"
+        chunk2 = MagicMock()
+        chunk2.text = " there"
+        mock_client.models.generate_content_stream.return_value = [chunk1, chunk2]
+        mock_get_client.return_value = mock_client
+
+        messages = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "hey"},
+        ]
+        chunks = list(ai_service.chat_stream(messages, {}))
+
+    assert chunks == ["Hello", " there"]
+    call_kwargs = mock_client.models.generate_content_stream.call_args.kwargs
+    assert call_kwargs["contents"] == [
+        {"role": "user", "parts": [{"text": "hi"}]},
+        {"role": "model", "parts": [{"text": "hey"}]},
+    ]
 
 
 if __name__ == "__main__":

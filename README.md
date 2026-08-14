@@ -1,13 +1,13 @@
 # Net Worth Tracker
 
-A full-stack family net worth tracker: real transaction-based portfolio accounting (average cost basis, realized/unrealized gains, XIRR), ten asset types across multiple countries and currencies, household sharing with editor/viewer roles, broker CSV import, price alerts, benchmark comparison, a weekly email digest, and an optional Claude-powered AI copilot.
+A full-stack family net worth tracker: real transaction-based portfolio accounting (average cost basis, realized/unrealized gains, XIRR), ten asset types across multiple countries and currencies, household sharing with editor/viewer roles, broker CSV import, price alerts, benchmark comparison, a weekly email digest, and an optional Gemini-powered AI copilot.
 
 ## Stack
 
 - **Frontend**: React 18, Vite (route-level code-splitting + PWA plugin), React Router, TanStack Query, Recharts, framer-motion, react-hook-form + zod, react-i18next
 - **Backend**: Flask, SQLAlchemy, Flask-Migrate (Alembic), Flask-Limiter
 - **Database & Auth**: Supabase (Postgres + Auth — email/password and Google OAuth)
-- **AI**: Anthropic Claude (copilot chat, AI-narrated digest, allocation advisor, transaction categorizer, natural-language search) — fully optional, degrades to a clean "not configured" response without an API key
+- **AI**: Google Gemini, chosen for its free tier (copilot chat, AI-narrated digest, allocation advisor, transaction categorizer, spreadsheet import, natural-language search) — fully optional, degrades to a clean "not configured" response without an API key
 - **Live/historical prices**: Finnhub (US live), Yahoo Finance (historical + NSE fallback, unofficial/keyless), NSE libraries + mftool (India), CoinGecko (crypto), metals-api.com (gold/silver/platinum), frankfurter.app (FX)
 - **Email**: Resend (weekly digest, price alerts, milestone celebrations)
 - **Deployment**: Vercel (frontend) + Render (backend, Docker) + GitHub Actions (daily snapshot, weekly digest, alert-check crons)
@@ -18,7 +18,7 @@ A full-stack family net worth tracker: real transaction-based portfolio accounti
 - **Holdings & transactions**: stocks, mutual funds, crypto, commodities, real estate, fixed deposits, PPF, EPF, cash, loans. Quantity-based types (stock/mutual_fund/crypto/commodity) track a full buy/sell ledger with average-cost basis, realized gains, unrealized gains, and per-holding + portfolio-wide XIRR; everything else tracks periodic value updates.
 - **Multi-currency**: every holding is denominated in its native currency; the dashboard converts to your chosen display currency (USD/INR/AUD) using live FX rates, cached daily
 - **Broker CSV import**: Zerodha, Groww (stocks + mutual funds), Fidelity, Robinhood — parsed into a preview you review and confirm before anything is saved
-- **AI spreadsheet import** (optional, owner/editor only): upload your own Excel/CSV in whatever layout you already use — Claude reads it and maps rows to holdings, same review-before-saving flow as broker import
+- **AI spreadsheet import** (optional, owner/editor only): upload your own Excel/CSV in whatever layout you already use — Gemini reads it and maps rows to holdings, same review-before-saving flow as broker import
 - **Budget**: income/expense tracking with monthly trends and category breakdown — deliberately separate from net worth, so logging a paycheck never touches a holding automatically
 - **Household sharing**: create a household, invite members as editor (can add/edit) or viewer (read-only), holdings can be flagged private to stay out of the shared view entirely
 - **Dashboard**: net worth chart (range pills, milestone markers), drill-down allocation donut (type/country), gainers/losers heat-map with sparklines, returns by asset type, net worth vs S&P 500 (SPY) / Nifty 50 (NIFTYBEES) comparison, milestone celebrations, pull-to-refresh on mobile
@@ -113,7 +113,7 @@ All endpoints except `/internal/*` require an `Authorization: Bearer <supabase-a
 **Symbol search**
 - `GET /search-symbols` (stocks/mutual funds), `GET /search-crypto`
 
-**AI (owner/editor only, requires `ANTHROPIC_API_KEY`)**
+**AI (owner/editor only, requires `GEMINI_API_KEY`)**
 - `POST /api/ai/chat` — SSE-streamed copilot chat
 - `POST /api/ai/allocation-advisor`, `POST /api/ai/search`
 - `POST /transactions/:id/suggest-tags`

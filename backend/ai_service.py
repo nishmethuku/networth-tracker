@@ -1,39 +1,51 @@
 """
-Anthropic Claude integration shared by every AI feature: copilot chat,
+Google Gemini integration shared by every AI feature: copilot chat,
 AI-narrated weekly digest, allocation advisor, transaction categorizer, and
-natural-language search.
+natural-language search. Uses Gemini specifically because it has a real,
+ongoing free tier (unlike Anthropic's API, which is pay-as-you-go after a
+one-time trial credit) — a meaningful cost consideration for a family app.
 
-Degrades gracefully when ANTHROPIC_API_KEY isn't set (same pattern as
+Degrades gracefully when GEMINI_API_KEY isn't set (same pattern as
 Finnhub/Resend/metals-api elsewhere in this app) — callers check
 is_configured() and return a clear "not configured" response rather than
-letting anthropic.Anthropic() raise.
+letting genai.Client() raise.
 
-The portfolio snapshot sent to Claude is always summarized (totals +
+The portfolio snapshot sent to the model is always summarized (totals +
 per-holding key metrics) and never includes the raw transaction ledger, to
 keep prompts small and avoid sending more than necessary to a third party.
+
+Every public function signature here matches what the previous
+Anthropic-based version exposed, so app.py/digest_service.py/
+smart_import_service.py didn't need to change when this was swapped —
+only this module's internals did.
 """
 import json
 import os
 from typing import Dict, List, Optional
 
-import anthropic
+from google import genai
+from google.genai import types
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-AI_MODEL = "claude-sonnet-4-6"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+# An alias Google hot-swaps to the current best Flash model (with a 2-week
+# deprecation notice for breaking changes), rather than a dated model
+# string that eventually gets shut down — e.g. gemini-2.5-flash's planned
+# retirement is exactly the kind of thing this avoids having to track.
+AI_MODEL = "gemini-flash-latest"
 
-_client: Optional["anthropic.Anthropic"] = None
+_client: Optional["genai.Client"] = None
 
 
 def is_configured() -> bool:
-    return bool(ANTHROPIC_API_KEY)
+    return bool(GEMINI_API_KEY)
 
 
-def get_client() -> Optional["anthropic.Anthropic"]:
+def get_client() -> Optional["genai.Client"]:
     global _client
-    if not ANTHROPIC_API_KEY:
+    if not GEMINI_API_KEY:
         return None
     if _client is None:
-        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        _client = genai.Client(api_key=GEMINI_API_KEY)
     return _client
 
 
@@ -69,6 +81,36 @@ def build_portfolio_snapshot(
     }
 
 
+def _extract_json(raw: str):
+    """Strips a ```json ... ``` fence if present, then parses. Every prompt
+    below asks for a bare JSON object, but models sometimes wrap it anyway."""
+    raw = (raw or "").strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw[raw.find("{"):]
+    return json.loads(raw)
+
+
+def generate_text(prompt: str, system: Optional[str] = None, max_tokens: int = 1024) -> Optional[str]:
+    """Single-turn completion, or None if AI isn't configured or the call
+    fails. Shared by every non-streaming caller in this module (and by
+    smart_import_service, which needs a raw completion outside the
+    specific helpers below) so the SDK-specific call shape lives in
+    exactly one place."""
+    client = get_client()
+    if not client:
+        return None
+    try:
+        response = client.models.generate_content(
+            model=AI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens),
+        )
+        return response.text
+    except Exception:
+        return None
+
+
 COPILOT_SYSTEM_PROMPT = """You are the financial copilot built into a personal net worth tracker app. \
 You have access to the user's current portfolio snapshot (below, as JSON) — real totals, allocation, \
 gains, and per-holding values. Use it to answer questions and offer specific, grounded observations.
@@ -84,47 +126,41 @@ add a brief, natural disclaimer (not a legal boilerplate wall) that this isn't f
 
 
 def chat_stream(messages: List[Dict], portfolio_snapshot: Dict):
-    """Yields text chunks from a streaming Claude response. Raises RuntimeError
-    if AI isn't configured — callers should check is_configured() first to
-    return a clean 503 rather than let this raise mid-stream."""
+    """Yields text chunks from a streaming Gemini response. Raises
+    RuntimeError if AI isn't configured — callers should check
+    is_configured() first to return a clean 503 rather than let this raise
+    mid-stream."""
     client = get_client()
     if not client:
-        raise RuntimeError("AI features are not configured (ANTHROPIC_API_KEY not set)")
+        raise RuntimeError("AI features are not configured (GEMINI_API_KEY not set)")
 
     system = COPILOT_SYSTEM_PROMPT + "\n\nPortfolio snapshot (JSON):\n" + json.dumps(portfolio_snapshot)
-    with client.messages.stream(
+    # Claude's message roles (user/assistant) map to Gemini's (user/model).
+    contents = [
+        {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
+        for m in messages
+    ]
+    stream = client.models.generate_content_stream(
         model=AI_MODEL,
-        max_tokens=1024,
-        system=system,
-        messages=messages,
-    ) as stream:
-        for text in stream.text_stream:
-            yield text
+        contents=contents,
+        config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=1024),
+    )
+    for chunk in stream:
+        if chunk.text:
+            yield chunk.text
 
 
 def generate_digest_narrative(digest_data: Dict, recipient_name: Optional[str] = None) -> Optional[str]:
     """3-4 paragraph narrative for the weekly digest email, from the same
     structured data already computed by digest_service. Returns None if AI
     isn't configured — callers fall back to the structured-only email."""
-    client = get_client()
-    if not client:
-        return None
-
     greeting = f"Address the recipient/household as '{recipient_name}' if it reads naturally." if recipient_name else ""
     prompt = (
         "Write a warm, specific 3-4 paragraph weekly net worth digest narrative from this data. "
         f"{greeting} Reference real numbers naturally. Keep it grounded and factual — no hype. "
         "Plain text only, no markdown headers.\n\nData (JSON):\n" + json.dumps(digest_data)
     )
-    try:
-        response = client.messages.create(
-            model=AI_MODEL,
-            max_tokens=600,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.content[0].text if response.content else None
-    except anthropic.APIError:
-        return None
+    return generate_text(prompt, max_tokens=600)
 
 
 REBALANCE_SYSTEM_PROMPT = """You are a portfolio allocation advisor inside a personal net worth tracker. \
@@ -136,33 +172,18 @@ Always end with a brief, natural note that this isn't financial advice and is fo
 
 
 def generate_allocation_narrative(current_allocation: Dict, target_allocation: Dict, rebalance_plan: List[Dict]) -> Optional[str]:
-    client = get_client()
-    if not client:
-        return None
     prompt = (
         "Current allocation (JSON): " + json.dumps(current_allocation) +
         "\n\nTarget allocation (JSON): " + json.dumps(target_allocation) +
         "\n\nComputed rebalance plan (JSON): " + json.dumps(rebalance_plan)
     )
-    try:
-        response = client.messages.create(
-            model=AI_MODEL,
-            max_tokens=500,
-            system=REBALANCE_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.content[0].text if response.content else None
-    except anthropic.APIError:
-        return None
+    return generate_text(prompt, system=REBALANCE_SYSTEM_PROMPT, max_tokens=500)
 
 
 def suggest_transaction_tags(holding_name: str, asset_type: str, transaction_type: str, quantity: float, price_per_unit: float, currency: str) -> Optional[Dict]:
     """Returns {"tags": [...], "note": "..."} or None if AI isn't configured
     or the call fails — callers should treat this as a best-effort suggestion,
     never block the transaction on it."""
-    client = get_client()
-    if not client:
-        return None
     prompt = (
         "Suggest 1-3 short lowercase tags (like 'core-holding', 'speculative', 'dip-buy', 'tax-loss-harvest', "
         "'dividend-play', 'rebalance') and a one-line note for this transaction. Respond with ONLY a JSON object "
@@ -170,22 +191,15 @@ def suggest_transaction_tags(holding_name: str, asset_type: str, transaction_typ
         f"Holding: {holding_name} ({asset_type})\n"
         f"Transaction: {transaction_type} {quantity} @ {price_per_unit} {currency}"
     )
+    raw = generate_text(prompt, max_tokens=200)
+    if not raw:
+        return None
     try:
-        response = client.messages.create(
-            model=AI_MODEL,
-            max_tokens=200,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = response.content[0].text if response.content else ""
-        raw = raw.strip()
-        if raw.startswith("```"):
-            raw = raw.strip("`")
-            raw = raw[raw.find("{"):]
-        parsed = json.loads(raw)
+        parsed = _extract_json(raw)
         tags = [str(t).lower().strip() for t in parsed.get("tags", [])][:3]
         note = str(parsed.get("note", "")).strip()[:200]
         return {"tags": tags, "note": note}
-    except (anthropic.APIError, json.JSONDecodeError, ValueError, KeyError, IndexError):
+    except (json.JSONDecodeError, ValueError, KeyError, IndexError):
         return None
 
 
@@ -200,21 +214,10 @@ Valid asset_types: stock, mutual_fund, crypto, commodity, real_estate, fixed_dep
 
 
 def parse_search_query(query: str) -> Optional[Dict]:
-    client = get_client()
-    if not client:
+    raw = generate_text(query, system=SEARCH_SYSTEM_PROMPT, max_tokens=300)
+    if not raw:
         return None
     try:
-        response = client.messages.create(
-            model=AI_MODEL,
-            max_tokens=300,
-            system=SEARCH_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": query}],
-        )
-        raw = response.content[0].text if response.content else ""
-        raw = raw.strip()
-        if raw.startswith("```"):
-            raw = raw.strip("`")
-            raw = raw[raw.find("{"):]
-        return json.loads(raw)
-    except (anthropic.APIError, json.JSONDecodeError, ValueError, IndexError):
+        return _extract_json(raw)
+    except (json.JSONDecodeError, ValueError, IndexError):
         return None

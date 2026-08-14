@@ -115,7 +115,7 @@ export default function ImportSpreadsheet() {
 
       {notConfigured && (
         <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "var(--warning-light)", border: "1px solid var(--warning)", borderRadius: "var(--radius)", color: "var(--text)", fontSize: "0.875rem" }}>
-          Spreadsheet import isn't set up yet — it needs an Anthropic API key configured on the backend. Use{" "}
+          Spreadsheet import isn't set up yet — it needs a Gemini API key configured on the backend. Use{" "}
           <a href="/add-holding">Add Holding</a> to enter things manually in the meantime.
         </div>
       )}

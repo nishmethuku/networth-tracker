@@ -40,7 +40,7 @@ export default function CommandSearch() {
     try {
       const res = await aiSearch(trimmed);
       if (!res.configured) {
-        setError("AI search isn't configured yet — an Anthropic API key needs to be added on the backend first.");
+        setError("AI search isn't configured yet — a Gemini API key needs to be added on the backend first.");
         return;
       }
       if (!res.filter_spec) {

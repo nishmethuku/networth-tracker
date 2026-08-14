@@ -20,7 +20,7 @@ services:
         sync: false # free key from metals-api.com, for gold/silver/platinum prices
       - key: RESEND_API_KEY
         sync: false # free key from resend.com, for digest/alert/milestone emails
-      - key: ANTHROPIC_API_KEY
-        sync: false # optional — powers the AI copilot chat, digest narrative, allocation advisor, categorizer, and search
+      - key: GEMINI_API_KEY
+        sync: false # optional, free — powers the AI copilot chat, digest narrative, allocation advisor, categorizer, and search. Get one at aistudio.google.com
       - key: FRONTEND_URL
         sync: false # your Vercel deployment URL, e.g. https://networth-tracker.vercel.app
