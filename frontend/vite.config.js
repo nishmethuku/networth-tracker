@@ -21,8 +21,8 @@ export default defineConfig({
         name: 'Net Worth Tracker',
         short_name: 'Net Worth',
         description: 'Family net worth and portfolio tracker',
-        theme_color: '#2563eb',
-        background_color: '#f8fafc',
+        theme_color: '#7D2E42',
+        background_color: '#FAF7F2',
         display: 'standalone',
         start_url: '/',
         icons: [

@@ -158,8 +158,8 @@ export default function ImportTransactions() {
                           {r.transaction_type}
                         </td>
                         <td style={{ padding: "0.5rem" }}>{r.transaction_date}</td>
-                        <td style={{ padding: "0.5rem", fontFamily: "monospace" }}>{r.quantity}</td>
-                        <td style={{ padding: "0.5rem", fontFamily: "monospace" }}>{r.price_per_unit} {r.currency}</td>
+                        <td style={{ padding: "0.5rem", fontFamily: "var(--font-mono)" }}>{r.quantity}</td>
+                        <td style={{ padding: "0.5rem", fontFamily: "var(--font-mono)" }}>{r.price_per_unit} {r.currency}</td>
                       </tr>
                     ))}
                   </tbody>

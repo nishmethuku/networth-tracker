@@ -167,7 +167,7 @@ function AppShell() {
         }}
       >
         <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
-          <Link to="/" style={{ fontWeight: 600, color: "var(--text)", fontSize: "1.125rem" }}>
+          <Link to="/" style={{ fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--primary)", fontSize: "1.25rem", letterSpacing: "-0.01em" }}>
             {t("nav.netWorth")}
           </Link>
           <NavLink to="/portfolio">{t("nav.portfolio")}</NavLink>

@@ -90,21 +90,21 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
                   </div>
                 </td>
                 {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace" }}>
+                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
                     {h.quantity != null ? h.quantity.toFixed(4) : "—"}
                   </td>
                 )}
                 {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace" }}>
+                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
                     {h.avgCost != null ? formatCurrencyForDisplay(h.avgCost, h.currency, { includeCode: false }) : "—"}
                   </td>
                 )}
                 {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace", fontWeight: 500 }}>
+                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 500 }}>
                     {h.currentPrice != null ? formatCurrencyForDisplay(h.currentPrice, h.currency, { includeCode: false }) : "—"}
                   </td>
                 )}
-                <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace", fontWeight: 600 }}>
+                <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                   {formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}
                 </td>
                 <td style={{ padding: "0.75rem 0.5rem", color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>

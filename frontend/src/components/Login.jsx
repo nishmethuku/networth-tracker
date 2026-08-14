@@ -75,28 +75,66 @@ export default function Login() {
       style={{
         minHeight: "100vh",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--bg)",
-        padding: "1rem",
+        background:
+          "radial-gradient(ellipse 900px 600px at 50% -10%, var(--primary-light) 0%, transparent 60%), var(--bg)",
+        padding: "1.5rem",
       }}
     >
+      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "2rem" }}>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "10px",
+            background: "var(--primary)",
+            color: "var(--accent-light)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "var(--font-display)",
+            fontSize: "1.125rem",
+            fontWeight: 600,
+            boxShadow: "var(--shadow)",
+          }}
+        >
+          N
+        </div>
+        <span style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 600, color: "var(--text)" }}>
+          Net Worth Tracker
+        </span>
+      </div>
+
       <div
         style={{
           width: "100%",
           maxWidth: "400px",
           background: "var(--card)",
-          borderRadius: "var(--radius-md)",
+          borderRadius: "var(--radius-lg)",
           border: "1px solid var(--border)",
-          boxShadow: "var(--shadow-md)",
+          boxShadow: "var(--shadow-lg)",
           padding: "2.5rem",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>
-          Net Worth Tracker
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "4px",
+            background: "linear-gradient(90deg, var(--primary), var(--accent))",
+          }}
+        />
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 600, color: "var(--text)", marginBottom: "0.4rem" }}>
+          {mode === "signup" ? "Create your account" : "Welcome back"}
         </h1>
         <p style={{ color: "var(--text-secondary)", marginBottom: "2rem", fontSize: "0.9375rem" }}>
-          {mode === "signup" ? "Create an account" : "Sign in to your account"}
+          {mode === "signup" ? "Start tracking your family's net worth" : "Sign in to your account"}
         </p>
 
         <button

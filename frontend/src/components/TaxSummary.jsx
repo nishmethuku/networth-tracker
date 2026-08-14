@@ -34,8 +34,8 @@ function TaxByYearChart({ rows }) {
             contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
           />
           <Legend formatter={(v) => (v === "shortTermGain" ? "Short-term" : v === "longTermGain" ? "Long-term" : "Total trend")} wrapperStyle={{ fontSize: "0.75rem" }} />
-          <Bar dataKey="shortTermGain" stackId="gain" fill="#f59e0b" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="longTermGain" stackId="gain" fill="#2563eb" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="shortTermGain" stackId="gain" fill="var(--accent)" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="longTermGain" stackId="gain" fill="var(--primary)" radius={[4, 4, 0, 0]} />
           <Line type="monotone" dataKey="totalGain" stroke="var(--success)" strokeWidth={2} dot={{ r: 3 }} />
         </ComposedChart>
       </ResponsiveContainer>

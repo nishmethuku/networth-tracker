@@ -3,7 +3,9 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrencyCompact } from "../../utils/formatters";
 import { getAssetTypeLabel } from "../../constants/enums";
 
-const COLORS = ["#2563eb", "#16a34a", "#f97316", "#e11d48", "#22c55e", "#a855f7", "#eab308", "#06b6d4", "#8b5cf6", "#f43f5e"];
+// A coordinated jewel-tone set (wine/gold/teal/etc.) that reads as
+// deliberately designed rather than a default rainbow of primaries.
+const COLORS = ["#7D2E42", "#B4872E", "#3F7D6B", "#5B6E9C", "#A6564B", "#6B7D3F", "#8A5A9C", "#4A8FA8", "#C77B4A", "#7D4A6E"];
 
 export default function AllocationDonut({ allocationByType, allocationByCountry, holdings, currency }) {
   const [view, setView] = useState("type"); // "type" | "country"

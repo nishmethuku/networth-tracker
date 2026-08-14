@@ -28,11 +28,13 @@ export default function Card({ title, value, subtitle, children }) {
         {value && (
           <div
             style={{
+              fontFamily: "var(--font-display)",
               fontSize: "1.875rem",
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--primary)",
               marginTop: "0.25rem",
               lineHeight: "1.2",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {value}

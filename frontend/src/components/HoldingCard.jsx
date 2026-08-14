@@ -57,7 +57,7 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
             </div>
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--text)" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>
               {formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}
             </div>
             {gain != null && (

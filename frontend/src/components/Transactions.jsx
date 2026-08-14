@@ -109,9 +109,9 @@ export default function Transactions() {
                     <td style={{ padding: "0.75rem 0.5rem", textTransform: "capitalize", color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
                       {t.transactionType}
                     </td>
-                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace" }}>{t.quantity.toFixed(4)}</td>
-                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</td>
-                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace", fontWeight: 600 }}>
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</td>
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</td>
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                       {formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
                     </td>
                   </tr>

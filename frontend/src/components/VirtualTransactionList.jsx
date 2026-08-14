@@ -76,9 +76,9 @@ export default function VirtualTransactionList({ transactions }) {
                 <div style={{ textTransform: "capitalize", color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
                   {t.transactionType}
                 </div>
-                <div style={{ fontFamily: "monospace" }}>{t.quantity.toFixed(4)}</div>
-                <div style={{ fontFamily: "monospace" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</div>
-                <div style={{ fontFamily: "monospace", fontWeight: 600 }}>
+                <div style={{ fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</div>
+                <div style={{ fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                   {formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
                 </div>
               </div>

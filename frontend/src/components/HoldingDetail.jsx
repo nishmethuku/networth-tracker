@@ -283,7 +283,7 @@ export default function HoldingDetail() {
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
                 <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
                 <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }} />
-                <Line type="monotone" dataKey="price" stroke="#2563eb" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="price" stroke="var(--primary)" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -348,13 +348,13 @@ export default function HoldingDetail() {
                           <td style={{ padding: "0.6rem", textTransform: "capitalize", color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
                             {t.transactionType}
                           </td>
-                          <td style={{ padding: "0.6rem", fontFamily: "monospace" }}>{t.quantity.toFixed(4)}</td>
-                          <td style={{ padding: "0.6rem", fontFamily: "monospace" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</td>
-                          <td style={{ padding: "0.6rem", fontFamily: "monospace" }}>{formatCurrencyForDisplay(t.fees, t.currency)}</td>
-                          <td style={{ padding: "0.6rem", fontFamily: "monospace", color: "var(--text-secondary)" }}>
+                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</td>
+                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</td>
+                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.fees, t.currency)}</td>
+                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
                             {running ? formatCurrencyForDisplay(running.costBasisAfter, t.currency) : "—"}
                           </td>
-                          <td style={{ padding: "0.6rem", fontFamily: "monospace", color: running && running.cumulativeRealizedGain >= 0 ? "var(--success)" : "var(--danger)" }}>
+                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", color: running && running.cumulativeRealizedGain >= 0 ? "var(--success)" : "var(--danger)" }}>
                             {running ? `${running.cumulativeRealizedGain >= 0 ? "+" : ""}${formatCurrencyForDisplay(running.cumulativeRealizedGain, t.currency)}` : "—"}
                           </td>
                           <td style={{ padding: "0.6rem" }}>
@@ -388,7 +388,7 @@ export default function HoldingDetail() {
                       {valuations.map((v) => (
                         <tr key={v.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
                           <td style={{ padding: "0.6rem" }}>{new Date(v.valuationDate).toLocaleDateString()}</td>
-                          <td style={{ padding: "0.6rem", fontFamily: "monospace", fontWeight: 600 }}>{formatCurrencyForDisplay(v.value, v.currency)}</td>
+                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{formatCurrencyForDisplay(v.value, v.currency)}</td>
                           <td style={{ padding: "0.6rem" }}>
                             <button onClick={() => deleteValMutation.mutate(v.id)} style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}>
                               Delete
