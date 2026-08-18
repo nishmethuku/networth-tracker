@@ -21,12 +21,23 @@ only this module's internals did.
 """
 import json
 import os
+import time
 from typing import Dict, List, Optional
 
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+# Gemini's free-tier Flash endpoint occasionally returns a transient 500/503
+# under load ("please try again later") with no client-side cause — every
+# retrying call below gets one automatic retry for exactly these codes.
+_RETRYABLE_STATUS_CODES = {500, 503}
+_RETRY_DELAY_SECONDS = 1.5
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    return isinstance(exc, genai_errors.ServerError) and getattr(exc, "code", None) in _RETRYABLE_STATUS_CODES
 # An alias Google hot-swaps to the current best Flash model (with a 2-week
 # deprecation notice for breaking changes), rather than a dated model
 # string that eventually gets shut down — e.g. gemini-2.5-flash's planned
@@ -100,15 +111,19 @@ def generate_text(prompt: str, system: Optional[str] = None, max_tokens: int = 1
     client = get_client()
     if not client:
         return None
-    try:
-        response = client.models.generate_content(
-            model=AI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens),
-        )
-        return response.text
-    except Exception:
-        return None
+    for attempt in range(2):
+        try:
+            response = client.models.generate_content(
+                model=AI_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens),
+            )
+            return response.text
+        except Exception as e:
+            if attempt == 0 and _is_retryable(e):
+                time.sleep(_RETRY_DELAY_SECONDS)
+                continue
+            return None
 
 
 COPILOT_SYSTEM_PROMPT = """You are the financial copilot built into a personal net worth tracker app. \
@@ -140,14 +155,28 @@ def chat_stream(messages: List[Dict], portfolio_snapshot: Dict):
         {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
         for m in messages
     ]
-    stream = client.models.generate_content_stream(
-        model=AI_MODEL,
-        contents=contents,
-        config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=1024),
-    )
-    for chunk in stream:
-        if chunk.text:
-            yield chunk.text
+
+    # A retryable error before any chunk has been yielded is safe to retry
+    # from scratch; once output has reached the caller, retrying would
+    # duplicate it, so at that point any error just propagates.
+    for attempt in range(2):
+        yielded_any = False
+        try:
+            stream = client.models.generate_content_stream(
+                model=AI_MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=1024),
+            )
+            for chunk in stream:
+                if chunk.text:
+                    yielded_any = True
+                    yield chunk.text
+            return
+        except Exception as e:
+            if attempt == 0 and not yielded_any and _is_retryable(e):
+                time.sleep(_RETRY_DELAY_SECONDS)
+                continue
+            raise
 
 
 def generate_digest_narrative(digest_data: Dict, recipient_name: Optional[str] = None) -> Optional[str]:

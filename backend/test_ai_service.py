@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from google.genai import errors as genai_errors
+
 from backend import ai_service
 
 
@@ -15,6 +17,14 @@ def _fake_text_response(text):
     response = MagicMock()
     response.text = text
     return response
+
+
+def _server_error(code):
+    return genai_errors.ServerError(code, {"error": {"code": code, "status": "UNAVAILABLE"}})
+
+
+def _client_error(code):
+    return genai_errors.ClientError(code, {"error": {"code": code, "status": "INVALID_ARGUMENT"}})
 
 
 def test_is_configured_false_without_key():
@@ -126,6 +136,86 @@ def test_generate_digest_narrative_returns_none_without_client():
     with patch.object(ai_service, "get_client", return_value=None):
         result = ai_service.generate_digest_narrative({"total_net_worth": 100}, "Nish")
     assert result is None
+
+
+def test_generate_text_retries_once_on_retryable_server_error_then_succeeds():
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = [
+            _server_error(503),
+            _fake_text_response("hello"),
+        ]
+        mock_get_client.return_value = mock_client
+
+        result = ai_service.generate_text("hi")
+
+    assert result == "hello"
+    assert mock_client.models.generate_content.call_count == 2
+
+
+def test_generate_text_returns_none_after_second_retryable_failure():
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = [_server_error(503), _server_error(500)]
+        mock_get_client.return_value = mock_client
+
+        result = ai_service.generate_text("hi")
+
+    assert result is None
+    assert mock_client.models.generate_content.call_count == 2
+
+
+def test_generate_text_does_not_retry_non_retryable_error():
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = _client_error(400)
+        mock_get_client.return_value = mock_client
+
+        result = ai_service.generate_text("hi")
+
+    assert result is None
+    assert mock_client.models.generate_content.call_count == 1
+
+
+def test_chat_stream_retries_once_when_no_chunks_yielded_yet():
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        chunk = MagicMock()
+        chunk.text = "hi there"
+
+        def _raise_503():
+            raise _server_error(503)
+            yield  # pragma: no cover - makes this a generator
+
+        mock_client.models.generate_content_stream.side_effect = [_raise_503(), [chunk]]
+        mock_get_client.return_value = mock_client
+
+        chunks = list(ai_service.chat_stream([{"role": "user", "content": "hi"}], {}))
+
+    assert chunks == ["hi there"]
+    assert mock_client.models.generate_content_stream.call_count == 2
+
+
+def test_chat_stream_does_not_retry_once_chunks_already_yielded():
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        chunk = MagicMock()
+        chunk.text = "partial"
+
+        def _yield_then_raise():
+            yield chunk
+            raise _server_error(503)
+
+        mock_client.models.generate_content_stream.return_value = _yield_then_raise()
+        mock_get_client.return_value = mock_client
+
+        try:
+            list(ai_service.chat_stream([{"role": "user", "content": "hi"}], {}))
+            assert False, "expected ServerError to propagate"
+        except genai_errors.ServerError:
+            pass
+
+    assert mock_client.models.generate_content_stream.call_count == 1
 
 
 def test_chat_stream_raises_when_not_configured():
