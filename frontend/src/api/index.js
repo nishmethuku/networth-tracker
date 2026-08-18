@@ -193,6 +193,10 @@ export async function removeHouseholdMember(householdId, userId) {
   return api.delete(`/households/${householdId}/members/${userId}`);
 }
 
+export async function deleteHousehold(householdId) {
+  return api.delete(`/households/${householdId}`, { confirm: "DELETE" });
+}
+
 /**
  * Price alerts
  */

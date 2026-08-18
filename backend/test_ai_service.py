@@ -209,13 +209,48 @@ def test_chat_stream_does_not_retry_once_chunks_already_yielded():
         mock_client.models.generate_content_stream.return_value = _yield_then_raise()
         mock_get_client.return_value = mock_client
 
+        collected = []
         try:
-            list(ai_service.chat_stream([{"role": "user", "content": "hi"}], {}))
-            assert False, "expected ServerError to propagate"
-        except genai_errors.ServerError:
+            for c in ai_service.chat_stream([{"role": "user", "content": "hi"}], {}):
+                collected.append(c)
+            assert False, "expected RuntimeError to propagate"
+        except RuntimeError:
             pass
 
+    assert collected == ["partial"]
     assert mock_client.models.generate_content_stream.call_count == 1
+
+
+def test_chat_stream_wraps_api_errors_in_a_friendly_runtime_error():
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content_stream.side_effect = _server_error(500)
+        mock_get_client.return_value = mock_client
+
+        try:
+            list(ai_service.chat_stream([{"role": "user", "content": "hi"}], {}))
+            assert False, "expected RuntimeError"
+        except RuntimeError as e:
+            assert "quota" not in str(e).lower()
+            assert "500" not in str(e)
+            assert isinstance(e.__cause__, genai_errors.ServerError)
+
+
+def test_chat_stream_reports_quota_errors_distinctly():
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        quota_error = genai_errors.ClientError(
+            429, {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "message": "quotaMetric: ..."}}
+        )
+        mock_client.models.generate_content_stream.side_effect = quota_error
+        mock_get_client.return_value = mock_client
+
+        try:
+            list(ai_service.chat_stream([{"role": "user", "content": "hi"}], {}))
+            assert False, "expected RuntimeError"
+        except RuntimeError as e:
+            assert "daily usage limit" in str(e)
+            assert "quotaMetric" not in str(e)
 
 
 def test_chat_stream_raises_when_not_configured():

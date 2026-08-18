@@ -7,7 +7,16 @@ from typing import List, Optional
 
 from sqlalchemy import text
 
-from .models import db, Household, HouseholdMember, HouseholdInvite
+from .models import (
+    db,
+    Household,
+    HouseholdMember,
+    HouseholdInvite,
+    Holding,
+    NetWorthSnapshot,
+    BudgetEntry,
+    Milestone,
+)
 
 
 def get_member_household_ids(user_id) -> List[str]:
@@ -115,6 +124,26 @@ def leave_household(household_id, user_id):
     if household and str(household.owner_id) == str(user_id):
         raise PermissionError("The owner can't leave their own household — delete it instead")
     HouseholdMember.query.filter_by(household_id=household_id, user_id=user_id).delete()
+    db.session.commit()
+
+
+def delete_household(household_id, requester_id):
+    """Owner-only. Deleting a household never deletes anyone's financial
+    data — every record shared into it (holdings, snapshots, budget
+    entries, milestones) just gets unshared (household_id -> NULL) and
+    reverts to being that member's private data, matching how sharing
+    already works everywhere else in the app."""
+    household = Household.query.get(household_id)
+    if not household:
+        raise ValueError("Household not found")
+    if str(household.owner_id) != str(requester_id):
+        raise PermissionError("Only the household owner can delete the household")
+
+    for model in (Holding, NetWorthSnapshot, BudgetEntry, Milestone):
+        model.query.filter_by(household_id=household_id).update({"household_id": None})
+    HouseholdInvite.query.filter_by(household_id=household_id).delete()
+    HouseholdMember.query.filter_by(household_id=household_id).delete()
+    db.session.delete(household)
     db.session.commit()
 
 

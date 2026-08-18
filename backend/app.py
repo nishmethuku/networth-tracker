@@ -31,6 +31,7 @@ from .household_service import (
     accept_invite,
     leave_household,
     remove_member,
+    delete_household,
 )
 from .snapshot_service import snapshot_all_users
 from .digest_service import build_weekly_digest
@@ -754,6 +755,20 @@ def create_app():
         except PermissionError as e:
             return jsonify({"error": str(e)}), 403
         return jsonify({"message": "Member removed"})
+
+    @app.route("/households/<uuid:household_id>", methods=["DELETE"])
+    @require_auth
+    def delete_household_route(household_id):
+        data = request.get_json(silent=True) or {}
+        if data.get("confirm") != "DELETE":
+            return jsonify({"error": "Send {\"confirm\": \"DELETE\"} to confirm — this removes all members and unshares everyone's data."}), 400
+        try:
+            delete_household(str(household_id), g.user_id)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 404
+        except PermissionError as e:
+            return jsonify({"error": str(e)}), 403
+        return jsonify({"message": "Household deleted"})
 
     # ---------------- INTERNAL: DAILY SNAPSHOT / WEEKLY DIGEST TRIGGERS ----------------
 

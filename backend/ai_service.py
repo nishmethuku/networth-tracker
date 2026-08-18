@@ -38,6 +38,17 @@ _RETRY_DELAY_SECONDS = 1.5
 
 def _is_retryable(exc: BaseException) -> bool:
     return isinstance(exc, genai_errors.ServerError) and getattr(exc, "code", None) in _RETRYABLE_STATUS_CODES
+
+
+def _friendly_error(exc: BaseException) -> str:
+    """chat_stream re-raises so app.py's SSE handler can report a failure —
+    but the raw SDK exception text includes internal quota metric names and
+    doc URLs that shouldn't reach an end user's chat window."""
+    if isinstance(exc, genai_errors.ClientError) and getattr(exc, "code", None) == 429:
+        return "The AI assistant has hit its free daily usage limit — please try again later."
+    if isinstance(exc, genai_errors.APIError):
+        return "The AI assistant is temporarily unavailable — please try again in a moment."
+    return "Something went wrong talking to the AI assistant."
 # An alias Google hot-swaps to the current best Flash model (with a 2-week
 # deprecation notice for breaking changes), rather than a dated model
 # string that eventually gets shut down — e.g. gemini-2.5-flash's planned
@@ -176,6 +187,8 @@ def chat_stream(messages: List[Dict], portfolio_snapshot: Dict):
             if attempt == 0 and not yielded_any and _is_retryable(e):
                 time.sleep(_RETRY_DELAY_SECONDS)
                 continue
+            if isinstance(e, genai_errors.APIError):
+                raise RuntimeError(_friendly_error(e)) from e
             raise
 
 

@@ -13,6 +13,7 @@ import {
   fetchMyInvites,
   acceptInvite,
   leaveHousehold,
+  deleteHousehold,
   ApiError,
 } from "../api";
 import { useAuth } from "../contexts/AuthContext";
@@ -43,6 +44,7 @@ function HouseholdCard({ household }) {
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("editor");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const toast = useToast();
 
   const { data: members } = useQuery({
@@ -64,6 +66,15 @@ function HouseholdCard({ household }) {
   const leaveMutation = useMutation({
     mutationFn: () => leaveHousehold(household.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["households"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteHousehold(household.id),
+    onSuccess: () => {
+      toast.success(`${household.name} deleted`);
+      queryClient.invalidateQueries({ queryKey: ["households"] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete household"),
   });
 
   const isOwner = household.owner_id === user?.id;
@@ -114,7 +125,34 @@ function HouseholdCard({ household }) {
           </p>
         )}
 
-        {!isOwner && (
+        {isOwner ? (
+          <div>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+              Deleting removes all members and unshares everyone's holdings back to private —
+              nobody's financial data is deleted. <strong>This cannot be undone.</strong>
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE to confirm"
+                style={{ ...inputStyle, flex: 1, minWidth: "160px" }}
+              />
+              <button
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteConfirmText !== "DELETE" || deleteMutation.isPending}
+                style={{
+                  ...buttonStyle,
+                  background: "var(--danger)",
+                  opacity: deleteConfirmText === "DELETE" ? 1 : 0.5,
+                  cursor: deleteConfirmText === "DELETE" ? "pointer" : "default",
+                }}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete Household"}
+              </button>
+            </div>
+          </div>
+        ) : (
           <button
             onClick={() => leaveMutation.mutate()}
             disabled={leaveMutation.isPending}
