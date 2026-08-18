@@ -994,7 +994,7 @@ def create_app():
                 return []
 
         try:
-            all_schemes = mf_instance.get_all_scheme_codes()
+            all_schemes = mf_instance.get_scheme_codes()
             if not all_schemes:
                 return []
 
