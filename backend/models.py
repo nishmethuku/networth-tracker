@@ -324,6 +324,12 @@ class BudgetEntry(db.Model):
     description = db.Column(db.Text)
     is_private = db.Column(db.Boolean, nullable=False, default=False)
 
+    # Recurring tracking (subscriptions, rent, etc.) — each logged entry can
+    # flag itself as recurring; get_subscriptions() groups these by
+    # (category, description) to build the Subscriptions & Bills view.
+    is_recurring = db.Column(db.Boolean, nullable=False, default=False)
+    recurring_frequency = db.Column(db.String(16))  # 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
     def to_dict(self):
@@ -338,6 +344,39 @@ class BudgetEntry(db.Model):
             "category": self.category,
             "description": self.description,
             "is_private": self.is_private,
+            "is_recurring": self.is_recurring,
+            "recurring_frequency": self.recurring_frequency,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class BudgetLimit(db.Model):
+    """A monthly spending cap for one expense category — purely an in-app
+    indicator (progress bar on the Budget page), no email alerting."""
+    __tablename__ = "budget_limits"
+    __table_args__ = (
+        db.Index("budget_limits_user_category_idx", "user_id", "category"),
+        db.Index("budget_limits_household_category_idx", "household_id", "category"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
+
+    category = db.Column(db.String(32), nullable=False)
+    monthly_limit = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(8), nullable=False)
+
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": str(self.user_id),
+            "household_id": str(self.household_id) if self.household_id else None,
+            "category": self.category,
+            "monthly_limit": self.monthly_limit,
+            "currency": self.currency,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

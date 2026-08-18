@@ -4,11 +4,11 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.budget_service import summarize_entries
+from backend.budget_service import summarize_entries, summarize_subscriptions
 from backend.models import BudgetEntry
 
 
-def _entry(entry_type, entry_date, amount, category, currency="USD"):
+def _entry(entry_type, entry_date, amount, category, currency="USD", is_recurring=False, recurring_frequency=None, description=None):
     return BudgetEntry(
         user_id="00000000-0000-0000-0000-000000000000",
         entry_type=entry_type,
@@ -16,6 +16,9 @@ def _entry(entry_type, entry_date, amount, category, currency="USD"):
         amount=amount,
         currency=currency,
         category=category,
+        is_recurring=is_recurring,
+        recurring_frequency=recurring_frequency,
+        description=description,
     )
 
 
@@ -65,6 +68,58 @@ def test_empty_entries_returns_empty_summary():
     assert result["months"] == []
     assert result["latest_month"] is None
     assert result["category_breakdown"] == []
+
+
+def test_limit_status_reports_spend_vs_limit_for_latest_month():
+    entries = [_entry("expense", date(2026, 3, 1), 450, "food")]
+    limits = [{"category": "food", "monthly_limit": 600, "currency": "USD"}]
+    result = summarize_entries(entries, limits=limits)
+    assert result["limit_status"] == [{"category": "food", "limit": 600, "spent": 450.0, "percent": 75.0}]
+
+
+def test_limit_status_ignores_limits_in_a_different_currency():
+    entries = [_entry("expense", date(2026, 3, 1), 450, "food", currency="USD")]
+    limits = [{"category": "food", "monthly_limit": 600, "currency": "INR"}]
+    result = summarize_entries(entries, currency="USD", limits=limits)
+    assert result["limit_status"] == []
+
+
+def test_limit_status_empty_without_limits():
+    entries = [_entry("expense", date(2026, 3, 1), 450, "food")]
+    result = summarize_entries(entries)
+    assert result["limit_status"] == []
+
+
+def test_summarize_subscriptions_uses_most_recent_entry_per_group():
+    entries = [
+        _entry("expense", date(2026, 1, 1), 12.99, "entertainment", is_recurring=True, recurring_frequency="monthly", description="Netflix"),
+        _entry("expense", date(2026, 2, 1), 15.99, "entertainment", is_recurring=True, recurring_frequency="monthly", description="Netflix"),
+    ]
+    result = summarize_subscriptions(entries)
+    assert len(result["items"]) == 1
+    assert result["items"][0]["amount"] == 15.99
+
+
+def test_summarize_subscriptions_computes_monthly_equivalent_total():
+    entries = [
+        _entry("expense", date(2026, 1, 1), 120, "entertainment", is_recurring=True, recurring_frequency="yearly", description="Prime"),
+        _entry("expense", date(2026, 1, 1), 15, "entertainment", is_recurring=True, recurring_frequency="monthly", description="Spotify"),
+    ]
+    result = summarize_subscriptions(entries)
+    # 120/year -> 10/month equivalent, plus 15/month = 25
+    assert result["monthly_total"] == 25.0
+
+
+def test_summarize_subscriptions_defaults_missing_frequency_to_monthly():
+    entries = [_entry("expense", date(2026, 1, 1), 50, "housing", is_recurring=True, recurring_frequency=None, description="Rent")]
+    result = summarize_subscriptions(entries)
+    assert result["items"][0]["frequency"] == "monthly"
+
+
+def test_summarize_subscriptions_empty_without_entries():
+    result = summarize_subscriptions([])
+    assert result["items"] == []
+    assert result["monthly_total"] == 0.0
 
 
 if __name__ == "__main__":

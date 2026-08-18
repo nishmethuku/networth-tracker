@@ -19,7 +19,8 @@ A full-stack family net worth tracker: real transaction-based portfolio accounti
 - **Multi-currency**: every holding is denominated in its native currency; the dashboard converts to your chosen display currency (USD/INR/AUD) using live FX rates, cached daily
 - **Broker CSV import**: Zerodha, Groww (stocks + mutual funds), Fidelity, Robinhood — parsed into a preview you review and confirm before anything is saved
 - **AI spreadsheet import** (optional, owner/editor only): upload your own Excel/CSV in whatever layout you already use — Gemini reads it and maps rows to holdings, same review-before-saving flow as broker import
-- **Budget**: income/expense tracking with monthly trends and category breakdown — deliberately separate from net worth, so logging a paycheck never touches a holding automatically
+- **Budget**: income/expense tracking with monthly trends and category breakdown — deliberately separate from net worth, so logging a paycheck never touches a holding automatically. Recurring entries (subscriptions, rent, bills) get their own view with next-due dates and a monthly total; optional per-category spending limits with an in-app progress indicator; on-demand AI spending insights.
+- **Bank statement import** (optional, owner/editor only): upload a bank/credit card statement (Excel, CSV, or PDF) — Gemini extracts and categorizes each transaction into your budget, same review-before-saving flow as broker/spreadsheet import
 - **Household sharing**: create a household, invite members as editor (can add/edit) or viewer (read-only), holdings can be flagged private to stay out of the shared view entirely
 - **Dashboard**: net worth chart (range pills, milestone markers), drill-down allocation donut (type/country), gainers/losers heat-map with sparklines, returns by asset type, net worth vs S&P 500 (SPY) / Nifty 50 (NIFTYBEES) comparison, milestone celebrations, pull-to-refresh on mobile
 - **AI copilot** (optional, owner/editor only): floating chat with full portfolio context (streamed), AI-narrated weekly digest, allocation advisor with real rebalance math, transaction tag suggestions, natural-language portfolio search (Cmd+K)
@@ -97,10 +98,14 @@ All endpoints except `/internal/*` require an `Authorization: Bearer <supabase-a
 **CSV import**
 - `GET /import/brokers`, `POST /import/parse`, `POST /import/confirm`
 - `POST /import/smart-parse` (multipart file upload, AI-assisted), `POST /import/smart-confirm`
+- `POST /import/bank-statement-parse` (multipart, Excel/CSV/PDF, AI-assisted), `POST /import/bank-statement-confirm`
 
 **Budget (income/expenses, independent of holdings)**
 - `GET /budget/categories`, `GET/POST /budget/entries`, `PUT/DELETE /budget/entries/:id`
-- `GET /budget/summary?months=N&currency=...`
+- `GET /budget/summary?months=N&currency=...` (includes `limit_status` and, for a shared household, `by_member`)
+- `GET /budget/subscriptions?currency=...` — recurring entries grouped with next-due dates and a monthly total
+- `GET/POST /budget/limits`, `DELETE /budget/limits/:id` — per-category monthly spending limits
+- `POST /api/ai/budget-insights` (owner/editor only, requires `GEMINI_API_KEY`) — on-demand spending narrative
 
 **Alerts & milestones**
 - `GET/POST /alerts`, `DELETE /alerts/:id`

@@ -16,6 +16,7 @@ import {
   mapTaxSummary,
   mapBenchmark,
   mapBudgetEntry,
+  mapBudgetLimit,
 } from "./mappers";
 
 /**
@@ -376,6 +377,10 @@ export async function aiSearch(query, householdId = null) {
   return api.post("/api/ai/search", { query, household_id: householdId });
 }
 
+export async function fetchBudgetInsights({ householdId, months = 6, currency = "USD" } = {}) {
+  return api.post("/api/ai/budget-insights", { household_id: householdId, months, currency });
+}
+
 /**
  * Account data (Settings page).
  */
@@ -430,6 +435,65 @@ export async function fetchBudgetSummary({ householdId, months = 6, currency = "
   const params = new URLSearchParams({ months: String(months), currency });
   if (householdId) params.append("household_id", householdId);
   return api.get(`/budget/summary?${params.toString()}`);
+}
+
+export async function fetchSubscriptions({ householdId, currency = "USD" } = {}) {
+  const params = new URLSearchParams({ currency });
+  if (householdId) params.append("household_id", householdId);
+  return api.get(`/budget/subscriptions?${params.toString()}`);
+}
+
+export async function fetchBudgetLimits({ householdId } = {}) {
+  const params = new URLSearchParams();
+  if (householdId) params.append("household_id", householdId);
+  const endpoint = params.toString() ? `/budget/limits?${params.toString()}` : "/budget/limits";
+  const data = await api.get(endpoint);
+  return (data || []).map(mapBudgetLimit);
+}
+
+export async function createBudgetLimit(payload) {
+  const data = await api.post("/budget/limits", payload);
+  return mapBudgetLimit(data);
+}
+
+export async function deleteBudgetLimit(id) {
+  await api.delete(`/budget/limits/${id}`);
+}
+
+/**
+ * AI-assisted bank/credit card statement import (CSV, Excel, or PDF) into
+ * Budget entries — same multipart-upload pattern as smartImportParse above.
+ */
+export async function bankStatementParse(file, householdId = null) {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  const formData = new FormData();
+  formData.append("file", file);
+  if (householdId) formData.append("household_id", householdId);
+
+  const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/import/bank-statement-parse`, {
+    method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: formData,
+  });
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
+  }
+  if (!response.ok) {
+    const err = new Error(payload.error || `HTTP ${response.status}`);
+    err.status = response.status;
+    throw err;
+  }
+  return payload;
+}
+
+export async function bankStatementConfirm(rows, householdId = null, currency = "USD") {
+  return api.post("/import/bank-statement-confirm", { rows, household_id: householdId, currency });
 }
 
 export { api } from "./client";

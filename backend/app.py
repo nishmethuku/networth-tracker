@@ -11,7 +11,7 @@ from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException
 import requests
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, Milestone, BudgetEntry
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, Milestone, BudgetEntry, BudgetLimit
 from .auth import require_auth
 from .utils import FINNHUB_API_KEY, MFTOOL_AVAILABLE
 from .services import safe_float, rank_symbol_results
@@ -39,8 +39,17 @@ from .alert_service import check_all_alerts
 from .unsubscribe_service import verify_unsubscribe_token, unsubscribe as unsubscribe_email
 from .account_service import export_user_data, delete_all_user_data
 from .sip_service import next_occurrences as next_sip_occurrences, project_future_value as project_sip_future_value
-from .budget_service import get_monthly_summary, INCOME_CATEGORIES, EXPENSE_CATEGORIES
+from .budget_service import (
+    get_monthly_summary,
+    get_subscriptions,
+    get_limits,
+    set_limit,
+    delete_limit,
+    INCOME_CATEGORIES,
+    EXPENSE_CATEGORIES,
+)
 from .smart_import_service import parse_spreadsheet, confirm_smart_import
+from .bank_import_service import parse_statement, confirm_bank_import
 from .benchmark_service import get_benchmark_comparison
 from .tax_service import get_tax_summary, TAX_DISCLAIMER
 from .csv_import_service import parse_csv, confirm_import, SUPPORTED_BROKERS
@@ -657,6 +666,38 @@ def create_app():
         result = confirm_smart_import(rows, g.user_id, household_id=household_id)
         return jsonify(result), 201
 
+    @app.route("/import/bank-statement-parse", methods=["POST"])
+    @require_auth
+    @limiter.limit("10 per hour")
+    def import_bank_statement_parse():
+        """AI-assisted import of a bank/credit card statement into Budget
+        entries — CSV, Excel, or PDF. Owner/editor only, same as other AI
+        features (reuses require_ai_access)."""
+        household_id = request.form.get("household_id") or None
+        require_ai_access(household_id)
+
+        file = request.files.get("file")
+        if not file or not file.filename:
+            return jsonify({"error": "file is required"}), 400
+        if not file.filename.lower().endswith((".xlsx", ".xls", ".csv", ".pdf")):
+            return jsonify({"error": "Only .xlsx, .xls, .csv, or .pdf files are supported"}), 400
+
+        result = parse_statement(file.read(), file.filename)
+        return jsonify(result)
+
+    @app.route("/import/bank-statement-confirm", methods=["POST"])
+    @require_auth
+    def import_bank_statement_confirm():
+        data = request.get_json(force=True)
+        rows = data.get("rows", [])
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        if not rows:
+            return jsonify({"error": "No rows to import"}), 400
+        currency = data.get("currency", "USD").upper()
+        result = confirm_bank_import(rows, g.user_id, household_id=household_id, currency=currency)
+        return jsonify(result), 201
+
     # ---------------- NET WORTH HISTORY (real daily snapshots) ----------------
 
     @app.route("/net-worth-history", methods=["GET"])
@@ -1206,6 +1247,10 @@ def create_app():
         if category not in valid_categories:
             return jsonify({"error": f"category must be one of {valid_categories}"}), 400
 
+        recurring_frequency = data.get("recurring_frequency")
+        if recurring_frequency and recurring_frequency not in ("weekly", "monthly", "quarterly", "yearly"):
+            return jsonify({"error": "recurring_frequency must be weekly, monthly, quarterly, or yearly"}), 400
+
         entry = BudgetEntry(
             user_id=g.user_id,
             household_id=household_id,
@@ -1216,6 +1261,8 @@ def create_app():
             category=category,
             description=data.get("description"),
             is_private=bool(data.get("is_private", False)),
+            is_recurring=bool(data.get("is_recurring", False)),
+            recurring_frequency=recurring_frequency,
         )
         db.session.add(entry)
         db.session.commit()
@@ -1242,6 +1289,12 @@ def create_app():
             entry.description = data["description"]
         if "is_private" in data:
             entry.is_private = bool(data["is_private"])
+        if "is_recurring" in data:
+            entry.is_recurring = bool(data["is_recurring"])
+        if "recurring_frequency" in data:
+            if data["recurring_frequency"] and data["recurring_frequency"] not in ("weekly", "monthly", "quarterly", "yearly"):
+                return jsonify({"error": "recurring_frequency must be weekly, monthly, quarterly, or yearly"}), 400
+            entry.recurring_frequency = data["recurring_frequency"]
 
         db.session.commit()
         return jsonify(entry.to_dict())
@@ -1266,6 +1319,77 @@ def create_app():
             g.user_id if not household_id_param else None, household_id_param, months=months, currency=currency
         )
         return jsonify(result)
+
+    @app.route("/budget/subscriptions", methods=["GET"])
+    @require_auth
+    def budget_subscriptions():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        currency = request.args.get("currency", "USD").upper()
+        result = get_subscriptions(
+            g.user_id if not household_id_param else None, household_id_param, currency=currency
+        )
+        return jsonify(result)
+
+    @app.route("/budget/limits", methods=["GET"])
+    @require_auth
+    def budget_limits_list():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        limits = get_limits(g.user_id if not household_id_param else None, household_id_param)
+        return jsonify(limits)
+
+    @app.route("/budget/limits", methods=["POST"])
+    @require_auth
+    def budget_limits_create():
+        data = request.get_json(force=True)
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        try:
+            limit = set_limit(
+                g.user_id,
+                category=data.get("category"),
+                monthly_limit=safe_float(data.get("monthly_limit")),
+                currency=data.get("currency", "USD"),
+                household_id=household_id,
+            )
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify(limit), 201
+
+    @app.route("/budget/limits/<int:limit_id>", methods=["DELETE"])
+    @require_auth
+    def budget_limits_delete(limit_id):
+        limit = BudgetLimit.query.get_or_404(limit_id)
+        if limit.household_id:
+            validate_household_id_for_write(str(limit.household_id))
+        elif str(limit.user_id) != str(g.user_id):
+            abort(403)
+        delete_limit(limit_id, g.user_id, str(limit.household_id) if limit.household_id else None)
+        return jsonify({"message": "Limit deleted"}), 200
+
+    @app.route("/api/ai/budget-insights", methods=["POST"])
+    @require_auth
+    @limiter.limit("10 per minute")
+    def ai_budget_insights():
+        data = request.get_json(force=True) or {}
+        household_id = data.get("household_id")
+        require_ai_access(household_id)
+
+        if not ai_service.is_configured():
+            return jsonify({"configured": False, "narrative": None})
+
+        if household_id and household_id not in get_member_household_ids(g.user_id):
+            abort(403)
+        months = int(data.get("months", 6))
+        currency = data.get("currency", "USD").upper()
+        summary = get_monthly_summary(
+            g.user_id if not household_id else None, household_id, months=months, currency=currency
+        )
+        narrative = ai_service.generate_budget_narrative(summary)
+        return jsonify({"configured": True, "narrative": narrative})
 
     return app
 

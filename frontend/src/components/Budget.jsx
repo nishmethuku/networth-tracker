@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -14,12 +15,24 @@ import {
   createBudgetEntry,
   deleteBudgetEntry,
   fetchBudgetSummary,
+  fetchSubscriptions,
+  fetchBudgetLimits,
+  createBudgetLimit,
+  deleteBudgetLimit,
+  fetchBudgetInsights,
   fetchHouseholds,
   ApiError,
 } from "../api";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatCurrencyCompact } from "../utils/formatters";
+
+const RECURRING_FREQUENCIES = [
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "yearly", label: "Yearly" },
+];
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -88,9 +101,12 @@ function AddEntryForm({ categories, householdId, currency }) {
       entry_date: new Date().toISOString().split("T")[0],
       description: "",
       currency,
+      is_recurring: false,
+      recurring_frequency: "monthly",
     },
   });
   const entryType = watch("entry_type");
+  const isRecurring = watch("is_recurring");
   const categoryOptions = entryType === "income" ? categories?.income || [] : categories?.expense || [];
 
   const mutation = useMutation({
@@ -103,10 +119,13 @@ function AddEntryForm({ categories, householdId, currency }) {
         category: data.category,
         description: data.description || null,
         household_id: householdId || null,
+        is_recurring: data.is_recurring,
+        recurring_frequency: data.is_recurring ? data.recurring_frequency : null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-subscriptions"] });
       toast.success(entryType === "income" ? "Income added" : "Expense added");
       reset({
         entry_type: entryType,
@@ -115,6 +134,8 @@ function AddEntryForm({ categories, householdId, currency }) {
         entry_date: new Date().toISOString().split("T")[0],
         description: "",
         currency,
+        is_recurring: false,
+        recurring_frequency: "monthly",
       });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add entry"),
@@ -167,6 +188,18 @@ function AddEntryForm({ categories, householdId, currency }) {
         <input {...register("description")} placeholder={entryType === "income" ? "e.g., August paycheck" : "e.g., Groceries"} style={inputStyle} />
       </div>
 
+      <div style={{ marginTop: "0.875rem", display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8125rem", color: "var(--text)", cursor: "pointer" }}>
+          <input type="checkbox" {...register("is_recurring")} />
+          Recurring (subscription, rent, bill, etc.)
+        </label>
+        {isRecurring && (
+          <select {...register("recurring_frequency")} style={{ ...inputStyle, width: "auto" }}>
+            {RECURRING_FREQUENCIES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+        )}
+      </div>
+
       <button
         type="submit"
         disabled={mutation.isPending}
@@ -175,6 +208,210 @@ function AddEntryForm({ categories, householdId, currency }) {
         {mutation.isPending ? "Adding..." : `Add ${entryType === "income" ? "Income" : "Expense"}`}
       </button>
     </form>
+  );
+}
+
+function SubscriptionsCard({ householdId, currency }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["budget-subscriptions", householdId, currency],
+    queryFn: () => fetchSubscriptions({ householdId: householdId || undefined, currency }),
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <Card
+      title="Recurring & Subscriptions"
+      subtitle={data && data.items.length > 0 ? `${formatCurrencyCompact(data.monthly_total, currency)}/mo total` : undefined}
+    >
+      {!data || data.items.length === 0 ? (
+        <EmptyState message="Mark an entry as recurring (subscription, rent, a bill) to see it here." />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem" }}>
+          {data.items.map((item, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0", borderBottom: "1px solid var(--border-light)" }}>
+              <div>
+                <div style={{ fontWeight: 500, color: "var(--text)", fontSize: "0.875rem" }}>
+                  {item.description || getBudgetCategoryLabel(item.category)}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  {item.frequency} · next due {item.next_due ? new Date(item.next_due).toLocaleDateString() : "—"}
+                </div>
+              </div>
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)" }}>
+                {formatCurrencyForDisplay(item.amount, currency)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function SpendingLimitsCard({ householdId, currency, limitStatus }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { register, handleSubmit, reset } = useForm({ defaultValues: { category: "", monthly_limit: "" } });
+
+  const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
+  const { data: limits } = useQuery({
+    queryKey: ["budget-limits", householdId],
+    queryFn: () => fetchBudgetLimits({ householdId: householdId || undefined }),
+  });
+
+  const statusByCategory = Object.fromEntries((limitStatus || []).map((s) => [s.category, s]));
+  const limitByCategory = Object.fromEntries((limits || []).map((l) => [l.category, l]));
+  const availableCategories = (categories?.expense || []).filter((c) => !limitByCategory[c]);
+
+  const createMutation = useMutation({
+    mutationFn: (data) =>
+      createBudgetLimit({
+        category: data.category,
+        monthly_limit: parseFloat(data.monthly_limit),
+        currency,
+        household_id: householdId || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-limits"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      toast.success("Limit set");
+      reset({ category: "", monthly_limit: "" });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to set limit"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteBudgetLimit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-limits"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+    },
+  });
+
+  return (
+    <Card title="Spending Limits">
+      {!limits || limits.length === 0 ? (
+        <EmptyState message="No spending limits set yet." />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
+          {limits.map((limit) => {
+            const status = statusByCategory[limit.category];
+            const percent = status?.percent ?? 0;
+            const barColor = percent >= 100 ? "var(--danger)" : percent >= 80 ? "var(--warning)" : "var(--success)";
+            return (
+              <div key={limit.id}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem" }}>
+                  <span style={{ color: "var(--text)" }}>{getBudgetCategoryLabel(limit.category)}</span>
+                  <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                      {formatCurrencyForDisplay(status?.spent ?? 0, currency)} / {formatCurrencyForDisplay(limit.monthlyLimit, currency)}
+                    </span>
+                    <button
+                      onClick={() => deleteMutation.mutate(limit.id)}
+                      style={{ fontSize: "0.7rem", background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "0.15rem 0.4rem", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
+                    >
+                      Remove
+                    </button>
+                  </span>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${Math.min(percent, 100)}%`, background: barColor, borderRadius: 3 }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {availableCategories.length > 0 && (
+        <form
+          onSubmit={handleSubmit((data) => data.category && data.monthly_limit && createMutation.mutate(data))}
+          style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap" }}
+        >
+          <select {...register("category")} style={{ ...inputStyle, flex: 1, minWidth: "140px" }}>
+            <option value="">Add a limit for...</option>
+            {availableCategories.map((c) => <option key={c} value={c}>{getBudgetCategoryLabel(c)}</option>)}
+          </select>
+          <input {...register("monthly_limit")} type="number" step="any" placeholder="Monthly limit" style={{ ...inputStyle, width: "140px" }} />
+          <button
+            type="submit"
+            disabled={createMutation.isPending}
+            style={{ padding: "0.625rem 1rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600, fontSize: "0.8125rem" }}
+          >
+            Set
+          </button>
+        </form>
+      )}
+    </Card>
+  );
+}
+
+function AIInsightsCard({ householdId, currency }) {
+  const [narrative, setNarrative] = useState(null);
+  const [notConfigured, setNotConfigured] = useState(false);
+  const toast = useToast();
+
+  const mutation = useMutation({
+    mutationFn: () => fetchBudgetInsights({ householdId: householdId || undefined, months: 6, currency }),
+    onSuccess: (result) => {
+      if (!result.configured) {
+        setNotConfigured(true);
+        return;
+      }
+      setNarrative(result.narrative || "Not enough data yet for insights — add a few more entries.");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to get insights"),
+  });
+
+  return (
+    <Card title="✨ AI Insights">
+      {notConfigured ? (
+        <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem" }}>
+          AI insights aren't configured yet — a Gemini API key needs to be added on the backend.
+        </p>
+      ) : narrative ? (
+        <p style={{ color: "var(--text)", fontSize: "0.875rem", lineHeight: 1.6, whiteSpace: "pre-wrap", marginTop: "0.5rem" }}>{narrative}</p>
+      ) : (
+        <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem" }}>
+          Get a plain-language read on your spending trends and biggest categories.
+        </p>
+      )}
+      {!narrative && !notConfigured && (
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          style={{ marginTop: "0.75rem", padding: "0.625rem 1.25rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600, fontSize: "0.8125rem", opacity: mutation.isPending ? 0.6 : 1 }}
+        >
+          {mutation.isPending ? "Thinking..." : "Get AI Insights"}
+        </button>
+      )}
+    </Card>
+  );
+}
+
+function MemberBreakdown({ byMember, currency }) {
+  if (!byMember || byMember.length === 0) return null;
+  const total = byMember.reduce((sum, m) => sum + m.total, 0);
+  return (
+    <Card title="Who Spent What This Month">
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginTop: "0.5rem" }}>
+        {byMember.map((m) => {
+          const pct = total > 0 ? (m.total / total) * 100 : 0;
+          return (
+            <div key={m.user_id}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem" }}>
+                <span style={{ color: "var(--text)" }}>{m.email}</span>
+                <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(m.total, currency)}</span>
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: "var(--primary)", borderRadius: 3 }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
@@ -260,9 +497,26 @@ export default function Budget() {
         </Card>
       </div>
 
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+        <SubscriptionsCard householdId={householdId} currency={currency} />
+        <SpendingLimitsCard householdId={householdId} currency={currency} limitStatus={summary.limit_status} />
+        <AIInsightsCard householdId={householdId} currency={currency} />
+      </div>
+
+      {summary.by_member && summary.by_member.length > 0 && (
+        <div style={{ marginBottom: "1.5rem" }}>
+          <MemberBreakdown byMember={summary.by_member} currency={currency} />
+        </div>
+      )}
+
       <div style={{ marginBottom: "1.5rem" }}>
         <Card title="Add an entry">
           <AddEntryForm categories={categories} householdId={householdId} currency={currency} />
+          <p style={{ marginTop: "1rem", fontSize: "0.8125rem" }}>
+            <Link to="/import-bank-statement" style={{ color: "var(--primary)" }}>
+              Import a bank or credit card statement instead →
+            </Link>
+          </p>
         </Card>
       </div>
 

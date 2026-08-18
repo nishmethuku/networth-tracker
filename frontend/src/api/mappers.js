@@ -211,6 +211,20 @@ export function mapBudgetEntry(e) {
     category: e.category,
     description: e.description ?? "",
     isPrivate: !!e.is_private,
+    isRecurring: !!e.is_recurring,
+    recurringFrequency: e.recurring_frequency ?? null,
     createdAt: e.created_at ?? "",
+  };
+}
+
+export function mapBudgetLimit(l) {
+  if (!l) return null;
+  return {
+    id: l.id,
+    householdId: l.household_id,
+    category: l.category,
+    monthlyLimit: safeNumber(l.monthly_limit),
+    currency: l.currency ?? "USD",
+    createdAt: l.created_at ?? "",
   };
 }

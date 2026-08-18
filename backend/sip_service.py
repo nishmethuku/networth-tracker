@@ -7,16 +7,17 @@ elsewhere, which the caller passes in.
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
-FREQUENCY_DAYS = {"weekly": 7, "monthly": 30, "quarterly": 91}
-PERIODS_PER_YEAR = {"weekly": 52, "monthly": 12, "quarterly": 4}
+FREQUENCY_DAYS = {"weekly": 7, "monthly": 30, "quarterly": 91, "yearly": 365}
+PERIODS_PER_YEAR = {"weekly": 52, "monthly": 12, "quarterly": 4, "yearly": 1}
 
 
 def _advance(d: date, frequency: str, n: int) -> date:
-    """Adds n periods to d. Monthly/quarterly advance by calendar months
-    (not a fixed day count) so a start date of the 31st doesn't drift."""
+    """Adds n periods to d. Monthly/quarterly/yearly advance by calendar
+    months (not a fixed day count) so a start date of the 31st doesn't
+    drift."""
     if frequency == "weekly":
         return d + timedelta(weeks=n)
-    months_per_period = 1 if frequency == "monthly" else 3
+    months_per_period = {"monthly": 1, "quarterly": 3, "yearly": 12}[frequency]
     total_months = (d.month - 1) + n * months_per_period
     year = d.year + total_months // 12
     month = total_months % 12 + 1

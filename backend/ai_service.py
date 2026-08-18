@@ -205,6 +205,22 @@ def generate_digest_narrative(digest_data: Dict, recipient_name: Optional[str] =
     return generate_text(prompt, max_tokens=600)
 
 
+def generate_budget_narrative(summary_data: Dict) -> Optional[str]:
+    """On-demand (not automatic — see budget_service/app.py) 2-3 paragraph
+    narrative over the Budget page's monthly summary: trends, the biggest
+    category, anything notable in limit_status. Returns None if AI isn't
+    configured or the call fails; callers show a clean 'not configured'
+    state rather than blocking on this."""
+    prompt = (
+        "Write a warm, specific 2-3 paragraph spending insights narrative from this budget data — "
+        "trends across the months shown, the biggest spending category, and anything notable about "
+        "spending limits if present (e.g. close to or over a limit). Reference real numbers naturally. "
+        "Keep it grounded and factual — no hype, no generic advice. Plain text only, no markdown headers.\n\n"
+        "Data (JSON):\n" + json.dumps(summary_data)
+    )
+    return generate_text(prompt, max_tokens=500)
+
+
 REBALANCE_SYSTEM_PROMPT = """You are a portfolio allocation advisor inside a personal net worth tracker. \
 Given the user's current holdings/allocation and a target allocation goal, write a short narrative \
 (2-3 paragraphs) explaining the gap between current and target allocation and the reasoning for the \

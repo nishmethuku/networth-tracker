@@ -138,6 +138,23 @@ def test_generate_digest_narrative_returns_none_without_client():
     assert result is None
 
 
+def test_generate_budget_narrative_returns_none_without_client():
+    with patch.object(ai_service, "get_client", return_value=None):
+        result = ai_service.generate_budget_narrative({"months": [], "category_breakdown": []})
+    assert result is None
+
+
+def test_generate_budget_narrative_returns_text_when_configured():
+    with patch.object(ai_service, "get_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = _fake_text_response("You spent the most on housing this month.")
+        mock_get_client.return_value = mock_client
+
+        result = ai_service.generate_budget_narrative({"months": [{"month": "2026-03", "expenses": 2000}], "category_breakdown": []})
+
+    assert result == "You spent the most on housing this month."
+
+
 def test_generate_text_retries_once_on_retryable_server_error_then_succeeds():
     with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
         mock_client = MagicMock()
