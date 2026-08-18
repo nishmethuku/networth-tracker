@@ -1,7 +1,10 @@
+import logging
 import os
 import requests
 from datetime import date, timedelta
 from time import time
+
+logger = logging.getLogger(__name__)
 
 # Optional NSE library imports for Indian stocks (multiple fallbacks)
 try:
@@ -50,12 +53,23 @@ _PRICE_CACHE = {}
 _CACHE_TTL = 300  # 5 minutes in seconds
 
 
-def _get_price_from_finnhub(ticker: str):
+def _get_price_from_finnhub(ticker: str, asset_type: str = None):
     """
     Get current price from Finnhub API.
     PRIMARY method for US stocks when FINNHUB_API_KEY is set.
     """
     if not FINNHUB_API_KEY:
+        return None
+
+    # Finnhub's free tier returns 403 for NSE-listed symbols and mutual
+    # funds — not a transient error, so skip the call entirely instead of
+    # logging a 403 on every price fetch.
+    upper_ticker = (ticker or "").upper().strip()
+    if upper_ticker.endswith(".NS") or upper_ticker.endswith(".NSE"):
+        logger.debug("Skipping Finnhub for NSE-listed symbol %s (unsupported on free tier)", ticker)
+        return None
+    if asset_type == "mutual_fund":
+        logger.debug("Skipping Finnhub for mutual fund symbol %s (unsupported on free tier)", ticker)
         return None
 
     try:
@@ -435,7 +449,7 @@ def _fetch_price_with_fallbacks(ticker: str, asset_type: str = None):
             return price
         
         # 4) Fallback to Finnhub for NSE stocks
-        price = _get_price_from_finnhub(ticker)
+        price = _get_price_from_finnhub(ticker, asset_type)
         if price:
             return price
 
@@ -451,7 +465,7 @@ def _fetch_price_with_fallbacks(ticker: str, asset_type: str = None):
     # For US and other non-NSE stocks:
     # 1) Try Finnhub FIRST (primary for US stocks if API key is set)
     if FINNHUB_API_KEY:
-        price = _get_price_from_finnhub(ticker)
+        price = _get_price_from_finnhub(ticker, asset_type)
         if price:
             return price
 
@@ -459,7 +473,7 @@ def _fetch_price_with_fallbacks(ticker: str, asset_type: str = None):
     if asset_type == "mutual_fund":
         # Try Finnhub as fallback for mutual funds (might have some MF data)
         if FINNHUB_API_KEY:
-            price = _get_price_from_finnhub(ticker)
+            price = _get_price_from_finnhub(ticker, asset_type)
             if price:
                 return price
 
