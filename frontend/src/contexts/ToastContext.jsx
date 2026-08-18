@@ -53,7 +53,7 @@ export function ToastProvider({ children }) {
       const now = Date.now();
       if (now - lastColdStartToastAt.current < 10000) return; // several parallel GETs can all hit this within the same cold start
       lastColdStartToastAt.current = now;
-      push("Waking up the server — this can take up to a minute on the free tier…", "info", 8000);
+      push("Waking up the server — first load can take up to a minute or two on the free tier. Hang tight!", "info", 12000);
     }
     window.addEventListener("api:cold-start-retry", handleColdStartRetry);
     return () => window.removeEventListener("api:cold-start-retry", handleColdStartRetry);

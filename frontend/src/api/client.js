@@ -6,11 +6,16 @@ import { supabase } from "../lib/supabaseClient";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 const DEFAULT_TIMEOUT = 15000; // 15 seconds — comfortable for a warm backend
 // Render's free tier spins the backend down after 15 min idle; the first
-// request after that can take up to ~90s to wake it. Rather than make every
+// request after that can take up to ~100s to wake it (observed directly —
+// the "~90s" Render advertises is optimistic). Rather than make every
 // request wait that long by default, GET requests get one retry at this
 // longer timeout if the first attempt times out or fails at the network
-// level (see request() below) — writes are never auto-retried.
-const COLD_START_TIMEOUT = 60000;
+// level (see request() below) — writes are never auto-retried. This is the
+// only retry attempted: queryClient.js deliberately doesn't layer a second,
+// shorter-timeout retry on top for this same failure, since that would
+// restart the wait from a 15s attempt that's very unlikely to land during
+// an ongoing cold start.
+const COLD_START_TIMEOUT = 100000;
 
 class ApiError extends Error {
   constructor(message, status, data) {
