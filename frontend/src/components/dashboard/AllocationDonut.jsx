@@ -7,6 +7,19 @@ import { getAssetTypeLabel } from "../../constants/enums";
 // deliberately designed rather than a default rainbow of primaries.
 const COLORS = ["#7D2E42", "#B4872E", "#3F7D6B", "#5B6E9C", "#A6564B", "#6B7D3F", "#8A5A9C", "#4A8FA8", "#C77B4A", "#7D4A6E"];
 
+const RADIAN = Math.PI / 180;
+function renderPercentLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }) {
+  if (percent < 0.04) return null; // skip slivers too thin to hold readable text
+  const radius = innerRadius + (outerRadius - innerRadius) / 2;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
+      {`${Math.round(percent * 100)}%`}
+    </text>
+  );
+}
+
 export default function AllocationDonut({ allocationByType, allocationByCountry, holdings, currency }) {
   const [view, setView] = useState("type"); // "type" | "country"
   const [drill, setDrill] = useState(null); // { level: "type"|"country", key: string } | null
@@ -74,6 +87,8 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
               innerRadius={55}
               outerRadius={95}
               paddingAngle={3}
+              label={renderPercentLabel}
+              labelLine={false}
               onClick={handleSliceClick}
               isAnimationActive={true}
               cursor={drillData ? "default" : "pointer"}

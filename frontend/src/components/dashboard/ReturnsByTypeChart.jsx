@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, LabelList, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import EmptyState from "../EmptyState";
 import { formatPercent } from "../../utils/formatters";
 import { getAssetTypeLabel, isQuantityBased } from "../../constants/enums";
@@ -56,6 +56,12 @@ export default function ReturnsByTypeChart({ holdings }) {
             {data.map((entry) => (
               <Cell key={entry.assetType} fill={entry.returnPct >= 0 ? "var(--success)" : "var(--danger)"} />
             ))}
+            <LabelList
+              dataKey="returnPct"
+              position="right"
+              formatter={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`}
+              style={{ fontSize: 11, fontWeight: 600, fill: "var(--text)" }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>

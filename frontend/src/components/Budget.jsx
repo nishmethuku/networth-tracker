@@ -78,7 +78,9 @@ function CategoryBreakdown({ breakdown, currency }) {
           <div key={c.category}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem" }}>
               <span style={{ color: "var(--text)" }}>{getBudgetCategoryLabel(c.category)}</span>
-              <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(c.amount, currency)}</span>
+              <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                {formatCurrencyForDisplay(c.amount, currency)} <span style={{ color: "var(--text-muted)" }}>({Math.round(pct)}%)</span>
+              </span>
             </div>
             <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${pct}%`, background: "var(--primary)", borderRadius: 3 }} />
@@ -305,7 +307,8 @@ function SpendingLimitsCard({ householdId, currency, limitStatus }) {
                   <span style={{ color: "var(--text)" }}>{getBudgetCategoryLabel(limit.category)}</span>
                   <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                     <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                      {formatCurrencyForDisplay(status?.spent ?? 0, currency)} / {formatCurrencyForDisplay(limit.monthlyLimit, currency)}
+                      {formatCurrencyForDisplay(status?.spent ?? 0, currency)} / {formatCurrencyForDisplay(limit.monthlyLimit, currency)}{" "}
+                      <span style={{ color: barColor }}>({Math.round(percent)}%)</span>
                     </span>
                     <button
                       onClick={() => deleteMutation.mutate(limit.id)}
@@ -402,7 +405,9 @@ function MemberBreakdown({ byMember, currency }) {
             <div key={m.user_id}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem" }}>
                 <span style={{ color: "var(--text)" }}>{m.email}</span>
-                <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(m.total, currency)}</span>
+                <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  {formatCurrencyForDisplay(m.total, currency)} <span style={{ color: "var(--text-muted)" }}>({Math.round(pct)}%)</span>
+                </span>
               </div>
               <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${pct}%`, background: "var(--primary)", borderRadius: 3 }} />
