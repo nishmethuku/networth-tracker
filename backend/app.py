@@ -968,52 +968,41 @@ def create_app():
             return []
 
     def _search_nse_symbols(query):
+        """Yahoo Finance's unofficial search endpoint — same undocumented
+        API already relied on for NSE price fetching (see
+        utils.get_historical_price_from_yahoo), covers the full NSE listing
+        rather than a hardcoded handful of large-caps. NSE also lists BSE
+        cross-listings for the same company (symbol.BO); only NSE (.NS,
+        exchange "NSI") equity results are kept so results map 1:1 to a
+        single tradeable symbol."""
+        try:
+            response = requests.get(
+                "https://query1.finance.yahoo.com/v1/finance/search",
+                params={"q": query, "quotesCount": 10, "newsCount": 0},
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=5,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            print(f"NSE symbol search failed: {e}")
+            return []
+
         results = []
-        common_nse_symbols = [
-            {"symbol": "RELIANCE", "name": "Reliance Industries Ltd"},
-            {"symbol": "TCS", "name": "Tata Consultancy Services Ltd"},
-            {"symbol": "HDFCBANK", "name": "HDFC Bank Ltd"},
-            {"symbol": "INFY", "name": "Infosys Ltd"},
-            {"symbol": "HINDUNILVR", "name": "Hindustan Unilever Ltd"},
-            {"symbol": "ICICIBANK", "name": "ICICI Bank Ltd"},
-            {"symbol": "SBIN", "name": "State Bank of India"},
-            {"symbol": "BHARTIARTL", "name": "Bharti Airtel Ltd"},
-            {"symbol": "BAJFINANCE", "name": "Bajaj Finance Ltd"},
-            {"symbol": "KOTAKBANK", "name": "Kotak Mahindra Bank Ltd"},
-            {"symbol": "LT", "name": "Larsen & Toubro Ltd"},
-            {"symbol": "HCLTECH", "name": "HCL Technologies Ltd"},
-            {"symbol": "AXISBANK", "name": "Axis Bank Ltd"},
-            {"symbol": "ASIANPAINT", "name": "Asian Paints Ltd"},
-            {"symbol": "MARUTI", "name": "Maruti Suzuki India Ltd"},
-            {"symbol": "TITAN", "name": "Titan Company Ltd"},
-            {"symbol": "ULTRACEMCO", "name": "UltraTech Cement Ltd"},
-            {"symbol": "NESTLEIND", "name": "Nestle India Ltd"},
-            {"symbol": "TATAMOTORS", "name": "Tata Motors Ltd"},
-            {"symbol": "WIPRO", "name": "Wipro Ltd"},
-            {"symbol": "ITC", "name": "ITC Ltd"},
-            {"symbol": "ONGC", "name": "Oil & Natural Gas Corp Ltd"},
-            {"symbol": "NTPC", "name": "NTPC Ltd"},
-            {"symbol": "POWERGRID", "name": "Power Grid Corp of India Ltd"},
-            {"symbol": "SUNPHARMA", "name": "Sun Pharmaceutical Industries Ltd"},
-        ]
-
-        query_upper = query.upper()
-        matching = []
-        for item in common_nse_symbols:
-            if query_upper in item["symbol"].upper() or query_upper in item["name"].upper():
-                matching.append(item)
-                if len(matching) >= 10:
-                    break
-
-        for item in matching:
+        for item in data.get("quotes", []):
+            if item.get("exchange") != "NSI" or item.get("quoteType") != "EQUITY":
+                continue
+            symbol = item.get("symbol", "")
+            if not symbol:
+                continue
             results.append({
-                "symbol": f"{item['symbol']}.NS",
-                "displaySymbol": item["symbol"],
-                "description": item["name"],
+                "symbol": symbol,
+                "displaySymbol": symbol.replace(".NS", ""),
+                "description": item.get("longname") or item.get("shortname") or symbol,
                 "exchange": "NSE",
                 "country": "India",
             })
-        return results
+        return results[:10]
 
     def _search_mutual_fund_symbols(query):
         if not MFTOOL_AVAILABLE:
