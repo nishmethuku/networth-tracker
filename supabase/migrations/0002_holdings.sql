@@ -20,9 +20,12 @@ create table public.holdings (
   user_id uuid not null references auth.users(id) on delete cascade,
   household_id uuid references public.households(id) on delete set null,
 
+  -- Kept in sync with migrations/versions/e30e24d8f09a_add_retirals_and_credit_asset_types.py,
+  -- which is what actually ran against the live DB (this file is the
+  -- original baseline and isn't re-applied) — update both if this list changes again.
   asset_type text not null check (asset_type in (
     'stock', 'mutual_fund', 'crypto', 'commodity',
-    'real_estate', 'fixed_deposit', 'ppf', 'epf', 'cash', 'loan'
+    'real_estate', 'fixed_deposit', 'ppf', 'epf', 'retirals', 'cash', 'loan', 'credit'
   )),
   symbol text,              -- ticker / scheme code / coingecko id / metal code; null for non-tradeable types
   name text not null,       -- display name

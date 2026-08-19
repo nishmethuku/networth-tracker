@@ -12,8 +12,10 @@ export const ASSET_TYPES = {
   FIXED_DEPOSIT: "fixed_deposit",
   PPF: "ppf",
   EPF: "epf",
+  RETIRALS: "retirals",
   CASH: "cash",
   LOAN: "loan",
+  CREDIT: "credit",
 };
 
 export const ASSET_TYPE_LABELS = {
@@ -25,8 +27,10 @@ export const ASSET_TYPE_LABELS = {
   [ASSET_TYPES.FIXED_DEPOSIT]: "Fixed Deposits",
   [ASSET_TYPES.PPF]: "PPF",
   [ASSET_TYPES.EPF]: "EPF",
+  [ASSET_TYPES.RETIRALS]: "Retirals",
   [ASSET_TYPES.CASH]: "Cash & Bank Accounts",
   [ASSET_TYPES.LOAN]: "Loans",
+  [ASSET_TYPES.CREDIT]: "Credit Given",
 };
 
 // Types that track buy/sell transactions (quantity + price per unit)
@@ -43,8 +47,10 @@ export const VALUATION_BASED_TYPES = [
   ASSET_TYPES.FIXED_DEPOSIT,
   ASSET_TYPES.PPF,
   ASSET_TYPES.EPF,
+  ASSET_TYPES.RETIRALS,
   ASSET_TYPES.CASH,
   ASSET_TYPES.LOAN,
+  ASSET_TYPES.CREDIT,
 ];
 
 export const ASSET_TYPE_OPTIONS = Object.values(ASSET_TYPES).map((value) => ({

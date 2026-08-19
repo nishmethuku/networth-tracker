@@ -160,7 +160,7 @@ function AddValuationForm({ holding, onDone }) {
       </div>
       <div>
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
-          {holding.assetType === "loan" ? "Balance owed" : "Value"}
+          {holding.assetType === "loan" ? "Balance owed" : holding.assetType === "credit" ? "Owed to you" : "Value"}
         </label>
         <input type="number" step="any" min="0" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} style={inputStyle} required />
       </div>

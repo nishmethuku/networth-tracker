@@ -21,7 +21,7 @@ MAX_ROWS_TO_SEND = 300  # keeps the prompt bounded for unusually large sheets
 
 VALID_ASSET_TYPES = (
     "stock", "mutual_fund", "crypto", "commodity",
-    "real_estate", "fixed_deposit", "ppf", "epf", "cash", "loan",
+    "real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit",
 )
 VALID_COUNTRIES = ("United States", "India", "Australia")
 VALID_CURRENCIES = ("USD", "INR", "AUD")

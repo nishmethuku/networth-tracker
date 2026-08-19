@@ -2,7 +2,7 @@ import { z } from "zod";
 import { isQuantityBased } from "../constants/enums";
 
 const SYMBOL_REQUIRED_TYPES = ["stock", "mutual_fund", "crypto", "commodity"];
-const NAME_REQUIRED_TYPES = ["real_estate", "fixed_deposit", "ppf", "epf", "cash", "loan"];
+const NAME_REQUIRED_TYPES = ["real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit"];
 
 function isPositiveNumberString(value) {
   const n = parseFloat(value);

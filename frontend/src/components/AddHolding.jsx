@@ -49,13 +49,14 @@ const METALS = [
 ];
 
 const QUANTITY_BASED_SET = new Set(["stock", "mutual_fund", "crypto", "commodity"]);
-const NAME_BASED_SET = new Set(["real_estate", "fixed_deposit", "ppf", "epf", "cash", "loan"]);
+const NAME_BASED_SET = new Set(["real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit"]);
 // "Account" (a specific brokerage/exchange/bank account) doesn't map to
 // anything real for these — Name + Institution already identify them.
 const ACCOUNT_LESS_TYPES = new Set(["real_estate", "fixed_deposit", "ppf", "epf"]);
 // Loans accrue interest and have a payoff date, same shape as FD/PPF/EPF's
 // interest-rate + maturity-date fields, just labeled for a payoff instead.
-const INTEREST_BEARING_TYPES = new Set(["fixed_deposit", "ppf", "epf", "loan"]);
+// Credit (money owed to you — the mirror of a loan) gets the same fields.
+const INTEREST_BEARING_TYPES = new Set(["fixed_deposit", "ppf", "epf", "loan", "credit"]);
 
 const ACCOUNT_PLACEHOLDERS = {
   stock: "e.g., Fidelity, Zerodha",
@@ -64,6 +65,8 @@ const ACCOUNT_PLACEHOLDERS = {
   commodity: "e.g., Bank locker, Digital gold account",
   cash: "e.g., Checking, Savings",
   loan: "e.g., Loan account number",
+  retirals: "e.g., 401k, IRA, NPS",
+  credit: "e.g., who you lent it to",
 };
 
 const INSTITUTION_PLACEHOLDERS = {
@@ -72,6 +75,7 @@ const INSTITUTION_PLACEHOLDERS = {
   epf: "e.g., EPFO, employer name",
   cash: "e.g., Chase, HDFC Bank",
   loan: "e.g., Wells Fargo, SBI",
+  retirals: "e.g., Fidelity, Vanguard",
 };
 
 function FieldError({ message }) {
@@ -376,7 +380,7 @@ export default function AddHolding() {
                     <NumericInput control={control} name="interest_rate" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>{assetType === "loan" ? "Payoff Date" : "Maturity Date"}</label>
+                    <label style={labelStyle}>{assetType === "loan" ? "Payoff Date" : assetType === "credit" ? "Repayment Date" : "Maturity Date"}</label>
                     <input type="date" {...register("maturity_date")} style={inputStyle} />
                   </div>
                 </>
@@ -405,7 +409,7 @@ export default function AddHolding() {
               </>
             ) : (
               <div>
-                <label style={labelStyle}>{assetType === "loan" ? "Amount Owed *" : "Value *"}</label>
+                <label style={labelStyle}>{assetType === "loan" ? "Amount Owed *" : assetType === "credit" ? "Amount Owed to You *" : "Value *"}</label>
                 <NumericInput control={control} name="value" style={errors.value ? inputErrorStyle : inputStyle} />
                 <FieldError message={errors.value?.message} />
               </div>

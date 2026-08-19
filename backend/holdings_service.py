@@ -4,7 +4,8 @@ Position and gain calculations for transaction-based holdings.
 Mirrors services.py's role for the old single-row assets model, but works
 off a holding's transaction ledger (quantity-based types: stock, mutual_fund,
 crypto, commodity) or valuation history (everything else: real_estate,
-fixed_deposit, ppf, epf, cash, loan) instead of one frozen buy price/quantity.
+fixed_deposit, ppf, epf, retirals, cash, loan, credit) instead of one frozen
+buy price/quantity.
 """
 from datetime import date, timedelta
 from typing import Dict, List, Optional
@@ -14,7 +15,7 @@ from .finance import xirr
 from .models import Holding, HoldingTransaction, HoldingValuation
 
 QUANTITY_BASED_TYPES = ("stock", "mutual_fund", "crypto", "commodity")
-VALUATION_BASED_TYPES = ("real_estate", "fixed_deposit", "ppf", "epf", "cash", "loan")
+VALUATION_BASED_TYPES = ("real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit")
 
 
 def compute_position(transactions: List[HoldingTransaction]) -> Dict:
@@ -99,10 +100,12 @@ def calculate_holding_metrics(
 
 def calculate_valuation_metrics(holding: Holding, valuations: List[HoldingValuation]) -> Dict:
     """
-    Metrics for a non-tradeable holding (real_estate/fixed_deposit/ppf/epf/cash/loan):
-    current value is the latest valuation entry; gain is the change since the
-    first entry. Loans are stored as positive debt amounts and returned negative
-    so they subtract correctly from net worth (matches the old assets model).
+    Metrics for a non-tradeable holding (real_estate/fixed_deposit/ppf/epf/
+    retirals/cash/loan/credit): current value is the latest valuation entry;
+    gain is the change since the first entry. Loans are stored as positive
+    debt amounts and returned negative so they subtract correctly from net
+    worth (matches the old assets model). Credit — money owed to you, the
+    mirror of a loan — keeps the default positive sign, same as any asset.
     """
     if not valuations:
         return {"current_value": 0.0, "first_value": 0.0, "gain": 0.0, "history": []}
