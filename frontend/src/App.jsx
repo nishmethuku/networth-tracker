@@ -28,6 +28,7 @@ const Budget = lazy(() => import("./components/Budget"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
 const ImportBankStatement = lazy(() => import("./components/ImportBankStatement"));
 import Login from "./components/Login";
+import ResetPassword from "./components/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import CopilotChat from "./components/ai/CopilotChat";
@@ -243,6 +244,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/*"
         element={

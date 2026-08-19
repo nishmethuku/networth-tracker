@@ -13,8 +13,15 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      // Supabase's redirect_to sometimes resolves to just the site root
+      // rather than the exact path requested, so route by the recovery
+      // event itself (fired once, right when the reset link is opened)
+      // instead of trusting the URL path to already be /reset-password.
+      if (event === "PASSWORD_RECOVERY" && window.location.pathname !== "/reset-password") {
+        window.location.href = "/reset-password";
+      }
     });
 
     return () => subscription.subscription.unsubscribe();
@@ -47,6 +54,18 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
+  async function sendPasswordReset(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  }
+
+  async function updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+
   const value = {
     session,
     user: session?.user ?? null,
@@ -56,6 +75,8 @@ export function AuthProvider({ children }) {
     signInWithEmail,
     signInWithGoogle,
     signOut,
+    sendPasswordReset,
+    updatePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
