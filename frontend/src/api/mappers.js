@@ -228,3 +228,11 @@ export function mapBudgetLimit(l) {
     createdAt: l.created_at ?? "",
   };
 }
+
+export function mapMonthlyFlow(rows) {
+  return (rows || []).map((r) => ({
+    month: r.month,
+    totalFlow: safeNumber(r.total_flow),
+    byAssetType: r.by_asset_type || {},
+  }));
+}

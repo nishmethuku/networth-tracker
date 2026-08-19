@@ -18,7 +18,7 @@ from .services import safe_float, rank_symbol_results
 from . import price_service
 from . import ai_service
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
-from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary
+from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow
 from .household_service import (
     get_member_household_ids,
     get_role,
@@ -718,6 +718,24 @@ def create_app():
 
         rows = rows.order_by(NetWorthSnapshot.snapshot_date.asc()).all()
         return jsonify([r.to_dict() for r in rows])
+
+    @app.route("/monthly-flow", methods=["GET"])
+    @require_auth
+    def get_monthly_flow():
+        """Net cash flow per month per asset type — how much money moved
+        into/out of each type, not the type's total value. See
+        holdings_service.get_monthly_net_flow for the exact math."""
+        household_id_param = request.args.get("household_id")
+        holdings = scoped_holdings_query(household_id_param).all()
+        holding_ids = [h.id for h in holdings]
+
+        transactions = HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(holding_ids)).all()
+        valuations = HoldingValuation.query.filter(HoldingValuation.holding_id.in_(holding_ids)).all()
+
+        currency = request.args.get("currency", "USD").upper()
+        months = int(request.args.get("months", 12))
+        result = get_monthly_net_flow(holdings, transactions, valuations, display_currency=currency, months=months)
+        return jsonify(result)
 
     # ---------------- HOUSEHOLDS ----------------
 

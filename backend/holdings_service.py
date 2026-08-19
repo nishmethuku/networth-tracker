@@ -246,3 +246,70 @@ def build_dashboard(holdings_with_metrics: List[Dict], holdings_by_id: Dict[int,
         "realized_gain": round(total_realized, 2),
         "unrealized_gain": round(total_unrealized, 2),
     }
+
+
+def get_monthly_net_flow(
+    holdings: List[Holding],
+    transactions: List[HoldingTransaction],
+    valuations: List[HoldingValuation],
+    display_currency: str = "USD",
+    months: int = 12,
+) -> List[Dict]:
+    """Net cash flow per month per asset type — how much money moved into
+    or out of each type that month, as distinct from the type's total
+    value (see build_dashboard's allocation_by_type for that).
+
+    For quantity-based holdings (stock/mutual_fund/crypto/commodity) this
+    is real activity from the transaction ledger: a buy is a positive
+    contribution, a sell a negative withdrawal.
+
+    Valuation-based holdings have no separate ledger, so the change
+    between consecutive valuation entries is used as the best available
+    proxy — this necessarily blends real contributions with market
+    movement (e.g., real estate appreciation looks identical to money
+    actually put in), unlike the transaction-ledger types where the
+    number is exact. Loans use the same sign flip as everywhere else in
+    this module (paying a loan down is a positive flow; borrowing more
+    is negative) so a positive number always means "net worth improved
+    because of this" regardless of asset type.
+    """
+    holdings_by_id = {h.id: h for h in holdings}
+    by_month_type: Dict[str, Dict[str, float]] = {}
+
+    def add(month_key: str, asset_type: str, amount: float):
+        bucket = by_month_type.setdefault(month_key, {})
+        bucket[asset_type] = bucket.get(asset_type, 0.0) + amount
+
+    for tx in transactions:
+        holding = holdings_by_id.get(tx.holding_id)
+        if not holding:
+            continue
+        amount = tx.quantity * tx.price_per_unit + (tx.fees or 0.0)
+        amount = price_service.convert(amount, tx.currency, display_currency)
+        signed = amount if tx.transaction_type == "buy" else -amount
+        add(tx.transaction_date.strftime("%Y-%m"), holding.asset_type, signed)
+
+    valuations_by_holding: Dict[int, List[HoldingValuation]] = {}
+    for v in valuations:
+        valuations_by_holding.setdefault(v.holding_id, []).append(v)
+
+    for holding_id, vals in valuations_by_holding.items():
+        holding = holdings_by_id.get(holding_id)
+        if not holding:
+            continue
+        ordered = sorted(vals, key=lambda v: v.valuation_date)
+        sign = -1 if holding.asset_type == "loan" else 1
+        for prev, curr in zip(ordered, ordered[1:]):
+            delta = price_service.convert(curr.value - prev.value, curr.currency, display_currency)
+            add(curr.valuation_date.strftime("%Y-%m"), holding.asset_type, sign * delta)
+
+    ordered_months = sorted(by_month_type.keys())[-months:]
+    result = []
+    for month in ordered_months:
+        by_type = {k: round(v, 2) for k, v in by_month_type[month].items()}
+        result.append({
+            "month": month,
+            "total_flow": round(sum(by_type.values()), 2),
+            "by_asset_type": by_type,
+        })
+    return result

@@ -5,6 +5,7 @@ import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import ErrorBoundary from "./ErrorBoundary";
 import MonthlySnapshots from "./dashboard/MonthlySnapshots";
+import MonthlyNetFlow from "./dashboard/MonthlyNetFlow";
 import { fetchNetWorthHistory, fetchHouseholds, ApiError } from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -56,6 +57,14 @@ export default function Insights() {
         <Card title="Monthly Snapshots" subtitle="Net worth on the 1st of each month, with the split by type">
           <ErrorBoundary mode="section" fallbackMessage="Couldn't load monthly snapshots.">
             <MonthlySnapshots history={history} currency={currency} />
+          </ErrorBoundary>
+        </Card>
+      </div>
+
+      <div style={{ marginBottom: "1.5rem" }}>
+        <Card title="Monthly Net Flow" subtitle="Money in and out of each holding type, per month">
+          <ErrorBoundary mode="section" fallbackMessage="Couldn't load monthly net flow.">
+            <MonthlyNetFlow householdId={householdId} currency={currency} />
           </ErrorBoundary>
         </Card>
       </div>

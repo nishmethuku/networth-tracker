@@ -17,6 +17,7 @@ import {
   mapBenchmark,
   mapBudgetEntry,
   mapBudgetLimit,
+  mapMonthlyFlow,
 } from "./mappers";
 
 /**
@@ -135,6 +136,13 @@ export async function fetchNetWorthHistory(householdId = null) {
   const endpoint = householdId ? `/net-worth-history?household_id=${householdId}` : "/net-worth-history";
   const data = await api.get(endpoint);
   return mapNetWorthHistory(data);
+}
+
+export async function fetchMonthlyFlow({ householdId, currency = "USD", months = 12 } = {}) {
+  const params = new URLSearchParams({ currency, months: String(months) });
+  if (householdId) params.append("household_id", householdId);
+  const data = await api.get(`/monthly-flow?${params.toString()}`);
+  return mapMonthlyFlow(data);
 }
 
 export async function fetchExchangeRates(base = "USD") {
