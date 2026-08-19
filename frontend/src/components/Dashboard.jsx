@@ -326,7 +326,7 @@ export default function Dashboard() {
           <div style={{ marginBottom: "1.5rem" }}>
             <Card title="Holdings by Type">
               <ErrorBoundary mode="section" fallbackMessage="Couldn't load holdings by type.">
-                <HoldingsByTypeTable allocationByType={dashboard.allocationByType} currency={currency} />
+                <HoldingsByTypeTable allocationByType={dashboard.allocationByType} holdings={holdings} currency={currency} />
               </ErrorBoundary>
             </Card>
           </div>
