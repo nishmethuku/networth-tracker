@@ -95,12 +95,18 @@ function MobileBottomNav() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "1.375rem",
                   boxShadow: "var(--shadow-md)",
                   marginTop: "-1.25rem",
                 }}
               >
-                {tab.icon}
+                {/* An emoji plus (➕) renders in its own fixed colors on most
+                    platforms and ignores `color`, which can wash out against
+                    the primary background — an SVG stroke via currentColor
+                    always matches the theme's inverse-text color instead. */}
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
               </motion.span>
             </Link>
           );
