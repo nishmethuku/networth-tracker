@@ -91,7 +91,7 @@ function MobileBottomNav() {
                   height: 48,
                   borderRadius: "50%",
                   background: "var(--primary)",
-                  color: "var(--text-inverse)",
+                  color: "#ffffff",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -102,7 +102,7 @@ function MobileBottomNav() {
                 {/* An emoji plus (➕) renders in its own fixed colors on most
                     platforms and ignores `color`, which can wash out against
                     the primary background — an SVG stroke via currentColor
-                    always matches the theme's inverse-text color instead. */}
+                    keeps it a plain white plus regardless of theme. */}
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
