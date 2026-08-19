@@ -14,6 +14,10 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
   const quantityBased = isQuantityBased(h.assetType);
   const gain = quantityBased ? h.totalGain : h.gain;
   const positive = safeNumber(gain) >= 0;
+  // XIRR is annualized; this is the plain total return since purchase (e.g.
+  // 100 -> 120 over 6 months is +20% growth, but a much higher XIRR since
+  // XIRR extrapolates that pace out to a full year).
+  const growthPct = quantityBased && h.costBasis ? (h.totalGain / h.costBasis) * 100 : null;
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: "var(--radius)" }}>
@@ -72,6 +76,9 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
             {h.quantity != null && <span>{h.quantity.toFixed(4)} units</span>}
             {h.xirr != null && (
               <span style={{ color: h.xirr >= 0 ? "var(--success)" : "var(--danger)" }}>{formatPercent(h.xirr * 100)} XIRR</span>
+            )}
+            {growthPct != null && (
+              <span style={{ color: growthPct >= 0 ? "var(--success)" : "var(--danger)" }}>{formatPercent(growthPct)} growth</span>
             )}
           </div>
         )}

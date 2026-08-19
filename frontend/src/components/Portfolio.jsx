@@ -70,6 +70,7 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
             <th style={{ padding: "0.75rem 0.5rem" }}>Value</th>
             <th style={{ padding: "0.75rem 0.5rem" }}>Gain</th>
             {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Return (XIRR)</th>}
+            {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Growth</th>}
             <th style={{ padding: "0.75rem 0.5rem" }}>Actions</th>
           </tr>
         </thead>
@@ -113,6 +114,11 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
                 {quantityBased && (
                   <td style={{ padding: "0.75rem 0.5rem", color: h.xirr != null && h.xirr >= 0 ? "var(--success)" : "var(--danger)" }}>
                     {h.xirr != null ? formatPercent(h.xirr * 100) : "—"}
+                  </td>
+                )}
+                {quantityBased && (
+                  <td style={{ padding: "0.75rem 0.5rem", color: gainPct(h) != null && gainPct(h) >= 0 ? "var(--success)" : "var(--danger)" }}>
+                    {gainPct(h) != null ? formatPercent(gainPct(h)) : "—"}
                   </td>
                 )}
                 <td style={{ padding: "0.75rem 0.5rem" }} onClick={(e) => e.stopPropagation()}>

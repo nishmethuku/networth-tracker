@@ -265,6 +265,13 @@ export default function HoldingDetail() {
         {quantityBased && (
           <Card title="Return (XIRR)" value={holding.xirr != null ? formatPercent(holding.xirr * 100) : "—"} subtitle="Annualized" />
         )}
+        {quantityBased && holding.costBasis ? (
+          <Card
+            title="Growth"
+            value={formatPercent((holding.totalGain / holding.costBasis) * 100)}
+            subtitle="Total return, not annualized"
+          />
+        ) : null}
       </div>
 
       {quantityBased && holding.realizedGain != null && (
