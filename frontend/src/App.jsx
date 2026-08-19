@@ -27,6 +27,7 @@ const Settings = lazy(() => import("./components/Settings"));
 const Budget = lazy(() => import("./components/Budget"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
 const ImportBankStatement = lazy(() => import("./components/ImportBankStatement"));
+const Insights = lazy(() => import("./components/Insights"));
 import Login from "./components/Login";
 import ResetPassword from "./components/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -186,6 +187,7 @@ function AppShell() {
           <NavLink to="/import">{t("nav.importCsv")}</NavLink>
           <NavLink to="/alerts">{t("nav.alerts")}</NavLink>
           <NavLink to="/tax-summary">{t("nav.taxSummary")}</NavLink>
+          <NavLink to="/insights">{t("nav.insights")}</NavLink>
           <NavLink to="/allocation-advisor">{t("nav.allocationAdvisor")}</NavLink>
           <NavLink to="/households">{t("nav.household")}</NavLink>
           <NavLink to="/add-holding" highlight>{t("nav.addHolding")}</NavLink>
@@ -230,6 +232,7 @@ function AppShell() {
               <Route path="import" element={<ImportTransactions />} />
               <Route path="alerts" element={<Alerts />} />
               <Route path="tax-summary" element={<TaxSummary />} />
+              <Route path="insights" element={<Insights />} />
               <Route path="allocation-advisor" element={<AllocationAdvisor />} />
               <Route path="households" element={<Households />} />
               <Route path="settings" element={<Settings />} />
