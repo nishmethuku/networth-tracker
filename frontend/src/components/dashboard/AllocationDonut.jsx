@@ -37,6 +37,7 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
 
   const data = drillData || topLevelData;
   const labelFor = (label) => (drillData ? label : view === "type" ? getAssetTypeLabel(label) : label);
+  const total = data.reduce((sum, d) => sum + d.value, 0);
 
   function handleSliceClick(entry) {
     if (drillData) return; // already drilled in, slices are individual holdings
@@ -113,6 +114,10 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
           >
             <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[index % COLORS.length] }} />
             <span>{labelFor(entry.label)}</span>
+            {/* The slice itself skips its label below 4% to avoid unreadable
+                clutter, and there's no hover on mobile anyway — the legend
+                is every category's one guaranteed place to show a percent. */}
+            <span style={{ color: "var(--text-muted)" }}>{total > 0 ? Math.round((entry.value / total) * 100) : 0}%</span>
           </div>
         ))}
       </div>

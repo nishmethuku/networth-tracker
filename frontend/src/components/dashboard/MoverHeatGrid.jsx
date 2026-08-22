@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { fetchHoldingPriceHistory } from "../../api";
 import { formatCurrencyCompact, formatPercent } from "../../utils/formatters";
+import { useTheme } from "../../contexts/ThemeContext";
 
 function heatColor(pct, isDark) {
   const magnitude = Math.min(Math.abs(pct), 20) / 20; // cap intensity scaling at ±20%
@@ -34,8 +34,8 @@ function Sparkline({ holdingId }) {
 }
 
 export default function MoverHeatGrid({ movers, currency }) {
-  const [isDark] = useState(() => document.documentElement.getAttribute("data-theme") === "dark" ||
-    (!document.documentElement.hasAttribute("data-theme") && window.matchMedia?.("(prefers-color-scheme: dark)").matches));
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.75rem" }}>

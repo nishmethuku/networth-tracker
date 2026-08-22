@@ -32,6 +32,7 @@ function CustomTooltip({ active, payload, label, currency }) {
   if (!active || !payload || !payload.length) return null;
   const point = payload[0].payload;
   const delta = point.delta;
+  const deltaPct = point.deltaPct;
   const positive = delta >= 0;
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.625rem 0.875rem", boxShadow: "var(--shadow-md)" }}>
@@ -39,7 +40,9 @@ function CustomTooltip({ active, payload, label, currency }) {
       <div style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text)" }}>{formatCurrencyCompact(point.netWorth, currency)}</div>
       {delta != null && (
         <div style={{ fontSize: "0.75rem", color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
-          {positive ? "+" : ""}{formatCurrencyCompact(delta, currency)} since start of range
+          {positive ? "+" : ""}{formatCurrencyCompact(delta, currency)}
+          {deltaPct != null && ` (${positive ? "+" : ""}${deltaPct.toFixed(1)}%)`}
+          {" "}since start of range
         </div>
       )}
     </div>
