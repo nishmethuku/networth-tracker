@@ -16,6 +16,11 @@ const DEFAULT_TIMEOUT = 15000; // 15 seconds — comfortable for a warm backend
 // restart the wait from a 15s attempt that's very unlikely to land during
 // an ongoing cold start.
 const COLD_START_TIMEOUT = 100000;
+// Gemini calls routinely take 20-40s on the free tier even on a fully warm
+// backend — that's not a cold-start case, so it needs its own generous
+// timeout rather than sharing the 15s default meant for ordinary DB-backed
+// requests (which was previously causing AI features to fail outright).
+export const AI_TIMEOUT = 60000;
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -98,12 +103,12 @@ async function parseResponse(response) {
   return null;
 }
 
-async function request(endpoint, options = {}) {
+async function request(endpoint, options = {}, timeoutMs = DEFAULT_TIMEOUT) {
   const url = `${API_BASE_URL}${endpoint}`;
   const method = (options.method || "GET").toUpperCase();
 
   try {
-    const response = await fetchWithTimeout(url, options, DEFAULT_TIMEOUT);
+    const response = await fetchWithTimeout(url, options, timeoutMs);
     return await parseResponse(response);
   } catch (error) {
     const looksLikeColdStart = error instanceof ApiError && (error.status === 408 || error.status === 0);
@@ -198,11 +203,15 @@ export async function uploadWithColdStartRetry(endpoint, formData) {
 // HTTP method helpers
 export const api = {
   get: (endpoint) => request(endpoint, { method: "GET" }),
-  post: (endpoint, data) =>
-    request(endpoint, {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  post: (endpoint, data, timeoutMs) =>
+    request(
+      endpoint,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      timeoutMs
+    ),
   put: (endpoint, data) =>
     request(endpoint, {
       method: "PUT",

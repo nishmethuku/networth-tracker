@@ -135,8 +135,8 @@ export default function Dashboard() {
   });
 
   const { data: history } = useQuery({
-    queryKey: ["net-worth-history", householdId],
-    queryFn: () => fetchNetWorthHistory(householdId || null),
+    queryKey: ["net-worth-history", householdId, currency],
+    queryFn: () => fetchNetWorthHistory(householdId || null, currency),
     staleTime: 1000 * 60 * 5, // snapshots are written at most once/day
   });
 

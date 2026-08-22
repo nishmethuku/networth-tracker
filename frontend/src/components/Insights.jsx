@@ -26,8 +26,8 @@ export default function Insights() {
   const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const { data: history, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["net-worth-history", householdId],
-    queryFn: () => fetchNetWorthHistory(householdId || null),
+    queryKey: ["net-worth-history", householdId, currency],
+    queryFn: () => fetchNetWorthHistory(householdId || null, currency),
   });
 
   if (isLoading) return <LoadingState message="Loading insights..." />;

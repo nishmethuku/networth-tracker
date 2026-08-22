@@ -22,4 +22,8 @@ ENV PYTHONPATH=/app
 EXPOSE 5001
 
 # flask db upgrade applies any pending Alembic migrations before the app starts.
-CMD flask db upgrade && gunicorn --bind 0.0.0.0:${PORT:-5001} --workers 2 "backend.app:create_app()"
+# --timeout 90: gunicorn's 30s default kills the worker mid-request on the
+# AI endpoints (allocation advisor, budget insights, tag suggestions,
+# search), which routinely take 20-40s on Gemini's free tier even when
+# nothing is wrong — that read as random "lag"/failures without this.
+CMD flask db upgrade && gunicorn --bind 0.0.0.0:${PORT:-5001} --workers 2 --timeout 90 "backend.app:create_app()"

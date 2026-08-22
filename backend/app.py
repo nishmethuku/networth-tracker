@@ -709,10 +709,15 @@ def create_app():
     @require_auth
     def get_net_worth_history():
         """Real daily snapshots for the caller (or a shared household via
-        ?household_id=). Empty until the daily snapshot job has run a few times."""
+        ?household_id=). Empty until the daily snapshot job has run a few times.
+        Snapshots are always stored in USD (see snapshot_service.py), so this
+        converts to ?currency= (default USD) before returning — otherwise a
+        user on a non-USD display currency would see raw USD figures under
+        their currency's symbol, off by the exchange rate."""
         from .models import NetWorthSnapshot
 
         household_id_param = request.args.get("household_id")
+        display_currency = request.args.get("currency", "USD").upper()
         if household_id_param:
             member_ids = get_member_household_ids(g.user_id)
             if household_id_param not in member_ids:
@@ -722,7 +727,19 @@ def create_app():
             rows = NetWorthSnapshot.query.filter_by(user_id=g.user_id)
 
         rows = rows.order_by(NetWorthSnapshot.snapshot_date.asc()).all()
-        return jsonify([r.to_dict() for r in rows])
+
+        def convert_row(r):
+            d = r.to_dict()
+            from_currency = d["currency"] or "USD"
+            for field in ("total_net_worth", "total_stock_value", "total_property_value", "total_profit_loss"):
+                d[field] = price_service.convert(d[field], from_currency, display_currency)
+            d["by_asset_type"] = {
+                k: price_service.convert(v, from_currency, display_currency) for k, v in d["by_asset_type"].items()
+            }
+            d["currency"] = display_currency
+            return d
+
+        return jsonify([convert_row(r) for r in rows])
 
     @app.route("/monthly-flow", methods=["GET"])
     @require_auth

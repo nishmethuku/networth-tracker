@@ -2,7 +2,7 @@
  * Main API module - exports all API functions with data mapping
  */
 
-import api, { uploadWithColdStartRetry } from "./client";
+import api, { uploadWithColdStartRetry, AI_TIMEOUT } from "./client";
 import { supabase } from "../lib/supabaseClient";
 import {
   mapHolding,
@@ -132,9 +132,10 @@ export async function fetchDashboard(filters = {}) {
   return mapDashboard(data);
 }
 
-export async function fetchNetWorthHistory(householdId = null) {
-  const endpoint = householdId ? `/net-worth-history?household_id=${householdId}` : "/net-worth-history";
-  const data = await api.get(endpoint);
+export async function fetchNetWorthHistory(householdId = null, currency = "USD") {
+  const params = new URLSearchParams({ currency });
+  if (householdId) params.append("household_id", householdId);
+  const data = await api.get(`/net-worth-history?${params.toString()}`);
   return mapNetWorthHistory(data);
 }
 
@@ -351,23 +352,27 @@ export async function* streamAiChat({ messages, householdId, currency = "USD" },
 }
 
 export async function fetchAllocationAdvice({ targetAllocation, householdId, currency = "USD" }) {
-  return api.post("/api/ai/allocation-advisor", {
-    target_allocation: targetAllocation,
-    household_id: householdId,
-    currency,
-  });
+  return api.post(
+    "/api/ai/allocation-advisor",
+    {
+      target_allocation: targetAllocation,
+      household_id: householdId,
+      currency,
+    },
+    AI_TIMEOUT
+  );
 }
 
 export async function suggestTransactionTags(transactionId) {
-  return api.post(`/transactions/${transactionId}/suggest-tags`, {});
+  return api.post(`/transactions/${transactionId}/suggest-tags`, {}, AI_TIMEOUT);
 }
 
 export async function aiSearch(query, householdId = null) {
-  return api.post("/api/ai/search", { query, household_id: householdId });
+  return api.post("/api/ai/search", { query, household_id: householdId }, AI_TIMEOUT);
 }
 
 export async function fetchBudgetInsights({ householdId, months = 6, currency = "USD" } = {}) {
-  return api.post("/api/ai/budget-insights", { household_id: householdId, months, currency });
+  return api.post("/api/ai/budget-insights", { household_id: householdId, months, currency }, AI_TIMEOUT);
 }
 
 /**
