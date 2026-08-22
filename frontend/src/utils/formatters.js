@@ -54,7 +54,11 @@ export function formatCurrencyCompact(value, currency = "USD") {
 
 export function formatPercent(value, decimals = 2) {
   const num = safeNumber(value);
-  return `${num.toFixed(decimals)}%`;
+  // toFixed silently switches to scientific notation for |num| >= 1e21 (a
+  // documented JS quirk) — clamp first so a stray extreme value can never
+  // render as something like "9.58e+52%" no matter what produced it.
+  const clamped = Math.max(-1e15, Math.min(1e15, num));
+  return `${clamped.toFixed(decimals)}%`;
 }
 
 export function formatNumber(value, decimals = 2) {

@@ -1,14 +1,9 @@
 import { useMemo, useState } from "react";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { formatCurrencyForDisplay, formatPercent } from "../../utils/formatters";
 import { getAssetTypeLabel, isQuantityBased } from "../../constants/enums";
-import { computeReturnsByType, holdingGrowthPct } from "../../utils/holdingReturns";
+import { computeGroupedReturn, computeReturnsByType, holdingGrowthPct } from "../../utils/holdingReturns";
 import EmptyState from "../EmptyState";
-
-const VIEWS = [
-  { key: "M1", description: "Summary by category" },
-  { key: "M2", description: "Category → holdings" },
-  { key: "M3", description: "All holdings, sortable" },
-];
 
 // A holding's own annualized return where one actually exists (XIRR,
 // quantity-based types only); everything else falls back to plain
@@ -28,14 +23,31 @@ function buildCategoryRows(holdings) {
     if (!byType[h.assetType]) byType[h.assetType] = { value: 0 };
     byType[h.assetType].value += h.displayValue || 0;
   }
-  const returnsByType = Object.fromEntries(computeReturnsByType(holdings).map((r) => [r.assetType, r.returnPct]));
+  const returnsByType = Object.fromEntries(computeReturnsByType(holdings).map((r) => [r.assetType, r]));
   return Object.entries(byType)
     .map(([assetType, b]) => ({
       assetType,
       label: getAssetTypeLabel(assetType),
       value: b.value,
-      returnPct: returnsByType[assetType] ?? null,
-      isXirr: isQuantityBased(assetType),
+      returnPct: returnsByType[assetType]?.returnPct ?? null,
+      isXirr: returnsByType[assetType]?.isXirr ?? false,
+    }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function buildAccountRows(holdings, assetType) {
+  const byAccount = {};
+  for (const h of holdings) {
+    if (h.assetType !== assetType) continue;
+    const key = h.account || "Unspecified";
+    (byAccount[key] = byAccount[key] || []).push(h);
+  }
+  return Object.entries(byAccount)
+    .map(([account, hs]) => ({
+      account,
+      value: hs.reduce((sum, h) => sum + (h.displayValue || 0), 0),
+      count: hs.length,
+      ...computeGroupedReturn(hs),
     }))
     .sort((a, b) => b.value - a.value);
 }
@@ -49,24 +61,166 @@ function ReturnCell({ pct, isXirr }) {
   );
 }
 
-function M1Summary({ rows, currency }) {
-  if (rows.length === 0) return <EmptyState message="No holdings yet." />;
+// Small trend line of a category's value over time, built from the net
+// worth history's per-date by-asset-type breakdown — the only granularity
+// the backend tracks (per account isn't recorded historically).
+function TrajectorySparkline({ history, assetType }) {
+  const data = useMemo(() => {
+    if (!history?.length) return [];
+    return history.map((h) => ({ date: h.date, value: h.byAssetType?.[assetType] ?? 0 }));
+  }, [history, assetType]);
+
+  if (data.length < 2) return <div style={{ width: 64, height: 24 }} />;
+  const trendingUp = data[data.length - 1].value >= data[0].value;
+
+  return (
+    <div style={{ width: 64, height: 24 }}>
+      <ResponsiveContainer>
+        <LineChart data={data}>
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={trendingUp ? "var(--success)" : "var(--danger)"}
+            strokeWidth={1.5}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+const ROW_STYLE = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0", fontSize: "0.875rem" };
+const RIGHT_GROUP_STYLE = { display: "flex", gap: "1.5rem", alignItems: "center" };
+const VALUE_STYLE = { fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)", minWidth: 90, textAlign: "right" };
+const RETURN_STYLE = { minWidth: 110, textAlign: "right", fontFamily: "var(--font-mono)" };
+
+function Breadcrumb({ items, onNavigate }) {
+  return (
+    <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+      <button onClick={() => onNavigate(-1)} style={breadcrumbBtnStyle}>All</button>
+      {items.map((item, i) => (
+        <span key={i}>
+          {" › "}
+          {i === items.length - 1 ? (
+            <span style={{ color: "var(--text)" }}>{item.label}</span>
+          ) : (
+            <button onClick={() => onNavigate(i)} style={breadcrumbBtnStyle}>{item.label}</button>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Net worth broken down by category, drilling into the accounts within a
+ * category (since one asset type is often spread across several real-world
+ * accounts) and then into the individual holdings within an account. A
+ * category with only one account skips straight to its holdings, since the
+ * account level would otherwise be a redundant extra click.
+ */
+export default function NetWorthBreakdown({ holdings, currency, history }) {
+  const [drill, setDrill] = useState(null); // { category: assetType } | { category: assetType, account: string } | null
+  const list = holdings || [];
+  const categoryRows = useMemo(() => buildCategoryRows(list), [list]);
+
+  const accountRows = useMemo(() => {
+    if (!drill) return [];
+    return buildAccountRows(list, drill.category);
+  }, [list, drill]);
+
+  function openCategory(assetType) {
+    const accounts = buildAccountRows(list, assetType);
+    if (accounts.length <= 1) {
+      setDrill({ category: assetType, account: accounts[0]?.account ?? null });
+    } else {
+      setDrill({ category: assetType });
+    }
+  }
+
+  function navigateBreadcrumb(index) {
+    if (index === -1) setDrill(null);
+    else if (index === 0) setDrill({ category: drill.category });
+  }
+
+  if (list.length === 0) return <EmptyState message="No holdings yet." />;
+
+  // ---- Level 3: holdings within one account ----
+  if (drill?.account !== undefined && drill.account !== null) {
+    const holdingsInAccount = list
+      .filter((h) => h.assetType === drill.category && (h.account || "Unspecified") === drill.account)
+      .sort((a, b) => b.displayValue - a.displayValue);
+    const breadcrumbItems = [
+      { label: getAssetTypeLabel(drill.category) },
+      ...(accountRows.length > 1 ? [{ label: drill.account }] : []),
+    ];
+    return (
+      <div>
+        <Breadcrumb items={breadcrumbItems} onNavigate={navigateBreadcrumb} />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {holdingsInAccount.map((h, i) => {
+            const { pct, isXirr } = holdingReturn(h);
+            return (
+              <div key={h.id} style={{ ...ROW_STYLE, borderBottom: i < holdingsInAccount.length - 1 ? "1px solid var(--border-light)" : "none" }}>
+                <span style={{ color: "var(--text)" }}>{h.displayName}</span>
+                <span style={RIGHT_GROUP_STYLE}>
+                  <span style={VALUE_STYLE}>{formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}</span>
+                  <span style={RETURN_STYLE}><ReturnCell pct={pct} isXirr={isXirr} /></span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Level 2: accounts within one category ----
+  if (drill?.category) {
+    return (
+      <div>
+        <Breadcrumb items={[{ label: getAssetTypeLabel(drill.category) }]} onNavigate={navigateBreadcrumb} />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {accountRows.map((r, i) => (
+            <div
+              key={r.account}
+              onClick={() => setDrill({ category: drill.category, account: r.account })}
+              style={{ ...ROW_STYLE, cursor: "pointer", borderBottom: i < accountRows.length - 1 ? "1px solid var(--border-light)" : "none" }}
+            >
+              <span style={{ color: "var(--text)" }}>
+                {r.account} <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>({r.count})</span>
+              </span>
+              <span style={RIGHT_GROUP_STYLE}>
+                <span style={VALUE_STYLE}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
+                <span style={RETURN_STYLE}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Level 1: categories ----
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", justifyContent: "space-between", padding: "0.375rem 0", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>
         <span>Category</span>
-        <span style={{ display: "flex", gap: "2.5rem" }}><span>Value</span><span>Return</span></span>
+        <span style={{ display: "flex", gap: "1.5rem" }}><span style={{ minWidth: 64 }}>Trend</span><span style={{ minWidth: 90, textAlign: "right" }}>Value</span><span style={{ minWidth: 110, textAlign: "right" }}>Return</span></span>
       </div>
-      {rows.map((r, i) => (
-        <div key={r.assetType} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0", borderBottom: i < rows.length - 1 ? "1px solid var(--border-light)" : "none", fontSize: "0.875rem" }}>
+      {categoryRows.map((r, i) => (
+        <div
+          key={r.assetType}
+          onClick={() => openCategory(r.assetType)}
+          style={{ ...ROW_STYLE, cursor: "pointer", borderBottom: i < categoryRows.length - 1 ? "1px solid var(--border-light)" : "none" }}
+        >
           <span style={{ color: "var(--text)" }}>{r.label}</span>
-          <span style={{ display: "flex", gap: "2.5rem", alignItems: "center" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)", minWidth: 90, textAlign: "right" }}>
-              {formatCurrencyForDisplay(r.value, currency, { includeCode: false })}
-            </span>
-            <span style={{ minWidth: 110, textAlign: "right", fontFamily: "var(--font-mono)" }}>
-              <ReturnCell pct={r.returnPct} isXirr={r.isXirr} />
-            </span>
+          <span style={RIGHT_GROUP_STYLE}>
+            <TrajectorySparkline history={history} assetType={r.assetType} />
+            <span style={VALUE_STYLE}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
+            <span style={RETURN_STYLE}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
           </span>
         </div>
       ))}
@@ -74,180 +228,12 @@ function M1Summary({ rows, currency }) {
   );
 }
 
-function M2Drilldown({ rows, holdings, currency }) {
-  const [expanded, setExpanded] = useState(null);
-  if (rows.length === 0) return <EmptyState message="No holdings yet." />;
-  return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      {rows.map((r, i) => {
-        const isOpen = expanded === r.assetType;
-        const children = holdings.filter((h) => h.assetType === r.assetType).sort((a, b) => b.displayValue - a.displayValue);
-        return (
-          <div key={r.assetType} style={{ borderBottom: i < rows.length - 1 ? "1px solid var(--border-light)" : "none" }}>
-            <div
-              onClick={() => setExpanded(isOpen ? null : r.assetType)}
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0", cursor: "pointer", fontSize: "0.875rem" }}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--text)" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.7rem", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s ease", display: "inline-block" }}>▶</span>
-                {r.label}
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>({children.length})</span>
-              </span>
-              <span style={{ display: "flex", gap: "2.5rem", alignItems: "center" }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)", minWidth: 90, textAlign: "right" }}>
-                  {formatCurrencyForDisplay(r.value, currency, { includeCode: false })}
-                </span>
-                <span style={{ minWidth: 110, textAlign: "right", fontFamily: "var(--font-mono)" }}>
-                  <ReturnCell pct={r.returnPct} isXirr={r.isXirr} />
-                </span>
-              </span>
-            </div>
-            {isOpen && (
-              <div style={{ padding: "0 0 0.5rem 1.1rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                {children.map((h) => {
-                  const { pct, isXirr } = holdingReturn(h);
-                  return (
-                    <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.375rem 0", fontSize: "0.8125rem" }}>
-                      <span style={{ color: "var(--text-secondary)" }}>
-                        {h.displayName}{h.account ? <span style={{ color: "var(--text-muted)" }}> · {h.account}</span> : null}
-                      </span>
-                      <span style={{ display: "flex", gap: "2.5rem", alignItems: "center" }}>
-                        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)", minWidth: 90, textAlign: "right" }}>
-                          {formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}
-                        </span>
-                        <span style={{ minWidth: 110, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: "0.8125rem" }}>
-                          <ReturnCell pct={pct} isXirr={isXirr} />
-                        </span>
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-const SORT_OPTIONS = [
-  { key: "value", label: "Value" },
-  { key: "return", label: "XIRR / Return" },
-  { key: "assetType", label: "Asset Class" },
-];
-
-function M3Flat({ holdings, currency }) {
-  const [sortBy, setSortBy] = useState("value");
-
-  const rows = useMemo(() => {
-    const withReturn = holdings.map((h) => ({ holding: h, ...holdingReturn(h) }));
-    const sorted = [...withReturn].sort((a, b) => {
-      if (sortBy === "value") return b.holding.displayValue - a.holding.displayValue;
-      if (sortBy === "return") return (b.pct ?? -Infinity) - (a.pct ?? -Infinity);
-      return getAssetTypeLabel(a.holding.assetType).localeCompare(getAssetTypeLabel(b.holding.assetType));
-    });
-    return sorted;
-  }, [holdings, sortBy]);
-
-  if (rows.length === 0) return <EmptyState message="No holdings yet." />;
-
-  return (
-    <div>
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
-        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", alignSelf: "center", marginRight: "0.25rem" }}>Sort by:</span>
-        {SORT_OPTIONS.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setSortBy(opt.key)}
-            style={{
-              border: "none",
-              borderRadius: "999px",
-              padding: "0.25rem 0.75rem",
-              fontSize: "0.75rem",
-              cursor: "pointer",
-              background: sortBy === opt.key ? "var(--primary)" : "var(--bg-secondary)",
-              color: sortBy === opt.key ? "var(--text-inverse)" : "var(--text-secondary)",
-              fontWeight: sortBy === opt.key ? 600 : 500,
-            }}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        {rows.map(({ holding: h, pct, isXirr }, i) => (
-          <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0", borderBottom: i < rows.length - 1 ? "1px solid var(--border-light)" : "none", fontSize: "0.875rem" }}>
-            <span style={{ minWidth: 0 }}>
-              <div style={{ color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.displayName}</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                {getAssetTypeLabel(h.assetType)}{h.account ? ` · ${h.account}` : ""}
-              </div>
-            </span>
-            <span style={{ display: "flex", gap: "2.5rem", alignItems: "center", flexShrink: 0 }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)", minWidth: 90, textAlign: "right" }}>
-                {formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}
-              </span>
-              <span style={{ minWidth: 110, textAlign: "right", fontFamily: "var(--font-mono)" }}>
-                <ReturnCell pct={pct} isXirr={isXirr} />
-              </span>
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Three switchable net worth views, all built from the same already-
- * fetched holdings list — no separate backend endpoint, since /holdings
- * already returns per-holding value, XIRR, and asset type.
- *
- * M1 — one row per asset category: total value + a value-weighted
- * average return (true XIRR where that's meaningful, plain growth %
- * otherwise — see holdingReturns.js).
- * M2 — same category rows, expandable to the individual holdings inside
- * each one, each with its own return.
- * M3 — every holding in one flat list, sortable by value, return, or
- * asset class — "account-level" in the sense that each holding here is
- * the smallest unit this app tracks (there's no separate account entity
- * beyond the account name already on each holding).
- */
-export default function NetWorthBreakdown({ holdings, currency }) {
-  const [view, setView] = useState("M1");
-  const list = holdings || [];
-  const categoryRows = useMemo(() => buildCategoryRows(list), [list]);
-
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.75rem" }}>
-        <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{VIEWS.find((v) => v.key === view)?.description}</span>
-        <div style={{ display: "inline-flex", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "999px", padding: "0.2rem", border: "1px solid var(--border)" }}>
-          {VIEWS.map((v) => (
-            <button
-              key={v.key}
-              onClick={() => setView(v.key)}
-              style={{
-                border: "none",
-                borderRadius: "999px",
-                padding: "0.25rem 0.75rem",
-                fontSize: "0.75rem",
-                cursor: "pointer",
-                background: view === v.key ? "var(--primary)" : "transparent",
-                color: view === v.key ? "var(--text-inverse)" : "var(--text-secondary)",
-                fontWeight: view === v.key ? 600 : 500,
-              }}
-            >
-              {v.key}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {view === "M1" && <M1Summary rows={categoryRows} currency={currency} />}
-      {view === "M2" && <M2Drilldown rows={categoryRows} holdings={list} currency={currency} />}
-      {view === "M3" && <M3Flat holdings={list} currency={currency} />}
-    </div>
-  );
-}
+const breadcrumbBtnStyle = {
+  background: "none",
+  border: "none",
+  color: "var(--primary)",
+  fontSize: "0.8125rem",
+  cursor: "pointer",
+  padding: 0,
+  fontWeight: 500,
+};

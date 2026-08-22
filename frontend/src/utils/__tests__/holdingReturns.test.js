@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { holdingGrowthPct, computeReturnsByType } from "../holdingReturns";
+import { holdingGrowthPct, computeReturnsByType, computeGroupedReturn } from "../holdingReturns";
 
 function stock({ costBasis, totalGain, displayValue, xirr }) {
   return { assetType: "stock", costBasis, totalGain, displayValue, xirr };
@@ -64,5 +64,28 @@ describe("computeReturnsByType", () => {
 
   it("returns an empty list for no holdings", () => {
     expect(computeReturnsByType([])).toEqual([]);
+  });
+});
+
+describe("computeGroupedReturn", () => {
+  it("marks the group as XIRR only when every holding used XIRR", () => {
+    const holdings = [
+      stock({ costBasis: 1000, totalGain: 0, displayValue: 1000, xirr: 0.3 }),
+      stock({ costBasis: 1000, totalGain: 0, displayValue: 1000, xirr: 0.1 }),
+    ];
+    expect(computeGroupedReturn(holdings)).toEqual({ returnPct: 20, isXirr: true });
+  });
+
+  it("marks the group as plain return (not XIRR) when it mixes asset kinds", () => {
+    const holdings = [
+      stock({ costBasis: 1000, totalGain: 0, displayValue: 1000, xirr: 0.2 }),
+      realEstate({ firstValue: 1000, gain: 0, displayValue: 1000 }),
+    ];
+    const result = computeGroupedReturn(holdings);
+    expect(result.isXirr).toBe(false);
+  });
+
+  it("returns null for an empty or all-uncomputable group", () => {
+    expect(computeGroupedReturn([])).toEqual({ returnPct: null, isXirr: false });
   });
 });

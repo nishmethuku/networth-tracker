@@ -282,7 +282,7 @@ export default function Dashboard() {
           <div style={{ marginBottom: "1.5rem" }}>
             <Card title="Net Worth Breakdown">
               <ErrorBoundary mode="section" fallbackMessage="Couldn't load the net worth breakdown.">
-                <NetWorthBreakdown holdings={holdings} currency={currency} />
+                <NetWorthBreakdown holdings={holdings} currency={currency} history={history} />
               </ErrorBoundary>
             </Card>
           </div>

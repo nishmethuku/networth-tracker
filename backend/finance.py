@@ -47,6 +47,14 @@ def xirr(cash_flows: List[Tuple[date, float]], guess: float = 0.1) -> Optional[f
         new_rate = rate - f / df
         if new_rate <= -1.0:
             new_rate = -0.999999
+        # A diverging rate pushes both f and df toward the float underflow
+        # floor, at which point f/df can round to exactly 0.0 and the
+        # step-size convergence check below falsely reports convergence —
+        # on whatever absurd magnitude the rate diverged to. Bail out to
+        # the bisection fallback (which checks the NPV itself, not the
+        # step size, and searches a bounded, sane range) instead.
+        if not (-0.999999 <= new_rate <= 50.0):
+            break
         if abs(new_rate - rate) < 1e-6:
             return new_rate
         rate = new_rate

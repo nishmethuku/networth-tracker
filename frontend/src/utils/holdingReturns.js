@@ -15,30 +15,49 @@ export function holdingGrowthPct(h) {
 }
 
 /**
- * Value-weighted average return per asset type — a holding-level XIRR
- * average weighted by current value for quantity-based types, and simple
- * gain/first-value % for valuation-based types. This is a returns
- * comparison across types, not a literal decomposition of one portfolio
- * XIRR (XIRR isn't additive across sub-portfolios, so no such decomposition
- * is mathematically well-defined).
+ * Value-weighted average return for an arbitrary group of holdings — a
+ * holding-level XIRR average weighted by current value for quantity-based
+ * types, and simple gain/first-value % for valuation-based types. Not a
+ * literal decomposition of one portfolio XIRR (XIRR isn't additive across
+ * sub-portfolios, so no such decomposition is mathematically well-defined) —
+ * just a returns comparison across groups (asset types, accounts, etc).
+ * isXirr is true only when every contributing holding in the group used the
+ * annualized XIRR figure, matching the same "never mislabel a growth % as
+ * XIRR" rule ReturnCell enforces per holding.
+ */
+export function computeGroupedReturn(holdings) {
+  let weightedSum = 0;
+  let weight = 0;
+  let sawXirr = false;
+  let sawGrowth = false;
+
+  for (const h of holdings) {
+    if (isQuantityBased(h.assetType) && h.xirr != null && h.displayValue > 0) {
+      weightedSum += h.xirr * 100 * h.displayValue;
+      weight += h.displayValue;
+      sawXirr = true;
+    } else if (!isQuantityBased(h.assetType) && h.firstValue) {
+      const pct = (h.gain / Math.abs(h.firstValue)) * 100;
+      weightedSum += pct * h.displayValue;
+      weight += h.displayValue;
+      sawGrowth = true;
+    }
+  }
+
+  if (weight === 0) return { returnPct: null, isXirr: false };
+  return { returnPct: weightedSum / weight, isXirr: sawXirr && !sawGrowth };
+}
+
+/**
+ * Value-weighted average return per asset type — see computeGroupedReturn.
  */
 export function computeReturnsByType(holdings) {
   const byType = {};
   for (const h of holdings) {
-    if (!byType[h.assetType]) byType[h.assetType] = { weightedSum: 0, weight: 0 };
-    const bucket = byType[h.assetType];
-
-    if (isQuantityBased(h.assetType) && h.xirr != null && h.displayValue > 0) {
-      bucket.weightedSum += h.xirr * 100 * h.displayValue;
-      bucket.weight += h.displayValue;
-    } else if (!isQuantityBased(h.assetType) && h.firstValue) {
-      const pct = (h.gain / Math.abs(h.firstValue)) * 100;
-      bucket.weightedSum += pct * h.displayValue;
-      bucket.weight += h.displayValue;
-    }
+    (byType[h.assetType] = byType[h.assetType] || []).push(h);
   }
   return Object.entries(byType)
-    .filter(([, b]) => b.weight > 0)
-    .map(([type, b]) => ({ assetType: type, label: getAssetTypeLabel(type), returnPct: b.weightedSum / b.weight }))
+    .map(([type, hs]) => ({ assetType: type, label: getAssetTypeLabel(type), ...computeGroupedReturn(hs) }))
+    .filter((r) => r.returnPct != null)
     .sort((a, b) => b.returnPct - a.returnPct);
 }
