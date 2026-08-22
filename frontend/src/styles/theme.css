@@ -159,14 +159,33 @@ a:hover {
 /* ---------------------------------------------------------------------
    Mobile layout: top nav swaps for a bottom tab bar below 640px, and the
    page content gets bottom padding so it doesn't sit under the tab bar.
+   The bottom bar only covers 5 of the app's ~14 pages (plus settings/
+   sign out/theme, which lived only in the now-hidden desktop nav) — a
+   mobile-top-bar with a menu button covers everything else.
    --------------------------------------------------------------------- */
 .mobile-bottom-nav {
+  display: none;
+}
+
+.mobile-top-bar {
   display: none;
 }
 
 @media (max-width: 640px) {
   .desktop-top-nav {
     display: none !important;
+  }
+
+  .mobile-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 90;
   }
 
   .mobile-bottom-nav {

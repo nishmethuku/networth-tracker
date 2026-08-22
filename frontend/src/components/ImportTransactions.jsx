@@ -84,14 +84,37 @@ export default function ImportTransactions() {
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem" }}>
       <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>
-        Import Transactions
+        Import from a Broker Export
       </h1>
-      <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
-        Upload a transaction export from your broker. Nothing is saved until you review and confirm below.
+      <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
+        For a raw transaction file downloaded directly from one of the brokers below. Nothing is saved
+        until you review and confirm.
       </p>
-      <p style={{ marginTop: "-1.5rem", marginBottom: "2rem", fontSize: "0.8125rem" }}>
-        Have a personal spreadsheet instead (not from a broker)? <Link to="/import-spreadsheet">Try AI import →</Link>
-      </p>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+          flexWrap: "wrap",
+          padding: "0.875rem 1.25rem",
+          marginBottom: "2rem",
+          background: "var(--primary-light)",
+          border: "1px solid var(--primary)",
+          borderRadius: "var(--radius)",
+        }}
+      >
+        <span style={{ fontSize: "0.875rem", color: "var(--text)" }}>
+          Not from one of these brokers — just your own spreadsheet of stocks, accounts, whatever you track?
+        </span>
+        <Link
+          to="/import-spreadsheet"
+          style={{ fontWeight: 600, fontSize: "0.875rem", whiteSpace: "nowrap", color: "var(--primary)" }}
+        >
+          Use AI import instead →
+        </Link>
+      </div>
 
       <Card>
         <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>

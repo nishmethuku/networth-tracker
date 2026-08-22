@@ -124,6 +124,77 @@ async function request(endpoint, options = {}) {
   }
 }
 
+async function fetchUpload(url, formData, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+
+    // No Content-Type header here on purpose — the browser sets its own
+    // multipart boundary for FormData, which fetchWithTimeout's forced
+    // application/json header would break (this is why these calls can't
+    // just go through request()/fetchWithTimeout above).
+    const response = await fetch(url, {
+      method: "POST",
+      signal: controller.signal,
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      body: formData,
+    });
+    clearTimeout(timeoutId);
+
+    let payload;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = {};
+    }
+    if (!response.ok) {
+      throw new ApiError(payload.error || payload.message || `HTTP ${response.status}`, response.status, payload);
+    }
+    return payload;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === "AbortError") {
+      throw new ApiError("Request timed out.", 408);
+    }
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(error.message || "Network error. Please check your connection.", 0);
+  }
+}
+
+/**
+ * File-upload counterpart to request()'s cold-start retry — same
+ * one-retry-at-a-longer-timeout behavior, but for multipart/form-data
+ * (AI spreadsheet/bank-statement import) instead of JSON. Uploads are
+ * exactly the kind of request likely to be a user's first action of a
+ * session, so they're just as likely to land on a cold backend as any
+ * GET — but previously had no timeout or retry at all.
+ */
+export async function uploadWithColdStartRetry(endpoint, formData) {
+  const url = `${API_BASE_URL}${endpoint}`;
+  try {
+    return await fetchUpload(url, formData, DEFAULT_TIMEOUT);
+  } catch (error) {
+    const looksLikeColdStart = error instanceof ApiError && (error.status === 408 || error.status === 0);
+    if (!looksLikeColdStart) {
+      console.error(`API Error [${endpoint}]:`, error);
+      throw error;
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("api:cold-start-retry"));
+    }
+    try {
+      return await fetchUpload(url, formData, COLD_START_TIMEOUT);
+    } catch (retryError) {
+      console.error(`API Error [${endpoint}]:`, retryError);
+      throw retryError;
+    }
+  }
+}
+
 // HTTP method helpers
 export const api = {
   get: (endpoint) => request(endpoint, { method: "GET" }),

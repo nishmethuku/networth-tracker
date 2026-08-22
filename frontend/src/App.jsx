@@ -8,6 +8,7 @@ import ShortcutsHelp from "./components/ShortcutsHelp";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useAuth } from "./contexts/AuthContext";
 import ThemeToggle from "./components/ThemeToggle";
+import MobileMenu from "./components/MobileMenu";
 import LoadingState from "./components/LoadingState";
 
 // Dashboard loads eagerly (it's the landing page — no extra round trip on
@@ -160,6 +161,7 @@ function AppShell() {
       <OfflineIndicator />
       <ToastContainer />
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <MobileMenu />
       {/* Top Navigation (desktop) */}
       <nav
         className="desktop-top-nav"

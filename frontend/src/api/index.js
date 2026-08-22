@@ -2,7 +2,7 @@
  * Main API module - exports all API functions with data mapping
  */
 
-import api from "./client";
+import api, { uploadWithColdStartRetry } from "./client";
 import { supabase } from "../lib/supabaseClient";
 import {
   mapHolding,
@@ -273,36 +273,17 @@ export async function importConfirm(rows, householdId = null) {
 
 /**
  * AI-assisted import of a freeform spreadsheet (owner/editor only). The
- * parse step is a real file upload (multipart), so it bypasses api/client.js
- * the same way streamAiChat does below — JSON.stringify-ing a File doesn't
- * work, and this can legitimately take longer than the default timeout.
+ * parse step is a real file upload (multipart), so it goes through
+ * uploadWithColdStartRetry instead of api.post — JSON.stringify-ing a
+ * File doesn't work, and this needs the same cold-start retry treatment
+ * as any other request (a file upload is just as likely to be the first
+ * thing a user does in a session as a GET is).
  */
 export async function smartImportParse(file, householdId = null) {
-  const { data } = await supabase.auth.getSession();
-  const accessToken = data.session?.access_token;
-
   const formData = new FormData();
   formData.append("file", file);
   if (householdId) formData.append("household_id", householdId);
-
-  const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/import/smart-parse`, {
-    method: "POST",
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    body: formData,
-  });
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = {};
-  }
-  if (!response.ok) {
-    const err = new Error(payload.error || `HTTP ${response.status}`);
-    err.status = response.status;
-    throw err;
-  }
-  return payload;
+  return uploadWithColdStartRetry("/import/smart-parse", formData);
 }
 
 export async function smartImportConfirm(rows, householdId = null) {
@@ -312,7 +293,7 @@ export async function smartImportConfirm(rows, householdId = null) {
 /**
  * AI features (copilot chat, allocation advisor, transaction categorizer, NL search).
  * All require owner/editor household role server-side and return a clean
- * 503/{configured:false} shape until ANTHROPIC_API_KEY is set — never a crash.
+ * 503/{configured:false} shape until GEMINI_API_KEY is set — never a crash.
  */
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
@@ -473,31 +454,10 @@ export async function deleteBudgetLimit(id) {
  * Budget entries — same multipart-upload pattern as smartImportParse above.
  */
 export async function bankStatementParse(file, householdId = null) {
-  const { data } = await supabase.auth.getSession();
-  const accessToken = data.session?.access_token;
-
   const formData = new FormData();
   formData.append("file", file);
   if (householdId) formData.append("household_id", householdId);
-
-  const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5001"}/import/bank-statement-parse`, {
-    method: "POST",
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    body: formData,
-  });
-
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = {};
-  }
-  if (!response.ok) {
-    const err = new Error(payload.error || `HTTP ${response.status}`);
-    err.status = response.status;
-    throw err;
-  }
-  return payload;
+  return uploadWithColdStartRetry("/import/bank-statement-parse", formData);
 }
 
 export async function bankStatementConfirm(rows, householdId = null, currency = "USD") {
