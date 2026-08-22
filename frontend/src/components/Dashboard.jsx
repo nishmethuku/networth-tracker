@@ -293,6 +293,13 @@ export default function Dashboard() {
               value={formatCurrencyCompact(dashboard.realizedGain, currency)}
               subtitle={t("dashboard.realizedGainsSubtitle")}
             />
+            {dashboard.portfolioXirr != null && (
+              <Card
+                title="Overall Portfolio XIRR"
+                value={formatPercent(dashboard.portfolioXirr * 100)}
+                subtitle="Annualized, across every buy/sell"
+              />
+            )}
           </div>
 
           <div

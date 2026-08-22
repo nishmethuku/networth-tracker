@@ -496,7 +496,12 @@ def create_app():
         holdings = scoped_holdings_query(household_id_param).all()
         holdings_by_id = {h.id: h for h in holdings}
         holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency=display_currency)
-        return jsonify(build_dashboard(holdings_with_metrics, holdings_by_id, display_currency=display_currency))
+        all_transactions = HoldingTransaction.query.filter(
+            HoldingTransaction.holding_id.in_([h.id for h in holdings])
+        ).all()
+        return jsonify(build_dashboard(
+            holdings_with_metrics, holdings_by_id, display_currency=display_currency, all_transactions=all_transactions
+        ))
 
     # ---------------- EXCHANGE RATES ----------------
 

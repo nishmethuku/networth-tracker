@@ -194,11 +194,20 @@ def to_summary(holding_dict: Dict) -> Dict:
     return {k: holding_dict.get(k) for k in SUMMARY_FIELDS}
 
 
-def build_dashboard(holdings_with_metrics: List[Dict], holdings_by_id: Dict[int, Holding], display_currency: str = "USD") -> Dict:
+def build_dashboard(
+    holdings_with_metrics: List[Dict],
+    holdings_by_id: Dict[int, Holding],
+    display_currency: str = "USD",
+    all_transactions: Optional[List[HoldingTransaction]] = None,
+) -> Dict:
     """
     Aggregate metrics already computed by list_holdings_with_metrics into the
     dashboard payload: total net worth, allocation by type/country, top
     gainers/losers this month, and realized vs unrealized summary.
+
+    all_transactions (every buy/sell across the caller's quantity-based
+    holdings) is optional so existing callers/tests that don't need the
+    headline portfolio_xirr figure don't have to fetch and pass it.
     """
     total_net_worth = sum(h["display_value"] for h in holdings_with_metrics)
 
@@ -236,9 +245,17 @@ def build_dashboard(holdings_with_metrics: List[Dict], holdings_by_id: Dict[int,
 
     movers.sort(key=lambda m: m["change_pct"], reverse=True)
 
+    overall_xirr = None
+    if all_transactions:
+        tradeable_value = sum(
+            h["display_value"] for h in holdings_with_metrics if h["asset_type"] in QUANTITY_BASED_TYPES
+        )
+        overall_xirr = portfolio_xirr(all_transactions, tradeable_value)
+
     return {
         "total_net_worth": round(total_net_worth, 2),
         "currency": display_currency,
+        "portfolio_xirr": overall_xirr,
         "allocation_by_type": [{"label": k, "value": round(v, 2)} for k, v in allocation_by_type.items()],
         "allocation_by_country": [{"label": k, "value": round(v, 2)} for k, v in allocation_by_country.items()],
         "top_gainers": movers[:5],

@@ -90,6 +90,7 @@ export function mapDashboard(d) {
   return {
     totalNetWorth: safeNumber(d.total_net_worth),
     currency: d.currency ?? "USD",
+    portfolioXirr: d.portfolio_xirr != null ? safeNumber(d.portfolio_xirr) : null,
     allocationByType: (d.allocation_by_type || []).map((a) => ({
       label: a.label,
       value: safeNumber(a.value),

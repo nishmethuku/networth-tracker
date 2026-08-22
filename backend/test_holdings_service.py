@@ -14,6 +14,7 @@ from backend.holdings_service import (
     calculate_holding_metrics,
     calculate_valuation_metrics,
     get_monthly_net_flow,
+    build_dashboard,
 )
 from backend.models import Holding, HoldingTransaction, HoldingValuation
 
@@ -231,6 +232,35 @@ def test_monthly_net_flow_limits_to_trailing_n_months():
 
 def test_monthly_net_flow_empty_without_activity():
     assert get_monthly_net_flow([], [], []) == []
+
+
+def test_build_dashboard_omits_portfolio_xirr_without_transactions():
+    holding = _holding(asset_type="stock")
+    holding.id = 1
+    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "display_value": 1000.0, "quantity": 0}]
+    result = build_dashboard(metrics, {1: holding})
+    assert result["portfolio_xirr"] is None
+
+
+def test_build_dashboard_computes_portfolio_xirr_from_transactions():
+    holding = _holding(asset_type="stock")
+    holding.id = 1
+    # quantity omitted (defaults to 0 via .get in build_dashboard) so the "this month mover"
+    # lookup — which needs a live historical-price call — is skipped; irrelevant to this test.
+    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "display_value": 2000.0}]
+    transactions = [_tx("buy", date.today() - timedelta(days=365), 10, 100.0)]  # bought for 1000, worth 2000 a year later
+    result = build_dashboard(metrics, {1: holding}, all_transactions=transactions)
+    assert result["portfolio_xirr"] is not None
+    assert result["portfolio_xirr"] > 0.9  # doubled in ~1 year -> XIRR near 100%
+
+
+def test_build_dashboard_ignores_valuation_based_holdings_for_portfolio_xirr():
+    holding = _holding(asset_type="real_estate")
+    holding.id = 1
+    metrics = [{"id": 1, "asset_type": "real_estate", "country": "United States", "display_value": 500000.0}]
+    # No transactions at all for a valuation-based holding (it wouldn't have any) -> no XIRR to compute.
+    result = build_dashboard(metrics, {1: holding}, all_transactions=[])
+    assert result["portfolio_xirr"] is None
 
 
 if __name__ == "__main__":
