@@ -12,7 +12,7 @@ import EmptyState from "./EmptyState";
 import NetWorthChart from "./dashboard/NetWorthChart";
 import DashboardSkeleton from "./dashboard/DashboardSkeleton";
 import AllocationDonut from "./dashboard/AllocationDonut";
-import HoldingsByTypeTable from "./dashboard/HoldingsByTypeTable";
+import NetWorthBreakdown from "./dashboard/NetWorthBreakdown";
 import MoverHeatGrid from "./dashboard/MoverHeatGrid";
 import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
@@ -324,9 +324,9 @@ export default function Dashboard() {
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>
-            <Card title="Holdings by Type">
-              <ErrorBoundary mode="section" fallbackMessage="Couldn't load holdings by type.">
-                <HoldingsByTypeTable allocationByType={dashboard.allocationByType} holdings={holdings} currency={currency} />
+            <Card title="Net Worth Breakdown">
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't load the net worth breakdown.">
+                <NetWorthBreakdown holdings={holdings} currency={currency} />
               </ErrorBoundary>
             </Card>
           </div>

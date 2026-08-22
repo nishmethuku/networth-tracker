@@ -12,14 +12,9 @@ import useIsMobile from "../hooks/useIsMobile";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
+import { holdingGrowthPct as gainPct } from "../utils/holdingReturns";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
-
-function gainPct(h) {
-  if (isQuantityBased(h.assetType) && h.costBasis) return (h.totalGain / h.costBasis) * 100;
-  if (h.firstValue) return (h.gain / Math.abs(h.firstValue)) * 100;
-  return null;
-}
 
 /** Applies an AI-generated filter spec (see backend/ai_service.py's
  * SEARCH_SYSTEM_PROMPT for the exact shape) against already-loaded holdings. */

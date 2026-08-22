@@ -2,36 +2,7 @@ import { useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, LabelList, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import EmptyState from "../EmptyState";
 import { formatPercent } from "../../utils/formatters";
-import { getAssetTypeLabel, isQuantityBased } from "../../constants/enums";
-
-/**
- * Value-weighted average return per asset type — a holding-level XIRR
- * average weighted by current value for quantity-based types, and simple
- * gain/first-value % for valuation-based types. This is a returns
- * comparison across types, not a literal decomposition of one portfolio
- * XIRR (XIRR isn't additive across sub-portfolios, so no such decomposition
- * is mathematically well-defined).
- */
-function computeReturnsByType(holdings) {
-  const byType = {};
-  for (const h of holdings) {
-    if (!byType[h.assetType]) byType[h.assetType] = { weightedSum: 0, weight: 0 };
-    const bucket = byType[h.assetType];
-
-    if (isQuantityBased(h.assetType) && h.xirr != null && h.displayValue > 0) {
-      bucket.weightedSum += h.xirr * 100 * h.displayValue;
-      bucket.weight += h.displayValue;
-    } else if (!isQuantityBased(h.assetType) && h.firstValue) {
-      const pct = (h.gain / Math.abs(h.firstValue)) * 100;
-      bucket.weightedSum += pct * h.displayValue;
-      bucket.weight += h.displayValue;
-    }
-  }
-  return Object.entries(byType)
-    .filter(([, b]) => b.weight > 0)
-    .map(([type, b]) => ({ assetType: type, label: getAssetTypeLabel(type), returnPct: b.weightedSum / b.weight }))
-    .sort((a, b) => b.returnPct - a.returnPct);
-}
+import { computeReturnsByType } from "../../utils/holdingReturns";
 
 export default function ReturnsByTypeChart({ holdings }) {
   const data = useMemo(() => computeReturnsByType(holdings || []), [holdings]);
