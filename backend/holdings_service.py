@@ -7,6 +7,7 @@ crypto, commodity) or valuation history (everything else: real_estate,
 fixed_deposit, ppf, epf, retirals, cash, loan, credit) instead of one frozen
 buy price/quantity.
 """
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
@@ -157,17 +158,29 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
     a display_value converted to display_currency. Fetches each unique
     (asset_type, symbol) price only once even if several holdings share it,
     to avoid redundant external API calls when listing a whole portfolio.
-    """
-    price_cache: Dict[tuple, Optional[float]] = {}
-    results = []
 
+    The price fetches themselves run in parallel (get_current_price is pure
+    network I/O against an in-memory cache — no DB access, so this is safe
+    without touching Flask's app/request context) rather than one at a time:
+    a portfolio with several holdings whose prices aren't warm in the 5-min
+    in-memory cache was previously waiting on N sequential external calls in
+    a row, which is the single biggest source of a slow dashboard/portfolio
+    load, especially when NSE's flaky fallback chain has to fail through a
+    couple of sources per symbol before landing on Yahoo.
+    """
+    quantity_keys = list({(h.asset_type, h.symbol, h.currency) for h in holdings if h.asset_type in QUANTITY_BASED_TYPES})
+
+    price_cache: Dict[tuple, Optional[float]] = {}
+    if quantity_keys:
+        with ThreadPoolExecutor(max_workers=min(8, len(quantity_keys))) as pool:
+            fetched = pool.map(lambda k: price_service.get_current_price(k[0], k[1], k[2]), quantity_keys)
+        price_cache = dict(zip(((k[0], k[1]) for k in quantity_keys), fetched))
+
+    results = []
     for h in holdings:
         if h.asset_type in QUANTITY_BASED_TYPES:
             transactions = HoldingTransaction.query.filter_by(holding_id=h.id).all()
-            price_key = (h.asset_type, h.symbol)
-            if price_key not in price_cache:
-                price_cache[price_key] = price_service.get_current_price(h.asset_type, h.symbol, h.currency)
-            metrics = calculate_holding_metrics(h, transactions, current_price=price_cache[price_key])
+            metrics = calculate_holding_metrics(h, transactions, current_price=price_cache.get((h.asset_type, h.symbol)))
         else:
             valuations = HoldingValuation.query.filter_by(holding_id=h.id).all()
             metrics = calculate_valuation_metrics(h, valuations)
@@ -219,6 +232,7 @@ def build_dashboard(
     movers = []
     cutoff = date.today() - timedelta(days=30)
 
+    mover_candidates = []
     for h in holdings_with_metrics:
         allocation_by_type[h["asset_type"]] = allocation_by_type.get(h["asset_type"], 0.0) + h["display_value"]
         allocation_by_country[h["country"]] = allocation_by_country.get(h["country"], 0.0) + h["display_value"]
@@ -226,22 +240,30 @@ def build_dashboard(
         if h["asset_type"] in QUANTITY_BASED_TYPES:
             total_realized += h.get("realized_gain", 0.0)
             total_unrealized += h.get("unrealized_gain", 0.0)
-
-            # Best-effort "this month" mover — only for symbols with a
-            # historical price available (crypto, Indian mutual funds).
             holding = holdings_by_id.get(h["id"])
             if holding and h.get("quantity", 0) > 0:
-                past_price = price_service.get_historical_price(h["asset_type"], h["symbol"], cutoff, h["currency"])
-                if past_price and past_price > 0 and h.get("current_price"):
-                    pct_change = ((h["current_price"] - past_price) / past_price) * 100.0
-                    movers.append({
-                        "id": h["id"],
-                        "name": h["name"],
-                        "symbol": h["symbol"],
-                        "asset_type": h["asset_type"],
-                        "change_pct": round(pct_change, 2),
-                        "current_value": h["display_value"],
-                    })
+                mover_candidates.append(h)
+
+    # Best-effort "this month" mover — each candidate needs its own
+    # historical-price lookup (external call on any day that price isn't
+    # already DB-cached), so this is capped to the largest positions by
+    # value rather than run for every holding: an uncapped loop here is
+    # the single biggest lever on dashboard load time for a portfolio
+    # with more than a handful of holdings.
+    MAX_MOVER_LOOKUPS = 15
+    mover_candidates.sort(key=lambda h: h["display_value"], reverse=True)
+    for h in mover_candidates[:MAX_MOVER_LOOKUPS]:
+        past_price = price_service.get_historical_price(h["asset_type"], h["symbol"], cutoff, h["currency"])
+        if past_price and past_price > 0 and h.get("current_price"):
+            pct_change = ((h["current_price"] - past_price) / past_price) * 100.0
+            movers.append({
+                "id": h["id"],
+                "name": h["name"],
+                "symbol": h["symbol"],
+                "asset_type": h["asset_type"],
+                "change_pct": round(pct_change, 2),
+                "current_value": h["display_value"],
+            })
 
     movers.sort(key=lambda m: m["change_pct"], reverse=True)
 
