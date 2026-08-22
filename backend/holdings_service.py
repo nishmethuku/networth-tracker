@@ -127,6 +127,41 @@ def calculate_valuation_metrics(holding: Holding, valuations: List[HoldingValuat
     }
 
 
+def build_funding_valuation(
+    source_holding: Holding,
+    existing_valuations: List[HoldingValuation],
+    amount: float,
+    amount_currency: str,
+    on_date: date,
+    acting_user_id,
+) -> HoldingValuation:
+    """
+    Build (uncommitted) the valuation entry that records spending money out
+    of a cash holding to fund a purchase elsewhere — e.g. paying for a gold
+    purchase out of a bank account. Restricted to "cash" specifically (not
+    valuation-based holdings generally): reducing a real_estate/loan/retiral
+    valuation the same way wouldn't mean "money was spent from it", so
+    letting those through would produce a number that looks like a data
+    point but means something else.
+    """
+    if source_holding.asset_type != "cash":
+        raise ValueError("Funding source must be a cash holding")
+    if not existing_valuations:
+        raise ValueError("This cash holding has no recorded balance yet")
+
+    latest = max(existing_valuations, key=lambda v: v.valuation_date)
+    converted_amount = price_service.convert(amount, amount_currency, source_holding.currency)
+
+    return HoldingValuation(
+        holding_id=source_holding.id,
+        user_id=acting_user_id,
+        valuation_date=on_date,
+        value=latest.value - converted_amount,
+        currency=source_holding.currency,
+        notes="Used to fund a purchase",
+    )
+
+
 def get_holding_metrics(
     holding: Holding,
     transactions: Optional[List[HoldingTransaction]] = None,

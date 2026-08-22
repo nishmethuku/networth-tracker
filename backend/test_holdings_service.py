@@ -15,6 +15,7 @@ from backend.holdings_service import (
     calculate_valuation_metrics,
     get_monthly_net_flow,
     build_dashboard,
+    build_funding_valuation,
 )
 from backend.models import Holding, HoldingTransaction, HoldingValuation
 
@@ -261,6 +262,46 @@ def test_build_dashboard_ignores_valuation_based_holdings_for_portfolio_xirr():
     # No transactions at all for a valuation-based holding (it wouldn't have any) -> no XIRR to compute.
     result = build_dashboard(metrics, {1: holding}, all_transactions=[])
     assert result["portfolio_xirr"] is None
+
+
+def test_build_funding_valuation_deducts_cost_from_latest_cash_balance():
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    valuations = [HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2026, 1, 1), value=5000.0, currency="USD")]
+    val = build_funding_valuation(cash, valuations, amount=1200.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
+    assert val.value == 3800.0
+    assert val.currency == "USD"
+    assert val.holding_id == 9
+
+
+def test_build_funding_valuation_converts_currency():
+    from unittest.mock import patch
+
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    cash.currency = "USD"
+    valuations = [HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2026, 1, 1), value=1000.0, currency="USD")]
+    # Spending an INR amount out of a USD cash balance should convert first, not subtract raw INR from raw USD.
+    with patch("backend.holdings_service.price_service.convert", return_value=10.0) as mock_convert:
+        val = build_funding_valuation(cash, valuations, amount=830.0, amount_currency="INR", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
+    mock_convert.assert_called_once_with(830.0, "INR", "USD")
+    assert val.value == 990.0
+
+
+def test_build_funding_valuation_rejects_non_cash_source():
+    stock = _holding(asset_type="stock")
+    stock.id = 1
+    import pytest
+    with pytest.raises(ValueError):
+        build_funding_valuation(stock, [], amount=100.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=stock.user_id)
+
+
+def test_build_funding_valuation_rejects_cash_with_no_history():
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    import pytest
+    with pytest.raises(ValueError):
+        build_funding_valuation(cash, [], amount=100.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
 
 
 if __name__ == "__main__":

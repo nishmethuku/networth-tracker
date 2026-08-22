@@ -18,7 +18,7 @@ from .services import safe_float, rank_symbol_results
 from . import price_service
 from . import ai_service
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
-from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow
+from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation
 from .household_service import (
     get_member_household_ids,
     get_role,
@@ -343,8 +343,24 @@ def create_app():
             notes=data.get("notes"),
         )
         db.session.add(tx)
+
+        funding_valuation = None
+        funding_source_id = data.get("funding_source_holding_id")
+        if funding_source_id and tx.transaction_type == "buy":
+            source_holding = get_authorized_holding(funding_source_id, require_write=True)
+            source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
+            total_cost = tx.quantity * tx.price_per_unit + tx.fees
+            try:
+                funding_valuation = build_funding_valuation(
+                    source_holding, source_valuations, total_cost, tx.currency, tx.transaction_date, g.user_id
+                )
+            except ValueError as e:
+                db.session.rollback()
+                return jsonify({"error": str(e)}), 400
+            db.session.add(funding_valuation)
+
         db.session.commit()
-        return jsonify(tx.to_dict()), 201
+        return jsonify({**tx.to_dict(), "funding_source": funding_valuation.to_dict() if funding_valuation else None}), 201
 
     @app.route("/transactions/<int:transaction_id>", methods=["PUT"])
     @require_auth

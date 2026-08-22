@@ -69,6 +69,9 @@ export function mapTransaction(t) {
     notes: t.notes ?? "",
     tags: t.tags ?? [],
     createdAt: t.created_at ?? "",
+    fundingSource: t.funding_source
+      ? { holdingId: t.funding_source.holding_id, newBalance: safeNumber(t.funding_source.value), currency: t.funding_source.currency }
+      : null,
   };
 }
 

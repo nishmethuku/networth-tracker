@@ -14,6 +14,7 @@ import {
   fetchHoldingTransactions,
   fetchHoldingValuations,
   fetchHoldingPriceHistory,
+  fetchHoldings,
   createTransaction,
   createValuation,
   deleteTransaction,
@@ -36,9 +37,20 @@ const inputStyle = {
 
 function AddTransactionForm({ holding, onDone }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ transaction_type: "buy", transaction_date: new Date().toISOString().split("T")[0], quantity: "", price_per_unit: "", fees: "0" });
+  const [form, setForm] = useState({ transaction_type: "buy", transaction_date: new Date().toISOString().split("T")[0], quantity: "", price_per_unit: "", fees: "0", funding_source_holding_id: "" });
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [createdTx, setCreatedTx] = useState(null);
+
+  // Cash holdings to offer as a funding source when this is a purchase —
+  // e.g. buying gold and paying for it out of a bank account, which should
+  // reduce that account's recorded balance instead of the two staying
+  // disconnected. Scoped to the same household as this holding (or personal
+  // if it has none), matching how sharing works everywhere else.
+  const { data: cashHoldings } = useQuery({
+    queryKey: ["holdings", "cash", holding.householdId || null],
+    queryFn: () => fetchHoldings({ assetType: "cash", householdId: holding.householdId || undefined, summary: true }),
+    enabled: form.transaction_type === "buy",
+  });
 
   const mutation = useMutation({
     mutationFn: (payload) => createTransaction(holding.id, payload),
@@ -46,6 +58,10 @@ function AddTransactionForm({ holding, onDone }) {
       queryClient.invalidateQueries({ queryKey: ["holding", holding.id] });
       queryClient.invalidateQueries({ queryKey: ["holding-transactions", holding.id] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
+      if (tx.fundingSource) {
+        queryClient.invalidateQueries({ queryKey: ["holding", tx.fundingSource.holdingId] });
+        queryClient.invalidateQueries({ queryKey: ["holding-valuations", tx.fundingSource.holdingId] });
+      }
       setCreatedTx(tx);
     },
   });
@@ -76,6 +92,9 @@ function AddTransactionForm({ holding, onDone }) {
       price_per_unit: parseFloat(form.price_per_unit),
       fees: parseFloat(form.fees || 0),
       currency: holding.currency,
+      ...(form.transaction_type === "buy" && form.funding_source_holding_id
+        ? { funding_source_holding_id: Number(form.funding_source_holding_id) }
+        : {}),
     });
   }
 
@@ -83,6 +102,11 @@ function AddTransactionForm({ holding, onDone }) {
     return (
       <div>
         <p style={{ color: "var(--success)", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>Transaction added ✓</p>
+        {createdTx.fundingSource && (
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: "0.75rem" }}>
+            Also updated the funding account's balance to {formatCurrencyForDisplay(createdTx.fundingSource.newBalance, createdTx.fundingSource.currency, { includeCode: false })}.
+          </p>
+        )}
         <TagSuggestionCard transactionId={createdTx.id} holdingId={holding.id} onDismiss={onDone} />
         <button
           onClick={onDone}
@@ -126,6 +150,22 @@ function AddTransactionForm({ holding, onDone }) {
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Fees</label>
         <input type="number" step="any" min="0" value={form.fees} onChange={(e) => setForm({ ...form, fees: e.target.value })} style={inputStyle} />
       </div>
+      {form.transaction_type === "buy" && cashHoldings?.length > 0 && (
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Funded from</label>
+          <select
+            value={form.funding_source_holding_id}
+            onChange={(e) => setForm({ ...form, funding_source_holding_id: e.target.value })}
+            style={inputStyle}
+            title="Deducts this purchase's cost from the selected account's balance"
+          >
+            <option value="">— none —</option>
+            {cashHoldings.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}{c.account ? ` (${c.account})` : ""}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <button type="submit" disabled={mutation.isPending} style={{ padding: "0.625rem 1.25rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600 }}>
         {mutation.isPending ? "Saving..." : "Add"}
       </button>
