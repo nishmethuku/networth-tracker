@@ -11,7 +11,7 @@ from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException
 import requests
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, Milestone, BudgetEntry, BudgetLimit
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit
 from .auth import require_auth
 from .utils import FINNHUB_API_KEY, MFTOOL_AVAILABLE
 from .services import safe_float, rank_symbol_results
@@ -584,32 +584,6 @@ def create_app():
         db.session.delete(alert)
         db.session.commit()
         return jsonify({"message": "Alert deleted"}), 200
-
-    # ---------------- MILESTONES ----------------
-
-    @app.route("/milestones", methods=["GET"])
-    @require_auth
-    def list_milestones():
-        household_id_param = request.args.get("household_id")
-        if household_id_param:
-            if household_id_param not in get_member_household_ids(g.user_id):
-                abort(403)
-            milestones = Milestone.query.filter_by(household_id=household_id_param)
-        else:
-            milestones = Milestone.query.filter_by(user_id=g.user_id)
-        milestones = milestones.order_by(Milestone.achieved_date.desc()).all()
-        return jsonify([m.to_dict() for m in milestones])
-
-    @app.route("/milestones/<int:milestone_id>/acknowledge", methods=["POST"])
-    @require_auth
-    def acknowledge_milestone(milestone_id):
-        milestone = Milestone.query.get_or_404(milestone_id)
-        owns_it = str(milestone.user_id) == str(g.user_id) if milestone.user_id else str(milestone.household_id) in get_member_household_ids(g.user_id)
-        if not owns_it:
-            abort(403)
-        milestone.acknowledged = True
-        db.session.commit()
-        return jsonify(milestone.to_dict())
 
     # ---------------- CSV IMPORT ----------------
 

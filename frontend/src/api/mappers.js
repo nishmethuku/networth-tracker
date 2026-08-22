@@ -153,19 +153,6 @@ export function mapAlert(a) {
   };
 }
 
-export function mapMilestone(m) {
-  if (!m) return null;
-  return {
-    id: m.id,
-    userId: m.user_id,
-    householdId: m.household_id,
-    threshold: safeNumber(m.threshold),
-    currency: m.currency,
-    achievedDate: m.achieved_date,
-    acknowledged: !!m.acknowledged,
-  };
-}
-
 export function mapTaxSummary(response) {
   const rows = response?.rows || (Array.isArray(response) ? response : []);
   return {

@@ -12,7 +12,6 @@ import {
   mapNetWorthHistory,
   mapPriceHistory,
   mapAlert,
-  mapMilestone,
   mapTaxSummary,
   mapBenchmark,
   mapBudgetEntry,
@@ -222,20 +221,6 @@ export async function createAlert(payload) {
 
 export async function deleteAlert(id) {
   await api.delete(`/alerts/${id}`);
-}
-
-/**
- * Milestones
- */
-export async function fetchMilestones(householdId = null) {
-  const endpoint = householdId ? `/milestones?household_id=${householdId}` : "/milestones";
-  const data = await api.get(endpoint);
-  return (data || []).map(mapMilestone);
-}
-
-export async function acknowledgeMilestone(id) {
-  const data = await api.post(`/milestones/${id}/acknowledge`, {});
-  return mapMilestone(data);
 }
 
 /**

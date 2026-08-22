@@ -1,12 +1,12 @@
 """
 Shared email sending via Resend (https://resend.com — free tier, no domain
 verification needed to start since we use their shared onboarding@resend.dev
-sender). Used by the weekly digest, price alerts, and milestone celebrations.
+sender). Used by the weekly digest and price alerts.
 
 Same "gracefully absent" pattern as FINNHUB_API_KEY/METALS_API_KEY: without
 RESEND_API_KEY set, send() logs what would have been sent instead of failing
-the caller, so digest/alert/milestone computation still works and is
-inspectable even before an email provider is configured.
+the caller, so digest/alert computation still works and is inspectable even
+before an email provider is configured.
 """
 import os
 import requests
@@ -93,15 +93,5 @@ def render_alert_email(alert: dict, current_value: float) -> str:
       <p><strong>{label}</strong> {alert["alert_type"].replace("_", " ")} your threshold of
       {alert["threshold"]:,.2f} {alert["currency"]}.</p>
       <p>Current value: <strong>{current_value:,.2f} {alert["currency"]}</strong></p>
-    </div>
-    """
-
-
-def render_milestone_email(threshold: float, currency: str) -> str:
-    return f"""
-    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;text-align:center;">
-      <h1 style="color:#2563eb;">🎉 Milestone Reached!</h1>
-      <p style="font-size:20px;color:#0f172a;">Your net worth just crossed</p>
-      <p style="font-size:32px;font-weight:800;color:#16a34a;">{threshold:,.0f} {currency}</p>
     </div>
     """

@@ -17,7 +17,7 @@ import MoverHeatGrid from "./dashboard/MoverHeatGrid";
 import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
 import AnimatedNumber from "./AnimatedNumber";
-import { fetchDashboard, fetchNetWorthHistory, fetchHouseholds, fetchHoldings, fetchMilestones, acknowledgeMilestone, fetchBenchmark, ApiError } from "../api";
+import { fetchDashboard, fetchNetWorthHistory, fetchHouseholds, fetchHoldings, fetchBenchmark, ApiError } from "../api";
 import { formatCurrencyCompact, formatPercent } from "../utils/formatters";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
@@ -25,48 +25,6 @@ const BENCHMARKS = [
   { value: "SPY", label: "S&P 500 (SPY)" },
   { value: "NIFTYBEES.NS", label: "Nifty 50 (NIFTYBEES)" },
 ];
-
-function MilestoneBanner({ householdId }) {
-  const queryClient = useQueryClient();
-  const { data: milestones } = useQuery({
-    queryKey: ["milestones", householdId],
-    queryFn: () => fetchMilestones(householdId || null),
-  });
-
-  const ackMutation = useMutation({
-    mutationFn: acknowledgeMilestone,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["milestones"] }),
-  });
-
-  const unacknowledged = (milestones || []).filter((m) => !m.acknowledged);
-  if (unacknowledged.length === 0) return null;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
-      {unacknowledged.map((m) => (
-        <div
-          key={m.id}
-          style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            padding: "1rem 1.5rem", borderRadius: "var(--radius-md)",
-            background: "linear-gradient(135deg, var(--primary-light), var(--success-light))",
-            border: "1px solid var(--primary)",
-          }}
-        >
-          <span style={{ fontWeight: 600, color: "var(--text)" }}>
-            🎉 You crossed {m.threshold.toLocaleString()} {m.currency}!
-          </span>
-          <button
-            onClick={() => ackMutation.mutate(m.id)}
-            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "0.875rem" }}
-          >
-            Dismiss
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function BenchmarkCard({ householdId }) {
   const [symbol, setSymbol] = useState("SPY");
@@ -140,12 +98,6 @@ export default function Dashboard() {
     staleTime: 1000 * 60 * 5, // snapshots are written at most once/day
   });
 
-  const { data: milestones } = useQuery({
-    queryKey: ["milestones", householdId],
-    queryFn: () => fetchMilestones(householdId || null),
-    staleTime: 1000 * 60,
-  });
-
   const { data: holdings } = useQuery({
     queryKey: ["holdings", "summary", currency, householdId],
     queryFn: () => fetchHoldings({ currency, householdId: householdId || undefined, summary: true }),
@@ -157,7 +109,6 @@ export default function Dashboard() {
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     await queryClient.invalidateQueries({ queryKey: ["net-worth-history"] });
     await queryClient.invalidateQueries({ queryKey: ["holdings"] });
-    await queryClient.invalidateQueries({ queryKey: ["milestones"] });
   });
 
   useEffect(() => {
@@ -264,8 +215,6 @@ export default function Dashboard() {
         <Link to="/settings" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>⚙️ Settings</Link>
       </div>
 
-      <MilestoneBanner householdId={householdId} />
-
       {!hasHoldings ? (
         <EmptyState message="No holdings yet. Add your first one from the Portfolio page." />
       ) : (
@@ -313,7 +262,7 @@ export default function Dashboard() {
             {/* Net worth over time */}
             <Card title={t("dashboard.netWorthOverTime")}>
               <ErrorBoundary mode="section" fallbackMessage="The net worth chart couldn't load.">
-                <NetWorthChart history={history} currency={currency} milestones={milestones} />
+                <NetWorthChart history={history} currency={currency} />
               </ErrorBoundary>
             </Card>
 

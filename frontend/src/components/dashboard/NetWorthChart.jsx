@@ -7,7 +7,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  ReferenceDot,
 } from "recharts";
 import EmptyState from "../EmptyState";
 import { formatCurrencyCompact, safeNumber } from "../../utils/formatters";
@@ -49,7 +48,7 @@ function CustomTooltip({ active, payload, label, currency }) {
   );
 }
 
-export default function NetWorthChart({ history, currency, milestones = [] }) {
+export default function NetWorthChart({ history, currency }) {
   const [rangeIdx, setRangeIdx] = useState(3); // default "All"
 
   const filtered = useMemo(() => {
@@ -65,12 +64,6 @@ export default function NetWorthChart({ history, currency, milestones = [] }) {
     const base = rows[0]?.netWorth ?? 0;
     return rows.map((r) => ({ ...r, delta: r.netWorth - base }));
   }, [history, rangeIdx]);
-
-  const achievedMilestones = useMemo(() => {
-    if (!milestones?.length || !filtered.length) return [];
-    const dates = new Set(filtered.map((f) => f.date));
-    return milestones.filter((m) => m.achievedDate && dates.has(m.achievedDate));
-  }, [milestones, filtered]);
 
   if (!history || history.length === 0) {
     return <EmptyState message="History builds up daily — check back tomorrow." />;
@@ -120,21 +113,6 @@ export default function NetWorthChart({ history, currency, milestones = [] }) {
               isAnimationActive={true}
               dot={filtered.length < 60 ? { r: 2, fill: "var(--primary)" } : false}
             />
-            {achievedMilestones.map((m) => {
-              const point = filtered.find((f) => f.date === m.achievedDate);
-              if (!point) return null;
-              return (
-                <ReferenceDot
-                  key={m.id}
-                  x={m.achievedDate}
-                  y={point.netWorth}
-                  r={6}
-                  fill="var(--warning)"
-                  stroke="var(--card)"
-                  strokeWidth={2}
-                />
-              );
-            })}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
