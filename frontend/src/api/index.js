@@ -20,6 +20,7 @@ import {
   mapGoal,
   mapLiability,
   mapMilestone,
+  mapEmergencyFund,
 } from "./mappers";
 
 /**
@@ -150,6 +151,13 @@ export async function fetchMonthlyFlow({ householdId, currency = "USD", months =
 
 export async function fetchExchangeRates(base = "USD") {
   return api.get(`/exchange-rates?base=${base}`);
+}
+
+export async function fetchEmergencyFund({ householdId, currency = "USD", months = 6 } = {}) {
+  const params = new URLSearchParams({ currency, months: String(months) });
+  if (householdId) params.append("household_id", householdId);
+  const data = await api.get(`/emergency-fund?${params.toString()}`);
+  return mapEmergencyFund(data);
 }
 
 /**

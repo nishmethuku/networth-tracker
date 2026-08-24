@@ -2,6 +2,7 @@
   "nav": {
     "netWorth": "Net Worth",
     "portfolio": "Portfolio",
+    "liabilities": "Liabilities",
     "transactions": "Transactions",
     "budget": "Budget",
     "importCsv": "Import CSV",

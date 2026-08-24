@@ -2,6 +2,7 @@
   "nav": {
     "netWorth": "कुल संपत्ति",
     "portfolio": "पोर्टफोलियो",
+    "liabilities": "देनदारियां",
     "transactions": "लेन-देन",
     "budget": "बजट",
     "importCsv": "CSV आयात करें",

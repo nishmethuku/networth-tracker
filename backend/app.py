@@ -22,6 +22,7 @@ from .allocation_service import compute_rebalance_plan, validate_target_allocati
 from .allocation_target_service import get_target_allocation, save_target_allocation, clear_target_allocation
 from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation, TRANSACTION_TYPES
 from .liability_service import list_liabilities_with_display, total_liabilities_display, LIABILITY_TYPES
+from .emergency_fund_service import get_emergency_fund_status
 from .household_service import (
     get_member_household_ids,
     get_role,
@@ -786,6 +787,22 @@ def create_app():
         currency = request.args.get("currency", "USD").upper()
         months = int(request.args.get("months", 12))
         result = get_monthly_net_flow(holdings, transactions, valuations, display_currency=currency, months=months)
+        return jsonify(result)
+
+    @app.route("/emergency-fund", methods=["GET"])
+    @require_auth
+    def get_emergency_fund():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        currency = request.args.get("currency", "USD").upper()
+        months = int(request.args.get("months", 6))
+        result = get_emergency_fund_status(
+            user_id=g.user_id if not household_id_param else None,
+            household_id=household_id_param,
+            currency=currency,
+            months=months,
+        )
         return jsonify(result)
 
     # ---------------- HOUSEHOLDS ----------------

@@ -31,8 +31,8 @@ def _one_year_later(d: date) -> date:
 
 TAX_DISCLAIMER = (
     "Rough estimate only, not tax advice. Short/long-term is classified using a uniform "
-    "365-day FIFO rule and liability uses flat illustrative rates — actual rules vary by "
-    "country, asset class, and income bracket. Consult a tax professional."
+    "one-calendar-year holding period and liability uses flat illustrative rates — actual "
+    "rules vary by country, asset class, and income bracket. Consult a tax professional."
 )
 
 # Flat, illustrative rates — not each country's real bracket/exemption structure.

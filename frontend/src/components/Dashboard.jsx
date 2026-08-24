@@ -14,6 +14,7 @@ import DashboardSkeleton from "./dashboard/DashboardSkeleton";
 import AllocationDonut from "./dashboard/AllocationDonut";
 import NetWorthBreakdown from "./dashboard/NetWorthBreakdown";
 import GoalsCard from "./dashboard/GoalsCard";
+import EmergencyFundCard from "./dashboard/EmergencyFundCard";
 import MoverHeatGrid from "./dashboard/MoverHeatGrid";
 import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
@@ -271,6 +272,10 @@ export default function Dashboard() {
 
             <ErrorBoundary mode="section" fallbackMessage="Couldn't load goals.">
               <GoalsCard currentNetWorth={dashboard.totalNetWorth} displayCurrency={currency} />
+            </ErrorBoundary>
+
+            <ErrorBoundary mode="section" fallbackMessage="Couldn't load emergency fund status.">
+              <EmergencyFundCard currency={currency} />
             </ErrorBoundary>
           </div>
 

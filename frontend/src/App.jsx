@@ -266,7 +266,7 @@ function AppShell() {
             {t("nav.netWorth")}
           </Link>
           <NavLink to="/portfolio">{t("nav.portfolio")}</NavLink>
-          <NavLink to="/liabilities">Liabilities</NavLink>
+          <NavLink to="/liabilities">{t("nav.liabilities")}</NavLink>
           <NavLink to="/transactions">{t("nav.transactions")}</NavLink>
           <NavLink to="/budget">{t("nav.budget")}</NavLink>
           <MoreMenu

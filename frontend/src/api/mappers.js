@@ -254,6 +254,17 @@ export function mapGoal(g) {
   };
 }
 
+export function mapEmergencyFund(e) {
+  if (!e) return null;
+  return {
+    currency: e.currency ?? "USD",
+    liquidValue: safeNumber(e.liquid_value),
+    avgMonthlyExpenses: e.avg_monthly_expenses != null ? safeNumber(e.avg_monthly_expenses) : null,
+    monthsCovered: e.months_covered != null ? safeNumber(e.months_covered) : null,
+    recommendedMonths: safeNumber(e.recommended_months),
+  };
+}
+
 export function mapMilestone(m) {
   if (!m) return null;
   return {

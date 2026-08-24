@@ -111,7 +111,13 @@ def parse_statement(file_bytes: bytes, filename: str) -> Dict:
     if not statement_text.strip():
         return {"configured": True, "rows": [], "warnings": ["The file appears to be empty or unreadable."]}
 
-    raw = ai_service.generate_text(statement_text, system=BANK_IMPORT_SYSTEM_PROMPT, max_tokens=4096)
+    try:
+        raw = ai_service.generate_text(statement_text, system=BANK_IMPORT_SYSTEM_PROMPT, max_tokens=4096)
+    except ai_service.QuotaExceededError:
+        return {
+            "configured": True, "rows": [], "quota_exceeded": True,
+            "warnings": ["The AI assistant has hit its free daily usage limit — please try again later."],
+        }
     if not raw:
         return {"configured": True, "rows": [], "warnings": ["AI parsing failed — please try again."]}
     try:
