@@ -1,4 +1,5 @@
 from datetime import date
+import hmac
 import json
 import logging
 import os
@@ -849,7 +850,7 @@ def create_app():
         """Called once a day by a GitHub Actions cron workflow, authenticated
         with a shared secret (not a user session)."""
         provided = request.headers.get("X-Snapshot-Secret")
-        if not SNAPSHOT_SECRET or provided != SNAPSHOT_SECRET:
+        if not SNAPSHOT_SECRET or not provided or not hmac.compare_digest(provided, SNAPSHOT_SECRET):
             return jsonify({"error": "Unauthorized"}), 401
         result = snapshot_all_users()
         return jsonify(result), 200
@@ -862,7 +863,7 @@ def create_app():
         (email_service.send) — falls back to logging if RESEND_API_KEY isn't
         set, so this is safe to run either way."""
         provided = request.headers.get("X-Snapshot-Secret")
-        if not DIGEST_SECRET or provided != DIGEST_SECRET:
+        if not DIGEST_SECRET or not provided or not hmac.compare_digest(provided, DIGEST_SECRET):
             return jsonify({"error": "Unauthorized"}), 401
         digests = build_weekly_digest()
         return jsonify({"digests_built": len(digests)}), 200
@@ -884,7 +885,7 @@ def create_app():
     def trigger_check_alerts():
         """Called every few hours by a GitHub Actions cron workflow."""
         provided = request.headers.get("X-Snapshot-Secret")
-        if not SNAPSHOT_SECRET or provided != SNAPSHOT_SECRET:
+        if not SNAPSHOT_SECRET or not provided or not hmac.compare_digest(provided, SNAPSHOT_SECRET):
             return jsonify({"error": "Unauthorized"}), 401
         result = check_all_alerts()
         return jsonify(result), 200
