@@ -19,6 +19,7 @@ from .services import safe_float, rank_symbol_results
 from . import price_service
 from . import ai_service
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
+from .allocation_target_service import get_target_allocation, save_target_allocation, clear_target_allocation
 from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation, TRANSACTION_TYPES
 from .household_service import (
     get_member_household_ids,
@@ -1160,6 +1161,59 @@ def create_app():
             "narrative": narrative,
             "quota_exceeded": quota_exceeded,
             "disclaimer": "This is informational only, generated from your own portfolio data, and is not financial advice.",
+        })
+
+    # A category more than this many percentage points off its saved target
+    # counts as "drifted" for the on-page-load check below.
+    ALLOCATION_DRIFT_THRESHOLD_PCT = 5.0
+
+    @app.route("/allocation-targets", methods=["GET"])
+    @require_auth
+    def get_allocation_targets_route():
+        return jsonify(get_target_allocation(g.user_id))
+
+    @app.route("/allocation-targets", methods=["PUT"])
+    @require_auth
+    def save_allocation_targets_route():
+        data = request.get_json(force=True) or {}
+        target_allocation = data.get("target_allocation")
+        if not isinstance(target_allocation, dict):
+            return jsonify({"error": "target_allocation is required (asset_type -> percent)"}), 400
+        try:
+            validate_target_allocation(target_allocation)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        saved = save_target_allocation(g.user_id, target_allocation)
+        return jsonify(saved), 201
+
+    @app.route("/allocation-targets", methods=["DELETE"])
+    @require_auth
+    def clear_allocation_targets_route():
+        clear_target_allocation(g.user_id)
+        return jsonify({"message": "Target allocation cleared"}), 200
+
+    @app.route("/allocation-drift", methods=["GET"])
+    @require_auth
+    def allocation_drift_route():
+        """Fast, AI-free drift check against the caller's saved target
+        allocation (if any) — no narrative, just the same rebalance math the
+        AI advisor already computes, so this is cheap enough to run on
+        every Dashboard/Allocation Advisor page load."""
+        target_allocation = get_target_allocation(g.user_id)
+        if not target_allocation:
+            return jsonify({"has_target": False})
+
+        currency = request.args.get("currency", "USD").upper()
+        _, dashboard = _portfolio_snapshot_for_caller(None, currency)
+        plan = compute_rebalance_plan(dashboard["allocation_by_type"], dashboard["total_net_worth"], target_allocation)
+        max_drift_pct = max((abs(p["current_pct"] - p["target_pct"]) for p in plan), default=0.0)
+
+        return jsonify({
+            "has_target": True,
+            "target_allocation": target_allocation,
+            "plan": plan,
+            "max_drift_pct": round(max_drift_pct, 2),
+            "is_drifted": max_drift_pct > ALLOCATION_DRIFT_THRESHOLD_PCT,
         })
 
     @app.route("/transactions/<int:transaction_id>/suggest-tags", methods=["POST"])

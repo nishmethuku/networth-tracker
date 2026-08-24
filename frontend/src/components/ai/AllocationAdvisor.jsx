@@ -1,19 +1,53 @@
-import { useMemo, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { fetchDashboard, fetchAllocationAdvice, ApiError } from "../../api";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchDashboard, fetchAllocationAdvice, fetchAllocationTargets, saveAllocationTargets, fetchAllocationDrift, ApiError } from "../../api";
 import { ASSET_TYPE_LABELS, getAssetTypeLabel } from "../../constants/enums";
 import Card from "../Card";
 import LoadingState from "../LoadingState";
 import ErrorState from "../ErrorState";
-import { formatCurrencyForDisplay } from "../../utils/formatters";
+import { useToast } from "../../contexts/ToastContext";
+import { formatCurrencyForDisplay, formatPercent } from "../../utils/formatters";
 
 export default function AllocationAdvisor() {
   const [targets, setTargets] = useState({});
   const [result, setResult] = useState(null);
+  const [prefilled, setPrefilled] = useState(false);
+  const queryClient = useQueryClient();
+  const toast = useToast();
 
   const { data: dashboard, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard-for-advisor"],
     queryFn: () => fetchDashboard({ currency: "USD" }),
+  });
+
+  const { data: savedTarget } = useQuery({
+    queryKey: ["allocation-targets"],
+    queryFn: fetchAllocationTargets,
+  });
+
+  const { data: drift } = useQuery({
+    queryKey: ["allocation-drift"],
+    queryFn: () => fetchAllocationDrift("USD"),
+  });
+
+  // Prefill the form with the saved target once, on first load — a visit
+  // to this page should show what you last committed to, not a blank form,
+  // but shouldn't fight the user if they've already started editing.
+  useEffect(() => {
+    if (!prefilled && savedTarget && Object.keys(savedTarget).length > 0) {
+      setTargets(Object.fromEntries(Object.entries(savedTarget).map(([k, v]) => [k, String(v)])));
+      setPrefilled(true);
+    }
+  }, [savedTarget, prefilled]);
+
+  const saveTarget = useMutation({
+    mutationFn: (targetAllocation) => saveAllocationTargets(targetAllocation),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allocation-targets"] });
+      queryClient.invalidateQueries({ queryKey: ["allocation-drift"] });
+      toast.success("Saved as your target — you'll see drift from it here going forward");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to save target"),
   });
 
   const currentAllocation = dashboard?.allocationByType || [];
@@ -63,9 +97,15 @@ export default function AllocationAdvisor() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Allocation Advisor</h1>
       </div>
-      <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
+      <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
         Set a target allocation by asset type and see exactly what to buy or sell to get there — informational only, not financial advice.
       </p>
+
+      {drift?.has_target && drift.is_drifted && (
+        <div style={{ padding: "0.875rem 1.25rem", borderRadius: "var(--radius)", background: "var(--warning-light)", border: "1px solid var(--warning)", marginBottom: "1.5rem", fontSize: "0.875rem", color: "var(--text)" }}>
+          ⚠️ You've drifted {formatPercent(drift.max_drift_pct)} from your saved target allocation. The plan below reflects your saved target.
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(280px, 1.4fr)", gap: "1.5rem", alignItems: "start" }}>
         <Card title="Target allocation">
@@ -73,9 +113,17 @@ export default function AllocationAdvisor() {
             <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>Add some holdings first to get allocation suggestions.</p>
           ) : (
             <>
-              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                 <button onClick={useCurrentAsTarget} style={secondaryBtnStyle}>Start from current</button>
                 <button onClick={setSplitEvenly} style={secondaryBtnStyle}>Split evenly</button>
+                <button
+                  onClick={() => saveTarget.mutate(Object.fromEntries(allTypes.map((t) => [t, Number(targets[t]) || 0])))}
+                  disabled={saveTarget.isPending || Math.abs(targetTotal - 100) >= 0.5}
+                  style={{ ...secondaryBtnStyle, opacity: Math.abs(targetTotal - 100) >= 0.5 ? 0.5 : 1 }}
+                  title="Save this as your target so drift from it shows up here automatically"
+                >
+                  {saveTarget.isPending ? "Saving…" : "💾 Save as my target"}
+                </button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {allTypes.map((type) => (

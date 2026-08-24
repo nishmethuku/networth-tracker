@@ -314,6 +314,26 @@ export async function suggestTransactionTags(transactionId) {
   return api.post(`/transactions/${transactionId}/suggest-tags`, {}, AI_TIMEOUT);
 }
 
+/**
+ * Saved allocation target + drift check (AI-free, cheap — distinct from
+ * fetchAllocationAdvice, which calls Gemini for a narrative).
+ */
+export async function fetchAllocationTargets() {
+  return api.get("/allocation-targets");
+}
+
+export async function saveAllocationTargets(targetAllocation) {
+  return api.put("/allocation-targets", { target_allocation: targetAllocation });
+}
+
+export async function clearAllocationTargets() {
+  return api.delete("/allocation-targets");
+}
+
+export async function fetchAllocationDrift(currency = "USD") {
+  return api.get(`/allocation-drift?currency=${currency}`);
+}
+
 export async function aiSearch(query, householdId = null) {
   return api.post("/api/ai/search", { query, household_id: householdId }, AI_TIMEOUT);
 }

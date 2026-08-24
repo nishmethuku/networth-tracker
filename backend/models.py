@@ -411,6 +411,33 @@ class Goal(db.Model):
         }
 
 
+class AllocationTarget(db.Model):
+    """One row per asset type in a user's saved target allocation (from the
+    Allocation Advisor's "Save as my target" button) — lets drift from that
+    target be checked on demand (on-page-load) and, once the daily cron
+    infrastructure is actually reachable, by the same alert-checking job
+    that already handles price/net-worth alerts."""
+    __tablename__ = "allocation_targets"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "asset_type", name="allocation_targets_user_asset_type_key"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    asset_type = db.Column(db.String(32), nullable=False)
+    target_pct = db.Column(db.Float, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": str(self.user_id),
+            "asset_type": self.asset_type,
+            "target_pct": self.target_pct,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 class Milestone(db.Model):
     __tablename__ = "milestones"
 
