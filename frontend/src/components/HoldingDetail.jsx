@@ -230,7 +230,7 @@ function PeriodReturn({ series, currency }) {
 
   return (
     <Card title="Performance">
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.25rem", marginBottom: "0.75rem" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: "0.25rem", marginBottom: "0.75rem" }}>
         {RETURN_RANGES.map((r, i) => (
           <button
             key={r.label}

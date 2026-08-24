@@ -4,10 +4,10 @@ India uses Apr 1–Mar 31; everything else uses the calendar year.
 
 Also estimates short-term vs long-term classification and a rough tax
 liability. Both are approximations, not tax advice: holding-period
-classification uses a uniform 365-day threshold via FIFO lot matching
-(actual rules vary by country and asset class — e.g. India's debt fund
-taxation differs from equity), and the liability estimate uses flat
-illustrative rates rather than each country's actual bracket/exemption
+classification uses a uniform "more than one calendar year" rule via FIFO
+lot matching (actual rules vary by country and asset class — e.g. India's
+debt fund taxation differs from equity), and the liability estimate uses
+flat illustrative rates rather than each country's actual bracket/exemption
 rules. Every response carries an explicit disclaimer for this reason.
 """
 from datetime import date
@@ -16,7 +16,18 @@ from typing import Dict, List, Optional
 from .holdings_service import compute_position, QUANTITY_BASED_TYPES
 from .models import Holding, HoldingTransaction
 
-LONG_TERM_THRESHOLD_DAYS = 365
+def _one_year_later(d: date) -> date:
+    """d's calendar anniversary one year later — used instead of a fixed
+    365-day threshold, which misclassifies any holding period spanning a
+    Feb 29: e.g. bought 2024-01-01 (a leap year) and sold exactly one
+    calendar year later on 2025-01-01 is 366 days apart, which a flat
+    365-day cutoff would wrongly call long-term."""
+    try:
+        return d.replace(year=d.year + 1)
+    except ValueError:
+        # d itself is Feb 29 — land on Feb 28 in the (non-leap) next year.
+        return d.replace(month=2, day=28, year=d.year + 1)
+
 
 TAX_DISCLAIMER = (
     "Rough estimate only, not tax advice. Short/long-term is classified using a uniform "
@@ -44,8 +55,8 @@ def financial_year_label(d: date, country: str) -> str:
 def _fifo_holding_period_splits(transactions: List[HoldingTransaction]) -> List[Dict]:
     """One entry per sell, in chronological order (matching
     compute_position's realized_events order): how much of that sell's
-    quantity was held > 365 days (long-term) vs <= 365 days (short-term),
-    via FIFO lot matching against buy transactions."""
+    quantity was held for more than one calendar year (long-term) vs not
+    (short-term), via FIFO lot matching against buy transactions."""
     lots = []  # [{"date": date, "remaining": float}]
     splits = []
 
@@ -62,8 +73,7 @@ def _fifo_holding_period_splits(transactions: List[HoldingTransaction]) -> List[
                 if lot["remaining"] <= 0:
                     continue
                 take = min(lot["remaining"], remaining_to_sell)
-                held_days = (t.transaction_date - lot["date"]).days
-                if held_days > LONG_TERM_THRESHOLD_DAYS:
+                if t.transaction_date > _one_year_later(lot["date"]):
                     long_term_qty += take
                 else:
                     short_term_qty += take

@@ -44,6 +44,50 @@ def test_sell_within_a_year_is_short_term():
     assert splits == [{"short_term_qty": 10.0, "long_term_qty": 0.0}]
 
 
+def test_sell_exactly_one_calendar_year_later_is_short_term():
+    # Held for exactly one year to the day -> not "more than one year" -> short-term.
+    txs = [
+        _tx("buy", date(2023, 1, 1), 10, 100.0, tx_id=1),
+        _tx("sell", date(2024, 1, 1), 10, 150.0, tx_id=2),
+    ]
+    splits = _fifo_holding_period_splits(txs)
+    assert splits == [{"short_term_qty": 10.0, "long_term_qty": 0.0}]
+
+
+def test_sell_one_calendar_year_and_a_day_later_is_long_term():
+    txs = [
+        _tx("buy", date(2023, 1, 1), 10, 100.0, tx_id=1),
+        _tx("sell", date(2024, 1, 2), 10, 150.0, tx_id=2),
+    ]
+    splits = _fifo_holding_period_splits(txs)
+    assert splits == [{"short_term_qty": 0.0, "long_term_qty": 10.0}]
+
+
+def test_leap_day_in_holding_period_does_not_inflate_to_long_term():
+    # 2024 is a leap year, so 2024-01-01 -> 2025-01-01 is 366 raw days but
+    # still exactly one calendar year -> must stay short-term. A flat
+    # 365-day cutoff would wrongly call this long-term.
+    txs = [
+        _tx("buy", date(2024, 1, 1), 10, 100.0, tx_id=1),
+        _tx("sell", date(2025, 1, 1), 10, 150.0, tx_id=2),
+    ]
+    splits = _fifo_holding_period_splits(txs)
+    assert splits == [{"short_term_qty": 10.0, "long_term_qty": 0.0}]
+
+
+def test_bought_on_leap_day_uses_feb_28_anniversary():
+    txs = [
+        _tx("buy", date(2024, 2, 29), 10, 100.0, tx_id=1),
+        _tx("sell", date(2025, 2, 28), 10, 150.0, tx_id=2),
+    ]
+    splits = _fifo_holding_period_splits(txs)
+    assert splits == [{"short_term_qty": 10.0, "long_term_qty": 0.0}]
+
+    txs[1] = _tx("sell", date(2025, 3, 1), 10, 150.0, tx_id=2)
+    splits = _fifo_holding_period_splits(txs)
+    assert splits == [{"short_term_qty": 0.0, "long_term_qty": 10.0}]
+
+
 def test_fifo_splits_a_sell_across_lots_of_different_ages():
     # Old lot (long-term by sell time) + recent lot (short-term)
     txs = [

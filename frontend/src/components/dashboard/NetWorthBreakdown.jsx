@@ -4,6 +4,7 @@ import { formatCurrencyForDisplay, formatPercent } from "../../utils/formatters"
 import { getAssetTypeLabel, isQuantityBased } from "../../constants/enums";
 import { computeGroupedReturn, computeReturnsByType, holdingGrowthPct } from "../../utils/holdingReturns";
 import EmptyState from "../EmptyState";
+import useIsMobile from "../../hooks/useIsMobile";
 
 // A holding's own annualized return where one actually exists (XIRR,
 // quantity-based types only); everything else falls back to plain
@@ -92,9 +93,13 @@ function TrajectorySparkline({ history, assetType }) {
 }
 
 const ROW_STYLE = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0", fontSize: "0.875rem" };
-const RIGHT_GROUP_STYLE = { display: "flex", gap: "1.5rem", alignItems: "center" };
-const VALUE_STYLE = { fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)", minWidth: 90, textAlign: "right" };
-const RETURN_STYLE = { minWidth: 110, textAlign: "right", fontFamily: "var(--font-mono)" };
+// The right-hand group (trend sparkline + value + return) needs ~310px at
+// full size (three items with 1.5rem gaps) — comfortably too wide for any
+// phone screen. useIsMobile() drives a tighter layout below, so this stays
+// a function of that flag rather than a fixed constant.
+const rightGroupStyle = (isMobile) => ({ display: "flex", gap: isMobile ? "0.625rem" : "1.5rem", alignItems: "center" });
+const valueStyle = (isMobile) => ({ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)", minWidth: isMobile ? 68 : 90, textAlign: "right" });
+const returnStyle = (isMobile) => ({ minWidth: isMobile ? 84 : 110, textAlign: "right", fontFamily: "var(--font-mono)" });
 
 function Breadcrumb({ items, onNavigate }) {
   return (
@@ -123,6 +128,7 @@ function Breadcrumb({ items, onNavigate }) {
  */
 export default function NetWorthBreakdown({ holdings, currency, history }) {
   const [drill, setDrill] = useState(null); // { category: assetType } | { category: assetType, account: string } | null
+  const isMobile = useIsMobile();
   const list = holdings || [];
   const categoryRows = useMemo(() => buildCategoryRows(list), [list]);
 
@@ -165,9 +171,9 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
             return (
               <div key={h.id} style={{ ...ROW_STYLE, borderBottom: i < holdingsInAccount.length - 1 ? "1px solid var(--border-light)" : "none" }}>
                 <span style={{ color: "var(--text)" }}>{h.displayName}</span>
-                <span style={RIGHT_GROUP_STYLE}>
-                  <span style={VALUE_STYLE}>{formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}</span>
-                  <span style={RETURN_STYLE}><ReturnCell pct={pct} isXirr={isXirr} /></span>
+                <span style={rightGroupStyle(isMobile)}>
+                  <span style={valueStyle(isMobile)}>{formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}</span>
+                  <span style={returnStyle(isMobile)}><ReturnCell pct={pct} isXirr={isXirr} /></span>
                 </span>
               </div>
             );
@@ -192,9 +198,9 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
               <span style={{ color: "var(--text)" }}>
                 {r.account} <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>({r.count})</span>
               </span>
-              <span style={RIGHT_GROUP_STYLE}>
-                <span style={VALUE_STYLE}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
-                <span style={RETURN_STYLE}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
+              <span style={rightGroupStyle(isMobile)}>
+                <span style={valueStyle(isMobile)}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
+                <span style={returnStyle(isMobile)}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
               </span>
             </div>
           ))}
@@ -208,7 +214,11 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
     <div style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", justifyContent: "space-between", padding: "0.375rem 0", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>
         <span>Category</span>
-        <span style={{ display: "flex", gap: "1.5rem" }}><span style={{ minWidth: 64 }}>Trend</span><span style={{ minWidth: 90, textAlign: "right" }}>Value</span><span style={{ minWidth: 110, textAlign: "right" }}>Return</span></span>
+        <span style={rightGroupStyle(isMobile)}>
+          {!isMobile && <span style={{ minWidth: 64 }}>Trend</span>}
+          <span style={{ minWidth: valueStyle(isMobile).minWidth, textAlign: "right" }}>Value</span>
+          <span style={{ minWidth: returnStyle(isMobile).minWidth, textAlign: "right" }}>Return</span>
+        </span>
       </div>
       {categoryRows.map((r, i) => (
         <div
@@ -217,10 +227,10 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
           style={{ ...ROW_STYLE, cursor: "pointer", borderBottom: i < categoryRows.length - 1 ? "1px solid var(--border-light)" : "none" }}
         >
           <span style={{ color: "var(--text)" }}>{r.label}</span>
-          <span style={RIGHT_GROUP_STYLE}>
-            <TrajectorySparkline history={history} assetType={r.assetType} />
-            <span style={VALUE_STYLE}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
-            <span style={RETURN_STYLE}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
+          <span style={rightGroupStyle(isMobile)}>
+            {!isMobile && <TrajectorySparkline history={history} assetType={r.assetType} />}
+            <span style={valueStyle(isMobile)}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
+            <span style={returnStyle(isMobile)}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
           </span>
         </div>
       ))}
