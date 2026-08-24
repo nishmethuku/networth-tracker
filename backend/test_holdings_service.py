@@ -355,6 +355,36 @@ def test_build_funding_valuation_rejects_cash_with_no_history():
         build_funding_valuation(cash, [], amount=100.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
 
 
+def test_build_dashboard_sums_display_currency_gains_not_native_currency():
+    """A USD holding and an INR holding must have their gains converted to
+    the same display currency before being added together — summing the
+    raw native-currency figures would silently add mismatched currencies."""
+    usd_holding = _holding(asset_type="stock")
+    usd_holding.id = 1
+    inr_holding = _holding(asset_type="stock")
+    inr_holding.id = 2
+    inr_holding.currency = "INR"
+
+    metrics = [
+        {
+            "id": 1, "asset_type": "stock", "country": "United States", "display_value": 1000.0,
+            "realized_gain": 100.0, "display_realized_gain": 100.0,  # USD -> USD, no conversion
+            "unrealized_gain": 50.0, "display_unrealized_gain": 50.0,
+        },
+        {
+            "id": 2, "asset_type": "stock", "country": "India", "display_value": 500.0,
+            # 8300 INR realized gain converts to 100 USD at an ~83 rate — if
+            # the aggregation used the raw "realized_gain" (8300) instead of
+            # "display_realized_gain" (100), the total would be wildly off.
+            "realized_gain": 8300.0, "display_realized_gain": 100.0,
+            "unrealized_gain": 4150.0, "display_unrealized_gain": 50.0,
+        },
+    ]
+    result = build_dashboard(metrics, {1: usd_holding, 2: inr_holding})
+    assert result["realized_gain"] == 200.0
+    assert result["unrealized_gain"] == 100.0
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])

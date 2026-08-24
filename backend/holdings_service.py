@@ -242,6 +242,16 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
         metrics["display_value"] = price_service.convert(metrics["current_value"], h.currency, display_currency)
         if metrics.get("income_received") is not None:
             metrics["display_income_received"] = price_service.convert(metrics["income_received"], h.currency, display_currency)
+        # realized_gain/unrealized_gain stay in the holding's own currency
+        # for per-holding display (HoldingDetail shows them alongside that
+        # holding's own currency symbol) — these display_* twins are for
+        # portfolio-wide aggregation, where summing raw native-currency
+        # figures across e.g. USD and INR holdings would silently add
+        # mismatched currencies together.
+        if metrics.get("realized_gain") is not None:
+            metrics["display_realized_gain"] = price_service.convert(metrics["realized_gain"], h.currency, display_currency)
+        if metrics.get("unrealized_gain") is not None:
+            metrics["display_unrealized_gain"] = price_service.convert(metrics["unrealized_gain"], h.currency, display_currency)
         results.append({**h.to_dict(), **metrics})
 
     return results
@@ -254,7 +264,8 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
 SUMMARY_FIELDS = (
     "id", "household_id", "asset_type", "symbol", "name", "country", "account", "currency",
     "quantity", "avg_cost", "current_price", "current_value", "display_value",
-    "realized_gain", "unrealized_gain", "total_gain", "xirr", "income_received", "display_income_received",
+    "realized_gain", "unrealized_gain", "display_realized_gain", "display_unrealized_gain",
+    "total_gain", "xirr", "income_received", "display_income_received",
     "first_value", "gain", "cost_basis",
 )
 
@@ -295,8 +306,8 @@ def build_dashboard(
         allocation_by_country[h["country"]] = allocation_by_country.get(h["country"], 0.0) + h["display_value"]
 
         if h["asset_type"] in QUANTITY_BASED_TYPES:
-            total_realized += h.get("realized_gain", 0.0)
-            total_unrealized += h.get("unrealized_gain", 0.0)
+            total_realized += h.get("display_realized_gain") or 0.0
+            total_unrealized += h.get("display_unrealized_gain") or 0.0
             total_income_received += h.get("display_income_received") or 0.0
             holding = holdings_by_id.get(h["id"])
             if holding and h.get("quantity", 0) > 0:
