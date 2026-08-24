@@ -19,6 +19,7 @@ import {
   mapMonthlyFlow,
   mapGoal,
   mapLiability,
+  mapMilestone,
 } from "./mappers";
 
 /**
@@ -388,6 +389,20 @@ export async function updateLiability(id, payload) {
 
 export async function deleteLiability(id) {
   await api.delete(`/liabilities/${id}`);
+}
+
+/**
+ * Net worth milestones (auto-detected, from the daily snapshot job)
+ */
+export async function fetchMilestones({ householdId } = {}) {
+  const endpoint = householdId ? `/milestones?household_id=${householdId}` : "/milestones";
+  const data = await api.get(endpoint);
+  return (data || []).map(mapMilestone);
+}
+
+export async function acknowledgeMilestone(id) {
+  const data = await api.put(`/milestones/${id}/acknowledge`, {});
+  return mapMilestone(data);
 }
 
 /**

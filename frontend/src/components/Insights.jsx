@@ -6,6 +6,7 @@ import ErrorState from "./ErrorState";
 import ErrorBoundary from "./ErrorBoundary";
 import MonthlySnapshots from "./dashboard/MonthlySnapshots";
 import MonthlyNetFlow from "./dashboard/MonthlyNetFlow";
+import MilestonesCard from "./dashboard/MilestonesCard";
 import { fetchNetWorthHistory, ApiError } from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -43,6 +44,12 @@ export default function Insights() {
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         A closer look at how your net worth has moved over time.
       </p>
+
+      <div style={{ marginBottom: "1.5rem" }}>
+        <ErrorBoundary mode="section" fallbackMessage="Couldn't load milestones.">
+          <MilestonesCard />
+        </ErrorBoundary>
+      </div>
 
       <div style={{ marginBottom: "1.5rem" }}>
         <Card title="Monthly Snapshots" subtitle="Net worth on the 1st of each month, with the split by type">

@@ -10,6 +10,7 @@ import { useAuth } from "./contexts/AuthContext";
 import ThemeToggle from "./components/ThemeToggle";
 import MobileMenu from "./components/MobileMenu";
 import LoadingState from "./components/LoadingState";
+import MilestoneCelebration from "./components/MilestoneCelebration";
 
 // Dashboard loads eagerly (it's the landing page — no extra round trip on
 // first paint). Everything else is route-split so the initial bundle only
@@ -163,6 +164,7 @@ function AppShell() {
       <ToastContainer />
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       <MobileMenu />
+      <MilestoneCelebration />
       {/* Top Navigation (desktop) */}
       <nav
         className="desktop-top-nav"

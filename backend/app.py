@@ -12,7 +12,7 @@ from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException
 import requests
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit, Liability
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit, Liability, Milestone
 from .auth import require_auth
 from .utils import FINNHUB_API_KEY
 from .services import safe_float, rank_symbol_results
@@ -42,6 +42,7 @@ from .alert_service import check_all_alerts
 from .unsubscribe_service import verify_unsubscribe_token, unsubscribe as unsubscribe_email
 from .account_service import export_user_data, export_user_data_csv_zip, delete_all_user_data
 from .goal_service import list_goals, create_goal, update_goal, delete_goal
+from .milestone_service import list_milestones
 from .sip_service import next_occurrences as next_sip_occurrences, project_future_value as project_sip_future_value
 from .budget_service import (
     get_monthly_summary,
@@ -759,7 +760,7 @@ def create_app():
         def convert_row(r):
             d = r.to_dict()
             from_currency = d["currency"] or "USD"
-            for field in ("total_net_worth", "total_stock_value", "total_property_value", "total_profit_loss"):
+            for field in ("total_net_worth", "total_stock_value", "total_property_value", "total_profit_loss", "total_liabilities"):
                 d[field] = price_service.convert(d[field], from_currency, display_currency)
             d["by_asset_type"] = {
                 k: price_service.convert(v, from_currency, display_currency) for k, v in d["by_asset_type"].items()
@@ -1418,6 +1419,34 @@ def create_app():
         db.session.delete(liability)
         db.session.commit()
         return jsonify({"message": "Liability deleted"}), 200
+
+    # ---------------- MILESTONES (auto-detected, from the daily snapshot job) ----------------
+
+    @app.route("/milestones", methods=["GET"])
+    @require_auth
+    def get_milestones():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        return jsonify(list_milestones(
+            user_id=g.user_id if not household_id_param else None, household_id=household_id_param
+        ))
+
+    @app.route("/milestones/<int:milestone_id>/acknowledge", methods=["PUT"])
+    @require_auth
+    def acknowledge_milestone_route(milestone_id):
+        milestone = Milestone.query.get_or_404(milestone_id)
+        if milestone.user_id is not None:
+            if str(milestone.user_id) != str(g.user_id):
+                abort(403)
+        elif milestone.household_id is not None:
+            if str(milestone.household_id) not in get_member_household_ids(g.user_id):
+                abort(403)
+        else:
+            abort(403)
+        milestone.acknowledged = True
+        db.session.commit()
+        return jsonify(milestone.to_dict())
 
     # ---------------- ACCOUNT DATA (Settings page: export / danger zone) ----------------
 

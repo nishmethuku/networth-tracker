@@ -13,7 +13,10 @@ import io
 import zipfile
 from typing import Dict
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceAlert, Milestone, BudgetEntry, BudgetLimit, Liability
+from .models import (
+    db, Holding, HoldingTransaction, HoldingValuation, PriceAlert, Milestone, BudgetEntry, BudgetLimit,
+    Liability, Goal, AllocationTarget,
+)
 
 
 def export_user_data(user_id) -> Dict:
@@ -34,6 +37,8 @@ def export_user_data(user_id) -> Dict:
     budget_entries = BudgetEntry.query.filter_by(user_id=user_id).all()
     budget_limits = BudgetLimit.query.filter_by(user_id=user_id).all()
     liabilities = Liability.query.filter_by(user_id=user_id).all()
+    goals = Goal.query.filter_by(user_id=user_id).all()
+    allocation_targets = AllocationTarget.query.filter_by(user_id=user_id).all()
 
     return {
         "holdings": [h.to_dict() for h in holdings],
@@ -43,6 +48,8 @@ def export_user_data(user_id) -> Dict:
         "budget_entries": [e.to_dict() for e in budget_entries],
         "budget_limits": [limit.to_dict() for limit in budget_limits],
         "liabilities": [l.to_dict() for l in liabilities],
+        "goals": [g.to_dict() for g in goals],
+        "allocation_targets": [t.to_dict() for t in allocation_targets],
     }
 
 
@@ -91,6 +98,8 @@ def delete_all_user_data(user_id) -> Dict:
     alerts_count = PriceAlert.query.filter_by(user_id=user_id).delete()
     milestones_count = Milestone.query.filter_by(user_id=user_id).delete()
     liabilities_count = Liability.query.filter_by(user_id=user_id).delete()
+    goals_count = Goal.query.filter_by(user_id=user_id).delete()
+    allocation_targets_count = AllocationTarget.query.filter_by(user_id=user_id).delete()
 
     db.session.commit()
 
@@ -99,4 +108,6 @@ def delete_all_user_data(user_id) -> Dict:
         "alerts_deleted": alerts_count,
         "milestones_deleted": milestones_count,
         "liabilities_deleted": liabilities_count,
+        "goals_deleted": goals_count,
+        "allocation_targets_deleted": allocation_targets_count,
     }

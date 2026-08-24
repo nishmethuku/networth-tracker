@@ -9,6 +9,7 @@ from typing import Optional
 from .models import db, Holding, Liability, NetWorthSnapshot
 from .holdings_service import list_holdings_with_metrics, QUANTITY_BASED_TYPES
 from .liability_service import total_liabilities_display
+from .milestone_service import detect_and_record_milestones
 
 
 def _compute_totals(holdings, liabilities):
@@ -48,6 +49,13 @@ def _compute_totals(holdings, liabilities):
     }
 
 
+def _previous_net_worth(user_id, household_id, before_date):
+    query = NetWorthSnapshot.query.filter(NetWorthSnapshot.snapshot_date < before_date)
+    query = query.filter_by(user_id=user_id) if user_id is not None else query.filter_by(household_id=household_id)
+    row = query.order_by(NetWorthSnapshot.snapshot_date.desc()).first()
+    return row.total_net_worth if row else None
+
+
 def _upsert_snapshot(user_id, household_id, snapshot_date, totals):
     query = NetWorthSnapshot.query.filter_by(snapshot_date=snapshot_date)
     query = query.filter_by(user_id=user_id) if user_id is not None else query.filter_by(household_id=household_id)
@@ -80,7 +88,9 @@ def snapshot_all_users(snapshot_date: Optional[date] = None):
         holdings = Holding.query.filter_by(user_id=user_id).all()
         liabilities = Liability.query.filter_by(user_id=user_id).all()
         totals = _compute_totals(holdings, liabilities)
+        previous_net_worth = _previous_net_worth(user_id, None, snapshot_date)
         _upsert_snapshot(user_id=user_id, household_id=None, snapshot_date=snapshot_date, totals=totals)
+        detect_and_record_milestones(user_id, None, previous_net_worth, totals["total_net_worth"], snapshot_date)
 
     household_ids = {
         row[0] for row in
@@ -94,7 +104,9 @@ def snapshot_all_users(snapshot_date: Optional[date] = None):
         holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
         liabilities = Liability.query.filter_by(household_id=household_id, is_private=False).all()
         totals = _compute_totals(holdings, liabilities)
+        previous_net_worth = _previous_net_worth(None, household_id, snapshot_date)
         _upsert_snapshot(user_id=None, household_id=household_id, snapshot_date=snapshot_date, totals=totals)
+        detect_and_record_milestones(None, household_id, previous_net_worth, totals["total_net_worth"], snapshot_date)
 
     db.session.commit()
     return {"users_snapshotted": len(user_ids), "households_snapshotted": len(household_ids)}

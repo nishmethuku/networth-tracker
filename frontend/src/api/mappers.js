@@ -254,6 +254,18 @@ export function mapGoal(g) {
   };
 }
 
+export function mapMilestone(m) {
+  if (!m) return null;
+  return {
+    id: m.id,
+    householdId: m.household_id,
+    threshold: safeNumber(m.threshold),
+    currency: m.currency ?? "USD",
+    achievedDate: m.achieved_date,
+    acknowledged: !!m.acknowledged,
+  };
+}
+
 export function mapLiability(l) {
   if (!l) return null;
   return {
