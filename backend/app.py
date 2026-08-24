@@ -19,7 +19,7 @@ from .services import safe_float, rank_symbol_results
 from . import price_service
 from . import ai_service
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
-from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation
+from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation, TRANSACTION_TYPES
 from .household_service import (
     get_member_household_ids,
     get_role,
@@ -332,6 +332,8 @@ def create_app():
     def create_holding_transaction(holding_id):
         holding = get_authorized_holding(holding_id, require_write=True)
         data = request.get_json(force=True)
+        if data.get("transaction_type") not in TRANSACTION_TYPES:
+            return jsonify({"error": f"transaction_type must be one of {list(TRANSACTION_TYPES)}"}), 400
         tx = HoldingTransaction(
             holding_id=holding_id,
             user_id=g.user_id,
@@ -369,6 +371,8 @@ def create_app():
         tx = get_authorized_transaction(transaction_id, require_write=True)
         data = request.get_json(force=True)
         if "transaction_type" in data:
+            if data["transaction_type"] not in TRANSACTION_TYPES:
+                return jsonify({"error": f"transaction_type must be one of {list(TRANSACTION_TYPES)}"}), 400
             tx.transaction_type = data["transaction_type"]
         if "transaction_date" in data:
             tx.transaction_date = date.fromisoformat(data["transaction_date"])

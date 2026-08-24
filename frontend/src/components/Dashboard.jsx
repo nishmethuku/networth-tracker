@@ -227,6 +227,13 @@ export default function Dashboard() {
                 subtitle="Annualized, across every buy/sell"
               />
             )}
+            {!!dashboard.incomeReceived && (
+              <Card
+                title="Dividends & Interest"
+                value={formatCurrencyCompact(dashboard.incomeReceived, currency)}
+                subtitle="Income received, all time"
+              />
+            )}
           </div>
 
           <div

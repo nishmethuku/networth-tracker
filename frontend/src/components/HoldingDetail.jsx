@@ -23,7 +23,7 @@ import {
   ApiError,
 } from "../api";
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
-import { getAssetTypeLabel, isQuantityBased } from "../constants/enums";
+import { getAssetTypeLabel, isQuantityBased, TRANSACTION_TYPES, isIncomeTransactionType } from "../constants/enums";
 import { computeTransactionTimeline } from "../utils/transactionTimeline";
 import { RETURN_RANGES, computePeriodReturn } from "../utils/periodReturn";
 
@@ -83,12 +83,17 @@ function AddTransactionForm({ holding, onDone }) {
     }
   }
 
+  const isIncome = isIncomeTransactionType(form.transaction_type);
+
   function handleSubmit(e) {
     e.preventDefault();
     mutation.mutate({
       transaction_type: form.transaction_type,
       transaction_date: form.transaction_date,
-      quantity: parseFloat(form.quantity),
+      // Dividend/interest are a lump sum, not shares — quantity is fixed
+      // at 1 so "amount" (entered into price_per_unit) maps directly to
+      // quantity * price_per_unit everywhere that formula is already used.
+      quantity: isIncome ? 1 : parseFloat(form.quantity),
       price_per_unit: parseFloat(form.price_per_unit),
       fees: parseFloat(form.fees || 0),
       currency: holding.currency,
@@ -123,23 +128,24 @@ function AddTransactionForm({ holding, onDone }) {
       <div>
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Type</label>
         <select value={form.transaction_type} onChange={(e) => setForm({ ...form, transaction_type: e.target.value })} style={inputStyle}>
-          <option value="buy">Buy</option>
-          <option value="sell">Sell</option>
+          {TRANSACTION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
       <div>
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Date</label>
         <input type="date" value={form.transaction_date} max={new Date().toISOString().split("T")[0]} onChange={(e) => setForm({ ...form, transaction_date: e.target.value })} style={inputStyle} required />
       </div>
+      {!isIncome && (
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Quantity</label>
+          <input type="number" step="any" min="0.0001" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={inputStyle} required />
+        </div>
+      )}
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Quantity</label>
-        <input type="number" step="any" min="0.0001" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={inputStyle} required />
-      </div>
-      <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Price / unit</label>
+        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>{isIncome ? "Amount" : "Price / unit"}</label>
         <div style={{ display: "flex", gap: "0.35rem" }}>
           <input type="number" step="any" min="0" value={form.price_per_unit} onChange={(e) => setForm({ ...form, price_per_unit: e.target.value })} style={{ ...inputStyle, flex: 1 }} required />
-          {holding.symbol && (
+          {!isIncome && holding.symbol && (
             <button type="button" onClick={handleFetchPrice} disabled={fetchingPrice} style={{ fontSize: "0.75rem", padding: "0 0.5rem" }} title="Fetch historical price for this date">
               {fetchingPrice ? "..." : "Fetch"}
             </button>
@@ -394,6 +400,9 @@ export default function HoldingDetail() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.25rem", marginBottom: "1.5rem" }}>
           <Card title="Realized Gain" value={formatCurrencyForDisplay(holding.realizedGain, holding.currency)} subtitle="From sales" />
           <Card title="Unrealized Gain" value={formatCurrencyForDisplay(holding.unrealizedGain, holding.currency)} subtitle="On current holding" />
+          {!!holding.incomeReceived && (
+            <Card title="Dividends & Interest" value={formatCurrencyForDisplay(holding.incomeReceived, holding.currency)} subtitle="Income received" />
+          )}
         </div>
       )}
 

@@ -18,17 +18,28 @@ from .models import Holding, HoldingTransaction, HoldingValuation
 QUANTITY_BASED_TYPES = ("stock", "mutual_fund", "crypto", "commodity")
 VALUATION_BASED_TYPES = ("real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit")
 
+# buy/sell change quantity and cost basis; dividend/interest are cash income
+# that doesn't — a holding's share count and average cost are untouched by
+# a dividend, but the amount still counts as real money received (folded
+# into income_received below, and into XIRR/net-flow as a positive inflow).
+TRANSACTION_TYPES = ("buy", "sell", "dividend", "interest")
+INCOME_TRANSACTION_TYPES = ("dividend", "interest")
+
 
 def compute_position(transactions: List[HoldingTransaction]) -> Dict:
     """
-    Walk a holding's buy/sell transactions in date order using the average
-    cost method: each buy updates the running average cost; each sell
-    reduces quantity and books realized gain against the average cost at
-    the time of sale (average cost itself doesn't change on a sell).
+    Walk a holding's transactions in date order using the average cost
+    method: each buy updates the running average cost; each sell reduces
+    quantity and books realized gain against the average cost at the time
+    of sale (average cost itself doesn't change on a sell). Dividend/
+    interest transactions don't touch quantity or cost basis at all — they
+    just accumulate into income_received, a separate figure from capital
+    gains.
     """
     quantity = 0.0
     total_cost = 0.0
     realized_gain = 0.0
+    income_received = 0.0
     realized_events = []  # [{date, amount}] — one per sell, for tax-year bucketing
 
     for t in sorted(transactions, key=lambda t: (t.transaction_date, t.id or 0)):
@@ -43,6 +54,8 @@ def compute_position(transactions: List[HoldingTransaction]) -> Dict:
             realized_events.append({"date": t.transaction_date, "amount": event_gain, "quantity": sell_qty})
             total_cost -= avg_cost * sell_qty
             quantity -= sell_qty
+        elif t.transaction_type in INCOME_TRANSACTION_TYPES:
+            income_received += t.quantity * t.price_per_unit - t.fees
 
     avg_cost = (total_cost / quantity) if quantity > 0 else 0.0
 
@@ -52,10 +65,15 @@ def compute_position(transactions: List[HoldingTransaction]) -> Dict:
         "avg_cost": avg_cost,
         "cost_basis": total_cost,
         "realized_gain": realized_gain,
+        "income_received": income_received,
     }
 
 
 def _transaction_cash_flows(transactions: List[HoldingTransaction]):
+    """Every transaction as a dated, signed cash flow for XIRR: a buy is
+    money leaving the investor (negative); a sell or a dividend/interest
+    payout is money coming back (positive) — a dividend is a real return
+    just as much as a sale is, so XIRR should reflect it."""
     flows = []
     for t in transactions:
         amount = t.quantity * t.price_per_unit + (t.fees if t.transaction_type == "buy" else -t.fees)
@@ -95,6 +113,7 @@ def calculate_holding_metrics(
         "realized_gain": position["realized_gain"],
         "unrealized_gain": unrealized_gain,
         "total_gain": position["realized_gain"] + unrealized_gain,
+        "income_received": position["income_received"],
         "xirr": xirr(cash_flows),
     }
 
@@ -221,6 +240,8 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
             metrics = calculate_valuation_metrics(h, valuations)
 
         metrics["display_value"] = price_service.convert(metrics["current_value"], h.currency, display_currency)
+        if metrics.get("income_received") is not None:
+            metrics["display_income_received"] = price_service.convert(metrics["income_received"], h.currency, display_currency)
         results.append({**h.to_dict(), **metrics})
 
     return results
@@ -233,7 +254,7 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
 SUMMARY_FIELDS = (
     "id", "household_id", "asset_type", "symbol", "name", "country", "account", "currency",
     "quantity", "avg_cost", "current_price", "current_value", "display_value",
-    "realized_gain", "unrealized_gain", "total_gain", "xirr",
+    "realized_gain", "unrealized_gain", "total_gain", "xirr", "income_received", "display_income_received",
     "first_value", "gain", "cost_basis",
 )
 
@@ -263,6 +284,7 @@ def build_dashboard(
     allocation_by_country: Dict[str, float] = {}
     total_realized = 0.0
     total_unrealized = 0.0
+    total_income_received = 0.0
 
     movers = []
     cutoff = date.today() - timedelta(days=30)
@@ -275,6 +297,7 @@ def build_dashboard(
         if h["asset_type"] in QUANTITY_BASED_TYPES:
             total_realized += h.get("realized_gain", 0.0)
             total_unrealized += h.get("unrealized_gain", 0.0)
+            total_income_received += h.get("display_income_received") or 0.0
             holding = holdings_by_id.get(h["id"])
             if holding and h.get("quantity", 0) > 0:
                 mover_candidates.append(h)
@@ -319,6 +342,7 @@ def build_dashboard(
         "top_losers": list(reversed(movers[-5:])) if len(movers) > 5 else [],
         "realized_gain": round(total_realized, 2),
         "unrealized_gain": round(total_unrealized, 2),
+        "income_received": round(total_income_received, 2),
     }
 
 
@@ -360,7 +384,10 @@ def get_monthly_net_flow(
             continue
         amount = tx.quantity * tx.price_per_unit + (tx.fees or 0.0)
         amount = price_service.convert(amount, tx.currency, display_currency)
-        signed = amount if tx.transaction_type == "buy" else -amount
+        # A sell withdraws from the position (negative); a buy contributes
+        # to it, and so does dividend/interest income — both are money
+        # landing in this asset type, not leaving it.
+        signed = -amount if tx.transaction_type == "sell" else amount
         add(tx.transaction_date.strftime("%Y-%m"), holding.asset_type, signed)
 
     valuations_by_holding: Dict[int, List[HoldingValuation]] = {}

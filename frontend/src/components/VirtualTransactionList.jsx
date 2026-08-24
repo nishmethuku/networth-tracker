@@ -73,7 +73,7 @@ export default function VirtualTransactionList({ transactions }) {
                   </Link>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{getAssetTypeLabel(t.assetType)}</div>
                 </div>
-                <div style={{ textTransform: "capitalize", color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
+                <div style={{ textTransform: "capitalize", color: t.transactionType === "sell" ? "var(--danger)" : "var(--success)", fontWeight: 600 }}>
                   {t.transactionType}
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</div>

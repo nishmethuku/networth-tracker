@@ -18,6 +18,22 @@ export const ASSET_TYPES = {
   CREDIT: "credit",
 };
 
+// Mirrors backend holdings_service.TRANSACTION_TYPES/INCOME_TRANSACTION_TYPES.
+// Dividend/interest don't change quantity or cost basis (see AddTransactionForm
+// in HoldingDetail.jsx), so anywhere a transaction's type drives a buy/sell-style
+// display (color, "@ price" phrasing) needs to branch on this too.
+export const TRANSACTION_TYPES = [
+  { value: "buy", label: "Buy" },
+  { value: "sell", label: "Sell" },
+  { value: "dividend", label: "Dividend" },
+  { value: "interest", label: "Interest" },
+];
+export const INCOME_TRANSACTION_TYPES = ["dividend", "interest"];
+
+export function isIncomeTransactionType(transactionType) {
+  return INCOME_TRANSACTION_TYPES.includes(transactionType);
+}
+
 export const ASSET_TYPE_LABELS = {
   [ASSET_TYPES.STOCK]: "Stocks",
   [ASSET_TYPES.MUTUAL_FUND]: "Mutual Funds",

@@ -37,6 +37,8 @@ export function mapHolding(h) {
     unrealizedGain: h.unrealized_gain != null ? safeNumber(h.unrealized_gain) : null,
     totalGain: h.total_gain != null ? safeNumber(h.total_gain) : null,
     xirr: h.xirr != null ? safeNumber(h.xirr) : null,
+    incomeReceived: h.income_received != null ? safeNumber(h.income_received) : null,
+    displayIncomeReceived: h.display_income_received != null ? safeNumber(h.display_income_received) : null,
 
     // Valuation-based metrics (real_estate/fixed_deposit/ppf/epf/cash/loan)
     firstValue: h.first_value != null ? safeNumber(h.first_value) : null,
@@ -106,6 +108,7 @@ export function mapDashboard(d) {
     topLosers: (d.top_losers || []).map(mapMover),
     realizedGain: safeNumber(d.realized_gain),
     unrealizedGain: safeNumber(d.unrealized_gain),
+    incomeReceived: safeNumber(d.income_received),
   };
 }
 

@@ -92,6 +92,46 @@ def test_sell_deducts_fees_from_realized_gain():
     assert abs(pos["realized_gain"] - 480.0) < 1e-9
 
 
+def test_dividend_does_not_change_quantity_or_cost_basis():
+    txs = [
+        _tx("buy", date(2024, 1, 1), 10, 100.0),
+        _tx("dividend", date(2024, 6, 1), 1, 25.0),
+    ]
+    pos = compute_position(txs)
+    assert pos["quantity"] == 10
+    assert pos["cost_basis"] == 1000.0
+    assert pos["avg_cost"] == 100.0
+    assert pos["income_received"] == 25.0
+
+
+def test_interest_accumulates_alongside_dividends():
+    txs = [
+        _tx("buy", date(2024, 1, 1), 10, 100.0),
+        _tx("dividend", date(2024, 3, 1), 1, 10.0),
+        _tx("interest", date(2024, 9, 1), 1, 5.0),
+    ]
+    pos = compute_position(txs)
+    assert pos["income_received"] == 15.0
+
+
+def test_dividend_fees_reduce_income_received():
+    txs = [_tx("dividend", date(2024, 3, 1), 1, 25.0, fees=2.0)]
+    pos = compute_position(txs)
+    assert pos["income_received"] == 23.0
+
+
+def test_holding_metrics_exposes_income_received():
+    holding = _holding()
+    txs = [
+        _tx("buy", date.today() - timedelta(days=200), 10, 100.0),
+        _tx("dividend", date.today() - timedelta(days=100), 1, 15.0),
+    ]
+    metrics = calculate_holding_metrics(holding, txs, current_price=110.0)
+    assert metrics["income_received"] == 15.0
+    # Dividend income counts as a real XIRR inflow, same direction as a sell.
+    assert metrics["xirr"] is not None
+
+
 def test_holding_metrics_unrealized_gain_with_live_price():
     holding = _holding()
     txs = [_tx("buy", date.today() - timedelta(days=365), 10, 100.0)]
@@ -163,6 +203,17 @@ def test_monthly_net_flow_buy_is_positive_sell_is_negative():
     ]
     result = get_monthly_net_flow([holding], transactions, [])
     assert result == [{"month": "2026-03", "total_flow": 520.0, "by_asset_type": {"stock": 520.0}}]
+
+
+def test_monthly_net_flow_dividend_is_positive_not_a_withdrawal():
+    holding = _holding(asset_type="stock")
+    holding.id = 1
+    transactions = [
+        _tx("buy", date(2026, 3, 5), 10, 100.0),      # +1000
+        _tx("dividend", date(2026, 3, 20), 1, 25.0),  # +25, not -25
+    ]
+    result = get_monthly_net_flow([holding], transactions, [])
+    assert result == [{"month": "2026-03", "total_flow": 1025.0, "by_asset_type": {"stock": 1025.0}}]
 
 
 def test_monthly_net_flow_includes_fees_in_buy_amount():
