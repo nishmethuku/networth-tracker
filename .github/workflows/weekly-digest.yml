@@ -1,9 +1,11 @@
 name: Weekly Net Worth Digest
 
 # Runs once a week and hits the backend's /internal/weekly-digest endpoint,
-# which computes (but does not yet email) a net worth summary per user and
-# household. Email delivery is stubbed until a provider (Resend/SendGrid/SES)
-# is configured — this cron is harmless to run in the meantime.
+# which computes and emails (via Resend) a net worth summary + AI narrative
+# + data backup attachment per user and household. Can take a couple of
+# minutes with more than a handful of recipients (an AI narrative call per
+# digest scope, each up to ~70s) — the backend's gunicorn --timeout is set
+# accordingly, see the Dockerfile.
 # Requires the same two repo secrets as daily-snapshot.yml:
 #   BACKEND_URL      e.g. https://networth-tracker.onrender.com
 #   SNAPSHOT_SECRET   must match the backend's SNAPSHOT_SECRET env var
