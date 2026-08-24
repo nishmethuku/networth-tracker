@@ -38,7 +38,15 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, onDelete }) {
           </span>
           <button
             onClick={() => onDelete(goal.id)}
-            style={{ fontSize: "0.7rem", background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "0.1rem 0.4rem", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
+            style={{
+              fontSize: "0.7rem",
+              background: "transparent",
+              border: "1px solid var(--border)",
+              color: "var(--text-muted)",
+              padding: "0.1rem 0.4rem",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+            }}
           >
             ✕
           </button>
@@ -47,10 +55,29 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, onDelete }) {
       {sameCurrency ? (
         <>
           <div style={{ height: 8, borderRadius: 4, background: "var(--bg-secondary)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: pct >= 100 ? "var(--success)" : "var(--primary)", borderRadius: 4, transition: "width 0.3s ease" }} />
+            <div
+              style={{
+                height: "100%",
+                width: `${pct}%`,
+                background: pct >= 100 ? "var(--success)" : "var(--primary)",
+                borderRadius: 4,
+                transition: "width 0.3s ease",
+              }}
+            />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.3rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            <span>{pct.toFixed(0)}% there{remaining > 0 ? ` — ${formatCurrencyForDisplay(remaining, goal.currency, { includeCode: false })} to go` : " 🎉"}</span>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: "0.3rem",
+              fontSize: "0.75rem",
+              color: "var(--text-muted)",
+            }}
+          >
+            <span>
+              {pct.toFixed(0)}% there
+              {remaining > 0 ? ` — ${formatCurrencyForDisplay(remaining, goal.currency, { includeCode: false })} to go` : " 🎉"}
+            </span>
             {days != null && <span>{days > 0 ? `${days} days left` : "Target date passed"}</span>}
           </div>
         </>
@@ -90,26 +117,73 @@ function AddGoalForm({ onDone, defaultCurrency }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "0.5rem", alignItems: "end", marginTop: "0.75rem" }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+        gap: "0.5rem",
+        alignItems: "end",
+        marginTop: "0.75rem",
+      }}
+    >
       <div>
         <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.2rem" }}>Name</label>
-        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., Retirement" style={inputStyle} required />
+        <input
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="e.g., Retirement"
+          style={inputStyle}
+          required
+        />
       </div>
       <div>
         <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.2rem" }}>Target</label>
-        <input type="number" step="any" min="0.01" value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} style={inputStyle} required />
+        <input
+          type="number"
+          step="any"
+          min="0.01"
+          value={form.target_amount}
+          onChange={(e) => setForm({ ...form, target_amount: e.target.value })}
+          style={inputStyle}
+          required
+        />
       </div>
       <div>
         <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.2rem" }}>Currency</label>
         <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={inputStyle}>
-          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          {CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
         </select>
       </div>
       <div>
-        <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.2rem" }}>By (optional)</label>
-        <input type="date" value={form.target_date} onChange={(e) => setForm({ ...form, target_date: e.target.value })} style={inputStyle} />
+        <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.2rem" }}>
+          By (optional)
+        </label>
+        <input
+          type="date"
+          value={form.target_date}
+          onChange={(e) => setForm({ ...form, target_date: e.target.value })}
+          style={inputStyle}
+        />
       </div>
-      <button type="submit" disabled={mutation.isPending} style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius-sm)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600, fontSize: "0.8125rem" }}>
+      <button
+        type="submit"
+        disabled={mutation.isPending}
+        style={{
+          padding: "0.5rem 0.75rem",
+          borderRadius: "var(--radius-sm)",
+          border: "none",
+          background: "var(--primary)",
+          color: "var(--text-inverse)",
+          cursor: "pointer",
+          fontWeight: 600,
+          fontSize: "0.8125rem",
+        }}
+      >
         {mutation.isPending ? "Adding…" : "Add goal"}
       </button>
     </form>
@@ -140,7 +214,13 @@ export default function GoalsCard({ currentNetWorth, displayCurrency }) {
       ) : (
         <div>
           {goals.map((goal) => (
-            <GoalRow key={goal.id} goal={goal} currentNetWorth={currentNetWorth} displayCurrency={displayCurrency} onDelete={(id) => deleteMutation.mutate(id)} />
+            <GoalRow
+              key={goal.id}
+              goal={goal}
+              currentNetWorth={currentNetWorth}
+              displayCurrency={displayCurrency}
+              onDelete={(id) => deleteMutation.mutate(id)}
+            />
           ))}
         </div>
       )}
@@ -149,7 +229,16 @@ export default function GoalsCard({ currentNetWorth, displayCurrency }) {
       ) : (
         <button
           onClick={() => setShowForm(true)}
-          style={{ marginTop: "0.75rem", fontSize: "0.8125rem", color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
+          style={{
+            marginTop: "0.75rem",
+            fontSize: "0.8125rem",
+            color: "var(--primary)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            fontWeight: 500,
+          }}
         >
           + Add a goal
         </button>

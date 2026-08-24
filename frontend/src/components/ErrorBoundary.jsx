@@ -54,7 +54,15 @@ export default class ErrorBoundary extends React.Component {
             </p>
             <button
               onClick={this.handleRetry}
-              style={{ padding: "0.4rem 0.9rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", cursor: "pointer", fontSize: "0.8125rem" }}
+              style={{
+                padding: "0.4rem 0.9rem",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border)",
+                background: "var(--card)",
+                color: "var(--text)",
+                cursor: "pointer",
+                fontSize: "0.8125rem",
+              }}
             >
               Retry
             </button>
@@ -62,13 +70,7 @@ export default class ErrorBoundary extends React.Component {
         );
       }
 
-      return (
-        <ErrorState
-          error={message}
-          onRetry={this.handleRetry}
-          message="The page crashed. Please reload."
-        />
-      );
+      return <ErrorState error={message} onRetry={this.handleRetry} message="The page crashed. Please reload." />;
     }
 
     return this.props.children;

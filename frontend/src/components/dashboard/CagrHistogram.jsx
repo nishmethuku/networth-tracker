@@ -58,10 +58,7 @@ export default function CagrHistogram({ holdings, portfolioXirr }) {
           />
           <Bar dataKey="returnPct" radius={[0, 4, 4, 0]} isAnimationActive={true}>
             {data.map((entry) => (
-              <Cell
-                key={entry.key}
-                fill={entry.isTotal ? "var(--primary)" : entry.returnPct >= 0 ? "var(--success)" : "var(--danger)"}
-              />
+              <Cell key={entry.key} fill={entry.isTotal ? "var(--primary)" : entry.returnPct >= 0 ? "var(--success)" : "var(--danger)"} />
             ))}
             <LabelList
               dataKey="returnPct"

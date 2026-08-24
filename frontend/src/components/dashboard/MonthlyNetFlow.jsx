@@ -50,11 +50,24 @@ export default function MonthlyNetFlow({ currency }) {
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0", cursor: "pointer" }}
             >
               <span style={{ fontSize: "0.875rem", color: "var(--text)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.7rem", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s ease", display: "inline-block" }}>▶</span>
+                <span
+                  style={{
+                    color: "var(--text-muted)",
+                    fontSize: "0.7rem",
+                    transform: isOpen ? "rotate(90deg)" : "none",
+                    transition: "transform 0.15s ease",
+                    display: "inline-block",
+                  }}
+                >
+                  ▶
+                </span>
                 {formatMonthLabel(m.month)}
               </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: m.totalFlow < 0 ? "var(--danger)" : "var(--success)" }}>
-                {m.totalFlow >= 0 ? "+" : ""}{formatCurrencyForDisplay(m.totalFlow, currency, { includeCode: false })}
+              <span
+                style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: m.totalFlow < 0 ? "var(--danger)" : "var(--success)" }}
+              >
+                {m.totalFlow >= 0 ? "+" : ""}
+                {formatCurrencyForDisplay(m.totalFlow, currency, { includeCode: false })}
               </span>
             </div>
             {isOpen && (
@@ -66,7 +79,8 @@ export default function MonthlyNetFlow({ currency }) {
                     <div key={type} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem" }}>
                       <span style={{ color: "var(--text-secondary)" }}>{getAssetTypeLabel(type)}</span>
                       <span style={{ fontFamily: "var(--font-mono)", color: value < 0 ? "var(--danger)" : "var(--success)" }}>
-                        {value >= 0 ? "+" : ""}{formatCurrencyForDisplay(value, currency, { includeCode: false })}
+                        {value >= 0 ? "+" : ""}
+                        {formatCurrencyForDisplay(value, currency, { includeCode: false })}
                       </span>
                     </div>
                   ))

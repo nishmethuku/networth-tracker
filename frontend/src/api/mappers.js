@@ -23,7 +23,12 @@ export function mapHolding(h) {
     sipStartDate: h.sip_start_date ?? null,
     isPrivate: !!h.is_private,
     notes: h.notes ?? "",
-    tags: h.tags ? h.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+    tags: h.tags
+      ? h.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [],
     status: h.status ?? "active",
     createdAt: h.created_at ?? "",
     updatedAt: h.updated_at ?? "",

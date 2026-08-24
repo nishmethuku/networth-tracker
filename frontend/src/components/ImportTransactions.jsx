@@ -79,12 +79,9 @@ export default function ImportTransactions() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem" }}>
-      <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>
-        Import from a Broker Export
-      </h1>
+      <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>Import from a Broker Export</h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
-        For a raw transaction file downloaded directly from one of the brokers below. Nothing is saved
-        until you review and confirm.
+        For a raw transaction file downloaded directly from one of the brokers below. Nothing is saved until you review and confirm.
       </p>
 
       <div
@@ -104,10 +101,7 @@ export default function ImportTransactions() {
         <span style={{ fontSize: "0.875rem", color: "var(--text)" }}>
           Not from one of these brokers — just your own spreadsheet of stocks, accounts, whatever you track?
         </span>
-        <Link
-          to="/import-spreadsheet"
-          style={{ fontWeight: 600, fontSize: "0.875rem", whiteSpace: "nowrap", color: "var(--primary)" }}
-        >
+        <Link to="/import-spreadsheet" style={{ fontWeight: 600, fontSize: "0.875rem", whiteSpace: "nowrap", color: "var(--primary)" }}>
           Use AI import instead →
         </Link>
       </div>
@@ -115,20 +109,44 @@ export default function ImportTransactions() {
       <Card>
         <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>Broker</label>
-            <select value={broker} onChange={(e) => { setBroker(e.target.value); setPreview(null); }} style={{ ...inputStyle, width: "100%" }}>
-              {BROKERS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+              Broker
+            </label>
+            <select
+              value={broker}
+              onChange={(e) => {
+                setBroker(e.target.value);
+                setPreview(null);
+              }}
+              style={{ ...inputStyle, width: "100%" }}
+            >
+              {BROKERS.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>CSV File</label>
+            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+              CSV File
+            </label>
             <input type="file" accept=".csv" onChange={handleFileChange} style={{ ...inputStyle, width: "100%" }} />
           </div>
         </div>
         <button
           onClick={() => parseMutation.mutate()}
           disabled={!csvText || parseMutation.isPending}
-          style={{ marginTop: "1.25rem", padding: "0.75rem 1.5rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600 }}
+          style={{
+            marginTop: "1.25rem",
+            padding: "0.75rem 1.5rem",
+            borderRadius: "var(--radius)",
+            border: "none",
+            background: "var(--primary)",
+            color: "var(--text-inverse)",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
         >
           {parseMutation.isPending ? "Parsing..." : fileName ? `Preview: ${fileName}` : "Choose a file first"}
         </button>
@@ -137,8 +155,19 @@ export default function ImportTransactions() {
       {preview && (
         <div style={{ marginTop: "1.5rem" }}>
           {preview.errors.length > 0 && (
-            <div style={{ padding: "1rem 1.25rem", background: "var(--danger-light)", border: "1px solid var(--danger)", borderRadius: "var(--radius)", color: "var(--danger)", marginBottom: "1.5rem" }}>
-              {preview.errors.map((e, i) => <div key={i}>{e}</div>)}
+            <div
+              style={{
+                padding: "1rem 1.25rem",
+                background: "var(--danger-light)",
+                border: "1px solid var(--danger)",
+                borderRadius: "var(--radius)",
+                color: "var(--danger)",
+                marginBottom: "1.5rem",
+              }}
+            >
+              {preview.errors.map((e, i) => (
+                <div key={i}>{e}</div>
+              ))}
             </div>
           )}
 
@@ -167,12 +196,20 @@ export default function ImportTransactions() {
                           />
                         </td>
                         <td style={{ padding: "0.5rem", fontWeight: 600 }}>{r.symbol}</td>
-                        <td style={{ padding: "0.5rem", textTransform: "capitalize", color: r.transaction_type === "buy" ? "var(--success)" : "var(--danger)" }}>
+                        <td
+                          style={{
+                            padding: "0.5rem",
+                            textTransform: "capitalize",
+                            color: r.transaction_type === "buy" ? "var(--success)" : "var(--danger)",
+                          }}
+                        >
                           {r.transaction_type}
                         </td>
                         <td style={{ padding: "0.5rem" }}>{r.transaction_date}</td>
                         <td style={{ padding: "0.5rem", fontFamily: "var(--font-mono)" }}>{r.quantity}</td>
-                        <td style={{ padding: "0.5rem", fontFamily: "var(--font-mono)" }}>{r.price_per_unit} {r.currency}</td>
+                        <td style={{ padding: "0.5rem", fontFamily: "var(--font-mono)" }}>
+                          {r.price_per_unit} {r.currency}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -181,7 +218,16 @@ export default function ImportTransactions() {
               <button
                 onClick={() => confirmMutation.mutate()}
                 disabled={includedCount === 0 || confirmMutation.isPending}
-                style={{ marginTop: "1.25rem", padding: "0.75rem 1.5rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600 }}
+                style={{
+                  marginTop: "1.25rem",
+                  padding: "0.75rem 1.5rem",
+                  borderRadius: "var(--radius)",
+                  border: "none",
+                  background: "var(--primary)",
+                  color: "var(--text-inverse)",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
               >
                 {confirmMutation.isPending ? "Importing..." : `Import ${includedCount} Transaction${includedCount === 1 ? "" : "s"}`}
               </button>
@@ -192,7 +238,9 @@ export default function ImportTransactions() {
             <Card title={`Skipped (${skippedRows.length})`}>
               <div style={{ marginTop: "0.75rem", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
                 {skippedRows.map((r) => (
-                  <div key={r.row} style={{ padding: "0.35rem 0" }}>Row {r.row}: {r.reason}</div>
+                  <div key={r.row} style={{ padding: "0.35rem 0" }}>
+                    Row {r.row}: {r.reason}
+                  </div>
                 ))}
               </div>
             </Card>

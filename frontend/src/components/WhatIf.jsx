@@ -50,7 +50,7 @@ export default function WhatIf() {
         annualRatePct: Number(annualRatePct) || 0,
         years: Math.max(1, Math.min(60, Number(years) || 1)),
       }),
-    [effectiveStarting, monthlyContribution, annualRatePct, years]
+    [effectiveStarting, monthlyContribution, annualRatePct, years],
   );
 
   const final = points[points.length - 1];
@@ -62,76 +62,146 @@ export default function WhatIf() {
     <div>
       <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>What-If</h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
-        Project where a starting amount plus a monthly contribution could get to, at a given growth rate — a scratch calculator, not a forecast.
+        Project where a starting amount plus a monthly contribution could get to, at a given growth rate — a scratch calculator, not a
+        forecast.
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(240px, 1fr) minmax(320px, 2fr)", gap: "1.5rem", alignItems: "start" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "minmax(240px, 1fr) minmax(320px, 2fr)",
+          gap: "1.5rem",
+          alignItems: "start",
+        }}
+      >
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-        <Card title="Assumptions">
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div>
-              <label style={labelStyle}>Starting amount</label>
-              <input
-                type="number" step="any" min="0" style={inputStyle}
-                value={effectiveStarting}
-                onChange={(e) => setStartingAmount(e.target.value === "" ? 0 : parseFloat(e.target.value))}
-              />
-              {dashboard && (
-                <button
-                  type="button"
-                  onClick={() => setStartingAmount(dashboard.totalNetWorth)}
-                  style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                >
-                  Use my current net worth ({formatCurrencyCompact(dashboard.totalNetWorth, currency)})
-                </button>
-              )}
-            </div>
-            <div>
-              <label style={labelStyle}>Monthly contribution</label>
-              <input type="number" step="any" min="0" style={inputStyle} value={monthlyContribution} onChange={(e) => setMonthlyContribution(e.target.value)} />
-            </div>
-            <div>
-              <label style={labelStyle}>Annual growth rate (%)</label>
-              <input type="number" step="any" style={inputStyle} value={annualRatePct} onChange={(e) => setAnnualRatePct(e.target.value)} />
-              {dashboard?.portfolioXirr != null && (
-                <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  Your portfolio's own annualized return: {formatPercent(dashboard.portfolioXirr * 100)}
-                </div>
-              )}
-            </div>
-            <div>
-              <label style={labelStyle}>Years</label>
-              <input type="number" step="1" min="1" max="60" style={inputStyle} value={years} onChange={(e) => setYears(e.target.value)} />
-            </div>
-          </div>
-        </Card>
-
-        <Card title="FIRE calculator">
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", color: "var(--text)", cursor: "pointer", marginBottom: showFire ? "1rem" : 0 }}>
-            <input type="checkbox" checked={showFire} onChange={(e) => setShowFire(e.target.checked)} />
-            Show when I'd reach financial independence
-          </label>
-          {showFire && (
+          <Card title="Assumptions">
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
-                <label style={labelStyle}>Annual expenses in retirement</label>
-                <input type="number" step="any" min="0" style={inputStyle} value={annualExpenses} onChange={(e) => setAnnualExpenses(e.target.value)} />
+                <label style={labelStyle}>Starting amount</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  style={inputStyle}
+                  value={effectiveStarting}
+                  onChange={(e) => setStartingAmount(e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                />
+                {dashboard && (
+                  <button
+                    type="button"
+                    onClick={() => setStartingAmount(dashboard.totalNetWorth)}
+                    style={{
+                      marginTop: "0.35rem",
+                      fontSize: "0.75rem",
+                      color: "var(--primary)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    Use my current net worth ({formatCurrencyCompact(dashboard.totalNetWorth, currency)})
+                  </button>
+                )}
               </div>
               <div>
-                <label style={labelStyle}>Safe withdrawal rate (%)</label>
-                <input type="number" step="any" min="0.1" style={inputStyle} value={withdrawalRatePct} onChange={(e) => setWithdrawalRatePct(e.target.value)} />
-                <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>The classic "4% rule" implies a 25x expenses target.</div>
+                <label style={labelStyle}>Monthly contribution</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  style={inputStyle}
+                  value={monthlyContribution}
+                  onChange={(e) => setMonthlyContribution(e.target.value)}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Annual growth rate (%)</label>
+                <input
+                  type="number"
+                  step="any"
+                  style={inputStyle}
+                  value={annualRatePct}
+                  onChange={(e) => setAnnualRatePct(e.target.value)}
+                />
+                {dashboard?.portfolioXirr != null && (
+                  <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    Your portfolio's own annualized return: {formatPercent(dashboard.portfolioXirr * 100)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={labelStyle}>Years</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  max="60"
+                  style={inputStyle}
+                  value={years}
+                  onChange={(e) => setYears(e.target.value)}
+                />
               </div>
             </div>
-          )}
-        </Card>
+          </Card>
+
+          <Card title="FIRE calculator">
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                fontSize: "0.875rem",
+                color: "var(--text)",
+                cursor: "pointer",
+                marginBottom: showFire ? "1rem" : 0,
+              }}
+            >
+              <input type="checkbox" checked={showFire} onChange={(e) => setShowFire(e.target.checked)} />
+              Show when I'd reach financial independence
+            </label>
+            {showFire && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div>
+                  <label style={labelStyle}>Annual expenses in retirement</label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    style={inputStyle}
+                    value={annualExpenses}
+                    onChange={(e) => setAnnualExpenses(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Safe withdrawal rate (%)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.1"
+                    style={inputStyle}
+                    value={withdrawalRatePct}
+                    onChange={(e) => setWithdrawalRatePct(e.target.value)}
+                  />
+                  <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    The classic "4% rule" implies a 25x expenses target.
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1.25rem" }}>
             <Card title={`Projected in ${years} yr${years == 1 ? "" : "s"}`} value={formatCurrencyCompact(final.value, currency)} />
             <Card title="Total contributed" value={formatCurrencyCompact(final.contributed, currency)} />
-            <Card title="Growth from returns" value={formatCurrencyCompact(final.growth, currency)} subtitle={final.contributed > 0 ? `${((final.growth / final.contributed) * 100).toFixed(0)}% of contributions` : undefined} />
+            <Card
+              title="Growth from returns"
+              value={formatCurrencyCompact(final.growth, currency)}
+              subtitle={final.contributed > 0 ? `${((final.growth / final.contributed) * 100).toFixed(0)}% of contributions` : undefined}
+            />
             {showFire && fireTarget != null && (
               <Card
                 title="FIRE number"
@@ -147,15 +217,32 @@ export default function WhatIf() {
                 <LineChart data={points}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
                   <XAxis dataKey="year" tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(y) => `Yr ${y}`} />
-                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => formatCurrencyCompact(v, currency)} width={64} />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                    tickFormatter={(v) => formatCurrencyCompact(v, currency)}
+                    width={64}
+                  />
                   <Tooltip
-                    formatter={(v, name) => [formatCurrencyForDisplay(v, currency), name === "value" ? "Projected value" : "Total contributed"]}
+                    formatter={(v, name) => [
+                      formatCurrencyForDisplay(v, currency),
+                      name === "value" ? "Projected value" : "Total contributed",
+                    ]}
                     labelFormatter={(y) => `Year ${y}`}
                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
                   />
-                  <Legend formatter={(v) => (v === "value" ? "Projected value" : "Total contributed")} wrapperStyle={{ fontSize: "0.75rem" }} />
+                  <Legend
+                    formatter={(v) => (v === "value" ? "Projected value" : "Total contributed")}
+                    wrapperStyle={{ fontSize: "0.75rem" }}
+                  />
                   <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="contributed" stroke="var(--text-muted)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                  <Line
+                    type="monotone"
+                    dataKey="contributed"
+                    stroke="var(--text-muted)"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    dot={false}
+                  />
                   {showFire && fireTarget != null && (
                     <ReferenceLine
                       y={fireTarget}

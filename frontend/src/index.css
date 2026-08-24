@@ -3,14 +3,17 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   overflow-x: hidden;
 }
 
 body {
   margin: 0;
   padding: 0;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 /* Scrollbar styling */
@@ -50,12 +53,15 @@ button:disabled {
 }
 
 /* Input base styles */
-input, select, textarea {
+input,
+select,
+textarea {
   font-family: inherit;
   transition: all 0.2s ease;
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--text-muted);
   opacity: 0.7;
 }

@@ -71,11 +71,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT) 
         window.dispatchEvent(new CustomEvent("api:rate-limited", { detail: { retryAfter } }));
       }
 
-      throw new ApiError(
-        errorData.error || errorData.message || `HTTP ${response.status}`,
-        response.status,
-        errorData
-      );
+      throw new ApiError(errorData.error || errorData.message || `HTTP ${response.status}`, response.status, errorData);
     }
 
     return response;
@@ -87,10 +83,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT) 
     if (error instanceof ApiError) {
       throw error;
     }
-    throw new ApiError(
-      error.message || "Network error. Please check your connection.",
-      0
-    );
+    throw new ApiError(error.message || "Network error. Please check your connection.", 0);
   }
 }
 
@@ -210,7 +203,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       },
-      timeoutMs
+      timeoutMs,
     ),
   put: (endpoint, data) =>
     request(endpoint, {

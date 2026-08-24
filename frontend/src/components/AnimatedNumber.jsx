@@ -39,9 +39,5 @@ export default function AnimatedNumber({ value, format, duration = 0.6 }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  return (
-    <motion.span initial={false}>
-      {format ? format(display) : display}
-    </motion.span>
-  );
+  return <motion.span initial={false}>{format ? format(display) : display}</motion.span>;
 }

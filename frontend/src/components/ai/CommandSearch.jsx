@@ -87,7 +87,15 @@ export default function CommandSearch() {
               overflow: "hidden",
             }}
           >
-            <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "center", padding: "0.5rem 0.75rem", borderBottom: error ? "1px solid var(--border)" : "none" }}>
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "0.5rem 0.75rem",
+                borderBottom: error ? "1px solid var(--border)" : "none",
+              }}
+            >
               <span style={{ fontSize: "1.125rem", marginRight: "0.5rem" }}>🔎</span>
               <input
                 autoFocus
@@ -105,11 +113,19 @@ export default function CommandSearch() {
                 }}
               />
               {loading && <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Searching…</span>}
-              <kbd style={{ fontSize: "0.6875rem", color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: "4px", padding: "0.1rem 0.35rem" }}>Esc</kbd>
+              <kbd
+                style={{
+                  fontSize: "0.6875rem",
+                  color: "var(--text-muted)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "4px",
+                  padding: "0.1rem 0.35rem",
+                }}
+              >
+                Esc
+              </kbd>
             </form>
-            {error && (
-              <div style={{ padding: "0.75rem 1rem", fontSize: "0.8125rem", color: "var(--danger)" }}>{error}</div>
-            )}
+            {error && <div style={{ padding: "0.75rem 1rem", fontSize: "0.8125rem", color: "var(--danger)" }}>{error}</div>}
           </motion.div>
         </>
       )}

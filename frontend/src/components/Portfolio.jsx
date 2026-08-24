@@ -83,7 +83,8 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
                 <td style={{ padding: "0.75rem 0.5rem" }}>
                   <div style={{ fontWeight: 600 }}>{h.symbol || h.name}</div>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    {h.country}{h.account ? ` • ${h.account}` : ""}
+                    {h.country}
+                    {h.account ? ` • ${h.account}` : ""}
                   </div>
                 </td>
                 {quantityBased && (
@@ -118,7 +119,9 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
                   </td>
                 )}
                 {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", color: gainPct(h) != null && gainPct(h) >= 0 ? "var(--success)" : "var(--danger)" }}>
+                  <td
+                    style={{ padding: "0.75rem 0.5rem", color: gainPct(h) != null && gainPct(h) >= 0 ? "var(--success)" : "var(--danger)" }}
+                  >
                     {gainPct(h) != null ? formatPercent(gainPct(h)) : "—"}
                   </td>
                 )}
@@ -146,7 +149,7 @@ export default function Portfolio() {
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [aiFilter, setAiFilter] = useState(
-    location.state?.aiFilterSpec ? { spec: location.state.aiFilterSpec, query: location.state.aiFilterQuery } : null
+    location.state?.aiFilterSpec ? { spec: location.state.aiFilterSpec, query: location.state.aiFilterQuery } : null,
   );
 
   const {
@@ -173,9 +176,7 @@ export default function Portfolio() {
 
   if (isLoading) return <PortfolioSkeleton />;
   if (isError) {
-    return (
-      <ErrorState error={error instanceof ApiError ? error.message : "Failed to load portfolio"} onRetry={refetch} />
-    );
+    return <ErrorState error={error instanceof ApiError ? error.message : "Failed to load portfolio"} onRetry={refetch} />;
   }
 
   const filteredHoldings = aiFilter ? (holdings || []).filter((h) => matchesFilterSpec(h, aiFilter.spec)) : holdings || [];
@@ -189,16 +190,38 @@ export default function Portfolio() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
           <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>Portfolio</h1>
-          <div style={{ display: "inline-flex", gap: "0.25rem", background: "var(--card)", borderRadius: "999px", padding: "0.25rem", border: "1px solid var(--border)" }}>
+          <div
+            style={{
+              display: "inline-flex",
+              gap: "0.25rem",
+              background: "var(--card)",
+              borderRadius: "999px",
+              padding: "0.25rem",
+              border: "1px solid var(--border)",
+            }}
+          >
             {CURRENCIES.map((cur) => (
               <button
                 key={cur}
                 onClick={() => setCurrency(cur)}
                 style={{
-                  border: "none", borderRadius: "999px", padding: "0.35rem 0.8rem", fontSize: "0.8rem", cursor: "pointer",
+                  border: "none",
+                  borderRadius: "999px",
+                  padding: "0.35rem 0.8rem",
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
                   background: currency === cur ? "var(--primary)" : "transparent",
                   color: currency === cur ? "var(--text-inverse)" : "var(--text-secondary)",
                   fontWeight: currency === cur ? 600 : 500,
@@ -211,7 +234,17 @@ export default function Portfolio() {
         </div>
         <button
           onClick={() => navigate("/add-holding")}
-          style={{ padding: "0.75rem 1.5rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600, fontSize: "0.9375rem", boxShadow: "var(--shadow)" }}
+          style={{
+            padding: "0.75rem 1.5rem",
+            borderRadius: "var(--radius)",
+            border: "none",
+            background: "var(--primary)",
+            color: "var(--text-inverse)",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: "0.9375rem",
+            boxShadow: "var(--shadow)",
+          }}
         >
           + Add Holding
         </button>
@@ -225,11 +258,31 @@ export default function Portfolio() {
       />
 
       {aiFilter && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem", padding: "0.5rem 0.875rem", borderRadius: "var(--radius)", background: "var(--primary-light)", border: "1px solid var(--border)", width: "fit-content" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            marginBottom: "1.25rem",
+            padding: "0.5rem 0.875rem",
+            borderRadius: "var(--radius)",
+            background: "var(--primary-light)",
+            border: "1px solid var(--border)",
+            width: "fit-content",
+          }}
+        >
           <span style={{ fontSize: "0.8125rem", color: "var(--primary-dark)" }}>✨ Filtered by: "{aiFilter.query}"</span>
           <button
             onClick={() => setAiFilter(null)}
-            style={{ background: "none", border: "none", color: "var(--primary-dark)", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, padding: 0 }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--primary-dark)",
+              cursor: "pointer",
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              padding: 0,
+            }}
           >
             Clear ×
           </button>
@@ -242,7 +295,18 @@ export default function Portfolio() {
         <EmptyState
           message="No holdings yet. Add your first one!"
           action={
-            <button onClick={() => navigate("/add-holding")} style={{ padding: "0.75rem 1.5rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600 }}>
+            <button
+              onClick={() => navigate("/add-holding")}
+              style={{
+                padding: "0.75rem 1.5rem",
+                borderRadius: "var(--radius)",
+                border: "none",
+                background: "var(--primary)",
+                color: "var(--text-inverse)",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
               Add Holding
             </button>
           }
@@ -254,13 +318,7 @@ export default function Portfolio() {
               {getAssetTypeLabel(type)}
             </h2>
             <Card>
-              <HoldingsTable
-                holdings={grouped[type]}
-                assetType={type}
-                navigate={navigate}
-                onDelete={setDeleteTarget}
-                currency={currency}
-              />
+              <HoldingsTable holdings={grouped[type]} assetType={type} navigate={navigate} onDelete={setDeleteTarget} currency={currency} />
             </Card>
           </div>
         ))

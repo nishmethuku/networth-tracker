@@ -317,7 +317,7 @@ export async function fetchAllocationAdvice({ targetAllocation, householdId, cur
       household_id: householdId,
       currency,
     },
-    AI_TIMEOUT
+    AI_TIMEOUT,
   );
 }
 

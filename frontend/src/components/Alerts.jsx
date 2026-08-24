@@ -20,7 +20,13 @@ export default function Alerts() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ kind: "price", holdingId: "", direction: "above", threshold: "", currency: "USD" });
 
-  const { data: alerts, isLoading, isError, error, refetch } = useQuery({ queryKey: ["alerts"], queryFn: fetchAlerts, staleTime: 1000 * 30 });
+  const {
+    data: alerts,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({ queryKey: ["alerts"], queryFn: fetchAlerts, staleTime: 1000 * 30 });
   const { data: holdings } = useQuery({
     queryKey: ["holdings", "summary", "USD", ""],
     queryFn: () => fetchHoldings({ currency: "USD", summary: true }),
@@ -80,10 +86,30 @@ export default function Alerts() {
       <Card>
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" onClick={() => setForm({ ...form, kind: "price" })} style={{ ...inputStyle, flex: 1, cursor: "pointer", background: form.kind === "price" ? "var(--primary-light)" : "var(--bg)", color: form.kind === "price" ? "var(--primary)" : "var(--text)" }}>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, kind: "price" })}
+              style={{
+                ...inputStyle,
+                flex: 1,
+                cursor: "pointer",
+                background: form.kind === "price" ? "var(--primary-light)" : "var(--bg)",
+                color: form.kind === "price" ? "var(--primary)" : "var(--text)",
+              }}
+            >
               Holding Price
             </button>
-            <button type="button" onClick={() => setForm({ ...form, kind: "networth" })} style={{ ...inputStyle, flex: 1, cursor: "pointer", background: form.kind === "networth" ? "var(--primary-light)" : "var(--bg)", color: form.kind === "networth" ? "var(--primary)" : "var(--text)" }}>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, kind: "networth" })}
+              style={{
+                ...inputStyle,
+                flex: 1,
+                cursor: "pointer",
+                background: form.kind === "networth" ? "var(--primary-light)" : "var(--bg)",
+                color: form.kind === "networth" ? "var(--primary)" : "var(--text)",
+              }}
+            >
               Net Worth
             </button>
           </div>
@@ -91,7 +117,11 @@ export default function Alerts() {
           {form.kind === "price" ? (
             <select value={form.holdingId} onChange={(e) => setForm({ ...form, holdingId: e.target.value })} style={inputStyle} required>
               <option value="">Select a holding...</option>
-              {quantityHoldings.map((h) => <option key={h.id} value={h.id}>{h.symbol || h.name}</option>)}
+              {quantityHoldings.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.symbol || h.name}
+                </option>
+              ))}
             </select>
           ) : (
             <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={inputStyle}>
@@ -106,13 +136,30 @@ export default function Alerts() {
               <option value="above">Notify when above</option>
               <option value="below">Notify when below</option>
             </select>
-            <input type="number" step="any" min="0" value={form.threshold} onChange={(e) => setForm({ ...form, threshold: e.target.value })} placeholder="Threshold" style={{ ...inputStyle, flex: 1 }} required />
+            <input
+              type="number"
+              step="any"
+              min="0"
+              value={form.threshold}
+              onChange={(e) => setForm({ ...form, threshold: e.target.value })}
+              placeholder="Threshold"
+              style={{ ...inputStyle, flex: 1 }}
+              required
+            />
           </div>
 
           <button
             type="submit"
             disabled={createMutation.isPending || (form.kind === "price" && !form.holdingId)}
-            style={{ padding: "0.75rem 1.5rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600 }}
+            style={{
+              padding: "0.75rem 1.5rem",
+              borderRadius: "var(--radius)",
+              border: "none",
+              background: "var(--primary)",
+              color: "var(--text-inverse)",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
           >
             {createMutation.isPending ? "Creating..." : "Create Alert"}
           </button>
@@ -129,10 +176,12 @@ export default function Alerts() {
               <Card key={a.id}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>
-                    <strong>{a.symbol || "Net Worth"}</strong>{" "}
-                    {a.alertType.replace("_", " ")} {a.threshold.toLocaleString()} {a.currency}
+                    <strong>{a.symbol || "Net Worth"}</strong> {a.alertType.replace("_", " ")} {a.threshold.toLocaleString()} {a.currency}
                   </span>
-                  <button onClick={() => deleteMutation.mutate(a.id)} style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.4rem 0.75rem" }}>
+                  <button
+                    onClick={() => deleteMutation.mutate(a.id)}
+                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.4rem 0.75rem" }}
+                  >
                     Delete
                   </button>
                 </div>
@@ -150,10 +199,12 @@ export default function Alerts() {
               <Card key={a.id}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", opacity: 0.7 }}>
                   <span>
-                    <strong>{a.symbol || "Net Worth"}</strong>{" "}
-                    {a.alertType.replace("_", " ")} {a.threshold.toLocaleString()} {a.currency}
+                    <strong>{a.symbol || "Net Worth"}</strong> {a.alertType.replace("_", " ")} {a.threshold.toLocaleString()} {a.currency}
                   </span>
-                  <button onClick={() => deleteMutation.mutate(a.id)} style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.4rem 0.75rem" }}>
+                  <button
+                    onClick={() => deleteMutation.mutate(a.id)}
+                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.4rem 0.75rem" }}
+                  >
                     Delete
                   </button>
                 </div>

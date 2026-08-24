@@ -50,12 +50,7 @@ export const ASSET_TYPE_LABELS = {
 };
 
 // Types that track buy/sell transactions (quantity + price per unit)
-export const QUANTITY_BASED_TYPES = [
-  ASSET_TYPES.STOCK,
-  ASSET_TYPES.MUTUAL_FUND,
-  ASSET_TYPES.CRYPTO,
-  ASSET_TYPES.COMMODITY,
-];
+export const QUANTITY_BASED_TYPES = [ASSET_TYPES.STOCK, ASSET_TYPES.MUTUAL_FUND, ASSET_TYPES.CRYPTO, ASSET_TYPES.COMMODITY];
 
 // Types that track periodic value updates instead (no "buy/sell", just a balance/value)
 export const VALUATION_BASED_TYPES = [
@@ -78,14 +73,7 @@ export const COUNTRIES = ["Australia", "United States", "India"];
 
 export const CURRENCIES = ["USD", "INR", "AUD"];
 
-export const ACCOUNT_TYPES = [
-  "Brokerage",
-  "Retirement",
-  "Savings",
-  "Checking",
-  "Investment",
-  "Other",
-];
+export const ACCOUNT_TYPES = ["Brokerage", "Retirement", "Savings", "Checking", "Investment", "Other"];
 
 export function isValidAssetType(value) {
   return Object.values(ASSET_TYPES).includes(value);

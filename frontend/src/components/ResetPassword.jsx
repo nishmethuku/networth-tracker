@@ -76,11 +76,17 @@ export default function ResetPassword() {
       >
         <div
           style={{
-            position: "absolute", top: 0, left: 0, right: 0, height: "4px",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "4px",
             background: "linear-gradient(90deg, var(--primary), var(--accent))",
           }}
         />
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 600, color: "var(--text)", marginBottom: "0.4rem" }}>
+        <h1
+          style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 600, color: "var(--text)", marginBottom: "0.4rem" }}
+        >
           Set a new password
         </h1>
         <p style={{ color: "var(--text-secondary)", marginBottom: "2rem", fontSize: "0.9375rem" }}>
@@ -88,13 +94,25 @@ export default function ResetPassword() {
         </p>
 
         {done ? (
-          <div style={{ padding: "0.75rem 1rem", background: "var(--success-light)", border: "1px solid var(--success)", borderRadius: "var(--radius)", color: "var(--success)", fontSize: "0.875rem" }}>
+          <div
+            style={{
+              padding: "0.75rem 1rem",
+              background: "var(--success-light)",
+              border: "1px solid var(--success)",
+              borderRadius: "var(--radius)",
+              color: "var(--success)",
+              fontSize: "0.875rem",
+            }}
+          >
             Password updated — taking you to your dashboard...
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: "1.25rem" }}>
-              <label htmlFor="new-password" style={{ display: "block", marginBottom: "0.625rem", fontWeight: 500, fontSize: "0.875rem", color: "var(--text)" }}>
+              <label
+                htmlFor="new-password"
+                style={{ display: "block", marginBottom: "0.625rem", fontWeight: 500, fontSize: "0.875rem", color: "var(--text)" }}
+              >
                 New password
               </label>
               <input
@@ -108,7 +126,10 @@ export default function ResetPassword() {
               />
             </div>
             <div style={{ marginBottom: "1.5rem" }}>
-              <label htmlFor="confirm-password" style={{ display: "block", marginBottom: "0.625rem", fontWeight: 500, fontSize: "0.875rem", color: "var(--text)" }}>
+              <label
+                htmlFor="confirm-password"
+                style={{ display: "block", marginBottom: "0.625rem", fontWeight: 500, fontSize: "0.875rem", color: "var(--text)" }}
+              >
                 Confirm new password
               </label>
               <input
@@ -123,7 +144,17 @@ export default function ResetPassword() {
             </div>
 
             {error && (
-              <div style={{ padding: "0.75rem 1rem", background: "var(--danger-light)", border: "1px solid var(--danger)", borderRadius: "var(--radius)", color: "var(--danger)", marginBottom: "1.25rem", fontSize: "0.875rem" }}>
+              <div
+                style={{
+                  padding: "0.75rem 1rem",
+                  background: "var(--danger-light)",
+                  border: "1px solid var(--danger)",
+                  borderRadius: "var(--radius)",
+                  color: "var(--danger)",
+                  marginBottom: "1.25rem",
+                  fontSize: "0.875rem",
+                }}
+              >
                 {error}
               </div>
             )}
@@ -132,9 +163,15 @@ export default function ResetPassword() {
               type="submit"
               disabled={loading}
               style={{
-                width: "100%", padding: "0.875rem 1rem", borderRadius: "var(--radius)", border: "none",
-                background: "var(--primary)", color: "var(--text-inverse)",
-                cursor: loading ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.9375rem",
+                width: "100%",
+                padding: "0.875rem 1rem",
+                borderRadius: "var(--radius)",
+                border: "none",
+                background: "var(--primary)",
+                color: "var(--text-inverse)",
+                cursor: loading ? "not-allowed" : "pointer",
+                fontWeight: 600,
+                fontSize: "0.9375rem",
                 opacity: loading ? 0.6 : 1,
               }}
             >

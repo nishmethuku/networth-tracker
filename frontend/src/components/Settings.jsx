@@ -12,8 +12,23 @@ import { CURRENCIES } from "../constants/enums";
 import { SUPPORTED_LANGUAGES, setLanguage } from "../i18n";
 
 const sectionStyle = { marginBottom: "1.5rem" };
-const rowStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 0", borderBottom: "1px solid var(--border-light)" };
-const buttonStyle = { padding: "0.5rem 1rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500 };
+const rowStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "0.75rem 0",
+  borderBottom: "1px solid var(--border-light)",
+};
+const buttonStyle = {
+  padding: "0.5rem 1rem",
+  borderRadius: "var(--radius)",
+  border: "1px solid var(--border)",
+  background: "var(--card)",
+  color: "var(--text)",
+  cursor: "pointer",
+  fontSize: "0.875rem",
+  fontWeight: 500,
+};
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -81,7 +96,9 @@ export default function Settings() {
           </div>
           <div style={{ ...rowStyle, borderBottom: "none" }}>
             <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Session</span>
-            <button onClick={signOut} style={buttonStyle}>{t("nav.signOut")}</button>
+            <button onClick={signOut} style={buttonStyle}>
+              {t("nav.signOut")}
+            </button>
           </div>
         </Card>
       </div>
@@ -90,16 +107,29 @@ export default function Settings() {
         <Card title={t("settings.display")}>
           <div style={rowStyle}>
             <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{t("settings.theme")}</span>
-            <button onClick={toggleTheme} style={buttonStyle}>{theme === "dark" ? "🌙 Dark" : "☀️ Light"}</button>
+            <button onClick={toggleTheme} style={buttonStyle}>
+              {theme === "dark" ? "🌙 Dark" : "☀️ Light"}
+            </button>
           </div>
           <div style={rowStyle}>
             <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{t("settings.language")}</span>
             <select
               value={i18n.language}
               onChange={(e) => setLanguage(e.target.value)}
-              style={{ padding: "0.4rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", fontSize: "0.875rem" }}
+              style={{
+                padding: "0.4rem 0.75rem",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: "0.875rem",
+              }}
             >
-              {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
             </select>
           </div>
           <div style={{ ...rowStyle, borderBottom: "none" }}>
@@ -107,9 +137,20 @@ export default function Settings() {
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              style={{ padding: "0.4rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", fontSize: "0.875rem" }}
+              style={{
+                padding: "0.4rem 0.75rem",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: "0.875rem",
+              }}
             >
-              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
         </Card>
@@ -120,7 +161,9 @@ export default function Settings() {
           <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem", marginBottom: "0.75rem" }}>
             Price and net worth alerts are managed on the Alerts page. Weekly digest emails include an unsubscribe link at the bottom.
           </p>
-          <Link to="/alerts" style={buttonStyle}>Go to Alerts →</Link>
+          <Link to="/alerts" style={buttonStyle}>
+            Go to Alerts →
+          </Link>
         </Card>
       </div>
 
@@ -131,14 +174,20 @@ export default function Settings() {
           </p>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <button
-              onClick={() => { setExportingCsv(true); exportCsvMutation.mutate(); }}
+              onClick={() => {
+                setExportingCsv(true);
+                exportCsvMutation.mutate();
+              }}
               disabled={exportingCsv}
               style={{ ...buttonStyle, opacity: exportingCsv ? 0.6 : 1 }}
             >
               {exportingCsv ? "Exporting…" : "Download as CSV"}
             </button>
             <button
-              onClick={() => { setExporting(true); exportMutation.mutate(); }}
+              onClick={() => {
+                setExporting(true);
+                exportMutation.mutate();
+              }}
               disabled={exporting}
               style={{ ...buttonStyle, opacity: exporting ? 0.6 : 1 }}
             >
@@ -151,15 +200,22 @@ export default function Settings() {
       <div style={sectionStyle}>
         <Card title="Danger zone">
           <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem", marginBottom: "1rem" }}>
-            Permanently delete all your holdings, transactions, valuations, and alerts. Your login stays active — this only
-            removes your financial data. <strong>This cannot be undone.</strong>
+            Permanently delete all your holdings, transactions, valuations, and alerts. Your login stays active — this only removes your
+            financial data. <strong>This cannot be undone.</strong>
           </p>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
             <input
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="Type DELETE to confirm"
-              style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", fontSize: "0.875rem" }}
+              style={{
+                padding: "0.5rem 0.75rem",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: "0.875rem",
+              }}
             />
             <button
               onClick={() => deleteMutation.mutate()}

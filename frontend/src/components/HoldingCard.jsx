@@ -57,7 +57,8 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
               {h.symbol || h.name}
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              {h.country}{h.account ? ` • ${h.account}` : ""}
+              {h.country}
+              {h.account ? ` • ${h.account}` : ""}
             </div>
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -66,7 +67,8 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
             </div>
             {gain != null && (
               <div style={{ fontSize: "0.75rem", color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
-                {positive ? "+" : ""}{formatCurrencyForDisplay(gain, h.currency, { includeCode: false })}
+                {positive ? "+" : ""}
+                {formatCurrencyForDisplay(gain, h.currency, { includeCode: false })}
               </div>
             )}
           </div>

@@ -29,13 +29,25 @@ export default function MobileMenu() {
 
   return (
     <div className="mobile-top-bar">
-      <Link to="/" onClick={() => setOpen(false)} style={{ fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--primary)", fontSize: "1.125rem" }}>
+      <Link
+        to="/"
+        onClick={() => setOpen(false)}
+        style={{ fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--primary)", fontSize: "1.125rem" }}
+      >
         {t("nav.netWorth")}
       </Link>
       <button
         onClick={() => setOpen(true)}
         aria-label="Open menu"
-        style={{ background: "none", border: "none", color: "var(--text)", fontSize: "1.5rem", lineHeight: 1, padding: "0.25rem", cursor: "pointer" }}
+        style={{
+          background: "none",
+          border: "none",
+          color: "var(--text)",
+          fontSize: "1.5rem",
+          lineHeight: 1,
+          padding: "0.25rem",
+          cursor: "pointer",
+        }}
       >
         ☰
       </button>
@@ -69,12 +81,41 @@ export default function MobileMenu() {
                 boxShadow: "var(--shadow-lg)",
               }}
             >
-              <div style={{ padding: "1.25rem 1rem 1rem", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                {user && <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</span>}
+              <div
+                style={{
+                  padding: "1.25rem 1rem 1rem",
+                  borderBottom: "1px solid var(--border)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                {user && (
+                  <span
+                    style={{
+                      fontSize: "0.8125rem",
+                      color: "var(--text-muted)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {user.email}
+                  </span>
+                )}
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Close"
-                  style={{ background: "none", border: "none", fontSize: "1.25rem", color: "var(--text-muted)", cursor: "pointer", lineHeight: 1, flexShrink: 0, marginLeft: "0.5rem" }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "1.25rem",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    lineHeight: 1,
+                    flexShrink: 0,
+                    marginLeft: "0.5rem",
+                  }}
                 >
                   ×
                 </button>
@@ -102,10 +143,15 @@ export default function MobileMenu() {
                 ))}
               </div>
 
-              <div style={{ padding: "1rem", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div
+                style={{ padding: "1rem", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "0.75rem" }}
+              >
                 <ThemeToggle />
                 <button
-                  onClick={() => { setOpen(false); signOut(); }}
+                  onClick={() => {
+                    setOpen(false);
+                    signOut();
+                  }}
                   style={{
                     padding: "0.625rem 1rem",
                     borderRadius: "var(--radius)",

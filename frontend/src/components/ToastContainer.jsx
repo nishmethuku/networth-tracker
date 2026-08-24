@@ -43,7 +43,15 @@ function ToastItem({ toast, onDismiss }) {
       <span style={{ flex: 1 }}>{toast.message}</span>
       <button
         onClick={() => onDismiss(toast.id)}
-        style={{ background: "transparent", border: "none", color: "var(--text-inverse)", fontSize: "1.25rem", cursor: "pointer", opacity: 0.85, lineHeight: 1 }}
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "var(--text-inverse)",
+          fontSize: "1.25rem",
+          cursor: "pointer",
+          opacity: 0.85,
+          lineHeight: 1,
+        }}
       >
         ×
       </button>

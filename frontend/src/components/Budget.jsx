@@ -54,10 +54,16 @@ function MonthlyTrendChart({ months, currency }) {
           <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
           <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
           <Tooltip
-            formatter={(v, name) => [formatCurrencyForDisplay(v, currency), name === "income" ? "Income" : name === "expenses" ? "Expenses" : "Net"]}
+            formatter={(v, name) => [
+              formatCurrencyForDisplay(v, currency),
+              name === "income" ? "Income" : name === "expenses" ? "Expenses" : "Net",
+            ]}
             contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
           />
-          <Legend formatter={(v) => (v === "income" ? "Income" : v === "expenses" ? "Expenses" : "Net")} wrapperStyle={{ fontSize: "0.75rem" }} />
+          <Legend
+            formatter={(v) => (v === "income" ? "Income" : v === "expenses" ? "Expenses" : "Net")}
+            wrapperStyle={{ fontSize: "0.75rem" }}
+          />
           <Bar dataKey="income" fill="var(--success)" radius={[4, 4, 0, 0]} />
           <Bar dataKey="expenses" fill="var(--danger)" radius={[4, 4, 0, 0]} />
           <Line type="monotone" dataKey="net" stroke="var(--primary)" strokeWidth={2} dot={{ r: 3 }} />
@@ -144,7 +150,9 @@ function AddEntryForm({ categories, currency }) {
         queryClient.invalidateQueries({ queryKey: ["holding", entry.fundingSource.holdingId] });
         queryClient.invalidateQueries({ queryKey: ["holding-valuations", entry.fundingSource.holdingId] });
         queryClient.invalidateQueries({ queryKey: ["holdings"] });
-        toast.success(`Expense added — account balance updated to ${formatCurrencyForDisplay(entry.fundingSource.newBalance, entry.fundingSource.currency, { includeCode: false })}`);
+        toast.success(
+          `Expense added — account balance updated to ${formatCurrencyForDisplay(entry.fundingSource.newBalance, entry.fundingSource.currency, { includeCode: false })}`,
+        );
       } else {
         toast.success(entryType === "income" ? "Income added" : "Expense added");
       }
@@ -168,15 +176,33 @@ function AddEntryForm({ categories, currency }) {
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
         <button
           type="button"
-          onClick={() => { setValue("entry_type", "income"); setValue("category", categories?.income?.[0] || ""); }}
-          style={{ ...inputStyle, cursor: "pointer", background: entryType === "income" ? "var(--success-light)" : "var(--bg)", color: entryType === "income" ? "var(--success)" : "var(--text)", fontWeight: 600 }}
+          onClick={() => {
+            setValue("entry_type", "income");
+            setValue("category", categories?.income?.[0] || "");
+          }}
+          style={{
+            ...inputStyle,
+            cursor: "pointer",
+            background: entryType === "income" ? "var(--success-light)" : "var(--bg)",
+            color: entryType === "income" ? "var(--success)" : "var(--text)",
+            fontWeight: 600,
+          }}
         >
           + Income
         </button>
         <button
           type="button"
-          onClick={() => { setValue("entry_type", "expense"); setValue("category", categories?.expense?.[0] || ""); }}
-          style={{ ...inputStyle, cursor: "pointer", background: entryType === "expense" ? "var(--danger-light)" : "var(--bg)", color: entryType === "expense" ? "var(--danger)" : "var(--text)", fontWeight: 600 }}
+          onClick={() => {
+            setValue("entry_type", "expense");
+            setValue("category", categories?.expense?.[0] || "");
+          }}
+          style={{
+            ...inputStyle,
+            cursor: "pointer",
+            background: entryType === "expense" ? "var(--danger-light)" : "var(--bg)",
+            color: entryType === "expense" ? "var(--danger)" : "var(--text)",
+            fontWeight: 600,
+          }}
         >
           − Expense
         </button>
@@ -190,7 +216,11 @@ function AddEntryForm({ categories, currency }) {
         <div>
           <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Category</label>
           <select {...register("category")} style={inputStyle}>
-            {categoryOptions.map((c) => <option key={c} value={c}>{getBudgetCategoryLabel(c)}</option>)}
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>
+                {getBudgetCategoryLabel(c)}
+              </option>
+            ))}
           </select>
         </div>
         <div>
@@ -200,16 +230,29 @@ function AddEntryForm({ categories, currency }) {
         <div>
           <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Currency</label>
           <select {...register("currency")} style={inputStyle}>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         </div>
         {entryType === "expense" && cashHoldings?.length > 0 && (
           <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Paid from</label>
-            <select {...register("funding_source_holding_id")} style={inputStyle} title="Deducts this expense from the selected account's balance">
+            <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+              Paid from
+            </label>
+            <select
+              {...register("funding_source_holding_id")}
+              style={inputStyle}
+              title="Deducts this expense from the selected account's balance"
+            >
               <option value="">— none —</option>
               {cashHoldings.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.account ? ` (${c.account})` : ""}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.account ? ` (${c.account})` : ""}
+                </option>
               ))}
             </select>
           </div>
@@ -217,18 +260,30 @@ function AddEntryForm({ categories, currency }) {
       </div>
 
       <div style={{ marginTop: "0.75rem" }}>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Description (optional)</label>
-        <input {...register("description")} placeholder={entryType === "income" ? "e.g., August paycheck" : "e.g., Groceries"} style={inputStyle} />
+        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+          Description (optional)
+        </label>
+        <input
+          {...register("description")}
+          placeholder={entryType === "income" ? "e.g., August paycheck" : "e.g., Groceries"}
+          style={inputStyle}
+        />
       </div>
 
       <div style={{ marginTop: "0.875rem", display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8125rem", color: "var(--text)", cursor: "pointer" }}>
+        <label
+          style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8125rem", color: "var(--text)", cursor: "pointer" }}
+        >
           <input type="checkbox" {...register("is_recurring")} />
           Recurring (subscription, rent, bill, etc.)
         </label>
         {isRecurring && (
           <select {...register("recurring_frequency")} style={{ ...inputStyle, width: "auto" }}>
-            {RECURRING_FREQUENCIES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+            {RECURRING_FREQUENCIES.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
           </select>
         )}
       </div>
@@ -236,7 +291,16 @@ function AddEntryForm({ categories, currency }) {
       <button
         type="submit"
         disabled={mutation.isPending}
-        style={{ marginTop: "1rem", padding: "0.75rem 1.5rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600 }}
+        style={{
+          marginTop: "1rem",
+          padding: "0.75rem 1.5rem",
+          borderRadius: "var(--radius)",
+          border: "none",
+          background: "var(--primary)",
+          color: "var(--text-inverse)",
+          cursor: "pointer",
+          fontWeight: 600,
+        }}
       >
         {mutation.isPending ? "Adding..." : `Add ${entryType === "income" ? "Income" : "Expense"}`}
       </button>
@@ -262,7 +326,16 @@ function SubscriptionsCard({ currency }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem" }}>
           {data.items.map((item, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0", borderBottom: "1px solid var(--border-light)" }}>
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "0.5rem 0",
+                borderBottom: "1px solid var(--border-light)",
+              }}
+            >
               <div>
                 <div style={{ fontWeight: 500, color: "var(--text)", fontSize: "0.875rem" }}>
                   {item.description || getBudgetCategoryLabel(item.category)}
@@ -342,7 +415,15 @@ function SpendingLimitsCard({ currency, limitStatus }) {
                     </span>
                     <button
                       onClick={() => deleteMutation.mutate(limit.id)}
-                      style={{ fontSize: "0.7rem", background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "0.15rem 0.4rem", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
+                      style={{
+                        fontSize: "0.7rem",
+                        background: "transparent",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-muted)",
+                        padding: "0.15rem 0.4rem",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                      }}
                     >
                       Remove
                     </button>
@@ -364,13 +445,32 @@ function SpendingLimitsCard({ currency, limitStatus }) {
         >
           <select {...register("category")} style={{ ...inputStyle, flex: 1, minWidth: "140px" }}>
             <option value="">Add a limit for...</option>
-            {availableCategories.map((c) => <option key={c} value={c}>{getBudgetCategoryLabel(c)}</option>)}
+            {availableCategories.map((c) => (
+              <option key={c} value={c}>
+                {getBudgetCategoryLabel(c)}
+              </option>
+            ))}
           </select>
-          <input {...register("monthly_limit")} type="number" step="any" placeholder="Monthly limit" style={{ ...inputStyle, width: "140px" }} />
+          <input
+            {...register("monthly_limit")}
+            type="number"
+            step="any"
+            placeholder="Monthly limit"
+            style={{ ...inputStyle, width: "140px" }}
+          />
           <button
             type="submit"
             disabled={createMutation.isPending}
-            style={{ padding: "0.625rem 1rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600, fontSize: "0.8125rem" }}
+            style={{
+              padding: "0.625rem 1rem",
+              borderRadius: "var(--radius)",
+              border: "none",
+              background: "var(--primary)",
+              color: "var(--text-inverse)",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.8125rem",
+            }}
           >
             Set
           </button>
@@ -404,7 +504,9 @@ function AIInsightsCard({ currency }) {
           AI insights aren't configured yet — a Gemini API key needs to be added on the backend.
         </p>
       ) : narrative ? (
-        <p style={{ color: "var(--text)", fontSize: "0.875rem", lineHeight: 1.6, whiteSpace: "pre-wrap", marginTop: "0.5rem" }}>{narrative}</p>
+        <p style={{ color: "var(--text)", fontSize: "0.875rem", lineHeight: 1.6, whiteSpace: "pre-wrap", marginTop: "0.5rem" }}>
+          {narrative}
+        </p>
       ) : (
         <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem" }}>
           Get a plain-language read on your spending trends and biggest categories.
@@ -414,7 +516,18 @@ function AIInsightsCard({ currency }) {
         <button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending}
-          style={{ marginTop: "0.75rem", padding: "0.625rem 1.25rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600, fontSize: "0.8125rem", opacity: mutation.isPending ? 0.6 : 1 }}
+          style={{
+            marginTop: "0.75rem",
+            padding: "0.625rem 1.25rem",
+            borderRadius: "var(--radius)",
+            border: "none",
+            background: "var(--primary)",
+            color: "var(--text-inverse)",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: "0.8125rem",
+            opacity: mutation.isPending ? 0.6 : 1,
+          }}
         >
           {mutation.isPending ? "Thinking..." : "Get AI Insights"}
         </button>
@@ -430,7 +543,13 @@ export default function Budget() {
 
   const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
 
-  const { data: summary, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["budget-summary", currency],
     queryFn: () => fetchBudgetSummary({ months: 6, currency }),
   });
@@ -456,11 +575,24 @@ export default function Budget() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Budget</h1>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -470,7 +602,8 @@ export default function Budget() {
 
       {summary.other_currency_entries > 0 && (
         <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "1.5rem" }}>
-          {summary.other_currency_entries} entr{summary.other_currency_entries === 1 ? "y" : "ies"} logged in a different currency aren't included above — switch currency to see them.
+          {summary.other_currency_entries} entr{summary.other_currency_entries === 1 ? "y" : "ies"} logged in a different currency aren't
+          included above — switch currency to see them.
         </p>
       )}
 
@@ -522,7 +655,16 @@ export default function Budget() {
           <Card>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {entries.slice(0, 30).map((e) => (
-                <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0", borderBottom: "1px solid var(--border-light)" }}>
+                <div
+                  key={e.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "0.5rem 0",
+                    borderBottom: "1px solid var(--border-light)",
+                  }}
+                >
                   <div>
                     <div style={{ fontWeight: 500, color: "var(--text)", fontSize: "0.875rem" }}>
                       {getBudgetCategoryLabel(e.category)}
@@ -531,12 +673,27 @@ export default function Budget() {
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{new Date(e.entryDate).toLocaleDateString()}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: e.entryType === "income" ? "var(--success)" : "var(--danger)" }}>
-                      {e.entryType === "income" ? "+" : "−"}{formatCurrencyForDisplay(e.amount, e.currency)}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontWeight: 600,
+                        color: e.entryType === "income" ? "var(--success)" : "var(--danger)",
+                      }}
+                    >
+                      {e.entryType === "income" ? "+" : "−"}
+                      {formatCurrencyForDisplay(e.amount, e.currency)}
                     </span>
                     <button
                       onClick={() => deleteMutation.mutate(e.id)}
-                      style={{ fontSize: "0.75rem", background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
+                      style={{
+                        fontSize: "0.75rem",
+                        background: "transparent",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-muted)",
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                      }}
                     >
                       Delete
                     </button>

@@ -110,7 +110,10 @@
 
 /* Global Styles */
 * {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 body {
@@ -121,7 +124,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
 }
@@ -141,7 +146,10 @@ button,
 input,
 select,
 textarea {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
   font-family: inherit;
 }
 

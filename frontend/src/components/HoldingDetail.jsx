@@ -38,7 +38,14 @@ const inputStyle = {
 
 function AddTransactionForm({ holding, onDone }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ transaction_type: "buy", transaction_date: new Date().toISOString().split("T")[0], quantity: "", price_per_unit: "", fees: "0", funding_source_holding_id: "" });
+  const [form, setForm] = useState({
+    transaction_type: "buy",
+    transaction_date: new Date().toISOString().split("T")[0],
+    quantity: "",
+    price_per_unit: "",
+    fees: "0",
+    funding_source_holding_id: "",
+  });
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [createdTx, setCreatedTx] = useState(null);
 
@@ -109,13 +116,23 @@ function AddTransactionForm({ holding, onDone }) {
         <p style={{ color: "var(--success)", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>Transaction added ✓</p>
         {createdTx.fundingSource && (
           <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: "0.75rem" }}>
-            Also updated the funding account's balance to {formatCurrencyForDisplay(createdTx.fundingSource.newBalance, createdTx.fundingSource.currency, { includeCode: false })}.
+            Also updated the funding account's balance to{" "}
+            {formatCurrencyForDisplay(createdTx.fundingSource.newBalance, createdTx.fundingSource.currency, { includeCode: false })}.
           </p>
         )}
         <TagSuggestionCard transactionId={createdTx.id} holdingId={holding.id} onDismiss={onDone} />
         <button
           onClick={onDone}
-          style={{ marginTop: "0.75rem", padding: "0.5rem 1rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", cursor: "pointer", fontSize: "0.8125rem" }}
+          style={{
+            marginTop: "0.75rem",
+            padding: "0.5rem 1rem",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            color: "var(--text)",
+            cursor: "pointer",
+            fontSize: "0.8125rem",
+          }}
         >
           Done
         </button>
@@ -124,29 +141,67 @@ function AddTransactionForm({ holding, onDone }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", alignItems: "end" }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", alignItems: "end" }}
+    >
       <div>
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Type</label>
         <select value={form.transaction_type} onChange={(e) => setForm({ ...form, transaction_type: e.target.value })} style={inputStyle}>
-          {TRANSACTION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          {TRANSACTION_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
         </select>
       </div>
       <div>
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Date</label>
-        <input type="date" value={form.transaction_date} max={new Date().toISOString().split("T")[0]} onChange={(e) => setForm({ ...form, transaction_date: e.target.value })} style={inputStyle} required />
+        <input
+          type="date"
+          value={form.transaction_date}
+          max={new Date().toISOString().split("T")[0]}
+          onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
+          style={inputStyle}
+          required
+        />
       </div>
       {!isIncome && (
         <div>
           <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Quantity</label>
-          <input type="number" step="any" min="0.0001" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={inputStyle} required />
+          <input
+            type="number"
+            step="any"
+            min="0.0001"
+            value={form.quantity}
+            onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+            style={inputStyle}
+            required
+          />
         </div>
       )}
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>{isIncome ? "Amount" : "Price / unit"}</label>
+        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+          {isIncome ? "Amount" : "Price / unit"}
+        </label>
         <div style={{ display: "flex", gap: "0.35rem" }}>
-          <input type="number" step="any" min="0" value={form.price_per_unit} onChange={(e) => setForm({ ...form, price_per_unit: e.target.value })} style={{ ...inputStyle, flex: 1 }} required />
+          <input
+            type="number"
+            step="any"
+            min="0"
+            value={form.price_per_unit}
+            onChange={(e) => setForm({ ...form, price_per_unit: e.target.value })}
+            style={{ ...inputStyle, flex: 1 }}
+            required
+          />
           {!isIncome && holding.symbol && (
-            <button type="button" onClick={handleFetchPrice} disabled={fetchingPrice} style={{ fontSize: "0.75rem", padding: "0 0.5rem" }} title="Fetch historical price for this date">
+            <button
+              type="button"
+              onClick={handleFetchPrice}
+              disabled={fetchingPrice}
+              style={{ fontSize: "0.75rem", padding: "0 0.5rem" }}
+              title="Fetch historical price for this date"
+            >
               {fetchingPrice ? "..." : "Fetch"}
             </button>
           )}
@@ -154,11 +209,20 @@ function AddTransactionForm({ holding, onDone }) {
       </div>
       <div>
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Fees</label>
-        <input type="number" step="any" min="0" value={form.fees} onChange={(e) => setForm({ ...form, fees: e.target.value })} style={inputStyle} />
+        <input
+          type="number"
+          step="any"
+          min="0"
+          value={form.fees}
+          onChange={(e) => setForm({ ...form, fees: e.target.value })}
+          style={inputStyle}
+        />
       </div>
       {form.transaction_type === "buy" && cashHoldings?.length > 0 && (
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Funded from</label>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+            Funded from
+          </label>
           <select
             value={form.funding_source_holding_id}
             onChange={(e) => setForm({ ...form, funding_source_holding_id: e.target.value })}
@@ -167,12 +231,27 @@ function AddTransactionForm({ holding, onDone }) {
           >
             <option value="">— none —</option>
             {cashHoldings.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}{c.account ? ` (${c.account})` : ""}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.account ? ` (${c.account})` : ""}
+              </option>
             ))}
           </select>
         </div>
       )}
-      <button type="submit" disabled={mutation.isPending} style={{ padding: "0.625rem 1.25rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600 }}>
+      <button
+        type="submit"
+        disabled={mutation.isPending}
+        style={{
+          padding: "0.625rem 1.25rem",
+          borderRadius: "var(--radius)",
+          border: "none",
+          background: "var(--primary)",
+          color: "var(--text-inverse)",
+          cursor: "pointer",
+          fontWeight: 600,
+        }}
+      >
         {mutation.isPending ? "Saving..." : "Add"}
       </button>
     </form>
@@ -199,18 +278,48 @@ function AddValuationForm({ holding, onDone }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem", alignItems: "end" }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem", alignItems: "end" }}
+    >
       <div>
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Date</label>
-        <input type="date" value={form.valuation_date} max={new Date().toISOString().split("T")[0]} onChange={(e) => setForm({ ...form, valuation_date: e.target.value })} style={inputStyle} required />
+        <input
+          type="date"
+          value={form.valuation_date}
+          max={new Date().toISOString().split("T")[0]}
+          onChange={(e) => setForm({ ...form, valuation_date: e.target.value })}
+          style={inputStyle}
+          required
+        />
       </div>
       <div>
         <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
           {holding.assetType === "loan" ? "Balance owed" : holding.assetType === "credit" ? "Owed to you" : "Value"}
         </label>
-        <input type="number" step="any" min="0" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} style={inputStyle} required />
+        <input
+          type="number"
+          step="any"
+          min="0"
+          value={form.value}
+          onChange={(e) => setForm({ ...form, value: e.target.value })}
+          style={inputStyle}
+          required
+        />
       </div>
-      <button type="submit" disabled={mutation.isPending} style={{ padding: "0.625rem 1.25rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600 }}>
+      <button
+        type="submit"
+        disabled={mutation.isPending}
+        style={{
+          padding: "0.625rem 1.25rem",
+          borderRadius: "var(--radius)",
+          border: "none",
+          background: "var(--primary)",
+          color: "var(--text-inverse)",
+          cursor: "pointer",
+          fontWeight: 600,
+        }}
+      >
         {mutation.isPending ? "Saving..." : "Add Update"}
       </button>
     </form>
@@ -256,7 +365,13 @@ function PeriodReturn({ series, currency }) {
           </button>
         ))}
       </div>
-      <div style={{ fontSize: "1.75rem", fontWeight: 700, color: result.pct != null ? (positive ? "var(--success)" : "var(--danger)") : "var(--text-muted)" }}>
+      <div
+        style={{
+          fontSize: "1.75rem",
+          fontWeight: 700,
+          color: result.pct != null ? (positive ? "var(--success)" : "var(--danger)") : "var(--text-muted)",
+        }}
+      >
         {result.pct != null ? `${positive ? "+" : ""}${formatPercent(result.pct)}` : "—"}
       </div>
       <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
@@ -287,7 +402,13 @@ export default function HoldingDetail() {
   const [showAddForm, setShowAddForm] = useState(false);
   const toast = useToast();
 
-  const { data: holding, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: holding,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["holding", id],
     queryFn: () => fetchHolding(id),
   });
@@ -366,7 +487,8 @@ export default function HoldingDetail() {
       <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)" }}>{holding.symbol || holding.name}</h1>
         <p style={{ color: "var(--text-secondary)" }}>
-          {getAssetTypeLabel(holding.assetType)} • {holding.country}{holding.account ? ` • ${holding.account}` : ""}
+          {getAssetTypeLabel(holding.assetType)} • {holding.country}
+          {holding.account ? ` • ${holding.account}` : ""}
         </p>
       </div>
 
@@ -376,7 +498,10 @@ export default function HoldingDetail() {
           <>
             <Card title="Quantity" value={holding.quantity?.toFixed(4) ?? "—"} />
             <Card title="Avg Cost" value={holding.avgCost != null ? formatCurrencyForDisplay(holding.avgCost, holding.currency) : "—"} />
-            <Card title="Current Price" value={holding.currentPrice != null ? formatCurrencyForDisplay(holding.currentPrice, holding.currency) : "—"} />
+            <Card
+              title="Current Price"
+              value={holding.currentPrice != null ? formatCurrencyForDisplay(holding.currentPrice, holding.currency) : "—"}
+            />
           </>
         ) : null}
         <Card
@@ -397,11 +522,21 @@ export default function HoldingDetail() {
       </div>
 
       {quantityBased && holding.realizedGain != null && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.25rem", marginBottom: "1.5rem" }}>
+        <div
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.25rem", marginBottom: "1.5rem" }}
+        >
           <Card title="Realized Gain" value={formatCurrencyForDisplay(holding.realizedGain, holding.currency)} subtitle="From sales" />
-          <Card title="Unrealized Gain" value={formatCurrencyForDisplay(holding.unrealizedGain, holding.currency)} subtitle="On current holding" />
+          <Card
+            title="Unrealized Gain"
+            value={formatCurrencyForDisplay(holding.unrealizedGain, holding.currency)}
+            subtitle="On current holding"
+          />
           {!!holding.incomeReceived && (
-            <Card title="Dividends & Interest" value={formatCurrencyForDisplay(holding.incomeReceived, holding.currency)} subtitle="Income received" />
+            <Card
+              title="Dividends & Interest"
+              value={formatCurrencyForDisplay(holding.incomeReceived, holding.currency)}
+              subtitle="Income received"
+            />
           )}
         </div>
       )}
@@ -425,7 +560,16 @@ export default function HoldingDetail() {
           </h2>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            style={{ padding: "0.5rem 1rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500 }}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "var(--radius)",
+              border: "1px solid var(--border)",
+              background: "var(--card)",
+              color: "var(--text)",
+              cursor: "pointer",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+            }}
           >
             {showAddForm ? "Cancel" : quantityBased ? "+ Add Transaction" : "+ Add Update"}
           </button>
@@ -443,7 +587,7 @@ export default function HoldingDetail() {
 
         <div style={{ marginTop: "1rem" }}>
           {quantityBased ? (
-            (!transactions || transactions.length === 0) ? (
+            !transactions || transactions.length === 0 ? (
               <EmptyState message="No transactions yet." />
             ) : (
               <Card>
@@ -456,8 +600,12 @@ export default function HoldingDetail() {
                         <th style={{ padding: "0.6rem" }}>Quantity</th>
                         <th style={{ padding: "0.6rem" }}>Price</th>
                         <th style={{ padding: "0.6rem" }}>Fees</th>
-                        <th style={{ padding: "0.6rem" }} title="Running position after this transaction">Cost Basis After</th>
-                        <th style={{ padding: "0.6rem" }} title="Cumulative realized gain/loss after this transaction">Realized P&L</th>
+                        <th style={{ padding: "0.6rem" }} title="Running position after this transaction">
+                          Cost Basis After
+                        </th>
+                        <th style={{ padding: "0.6rem" }} title="Cumulative realized gain/loss after this transaction">
+                          Realized P&L
+                        </th>
                         <th style={{ padding: "0.6rem" }}></th>
                       </tr>
                     </thead>
@@ -465,26 +613,48 @@ export default function HoldingDetail() {
                       {transactions.map((t) => {
                         const running = timeline[t.id];
                         return (
-                        <tr key={t.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                          <td style={{ padding: "0.6rem" }}>{new Date(t.transactionDate).toLocaleDateString()}</td>
-                          <td style={{ padding: "0.6rem", textTransform: "capitalize", color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
-                            {t.transactionType}
-                          </td>
-                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</td>
-                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</td>
-                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.fees, t.currency)}</td>
-                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
-                            {running ? formatCurrencyForDisplay(running.costBasisAfter, t.currency) : "—"}
-                          </td>
-                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", color: running && running.cumulativeRealizedGain >= 0 ? "var(--success)" : "var(--danger)" }}>
-                            {running ? `${running.cumulativeRealizedGain >= 0 ? "+" : ""}${formatCurrencyForDisplay(running.cumulativeRealizedGain, t.currency)}` : "—"}
-                          </td>
-                          <td style={{ padding: "0.6rem" }}>
-                            <button onClick={() => deleteTxMutation.mutate(t.id)} style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}>
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
+                          <tr key={t.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
+                            <td style={{ padding: "0.6rem" }}>{new Date(t.transactionDate).toLocaleDateString()}</td>
+                            <td
+                              style={{
+                                padding: "0.6rem",
+                                textTransform: "capitalize",
+                                color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {t.transactionType}
+                            </td>
+                            <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</td>
+                            <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>
+                              {formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
+                            </td>
+                            <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>
+                              {formatCurrencyForDisplay(t.fees, t.currency)}
+                            </td>
+                            <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+                              {running ? formatCurrencyForDisplay(running.costBasisAfter, t.currency) : "—"}
+                            </td>
+                            <td
+                              style={{
+                                padding: "0.6rem",
+                                fontFamily: "var(--font-mono)",
+                                color: running && running.cumulativeRealizedGain >= 0 ? "var(--success)" : "var(--danger)",
+                              }}
+                            >
+                              {running
+                                ? `${running.cumulativeRealizedGain >= 0 ? "+" : ""}${formatCurrencyForDisplay(running.cumulativeRealizedGain, t.currency)}`
+                                : "—"}
+                            </td>
+                            <td style={{ padding: "0.6rem" }}>
+                              <button
+                                onClick={() => deleteTxMutation.mutate(t.id)}
+                                style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
                         );
                       })}
                     </tbody>
@@ -492,37 +662,40 @@ export default function HoldingDetail() {
                 </div>
               </Card>
             )
+          ) : !valuations || valuations.length === 0 ? (
+            <EmptyState message="No history yet." />
           ) : (
-            (!valuations || valuations.length === 0) ? (
-              <EmptyState message="No history yet." />
-            ) : (
-              <Card>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-                    <thead>
-                      <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
-                        <th style={{ padding: "0.6rem" }}>Date</th>
-                        <th style={{ padding: "0.6rem" }}>Value</th>
-                        <th style={{ padding: "0.6rem" }}></th>
+            <Card>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+                  <thead>
+                    <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                      <th style={{ padding: "0.6rem" }}>Date</th>
+                      <th style={{ padding: "0.6rem" }}>Value</th>
+                      <th style={{ padding: "0.6rem" }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {valuations.map((v) => (
+                      <tr key={v.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
+                        <td style={{ padding: "0.6rem" }}>{new Date(v.valuationDate).toLocaleDateString()}</td>
+                        <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+                          {formatCurrencyForDisplay(v.value, v.currency)}
+                        </td>
+                        <td style={{ padding: "0.6rem" }}>
+                          <button
+                            onClick={() => deleteValMutation.mutate(v.id)}
+                            style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}
+                          >
+                            Delete
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {valuations.map((v) => (
-                        <tr key={v.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                          <td style={{ padding: "0.6rem" }}>{new Date(v.valuationDate).toLocaleDateString()}</td>
-                          <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{formatCurrencyForDisplay(v.value, v.currency)}</td>
-                          <td style={{ padding: "0.6rem" }}>
-                            <button onClick={() => deleteValMutation.mutate(v.id)} style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}>
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            )
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           )}
         </div>
       </div>

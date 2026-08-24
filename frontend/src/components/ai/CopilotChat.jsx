@@ -91,10 +91,7 @@ export default function CopilotChat() {
 
     try {
       let assistantText = "";
-      for await (const chunk of streamAiChat(
-        { messages: nextMessages },
-        controller.signal
-      )) {
+      for await (const chunk of streamAiChat({ messages: nextMessages }, controller.signal)) {
         assistantText += chunk;
         setMessages((prev) => {
           const copy = [...prev];
@@ -187,9 +184,7 @@ export default function CopilotChat() {
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 600, color: "var(--text)", fontSize: "0.9375rem" }}>
-                    ✨ Portfolio Copilot
-                  </div>
+                  <div style={{ fontWeight: 600, color: "var(--text)", fontSize: "0.9375rem" }}>✨ Portfolio Copilot</div>
                 </div>
                 <button
                   onClick={() => setOpen(false)}
@@ -207,7 +202,10 @@ export default function CopilotChat() {
                 </button>
               </div>
 
-              <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div
+                ref={scrollRef}
+                style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}
+              >
                 {notConfigured ? (
                   <div style={{ color: "var(--text-muted)", fontSize: "0.875rem", textAlign: "center", marginTop: "2rem" }}>
                     The AI copilot isn't set up yet — a Gemini API key needs to be added on the backend first.
@@ -246,9 +244,7 @@ export default function CopilotChat() {
                     />
                   ))
                 )}
-                {error && (
-                  <div style={{ color: "var(--danger)", fontSize: "0.8125rem", textAlign: "center" }}>{error}</div>
-                )}
+                {error && <div style={{ color: "var(--danger)", fontSize: "0.8125rem", textAlign: "center" }}>{error}</div>}
               </div>
 
               <form

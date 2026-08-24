@@ -81,8 +81,7 @@ export default function Login() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background:
-          "radial-gradient(ellipse 900px 600px at 50% -10%, var(--primary-light) 0%, transparent 60%), var(--bg)",
+        background: "radial-gradient(ellipse 900px 600px at 50% -10%, var(--primary-light) 0%, transparent 60%), var(--bg)",
         padding: "1.5rem",
       }}
     >
@@ -133,15 +132,17 @@ export default function Login() {
             background: "linear-gradient(90deg, var(--primary), var(--accent))",
           }}
         />
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 600, color: "var(--text)", marginBottom: "0.4rem" }}>
+        <h1
+          style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 600, color: "var(--text)", marginBottom: "0.4rem" }}
+        >
           {mode === "signup" ? "Create your account" : mode === "reset" ? "Reset your password" : "Welcome back"}
         </h1>
         <p style={{ color: "var(--text-secondary)", marginBottom: "2rem", fontSize: "0.9375rem" }}>
           {mode === "signup"
             ? "Start tracking your family's net worth"
             : mode === "reset"
-            ? "Enter your email and we'll send you a reset link"
-            : "Sign in to your account"}
+              ? "Enter your email and we'll send you a reset link"
+              : "Sign in to your account"}
         </p>
 
         {mode !== "reset" && (
@@ -175,20 +176,17 @@ export default function Login() {
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: mode === "reset" ? "1.5rem" : "1.25rem" }}>
-            <label htmlFor="email" style={labelStyle}>Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={inputStyle}
-            />
+            <label htmlFor="email" style={labelStyle}>
+              Email
+            </label>
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
           </div>
 
           {mode !== "reset" && (
             <div style={{ marginBottom: "0.625rem" }}>
-              <label htmlFor="password" style={labelStyle}>Password</label>
+              <label htmlFor="password" style={labelStyle}>
+                Password
+              </label>
               <input
                 id="password"
                 type="password"
@@ -205,8 +203,19 @@ export default function Login() {
             <p style={{ textAlign: "right", marginBottom: "1.5rem" }}>
               <button
                 type="button"
-                onClick={() => { setMode("reset"); setError(null); setInfo(null); }}
-                style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "0.8125rem", padding: 0 }}
+                onClick={() => {
+                  setMode("reset");
+                  setError(null);
+                  setInfo(null);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-secondary)",
+                  cursor: "pointer",
+                  fontSize: "0.8125rem",
+                  padding: 0,
+                }}
               >
                 Forgot password?
               </button>
@@ -269,8 +278,20 @@ export default function Login() {
           {mode === "reset" ? (
             <button
               type="button"
-              onClick={() => { setMode("signin"); setError(null); setInfo(null); }}
-              style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem", padding: 0 }}
+              onClick={() => {
+                setMode("signin");
+                setError(null);
+                setInfo(null);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--primary)",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: "0.875rem",
+                padding: 0,
+              }}
             >
               ← Back to sign in
             </button>

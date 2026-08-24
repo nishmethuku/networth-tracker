@@ -34,7 +34,15 @@ const LIABILITY_ICONS = {
   other: "📄",
 };
 
-const emptyForm = { name: "", liability_type: "mortgage", currency: getDefaultDisplayCurrency(), current_balance: "", original_amount: "", interest_rate: "", notes: "" };
+const emptyForm = {
+  name: "",
+  liability_type: "mortgage",
+  currency: getDefaultDisplayCurrency(),
+  current_balance: "",
+  original_amount: "",
+  interest_rate: "",
+  notes: "",
+};
 
 function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
   const [form, setForm] = useState(initial ?? emptyForm);
@@ -57,31 +65,67 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1rem" }}>
         <div>
           <label style={labelStyle}>Name</label>
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., Home mortgage" style={inputStyle} required />
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="e.g., Home mortgage"
+            style={inputStyle}
+            required
+          />
         </div>
         <div>
           <label style={labelStyle}>Type</label>
           <select value={form.liability_type} onChange={(e) => setForm({ ...form, liability_type: e.target.value })} style={inputStyle}>
-            {LIABILITY_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {LIABILITY_TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </div>
         <div>
           <label style={labelStyle}>Currency</label>
           <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={inputStyle}>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         </div>
         <div>
           <label style={labelStyle}>Current balance</label>
-          <input type="number" step="any" min="0" value={form.current_balance} onChange={(e) => setForm({ ...form, current_balance: e.target.value })} style={inputStyle} required />
+          <input
+            type="number"
+            step="any"
+            min="0"
+            value={form.current_balance}
+            onChange={(e) => setForm({ ...form, current_balance: e.target.value })}
+            style={inputStyle}
+            required
+          />
         </div>
         <div>
           <label style={labelStyle}>Original amount (optional)</label>
-          <input type="number" step="any" min="0" value={form.original_amount} onChange={(e) => setForm({ ...form, original_amount: e.target.value })} style={inputStyle} />
+          <input
+            type="number"
+            step="any"
+            min="0"
+            value={form.original_amount}
+            onChange={(e) => setForm({ ...form, original_amount: e.target.value })}
+            style={inputStyle}
+          />
         </div>
         <div>
           <label style={labelStyle}>Interest rate % (optional)</label>
-          <input type="number" step="any" min="0" value={form.interest_rate} onChange={(e) => setForm({ ...form, interest_rate: e.target.value })} style={inputStyle} />
+          <input
+            type="number"
+            step="any"
+            min="0"
+            value={form.interest_rate}
+            onChange={(e) => setForm({ ...form, interest_rate: e.target.value })}
+            style={inputStyle}
+          />
         </div>
       </div>
       <div style={{ marginBottom: "1rem" }}>
@@ -89,10 +133,36 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
         <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={inputStyle} />
       </div>
       <div style={{ display: "flex", gap: "0.75rem" }}>
-        <button type="submit" disabled={submitting} style={{ padding: "0.625rem 1.25rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}>
+        <button
+          type="submit"
+          disabled={submitting}
+          style={{
+            padding: "0.625rem 1.25rem",
+            borderRadius: "var(--radius)",
+            border: "none",
+            background: "var(--primary)",
+            color: "var(--text-inverse)",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: "0.875rem",
+          }}
+        >
           {submitting ? "Saving…" : "Save"}
         </button>
-        <button type="button" onClick={onCancel} style={{ padding: "0.625rem 1.25rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", cursor: "pointer", fontWeight: 500, fontSize: "0.875rem" }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            padding: "0.625rem 1.25rem",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            color: "var(--text)",
+            cursor: "pointer",
+            fontWeight: 500,
+            fontSize: "0.875rem",
+          }}
+        >
           Cancel
         </button>
       </div>
@@ -104,8 +174,13 @@ function PayoffCalculator({ liability }) {
   const [monthlyPayment, setMonthlyPayment] = useState(() => Math.max(1, Math.round(liability.currentBalance / 24)));
 
   const points = useMemo(
-    () => projectPayoff({ balance: liability.currentBalance, annualRatePct: liability.interestRate || 0, monthlyPayment: Number(monthlyPayment) || 0 }),
-    [liability.currentBalance, liability.interestRate, monthlyPayment]
+    () =>
+      projectPayoff({
+        balance: liability.currentBalance,
+        annualRatePct: liability.interestRate || 0,
+        monthlyPayment: Number(monthlyPayment) || 0,
+      }),
+    [liability.currentBalance, liability.interestRate, monthlyPayment],
   );
   const months = monthsToPayoff(points);
   const totalInterest = points[points.length - 1]?.interestPaid ?? 0;
@@ -114,8 +189,17 @@ function PayoffCalculator({ liability }) {
     <div style={{ marginTop: "0.75rem", padding: "0.875rem", borderRadius: "var(--radius)", background: "var(--bg-secondary)" }}>
       <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "0.75rem" }}>
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Monthly payment</label>
-          <input type="number" step="any" min="0" value={monthlyPayment} onChange={(e) => setMonthlyPayment(e.target.value)} style={{ ...inputStyle, width: 140 }} />
+          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+            Monthly payment
+          </label>
+          <input
+            type="number"
+            step="any"
+            min="0"
+            value={monthlyPayment}
+            onChange={(e) => setMonthlyPayment(e.target.value)}
+            style={{ ...inputStyle, width: 140 }}
+          />
         </div>
         {liability.interestRate == null && (
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>No interest rate set — assuming 0%.</div>
@@ -137,7 +221,11 @@ function PayoffCalculator({ liability }) {
             <LineChart data={points}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
               <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(m) => `${m}mo`} />
-              <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => formatCurrencyCompact(v, liability.currency)} width={56} />
+              <YAxis
+                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                tickFormatter={(v) => formatCurrencyCompact(v, liability.currency)}
+                width={56}
+              />
               <Tooltip
                 formatter={(v) => formatCurrencyForDisplay(v, liability.currency)}
                 labelFormatter={(m) => `Month ${m}`}
@@ -192,11 +280,48 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
         </div>
       )}
       <div style={{ display: "flex", gap: "1rem", marginTop: "0.6rem" }}>
-        <button onClick={() => setShowCalc((v) => !v)} style={{ fontSize: "0.8125rem", color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>
+        <button
+          onClick={() => setShowCalc((v) => !v)}
+          style={{
+            fontSize: "0.8125rem",
+            color: "var(--primary)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            fontWeight: 500,
+          }}
+        >
           {showCalc ? "Hide payoff calculator" : "Payoff calculator"}
         </button>
-        <button onClick={() => onEdit(liability)} style={{ fontSize: "0.8125rem", color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>Edit</button>
-        <button onClick={() => onDelete(liability)} style={{ fontSize: "0.8125rem", color: "var(--danger)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>Delete</button>
+        <button
+          onClick={() => onEdit(liability)}
+          style={{
+            fontSize: "0.8125rem",
+            color: "var(--primary)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            fontWeight: 500,
+          }}
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(liability)}
+          style={{
+            fontSize: "0.8125rem",
+            color: "var(--danger)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            fontWeight: 500,
+          }}
+        >
+          Delete
+        </button>
       </div>
       {showCalc && <PayoffCalculator liability={liability} />}
     </div>
@@ -211,7 +336,13 @@ export default function Liabilities() {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
 
-  const { data: liabilities, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: liabilities,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["liabilities", currency],
     queryFn: () => fetchLiabilities({ currency }),
   });
@@ -256,12 +387,33 @@ export default function Liabilities() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Liabilities</h1>
         {!showForm && (
           <button
-            onClick={() => { setEditing(null); setShowForm(true); }}
-            style={{ padding: "0.625rem 1.25rem", borderRadius: "var(--radius)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
+            onClick={() => {
+              setEditing(null);
+              setShowForm(true);
+            }}
+            style={{
+              padding: "0.625rem 1.25rem",
+              borderRadius: "var(--radius)",
+              border: "none",
+              background: "var(--primary)",
+              color: "var(--text-inverse)",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+            }}
           >
             + Add Liability
           </button>
@@ -289,7 +441,10 @@ export default function Liabilities() {
                   : null
               }
               submitting={createMutation.isPending || updateMutation.isPending}
-              onCancel={() => { setShowForm(false); setEditing(null); }}
+              onCancel={() => {
+                setShowForm(false);
+                setEditing(null);
+              }}
               onSubmit={(payload) => (editing ? updateMutation.mutate({ id: editing.id, payload }) : createMutation.mutate(payload))}
             />
           </Card>
@@ -302,7 +457,16 @@ export default function Liabilities() {
         <Card title="Total liabilities" value={formatCurrencyCompact(total, currency)}>
           <div style={{ marginTop: "1rem" }}>
             {liabilities.map((l) => (
-              <LiabilityRow key={l.id} liability={l} displayCurrency={currency} onEdit={(li) => { setShowForm(false); setEditing(li); }} onDelete={setDeleting} />
+              <LiabilityRow
+                key={l.id}
+                liability={l}
+                displayCurrency={currency}
+                onEdit={(li) => {
+                  setShowForm(false);
+                  setEditing(li);
+                }}
+                onDelete={setDeleting}
+              />
             ))}
           </div>
         </Card>

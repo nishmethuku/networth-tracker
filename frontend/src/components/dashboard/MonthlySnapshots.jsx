@@ -58,10 +58,23 @@ export default function MonthlySnapshots({ history, currency }) {
               }}
             >
               <span style={{ fontSize: "0.875rem", color: "var(--text)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.7rem", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s ease", display: "inline-block" }}>▶</span>
+                <span
+                  style={{
+                    color: "var(--text-muted)",
+                    fontSize: "0.7rem",
+                    transform: isOpen ? "rotate(90deg)" : "none",
+                    transition: "transform 0.15s ease",
+                    display: "inline-block",
+                  }}
+                >
+                  ▶
+                </span>
                 {formatMonthLabel(m.date)}
                 {m.day > 5 && (
-                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>(as of the {m.day}{m.day === 1 ? "st" : "th"})</span>
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                    (as of the {m.day}
+                    {m.day === 1 ? "st" : "th"})
+                  </span>
                 )}
               </span>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: m.netWorth < 0 ? "var(--danger)" : "var(--text)" }}>

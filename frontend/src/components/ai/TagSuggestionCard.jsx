@@ -87,13 +87,30 @@ export default function TagSuggestionCard({ transactionId, holdingId, onDismiss 
           <button
             onClick={() => acceptMutation.mutate()}
             disabled={acceptMutation.isPending}
-            style={{ padding: "0.3rem 0.7rem", borderRadius: "var(--radius-sm)", border: "none", background: "var(--primary)", color: "var(--text-inverse)", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer" }}
+            style={{
+              padding: "0.3rem 0.7rem",
+              borderRadius: "var(--radius-sm)",
+              border: "none",
+              background: "var(--primary)",
+              color: "var(--text-inverse)",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
           >
             Accept
           </button>
           <button
             onClick={onDismiss}
-            style={{ padding: "0.3rem 0.7rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: "0.75rem", cursor: "pointer" }}
+            style={{
+              padding: "0.3rem 0.7rem",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border)",
+              background: "transparent",
+              color: "var(--text-secondary)",
+              fontSize: "0.75rem",
+              cursor: "pointer",
+            }}
           >
             Dismiss
           </button>

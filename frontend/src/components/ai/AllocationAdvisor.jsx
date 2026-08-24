@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchDashboard, fetchAllocationAdvice, fetchAllocationTargets, saveAllocationTargets, fetchAllocationDrift, ApiError } from "../../api";
+import {
+  fetchDashboard,
+  fetchAllocationAdvice,
+  fetchAllocationTargets,
+  saveAllocationTargets,
+  fetchAllocationDrift,
+  ApiError,
+} from "../../api";
 import { ASSET_TYPE_LABELS, getAssetTypeLabel } from "../../constants/enums";
 import Card from "../Card";
 import LoadingState from "../LoadingState";
@@ -15,7 +22,13 @@ export default function AllocationAdvisor() {
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const { data: dashboard, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: dashboard,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["dashboard-for-advisor"],
     queryFn: () => fetchDashboard({ currency: "USD" }),
   });
@@ -94,7 +107,16 @@ export default function AllocationAdvisor() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Allocation Advisor</h1>
       </div>
       <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
@@ -102,8 +124,19 @@ export default function AllocationAdvisor() {
       </p>
 
       {drift?.has_target && drift.is_drifted && (
-        <div style={{ padding: "0.875rem 1.25rem", borderRadius: "var(--radius)", background: "var(--warning-light)", border: "1px solid var(--warning)", marginBottom: "1.5rem", fontSize: "0.875rem", color: "var(--text)" }}>
-          ⚠️ You've drifted {formatPercent(drift.max_drift_pct)} from your saved target allocation. The plan below reflects your saved target.
+        <div
+          style={{
+            padding: "0.875rem 1.25rem",
+            borderRadius: "var(--radius)",
+            background: "var(--warning-light)",
+            border: "1px solid var(--warning)",
+            marginBottom: "1.5rem",
+            fontSize: "0.875rem",
+            color: "var(--text)",
+          }}
+        >
+          ⚠️ You've drifted {formatPercent(drift.max_drift_pct)} from your saved target allocation. The plan below reflects your saved
+          target.
         </div>
       )}
 
@@ -114,8 +147,12 @@ export default function AllocationAdvisor() {
           ) : (
             <>
               <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-                <button onClick={useCurrentAsTarget} style={secondaryBtnStyle}>Start from current</button>
-                <button onClick={setSplitEvenly} style={secondaryBtnStyle}>Split evenly</button>
+                <button onClick={useCurrentAsTarget} style={secondaryBtnStyle}>
+                  Start from current
+                </button>
+                <button onClick={setSplitEvenly} style={secondaryBtnStyle}>
+                  Split evenly
+                </button>
                 <button
                   onClick={() => saveTarget.mutate(Object.fromEntries(allTypes.map((t) => [t, Number(targets[t]) || 0])))}
                   disabled={saveTarget.isPending || Math.abs(targetTotal - 100) >= 0.5}
@@ -136,14 +173,28 @@ export default function AllocationAdvisor() {
                         max="100"
                         value={targets[type] ?? ""}
                         onChange={(e) => setTargets((prev) => ({ ...prev, [type]: e.target.value }))}
-                        style={{ width: "64px", padding: "0.4rem 0.5rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text)", textAlign: "right" }}
+                        style={{
+                          width: "64px",
+                          padding: "0.4rem 0.5rem",
+                          borderRadius: "var(--radius-sm)",
+                          border: "1px solid var(--border)",
+                          background: "var(--bg-secondary)",
+                          color: "var(--text)",
+                          textAlign: "right",
+                        }}
                       />
                       <span style={{ color: "var(--text-muted)", fontSize: "0.8125rem" }}>%</span>
                     </div>
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: "1rem", fontSize: "0.8125rem", color: Math.abs(targetTotal - 100) < 0.5 ? "var(--success)" : "var(--warning)" }}>
+              <div
+                style={{
+                  marginTop: "1rem",
+                  fontSize: "0.8125rem",
+                  color: Math.abs(targetTotal - 100) < 0.5 ? "var(--success)" : "var(--warning)",
+                }}
+              >
                 Total: {targetTotal.toFixed(0)}% {Math.abs(targetTotal - 100) < 0.5 ? "✓" : "(must equal 100%)"}
               </div>
               {advise.isError && (
@@ -204,7 +255,16 @@ export default function AllocationAdvisor() {
               <Card title="Rebalance plan">
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                   {result.rebalance_plan.map((p) => (
-                    <div key={p.asset_type} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0", borderBottom: "1px solid var(--border-light)" }}>
+                    <div
+                      key={p.asset_type}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "0.625rem 0",
+                        borderBottom: "1px solid var(--border-light)",
+                      }}
+                    >
                       <div>
                         <div style={{ fontWeight: 600, color: "var(--text)", fontSize: "0.875rem" }}>
                           {ASSET_TYPE_LABELS[p.asset_type] || getAssetTypeLabel(p.asset_type)}
@@ -214,12 +274,14 @@ export default function AllocationAdvisor() {
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <span style={{
-                          fontSize: "0.8125rem",
-                          fontWeight: 700,
-                          color: p.action === "buy" ? "var(--success)" : p.action === "sell" ? "var(--danger)" : "var(--text-muted)",
-                          textTransform: "uppercase",
-                        }}>
+                        <span
+                          style={{
+                            fontSize: "0.8125rem",
+                            fontWeight: 700,
+                            color: p.action === "buy" ? "var(--success)" : p.action === "sell" ? "var(--danger)" : "var(--text-muted)",
+                            textTransform: "uppercase",
+                          }}
+                        >
                           {p.action}
                         </span>
                         {p.action !== "hold" && (

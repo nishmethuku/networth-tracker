@@ -23,7 +23,18 @@ export default function MilestoneCelebration() {
   return (
     <AnimatePresence>
       {unacknowledged && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,23,42,0.5)", padding: "1rem" }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 500,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15,23,42,0.5)",
+            padding: "1rem",
+          }}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}

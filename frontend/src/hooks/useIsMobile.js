@@ -6,9 +6,7 @@ import { useEffect, useState } from "react";
 const MOBILE_BREAKPOINT = "(max-width: 640px)";
 
 export default function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT).matches
-  );
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT).matches);
 
   useEffect(() => {
     const mql = window.matchMedia(MOBILE_BREAKPOINT);

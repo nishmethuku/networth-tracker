@@ -56,7 +56,8 @@ export default function MoverHeatGrid({ movers, currency }) {
               {m.symbol || m.name}
             </div>
             <div style={{ fontSize: "1.125rem", fontWeight: 700, marginTop: "0.15rem" }}>
-              {positive ? "+" : ""}{formatPercent(m.changePct)}
+              {positive ? "+" : ""}
+              {formatPercent(m.changePct)}
             </div>
             <div style={{ fontSize: "0.75rem", opacity: 0.75 }}>{formatCurrencyCompact(m.currentValue, currency)}</div>
             <Sparkline holdingId={m.id} />

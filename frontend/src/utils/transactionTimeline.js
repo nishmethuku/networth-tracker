@@ -7,7 +7,7 @@
  */
 export function computeTransactionTimeline(transactions) {
   const sorted = [...(transactions || [])].sort(
-    (a, b) => new Date(a.transactionDate) - new Date(b.transactionDate) || (a.id ?? 0) - (b.id ?? 0)
+    (a, b) => new Date(a.transactionDate) - new Date(b.transactionDate) || (a.id ?? 0) - (b.id ?? 0),
   );
 
   let quantity = 0;

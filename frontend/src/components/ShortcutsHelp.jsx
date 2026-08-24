@@ -78,7 +78,9 @@ export default function ShortcutsHelp({ open, onClose }) {
                 <div key={s.description} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{s.description}</span>
                   <div style={{ display: "flex", gap: "0.25rem" }}>
-                    {s.keys.map((k) => <Kbd key={k}>{k}</Kbd>)}
+                    {s.keys.map((k) => (
+                      <Kbd key={k}>{k}</Kbd>
+                    ))}
                   </div>
                 </div>
               ))}

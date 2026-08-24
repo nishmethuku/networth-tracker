@@ -26,11 +26,21 @@ export default function TransactionCard({ t }) {
           {t.transactionType}
         </span>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.5rem", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: "0.5rem",
+          fontSize: "0.8125rem",
+          color: "var(--text-secondary)",
+        }}
+      >
         {isIncome ? (
           <span>Income received</span>
         ) : (
-          <span>{t.quantity.toFixed(4)} @ {formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</span>
+          <span>
+            {t.quantity.toFixed(4)} @ {formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
+          </span>
         )}
         <span style={{ fontWeight: 700, color: "var(--text)" }}>{formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}</span>
       </div>

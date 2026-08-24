@@ -23,7 +23,13 @@ const inputStyle = {
 export default function Insights() {
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
 
-  const { data: history, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: history,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["net-worth-history", currency],
     queryFn: () => fetchNetWorthHistory(null, currency),
   });
@@ -33,17 +39,28 @@ export default function Insights() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Insights</h1>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         </div>
       </div>
-      <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
-        A closer look at how your net worth has moved over time.
-      </p>
+      <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>A closer look at how your net worth has moved over time.</p>
 
       <div style={{ marginBottom: "1.5rem" }}>
         <ErrorBoundary mode="section" fallbackMessage="Couldn't load milestones.">

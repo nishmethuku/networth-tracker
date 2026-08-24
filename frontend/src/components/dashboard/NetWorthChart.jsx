@@ -1,15 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  ComposedChart,
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
 import EmptyState from "../EmptyState";
 import { formatCurrencyCompact, safeNumber } from "../../utils/formatters";
 
@@ -36,14 +26,22 @@ function CustomTooltip({ active, payload, label, currency }) {
   const deltaPct = point.deltaPct;
   const positive = delta >= 0;
   return (
-    <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.625rem 0.875rem", boxShadow: "var(--shadow-md)" }}>
+    <div
+      style={{
+        background: "var(--card)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        padding: "0.625rem 0.875rem",
+        boxShadow: "var(--shadow-md)",
+      }}
+    >
       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>{label}</div>
       <div style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text)" }}>{formatCurrencyCompact(point.netWorth, currency)}</div>
       {delta != null && (
         <div style={{ fontSize: "0.75rem", color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
-          {positive ? "+" : ""}{formatCurrencyCompact(delta, currency)}
-          {deltaPct != null && ` (${positive ? "+" : ""}${deltaPct.toFixed(1)}%)`}
-          {" "}since start of range
+          {positive ? "+" : ""}
+          {formatCurrencyCompact(delta, currency)}
+          {deltaPct != null && ` (${positive ? "+" : ""}${deltaPct.toFixed(1)}%)`} since start of range
         </div>
       )}
     </div>
@@ -54,11 +52,25 @@ function BreakdownTooltip({ active, payload, label, currency }) {
   if (!active || !payload || !payload.length) return null;
   const point = payload[0].payload;
   return (
-    <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.625rem 0.875rem", boxShadow: "var(--shadow-md)" }}>
+    <div
+      style={{
+        background: "var(--card)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        padding: "0.625rem 0.875rem",
+        boxShadow: "var(--shadow-md)",
+      }}
+    >
       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>{label}</div>
-      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--success)" }}>Assets: {formatCurrencyCompact(point.assets, currency)}</div>
-      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--danger)" }}>Liabilities: {formatCurrencyCompact(point.liabilities, currency)}</div>
-      <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.15rem" }}>Net: {formatCurrencyCompact(point.netWorth, currency)}</div>
+      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--success)" }}>
+        Assets: {formatCurrencyCompact(point.assets, currency)}
+      </div>
+      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--danger)" }}>
+        Liabilities: {formatCurrencyCompact(point.liabilities, currency)}
+      </div>
+      <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.15rem" }}>
+        Net: {formatCurrencyCompact(point.netWorth, currency)}
+      </div>
     </div>
   );
 }
@@ -91,7 +103,16 @@ export default function NetWorthChart({ history, currency }) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", gap: "0.5rem", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+          gap: "0.5rem",
+          flexWrap: "wrap",
+        }}
+      >
         {hasLiabilityHistory ? (
           <button
             onClick={() => setShowBreakdown((v) => !v)}
@@ -108,7 +129,9 @@ export default function NetWorthChart({ history, currency }) {
           >
             Assets vs Debt
           </button>
-        ) : <span />}
+        ) : (
+          <span />
+        )}
         <div style={{ display: "flex", gap: "0.25rem" }}>
           {RANGES.map((r, i) => (
             <button

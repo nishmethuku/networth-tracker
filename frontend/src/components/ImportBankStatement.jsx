@@ -40,7 +40,9 @@ export default function ImportBankStatement() {
       setRows(result.rows.map((r, i) => ({ ...r, _key: i })));
       setWarnings(result.warnings || []);
       const defaults = {};
-      result.rows.forEach((_, i) => { defaults[i] = true; });
+      result.rows.forEach((_, i) => {
+        defaults[i] = true;
+      });
       setIncluded(defaults);
       if (result.rows.length === 0) {
         toast.info("Didn't find any transactions in that file — try a different one or add entries manually.");
@@ -59,7 +61,9 @@ export default function ImportBankStatement() {
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-subscriptions"] });
       const errorCount = result.errors?.length || 0;
-      toast.success(`Imported ${result.entries_created} entr${result.entries_created === 1 ? "y" : "ies"}${errorCount ? ` (${errorCount} row${errorCount === 1 ? "" : "s"} skipped)` : ""}`);
+      toast.success(
+        `Imported ${result.entries_created} entr${result.entries_created === 1 ? "y" : "ies"}${errorCount ? ` (${errorCount} row${errorCount === 1 ? "" : "s"} skipped)` : ""}`,
+      );
       setTimeout(() => navigate("/budget"), 1200);
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Import failed"),
@@ -83,24 +87,30 @@ export default function ImportBankStatement() {
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "2rem 1rem" }}>
-      <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>
-        Import Bank Statement
-      </h1>
+      <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>Import Bank Statement</h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
-        Upload a bank or credit card statement (Excel, CSV, or PDF) — AI reads it and categorizes each
-        transaction into your budget; nothing is saved until you review and confirm below.
+        Upload a bank or credit card statement (Excel, CSV, or PDF) — AI reads it and categorizes each transaction into your budget; nothing
+        is saved until you review and confirm below.
       </p>
 
       <Card>
         <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>Statement (.xlsx, .csv, or .pdf)</label>
+            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+              Statement (.xlsx, .csv, or .pdf)
+            </label>
             <input type="file" accept=".xlsx,.xls,.csv,.pdf" onChange={handleFileChange} style={inputStyle} />
           </div>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>Currency</label>
+            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+              Currency
+            </label>
             <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={inputStyle}>
-              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -112,17 +122,39 @@ export default function ImportBankStatement() {
       </Card>
 
       {notConfigured && (
-        <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "var(--warning-light)", border: "1px solid var(--warning)", borderRadius: "var(--radius)", color: "var(--text)", fontSize: "0.875rem" }}>
-          Statement import isn't set up yet — it needs a Gemini API key configured on the backend. Use{" "}
-          <a href="/budget">the Budget page</a> to add entries manually in the meantime.
+        <div
+          style={{
+            marginTop: "1.5rem",
+            padding: "1rem 1.25rem",
+            background: "var(--warning-light)",
+            border: "1px solid var(--warning)",
+            borderRadius: "var(--radius)",
+            color: "var(--text)",
+            fontSize: "0.875rem",
+          }}
+        >
+          Statement import isn't set up yet — it needs a Gemini API key configured on the backend. Use <a href="/budget">the Budget page</a>{" "}
+          to add entries manually in the meantime.
         </div>
       )}
 
       {warnings.length > 0 && (
-        <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+        <div
+          style={{
+            marginTop: "1.5rem",
+            padding: "1rem 1.25rem",
+            background: "var(--bg-secondary)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius)",
+            fontSize: "0.8125rem",
+            color: "var(--text-secondary)",
+          }}
+        >
           <strong style={{ color: "var(--text)" }}>Notes from the read:</strong>
           <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.25rem" }}>
-            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+            {warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
           </ul>
         </div>
       )}
@@ -157,10 +189,19 @@ export default function ImportBankStatement() {
                           />
                         </td>
                         <td style={{ padding: "0.5rem" }}>
-                          <input type="date" value={r.date || ""} onChange={(e) => updateRow(r._key, "date", e.target.value)} style={inputStyle} />
+                          <input
+                            type="date"
+                            value={r.date || ""}
+                            onChange={(e) => updateRow(r._key, "date", e.target.value)}
+                            style={inputStyle}
+                          />
                         </td>
                         <td style={{ padding: "0.5rem" }}>
-                          <input value={r.description || ""} onChange={(e) => updateRow(r._key, "description", e.target.value)} style={inputStyle} />
+                          <input
+                            value={r.description || ""}
+                            onChange={(e) => updateRow(r._key, "description", e.target.value)}
+                            style={inputStyle}
+                          />
                         </td>
                         <td style={{ padding: "0.5rem" }}>
                           <select
@@ -180,11 +221,21 @@ export default function ImportBankStatement() {
                         </td>
                         <td style={{ padding: "0.5rem" }}>
                           <select value={r.category} onChange={(e) => updateRow(r._key, "category", e.target.value)} style={inputStyle}>
-                            {categoryOptions.map((c) => <option key={c} value={c}>{getBudgetCategoryLabel(c)}</option>)}
+                            {categoryOptions.map((c) => (
+                              <option key={c} value={c}>
+                                {getBudgetCategoryLabel(c)}
+                              </option>
+                            ))}
                           </select>
                         </td>
                         <td style={{ padding: "0.5rem" }}>
-                          <input type="number" step="any" value={r.amount ?? ""} onChange={(e) => updateRow(r._key, "amount", e.target.value)} style={inputStyle} />
+                          <input
+                            type="number"
+                            step="any"
+                            value={r.amount ?? ""}
+                            onChange={(e) => updateRow(r._key, "amount", e.target.value)}
+                            style={inputStyle}
+                          />
                         </td>
                         <td style={{ padding: "0.5rem", textAlign: "center" }}>
                           <input

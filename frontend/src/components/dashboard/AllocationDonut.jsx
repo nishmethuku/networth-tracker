@@ -50,11 +50,22 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+        }}
+      >
         <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
           {drill ? (
             <span>
-              <button onClick={() => setDrill(null)} style={breadcrumbBtnStyle}>All</button>
+              <button onClick={() => setDrill(null)} style={breadcrumbBtnStyle}>
+                All
+              </button>
               {" › "}
               <span style={{ color: "var(--text)" }}>{drill.level === "type" ? getAssetTypeLabel(drill.key) : drill.key}</span>
             </span>
@@ -62,13 +73,29 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
             <span>&nbsp;</span>
           )}
         </div>
-        <div style={{ display: "inline-flex", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "999px", padding: "0.2rem", border: "1px solid var(--border)" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            gap: "0.2rem",
+            background: "var(--bg-secondary)",
+            borderRadius: "999px",
+            padding: "0.2rem",
+            border: "1px solid var(--border)",
+          }}
+        >
           {["type", "country", "currency"].map((v) => (
             <button
               key={v}
-              onClick={() => { setView(v); setDrill(null); }}
+              onClick={() => {
+                setView(v);
+                setDrill(null);
+              }}
               style={{
-                border: "none", borderRadius: "999px", padding: "0.25rem 0.625rem", fontSize: "0.75rem", cursor: "pointer",
+                border: "none",
+                borderRadius: "999px",
+                padding: "0.25rem 0.625rem",
+                fontSize: "0.75rem",
+                cursor: "pointer",
                 background: view === v ? "var(--primary)" : "transparent",
                 color: view === v ? "var(--text-inverse)" : "var(--text-secondary)",
                 fontWeight: view === v ? 600 : 500,
@@ -114,7 +141,13 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
           <div
             key={entry.label}
             onClick={() => handleSliceClick(entry)}
-            style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8125rem", cursor: drillData ? "default" : "pointer" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              fontSize: "0.8125rem",
+              cursor: drillData ? "default" : "pointer",
+            }}
           >
             <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[index % COLORS.length] }} />
             <span>{labelFor(entry.label)}</span>

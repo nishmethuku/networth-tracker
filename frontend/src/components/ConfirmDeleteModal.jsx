@@ -10,7 +10,14 @@ export default function ConfirmDeleteModal({ isOpen, onConfirm, onCancel, assetN
   const isMobile = useIsMobile();
 
   const Buttons = (
-    <div style={{ display: "flex", gap: "0.75rem", justifyContent: isMobile ? "stretch" : "flex-end", flexDirection: isMobile ? "column-reverse" : "row" }}>
+    <div
+      style={{
+        display: "flex",
+        gap: "0.75rem",
+        justifyContent: isMobile ? "stretch" : "flex-end",
+        flexDirection: isMobile ? "column-reverse" : "row",
+      }}
+    >
       <button
         onClick={onCancel}
         style={{

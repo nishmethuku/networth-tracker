@@ -44,9 +44,20 @@ function BenchmarkCard() {
         <select
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
-          style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", fontSize: "0.875rem" }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+            background: "var(--bg)",
+            color: "var(--text)",
+            fontSize: "0.875rem",
+          }}
         >
-          {BENCHMARKS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+          {BENCHMARKS.map((b) => (
+            <option key={b.value} value={b.value}>
+              {b.label}
+            </option>
+          ))}
         </select>
       </div>
       {isLoading ? (
@@ -124,12 +135,7 @@ export default function Dashboard() {
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError) {
-    return (
-      <ErrorState
-        error={error instanceof ApiError ? error.message : "Failed to load dashboard"}
-        onRetry={refetch}
-      />
-    );
+    return <ErrorState error={error instanceof ApiError ? error.message : "Failed to load dashboard"} onRetry={refetch} />;
   }
   if (!dashboard) return <EmptyState message="No data yet" />;
 
@@ -154,11 +160,18 @@ export default function Dashboard() {
           {refreshing ? "Refreshing…" : pullDistance >= threshold ? "Release to refresh" : "Pull to refresh"}
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-          <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>
-            Net Worth
-          </h1>
+          <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>Net Worth</h1>
         </div>
         <div
           style={{

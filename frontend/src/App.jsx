@@ -162,11 +162,7 @@ function MobileBottomNav() {
         const active = location.pathname === tab.to;
         if (tab.fab) {
           return (
-            <Link
-              key={tab.to}
-              to={tab.to}
-              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}
-            >
+            <Link key={tab.to} to={tab.to} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <motion.span
                 whileTap={{ scale: 0.88 }}
                 style={{
@@ -262,7 +258,16 @@ function AppShell() {
         }}
       >
         <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
-          <Link to="/" style={{ fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--primary)", fontSize: "1.25rem", letterSpacing: "-0.01em" }}>
+          <Link
+            to="/"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 600,
+              color: "var(--primary)",
+              fontSize: "1.25rem",
+              letterSpacing: "-0.01em",
+            }}
+          >
             {t("nav.netWorth")}
           </Link>
           <NavLink to="/portfolio">{t("nav.portfolio")}</NavLink>
@@ -279,13 +284,15 @@ function AppShell() {
               { to: "/what-if", label: t("nav.whatIf") },
             ]}
           />
-          <NavLink to="/add-holding" highlight>{t("nav.addHolding")}</NavLink>
+          <NavLink to="/add-holding" highlight>
+            {t("nav.addHolding")}
+          </NavLink>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          {user && (
-            <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{user.email}</span>
-          )}
-          <Link to="/settings" aria-label="Settings" style={{ color: "var(--text-secondary)", fontSize: "1.125rem", lineHeight: 1 }}>⚙️</Link>
+          {user && <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{user.email}</span>}
+          <Link to="/settings" aria-label="Settings" style={{ color: "var(--text-secondary)", fontSize: "1.125rem", lineHeight: 1 }}>
+            ⚙️
+          </Link>
           <ThemeToggle />
           <button
             onClick={signOut}

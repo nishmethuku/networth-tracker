@@ -60,7 +60,6 @@ export default function usePullToRefresh(onRefresh) {
       el.removeEventListener("touchmove", handleTouchMove);
       el.removeEventListener("touchend", handleTouchEnd);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pullDistance, refreshing, onRefresh]);
 
   return { containerRef, pullDistance, refreshing, threshold: PULL_THRESHOLD };

@@ -29,11 +29,7 @@ export function RatesProvider({ children }) {
     return (value / fromRate) * toRate;
   }
 
-  return (
-    <RatesContext.Provider value={{ rates, convert, loading: isLoading }}>
-      {children}
-    </RatesContext.Provider>
-  );
+  return <RatesContext.Provider value={{ rates, convert, loading: isLoading }}>{children}</RatesContext.Provider>;
 }
 
 export function useRates() {

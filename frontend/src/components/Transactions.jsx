@@ -27,7 +27,13 @@ export default function Transactions() {
   const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "" });
   const isMobile = useIsMobile();
 
-  const { data: transactions, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: transactions,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["transactions", filters],
     queryFn: () => fetchAllTransactions(filters),
     staleTime: 1000 * 30,
@@ -44,19 +50,53 @@ export default function Transactions() {
     <div>
       <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", marginBottom: "1.5rem" }}>Transactions</h1>
 
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", padding: "1.25rem 1.5rem", background: "var(--card)", borderRadius: "var(--radius-md)", marginBottom: "1.5rem", border: "1px solid var(--border)" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "0.75rem",
+          flexWrap: "wrap",
+          padding: "1.25rem 1.5rem",
+          background: "var(--card)",
+          borderRadius: "var(--radius-md)",
+          marginBottom: "1.5rem",
+          border: "1px solid var(--border)",
+        }}
+      >
         <select value={filters.assetType} onChange={(e) => setFilters({ ...filters, assetType: e.target.value })} style={inputStyle}>
           <option value="">All Types</option>
-          {ASSET_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {ASSET_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
         <select value={filters.country} onChange={(e) => setFilters({ ...filters, country: e.target.value })} style={inputStyle}>
           <option value="">All Countries</option>
-          {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          {COUNTRIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
         </select>
-        <input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} style={inputStyle} placeholder="From" />
-        <input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} style={inputStyle} placeholder="To" />
+        <input
+          type="date"
+          value={filters.dateFrom}
+          onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+          style={inputStyle}
+          placeholder="From"
+        />
+        <input
+          type="date"
+          value={filters.dateTo}
+          onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+          style={inputStyle}
+          placeholder="To"
+        />
         {hasActiveFilters && (
-          <button onClick={() => setFilters({ assetType: "", country: "", dateFrom: "", dateTo: "" })} style={{ ...inputStyle, cursor: "pointer" }}>
+          <button
+            onClick={() => setFilters({ assetType: "", country: "", dateFrom: "", dateTo: "" })}
+            style={{ ...inputStyle, cursor: "pointer" }}
+          >
             Clear
           </button>
         )}
@@ -98,11 +138,20 @@ export default function Transactions() {
                       </Link>
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{getAssetTypeLabel(t.assetType)}</div>
                     </td>
-                    <td style={{ padding: "0.75rem 0.5rem", textTransform: "capitalize", color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
+                    <td
+                      style={{
+                        padding: "0.75rem 0.5rem",
+                        textTransform: "capitalize",
+                        color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)",
+                        fontWeight: 600,
+                      }}
+                    >
                       {t.transactionType}
                     </td>
                     <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</td>
-                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</td>
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
+                      {formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
+                    </td>
                     <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                       {formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
                     </td>

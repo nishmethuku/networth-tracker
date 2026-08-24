@@ -17,12 +17,15 @@ export function ToastProvider({ children }) {
     delete timers.current[id];
   }, []);
 
-  const push = useCallback((message, type = "info", duration = DEFAULT_DURATION) => {
-    const id = nextId++;
-    setToasts((prev) => [...prev, { id, message, type, duration }]);
-    timers.current[id] = setTimeout(() => dismiss(id), duration);
-    return id;
-  }, [dismiss]);
+  const push = useCallback(
+    (message, type = "info", duration = DEFAULT_DURATION) => {
+      const id = nextId++;
+      setToasts((prev) => [...prev, { id, message, type, duration }]);
+      timers.current[id] = setTimeout(() => dismiss(id), duration);
+      return id;
+    },
+    [dismiss],
+  );
 
   const value = {
     toasts,

@@ -16,14 +16,8 @@ export default function EmptyState({ message, action }) {
       }}
     >
       <div style={{ fontSize: "3rem", marginBottom: "1rem", opacity: 0.7 }}>📭</div>
-      <p style={{ fontSize: "1.0625rem", marginBottom: "1rem", fontWeight: 500, color: "var(--text)" }}>
-        {message}
-      </p>
-      {action && (
-        <div style={{ marginTop: "1.5rem" }}>
-          {action}
-        </div>
-      )}
+      <p style={{ fontSize: "1.0625rem", marginBottom: "1rem", fontWeight: 500, color: "var(--text)" }}>{message}</p>
+      {action && <div style={{ marginTop: "1.5rem" }}>{action}</div>}
     </div>
   );
 }

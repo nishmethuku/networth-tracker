@@ -18,9 +18,7 @@ export default function ErrorState({ error, onRetry, message = "Failed to load d
       }}
     >
       <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚠️</div>
-      <p style={{ color: "var(--danger)", marginBottom: "1.5rem", fontSize: "1rem", fontWeight: 500 }}>
-        {errorMessage}
-      </p>
+      <p style={{ color: "var(--danger)", marginBottom: "1.5rem", fontSize: "1rem", fontWeight: 500 }}>{errorMessage}</p>
       {onRetry && (
         <button
           onClick={onRetry}

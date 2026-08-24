@@ -8,7 +8,7 @@
 const MAX_MONTHS = 600;
 
 export function projectPayoff({ balance, annualRatePct, monthlyPayment }) {
-  const r = (annualRatePct / 100) / 12;
+  const r = annualRatePct / 100 / 12;
   const points = [{ month: 0, balance, interestPaid: 0, principalPaid: 0 }];
   if (balance <= 0 || monthlyPayment <= 0) return points;
 

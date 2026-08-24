@@ -62,7 +62,8 @@ function ReturnCell({ pct, isXirr }) {
   if (pct == null) return <span style={{ color: "var(--text-muted)" }}>—</span>;
   return (
     <span style={{ color: pct >= 0 ? "var(--success)" : "var(--danger)" }}>
-      {pct >= 0 ? "+" : ""}{formatPercent(pct)} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{isXirr ? "XIRR" : "return"}</span>
+      {pct >= 0 ? "+" : ""}
+      {formatPercent(pct)} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{isXirr ? "XIRR" : "return"}</span>
     </span>
   );
 }
@@ -103,20 +104,30 @@ const ROW_STYLE = { display: "flex", justifyContent: "space-between", alignItems
 // phone screen. useIsMobile() drives a tighter layout below, so this stays
 // a function of that flag rather than a fixed constant.
 const rightGroupStyle = (isMobile) => ({ display: "flex", gap: isMobile ? "0.625rem" : "1.5rem", alignItems: "center" });
-const valueStyle = (isMobile) => ({ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)", minWidth: isMobile ? 68 : 90, textAlign: "right" });
+const valueStyle = (isMobile) => ({
+  fontFamily: "var(--font-mono)",
+  fontWeight: 600,
+  color: "var(--text)",
+  minWidth: isMobile ? 68 : 90,
+  textAlign: "right",
+});
 const returnStyle = (isMobile) => ({ minWidth: isMobile ? 84 : 110, textAlign: "right", fontFamily: "var(--font-mono)" });
 
 function Breadcrumb({ items, onNavigate }) {
   return (
     <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
-      <button onClick={() => onNavigate(-1)} style={breadcrumbBtnStyle}>All</button>
+      <button onClick={() => onNavigate(-1)} style={breadcrumbBtnStyle}>
+        All
+      </button>
       {items.map((item, i) => (
         <span key={i}>
           {" › "}
           {i === items.length - 1 ? (
             <span style={{ color: "var(--text)" }}>{item.label}</span>
           ) : (
-            <button onClick={() => onNavigate(i)} style={breadcrumbBtnStyle}>{item.label}</button>
+            <button onClick={() => onNavigate(i)} style={breadcrumbBtnStyle}>
+              {item.label}
+            </button>
           )}
         </span>
       ))}
@@ -163,10 +174,7 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
     const holdingsInAccount = list
       .filter((h) => h.assetType === drill.category && (h.account || "Unspecified") === drill.account)
       .sort((a, b) => b.displayValue - a.displayValue);
-    const breadcrumbItems = [
-      { label: getAssetTypeLabel(drill.category) },
-      ...(accountRows.length > 1 ? [{ label: drill.account }] : []),
-    ];
+    const breadcrumbItems = [{ label: getAssetTypeLabel(drill.category) }, ...(accountRows.length > 1 ? [{ label: drill.account }] : [])];
     return (
       <div>
         <Breadcrumb items={breadcrumbItems} onNavigate={navigateBreadcrumb} />
@@ -174,11 +182,16 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
           {holdingsInAccount.map((h, i) => {
             const { pct, isXirr } = holdingReturn(h);
             return (
-              <div key={h.id} style={{ ...ROW_STYLE, borderBottom: i < holdingsInAccount.length - 1 ? "1px solid var(--border-light)" : "none" }}>
+              <div
+                key={h.id}
+                style={{ ...ROW_STYLE, borderBottom: i < holdingsInAccount.length - 1 ? "1px solid var(--border-light)" : "none" }}
+              >
                 <span style={{ color: "var(--text)" }}>{h.displayName}</span>
                 <span style={rightGroupStyle(isMobile)}>
                   <span style={valueStyle(isMobile)}>{formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}</span>
-                  <span style={returnStyle(isMobile)}><ReturnCell pct={pct} isXirr={isXirr} /></span>
+                  <span style={returnStyle(isMobile)}>
+                    <ReturnCell pct={pct} isXirr={isXirr} />
+                  </span>
                 </span>
               </div>
             );
@@ -198,7 +211,13 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
             <div
               key={r.account}
               onClick={() => setDrill({ category: drill.category, account: r.account })}
-              style={{ display: "flex", flexDirection: "column", cursor: "pointer", padding: "0.625rem 0", borderBottom: i < accountRows.length - 1 ? "1px solid var(--border-light)" : "none" }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                cursor: "pointer",
+                padding: "0.625rem 0",
+                borderBottom: i < accountRows.length - 1 ? "1px solid var(--border-light)" : "none",
+              }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ color: "var(--text)" }}>
@@ -206,7 +225,9 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
                 </span>
                 <span style={rightGroupStyle(isMobile)}>
                   <span style={valueStyle(isMobile)}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
-                  <span style={returnStyle(isMobile)}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
+                  <span style={returnStyle(isMobile)}>
+                    <ReturnCell pct={r.returnPct} isXirr={r.isXirr} />
+                  </span>
                 </span>
               </div>
               {r.buyValue != null && (
@@ -214,7 +235,8 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
                   Buy value {formatCurrencyForDisplay(r.buyValue, currency, { includeCode: false })}
                   {" · "}
                   <span style={{ color: r.gainAmount >= 0 ? "var(--success)" : "var(--danger)" }}>
-                    {r.gainAmount >= 0 ? "+" : ""}{formatCurrencyForDisplay(r.gainAmount, currency, { includeCode: false })}
+                    {r.gainAmount >= 0 ? "+" : ""}
+                    {formatCurrencyForDisplay(r.gainAmount, currency, { includeCode: false })}
                   </span>
                 </div>
               )}
@@ -243,7 +265,9 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
-            <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <span
+              style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text)", display: "flex", alignItems: "center", gap: "0.4rem" }}
+            >
               <span style={{ fontSize: "1.125rem" }}>{CATEGORY_ICONS[r.assetType] || "📦"}</span>
               {r.label}
             </span>
@@ -253,10 +277,13 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
             {formatCurrencyForDisplay(r.value, currency, { includeCode: false })}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.5rem" }}>
-            <span style={{ fontSize: "0.8125rem" }}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
+            <span style={{ fontSize: "0.8125rem" }}>
+              <ReturnCell pct={r.returnPct} isXirr={r.isXirr} />
+            </span>
             {r.gainAmount != null && (
               <span style={{ fontSize: "0.75rem", fontWeight: 600, color: r.gainAmount >= 0 ? "var(--success)" : "var(--danger)" }}>
-                {r.gainAmount >= 0 ? "+" : ""}{formatCurrencyForDisplay(r.gainAmount, currency, { includeCode: false })}
+                {r.gainAmount >= 0 ? "+" : ""}
+                {formatCurrencyForDisplay(r.gainAmount, currency, { includeCode: false })}
               </span>
             )}
           </div>

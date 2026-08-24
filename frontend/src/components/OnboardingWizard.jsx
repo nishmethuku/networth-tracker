@@ -57,7 +57,18 @@ export default function OnboardingWizard({ onClose }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,23,42,0.5)", padding: "1rem" }}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 500,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(15,23,42,0.5)",
+        padding: "1rem",
+      }}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -84,27 +95,67 @@ export default function OnboardingWizard({ onClose }) {
               <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
                 Let's set a couple of defaults before you get started.
               </p>
-              <label style={{ display: "block", fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.35rem" }}>Primary country</label>
-              <select value={country} onChange={(e) => setCountry(e.target.value)} style={{ width: "100%", padding: "0.75rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", marginBottom: "1rem" }}>
-                {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              <label style={{ display: "block", fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.35rem" }}>
+                Primary country
+              </label>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  borderRadius: "var(--radius)",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  marginBottom: "1rem",
+                }}
+              >
+                {COUNTRIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
-              <label style={{ display: "block", fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.35rem" }}>Default display currency</label>
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: "100%", padding: "0.75rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", marginBottom: "1.5rem" }}>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              <label style={{ display: "block", fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.35rem" }}>
+                Default display currency
+              </label>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  borderRadius: "var(--radius)",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  marginBottom: "1.5rem",
+                }}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-                <button onClick={() => finish(null)} style={buttonSecondary}>Skip</button>
-                <button onClick={() => setStep(1)} style={buttonPrimary}>Continue</button>
+                <button onClick={() => finish(null)} style={buttonSecondary}>
+                  Skip
+                </button>
+                <button onClick={() => setStep(1)} style={buttonPrimary}>
+                  Continue
+                </button>
               </div>
             </motion.div>
           )}
 
           {step === 1 && (
             <motion.div key="1" variants={stepVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.2 }}>
-              <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>Add your first holding</h2>
-              <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
-                How do you want to get started?
-              </p>
+              <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>
+                Add your first holding
+              </h2>
+              <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem", lineHeight: 1.6 }}>How do you want to get started?</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
                 <button onClick={() => finish("/add-holding")} style={{ ...buttonSecondary, textAlign: "left", padding: "1rem" }}>
                   ✍️ <strong>Add manually</strong> — enter a holding yourself
@@ -117,7 +168,9 @@ export default function OnboardingWizard({ onClose }) {
                 </button>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                <button onClick={() => setStep(0)} style={buttonSecondary}>Back</button>
+                <button onClick={() => setStep(0)} style={buttonSecondary}>
+                  Back
+                </button>
               </div>
             </motion.div>
           )}

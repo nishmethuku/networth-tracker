@@ -33,7 +33,10 @@ function TaxByYearChart({ rows }) {
             ]}
             contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
           />
-          <Legend formatter={(v) => (v === "shortTermGain" ? "Short-term" : v === "longTermGain" ? "Long-term" : "Total trend")} wrapperStyle={{ fontSize: "0.75rem" }} />
+          <Legend
+            formatter={(v) => (v === "shortTermGain" ? "Short-term" : v === "longTermGain" ? "Long-term" : "Total trend")}
+            wrapperStyle={{ fontSize: "0.75rem" }}
+          />
           <Bar dataKey="shortTermGain" stackId="gain" fill="var(--accent)" radius={[0, 0, 0, 0]} />
           <Bar dataKey="longTermGain" stackId="gain" fill="var(--primary)" radius={[4, 4, 0, 0]} />
           <Line type="monotone" dataKey="totalGain" stroke="var(--success)" strokeWidth={2} dot={{ r: 3 }} />
@@ -75,7 +78,13 @@ const COST_BASIS_METHOD_OPTIONS = [
 export default function TaxSummary() {
   const [costBasisMethod, setCostBasisMethod] = useState("average");
 
-  const { data: summary, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["tax-summary", costBasisMethod],
     queryFn: () => fetchTaxSummary(null, costBasisMethod),
   });
@@ -87,16 +96,38 @@ export default function TaxSummary() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Tax Summary</h1>
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Cost basis method</label>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+            Cost basis method
+          </label>
           <select
             value={costBasisMethod}
             onChange={(e) => setCostBasisMethod(e.target.value)}
-            style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", fontSize: "0.875rem" }}
+            style={{
+              padding: "0.5rem 0.75rem",
+              borderRadius: "var(--radius)",
+              border: "1px solid var(--border)",
+              background: "var(--card)",
+              color: "var(--text)",
+              fontSize: "0.875rem",
+            }}
           >
-            {COST_BASIS_METHOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {COST_BASIS_METHOD_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -137,27 +168,51 @@ export default function TaxSummary() {
                           }}
                           title={`vs ${yoy.vsLabel}`}
                         >
-                          {yoy.pct >= 0 ? "+" : ""}{formatPercent(yoy.pct)} YoY
+                          {yoy.pct >= 0 ? "+" : ""}
+                          {formatPercent(yoy.pct)} YoY
                         </span>
                       )}
                     </span>
                   }
                 >
-                  <div style={{ fontSize: "1.5rem", fontWeight: 700, color: positive ? "var(--success)" : "var(--danger)", marginTop: "0.5rem", marginBottom: "0.75rem" }}>
-                    {positive ? "+" : ""}{formatCurrencyForDisplay(row.realizedGain, currency)}
+                  <div
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: 700,
+                      color: positive ? "var(--success)" : "var(--danger)",
+                      marginTop: "0.5rem",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    {positive ? "+" : ""}
+                    {formatCurrencyForDisplay(row.realizedGain, currency)}
                   </div>
 
                   <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                     <div>
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Short-term</div>
-                      <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: row.shortTermGain >= 0 ? "var(--success)" : "var(--danger)" }}>
-                        {row.shortTermGain >= 0 ? "+" : ""}{formatCurrencyForDisplay(row.shortTermGain, currency)}
+                      <div
+                        style={{
+                          fontSize: "0.9375rem",
+                          fontWeight: 600,
+                          color: row.shortTermGain >= 0 ? "var(--success)" : "var(--danger)",
+                        }}
+                      >
+                        {row.shortTermGain >= 0 ? "+" : ""}
+                        {formatCurrencyForDisplay(row.shortTermGain, currency)}
                       </div>
                     </div>
                     <div>
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Long-term</div>
-                      <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: row.longTermGain >= 0 ? "var(--success)" : "var(--danger)" }}>
-                        {row.longTermGain >= 0 ? "+" : ""}{formatCurrencyForDisplay(row.longTermGain, currency)}
+                      <div
+                        style={{
+                          fontSize: "0.9375rem",
+                          fontWeight: 600,
+                          color: row.longTermGain >= 0 ? "var(--success)" : "var(--danger)",
+                        }}
+                      >
+                        {row.longTermGain >= 0 ? "+" : ""}
+                        {formatCurrencyForDisplay(row.longTermGain, currency)}
                       </div>
                     </div>
                     {row.taxEstimate && (
@@ -172,10 +227,14 @@ export default function TaxSummary() {
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     {row.byHolding.map((h) => (
-                      <div key={h.name} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+                      <div
+                        key={h.name}
+                        style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "var(--text-secondary)" }}
+                      >
                         <span>{h.name}</span>
                         <span style={{ color: safeNumber(h.realizedGain) >= 0 ? "var(--success)" : "var(--danger)" }}>
-                          {safeNumber(h.realizedGain) >= 0 ? "+" : ""}{formatCurrencyForDisplay(h.realizedGain, currency)}
+                          {safeNumber(h.realizedGain) >= 0 ? "+" : ""}
+                          {formatCurrencyForDisplay(h.realizedGain, currency)}
                         </span>
                       </div>
                     ))}

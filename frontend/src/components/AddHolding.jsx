@@ -156,10 +156,10 @@ export default function AddHolding() {
     mutationFn: async (form) => {
       const holdingPayload = {
         asset_type: form.assetType,
-        symbol: form.assetType === "commodity" ? form.symbol : (form.symbol || null),
+        symbol: form.assetType === "commodity" ? form.symbol : form.symbol || null,
         name: form.name || form.symbol,
         country: form.country,
-        account: ACCOUNT_LESS_TYPES.has(form.assetType) ? "" : (form.account || "Account 1"),
+        account: ACCOUNT_LESS_TYPES.has(form.assetType) ? "" : form.account || "Account 1",
         institution: form.institution || null,
         currency: form.currency || "USD",
         is_private: form.is_private,
@@ -237,7 +237,12 @@ export default function AddHolding() {
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target) && symbolInputRef.current && !symbolInputRef.current.contains(event.target)) {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target) &&
+        symbolInputRef.current &&
+        !symbolInputRef.current.contains(event.target)
+      ) {
         setShowSuggestions(false);
       }
     }
@@ -256,12 +261,16 @@ export default function AddHolding() {
       <h2 style={{ marginBottom: "2.5rem", fontSize: "1.75rem", fontWeight: 700, color: "var(--text)" }}>Add Holding</h2>
 
       <datalist id="account-suggestions">
-        {accountSuggestions.map((a) => <option key={a} value={a} />)}
+        {accountSuggestions.map((a) => (
+          <option key={a} value={a} />
+        ))}
       </datalist>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div style={sectionStyle}>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>What are you adding?</h3>
+          <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>
+            What are you adding?
+          </h3>
           <div style={{ display: "grid", gap: "1.5rem" }}>
             <div>
               <label style={labelStyle}>Type *</label>
@@ -276,7 +285,9 @@ export default function AddHolding() {
                 style={{ ...inputStyle, cursor: "pointer" }}
               >
                 {ASSET_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -285,7 +296,11 @@ export default function AddHolding() {
               <label style={labelStyle}>Country *</label>
               <select {...register("country")} style={{ ...(errors.country ? inputErrorStyle : inputStyle), cursor: "pointer" }}>
                 <option value="">Select country...</option>
-                {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {COUNTRIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
               <FieldError message={errors.country?.message} />
             </div>
@@ -294,10 +309,13 @@ export default function AddHolding() {
               <label style={labelStyle}>Currency</label>
               <select {...register("currency")} style={{ ...inputStyle, cursor: "pointer" }}>
                 <option value="">Auto (from country)</option>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
             </div>
-
           </div>
         </div>
 
@@ -317,9 +335,29 @@ export default function AddHolding() {
                 autoComplete="off"
               />
               {showSuggestions && suggestions.length > 0 && (
-                <div ref={suggestionsRef} style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: "0.25rem", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", boxShadow: "var(--shadow-md)", zIndex: 1000, maxHeight: 260, overflowY: "auto" }}>
+                <div
+                  ref={suggestionsRef}
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    marginTop: "0.25rem",
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius)",
+                    boxShadow: "var(--shadow-md)",
+                    zIndex: 1000,
+                    maxHeight: 260,
+                    overflowY: "auto",
+                  }}
+                >
                   {suggestions.map((s, i) => (
-                    <div key={i} onClick={() => selectSuggestion(s)} style={{ padding: "0.75rem 1rem", cursor: "pointer", borderBottom: "1px solid var(--border)" }}>
+                    <div
+                      key={i}
+                      onClick={() => selectSuggestion(s)}
+                      style={{ padding: "0.75rem 1rem", cursor: "pointer", borderBottom: "1px solid var(--border)" }}
+                    >
                       <div style={{ fontWeight: 600 }}>{s.displaySymbol || s.symbol}</div>
                       <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>{s.description}</div>
                     </div>
@@ -342,7 +380,11 @@ export default function AddHolding() {
                 style={{ ...(errors.symbol ? inputErrorStyle : inputStyle), cursor: "pointer" }}
               >
                 <option value="">Select metal...</option>
-                {METALS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                {METALS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
               </select>
               <FieldError message={errors.symbol?.message} />
             </div>
@@ -351,7 +393,12 @@ export default function AddHolding() {
           {QUANTITY_BASED_SET.has(assetType) && !ACCOUNT_LESS_TYPES.has(assetType) && (
             <div style={{ marginBottom: "1.5rem" }}>
               <label style={labelStyle}>Account</label>
-              <input {...register("account")} placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Brokerage name"} list="account-suggestions" style={inputStyle} />
+              <input
+                {...register("account")}
+                placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Brokerage name"}
+                list="account-suggestions"
+                style={inputStyle}
+              />
             </div>
           )}
 
@@ -359,19 +406,32 @@ export default function AddHolding() {
             <div style={{ display: "grid", gap: "1.5rem", marginBottom: "1.5rem" }}>
               <div>
                 <label style={labelStyle}>Name *</label>
-                <input {...register("name")} placeholder={assetType === "real_estate" ? "e.g., My House" : "e.g., HDFC FD #1"} style={errors.name ? inputErrorStyle : inputStyle} />
+                <input
+                  {...register("name")}
+                  placeholder={assetType === "real_estate" ? "e.g., My House" : "e.g., HDFC FD #1"}
+                  style={errors.name ? inputErrorStyle : inputStyle}
+                />
                 <FieldError message={errors.name?.message} />
               </div>
               {assetType !== "real_estate" && (
                 <div>
                   <label style={labelStyle}>Institution</label>
-                  <input {...register("institution")} placeholder={INSTITUTION_PLACEHOLDERS[assetType] || "e.g., Bank or provider name"} style={inputStyle} />
+                  <input
+                    {...register("institution")}
+                    placeholder={INSTITUTION_PLACEHOLDERS[assetType] || "e.g., Bank or provider name"}
+                    style={inputStyle}
+                  />
                 </div>
               )}
               {!ACCOUNT_LESS_TYPES.has(assetType) && (
                 <div>
                   <label style={labelStyle}>Account</label>
-                  <input {...register("account")} placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Account name"} list="account-suggestions" style={inputStyle} />
+                  <input
+                    {...register("account")}
+                    placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Account name"}
+                    list="account-suggestions"
+                    style={inputStyle}
+                  />
                 </div>
               )}
               {INTEREST_BEARING_TYPES.has(assetType) && (
@@ -381,7 +441,9 @@ export default function AddHolding() {
                     <NumericInput control={control} name="interest_rate" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>{assetType === "loan" ? "Payoff Date" : assetType === "credit" ? "Repayment Date" : "Maturity Date"}</label>
+                    <label style={labelStyle}>
+                      {assetType === "loan" ? "Payoff Date" : assetType === "credit" ? "Repayment Date" : "Maturity Date"}
+                    </label>
                     <input type="date" {...register("maturity_date")} style={inputStyle} />
                   </div>
                 </>
@@ -392,7 +454,12 @@ export default function AddHolding() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.5rem" }}>
             <div>
               <label style={labelStyle}>{quantityBased ? "Purchase Date *" : "Date *"}</label>
-              <input type="date" {...register("date")} max={new Date().toISOString().split("T")[0]} style={errors.date ? inputErrorStyle : inputStyle} />
+              <input
+                type="date"
+                {...register("date")}
+                max={new Date().toISOString().split("T")[0]}
+                style={errors.date ? inputErrorStyle : inputStyle}
+              />
               <FieldError message={errors.date?.message} />
             </div>
             {quantityBased ? (
@@ -410,7 +477,9 @@ export default function AddHolding() {
               </>
             ) : (
               <div>
-                <label style={labelStyle}>{assetType === "loan" ? "Amount Owed *" : assetType === "credit" ? "Amount Owed to You *" : "Value *"}</label>
+                <label style={labelStyle}>
+                  {assetType === "loan" ? "Amount Owed *" : assetType === "credit" ? "Amount Owed to You *" : "Value *"}
+                </label>
                 <NumericInput control={control} name="value" style={errors.value ? inputErrorStyle : inputStyle} />
                 <FieldError message={errors.value?.message} />
               </div>
@@ -432,12 +501,24 @@ export default function AddHolding() {
 
             {quantityBased && (
               <div>
-                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500, color: "var(--text)" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    color: "var(--text)",
+                  }}
+                >
                   <input type="checkbox" {...register("sip_enabled")} />
                   This is a recurring investment (SIP)
                 </label>
                 {sipEnabled && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginTop: "1rem" }}>
+                  <div
+                    style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginTop: "1rem" }}
+                  >
                     <div>
                       <label style={labelStyle}>Amount per contribution</label>
                       <NumericInput control={control} name="sip_amount" style={inputStyle} />
@@ -464,11 +545,15 @@ export default function AddHolding() {
             type="submit"
             disabled={submitting}
             style={{
-              width: "100%", padding: "1.125rem", borderRadius: "var(--radius)", border: "none",
+              width: "100%",
+              padding: "1.125rem",
+              borderRadius: "var(--radius)",
+              border: "none",
               background: submitting ? "var(--bg-secondary)" : "var(--primary)",
               color: submitting ? "var(--text-muted)" : "var(--text-inverse)",
               cursor: submitting ? "not-allowed" : "pointer",
-              fontWeight: 600, fontSize: "1rem",
+              fontWeight: 600,
+              fontSize: "1rem",
             }}
           >
             {submitting ? "Adding..." : "Add Holding"}
