@@ -205,6 +205,9 @@ export function mapBudgetEntry(e) {
     isRecurring: !!e.is_recurring,
     recurringFrequency: e.recurring_frequency ?? null,
     createdAt: e.created_at ?? "",
+    fundingSource: e.funding_source
+      ? { holdingId: e.funding_source.holding_id, newBalance: safeNumber(e.funding_source.value), currency: e.funding_source.currency }
+      : null,
   };
 }
 

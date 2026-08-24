@@ -1284,8 +1284,23 @@ def create_app():
             recurring_frequency=recurring_frequency,
         )
         db.session.add(entry)
+
+        funding_valuation = None
+        funding_source_id = data.get("funding_source_holding_id")
+        if funding_source_id and entry_type == "expense":
+            source_holding = get_authorized_holding(funding_source_id, require_write=True)
+            source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
+            try:
+                funding_valuation = build_funding_valuation(
+                    source_holding, source_valuations, entry.amount, entry.currency, entry.entry_date, g.user_id
+                )
+            except ValueError as e:
+                db.session.rollback()
+                return jsonify({"error": str(e)}), 400
+            db.session.add(funding_valuation)
+
         db.session.commit()
-        return jsonify(entry.to_dict()), 201
+        return jsonify({**entry.to_dict(), "funding_source": funding_valuation.to_dict() if funding_valuation else None}), 201
 
     @app.route("/budget/entries/<int:entry_id>", methods=["PUT"])
     @require_auth

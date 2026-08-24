@@ -21,6 +21,7 @@ import {
   deleteBudgetLimit,
   fetchBudgetInsights,
   fetchHouseholds,
+  fetchHoldings,
   ApiError,
 } from "../api";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
@@ -105,11 +106,21 @@ function AddEntryForm({ categories, householdId, currency }) {
       currency,
       is_recurring: false,
       recurring_frequency: "monthly",
+      funding_source_holding_id: "",
     },
   });
   const entryType = watch("entry_type");
   const isRecurring = watch("is_recurring");
   const categoryOptions = entryType === "income" ? categories?.income || [] : categories?.expense || [];
+
+  // Cash accounts to pay an expense out of — picking one deducts the
+  // expense automatically instead of updating that account's balance by
+  // hand later. Same mechanism as funding a holding purchase from cash.
+  const { data: cashHoldings } = useQuery({
+    queryKey: ["holdings", "cash", householdId || null],
+    queryFn: () => fetchHoldings({ assetType: "cash", householdId: householdId || undefined, summary: true }),
+    enabled: entryType === "expense",
+  });
 
   const mutation = useMutation({
     mutationFn: (data) =>
@@ -123,12 +134,22 @@ function AddEntryForm({ categories, householdId, currency }) {
         household_id: householdId || null,
         is_recurring: data.is_recurring,
         recurring_frequency: data.is_recurring ? data.recurring_frequency : null,
+        ...(data.entry_type === "expense" && data.funding_source_holding_id
+          ? { funding_source_holding_id: Number(data.funding_source_holding_id) }
+          : {}),
       }),
-    onSuccess: () => {
+    onSuccess: (entry) => {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-subscriptions"] });
-      toast.success(entryType === "income" ? "Income added" : "Expense added");
+      if (entry.fundingSource) {
+        queryClient.invalidateQueries({ queryKey: ["holding", entry.fundingSource.holdingId] });
+        queryClient.invalidateQueries({ queryKey: ["holding-valuations", entry.fundingSource.holdingId] });
+        queryClient.invalidateQueries({ queryKey: ["holdings"] });
+        toast.success(`Expense added — account balance updated to ${formatCurrencyForDisplay(entry.fundingSource.newBalance, entry.fundingSource.currency, { includeCode: false })}`);
+      } else {
+        toast.success(entryType === "income" ? "Income added" : "Expense added");
+      }
       reset({
         entry_type: entryType,
         category: categoryOptions[0] || "",
@@ -138,6 +159,7 @@ function AddEntryForm({ categories, householdId, currency }) {
         currency,
         is_recurring: false,
         recurring_frequency: "monthly",
+        funding_source_holding_id: "",
       });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add entry"),
@@ -183,6 +205,17 @@ function AddEntryForm({ categories, householdId, currency }) {
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
+        {entryType === "expense" && cashHoldings?.length > 0 && (
+          <div>
+            <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Paid from</label>
+            <select {...register("funding_source_holding_id")} style={inputStyle} title="Deducts this expense from the selected account's balance">
+              <option value="">— none —</option>
+              {cashHoldings.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.account ? ` (${c.account})` : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div style={{ marginTop: "0.75rem" }}>
