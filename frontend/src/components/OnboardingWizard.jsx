@@ -72,7 +72,7 @@ export default function OnboardingWizard({ onClose }) {
         }}
       >
         <div style={{ display: "flex", gap: "0.35rem", marginBottom: "1.5rem" }}>
-          {[0, 1, 2].map((i) => (
+          {[0, 1].map((i) => (
             <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? "var(--primary)" : "var(--border)" }} />
           ))}
         </div>
@@ -112,25 +112,12 @@ export default function OnboardingWizard({ onClose }) {
                 <button onClick={() => finish("/import")} style={{ ...buttonSecondary, textAlign: "left", padding: "1rem" }}>
                   📥 <strong>Import from a broker</strong> — Zerodha, Groww, Fidelity, or Robinhood
                 </button>
-                <button onClick={() => setStep(2)} style={{ ...buttonSecondary, textAlign: "left", padding: "1rem" }}>
+                <button onClick={() => finish(null)} style={{ ...buttonSecondary, textAlign: "left", padding: "1rem" }}>
                   👀 <strong>Just exploring</strong> — I'll add things later
                 </button>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-start" }}>
                 <button onClick={() => setStep(0)} style={buttonSecondary}>Back</button>
-              </div>
-            </motion.div>
-          )}
-
-          {step === 2 && (
-            <motion.div key="2" variants={stepVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.2 }}>
-              <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>Tracking with family?</h2>
-              <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
-                You can create a household later from Settings and invite others to co-edit or view shared holdings.
-              </p>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-                <button onClick={() => finish(null)} style={buttonSecondary}>Maybe later</button>
-                <button onClick={() => finish("/households")} style={buttonPrimary}>Set up a household</button>
               </div>
             </motion.div>
           )}

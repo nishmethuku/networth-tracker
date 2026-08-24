@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, Link } from "react-router-dom";
-import { importParse, importConfirm, fetchHouseholds, ApiError } from "../api";
-import { useQuery } from "@tanstack/react-query";
+import { importParse, importConfirm, ApiError } from "../api";
 import Card from "./Card";
 import { useToast } from "../contexts/ToastContext";
 
@@ -30,10 +29,7 @@ export default function ImportTransactions() {
   const [csvText, setCsvText] = useState("");
   const [preview, setPreview] = useState(null);
   const [included, setIncluded] = useState({});
-  const [householdId, setHouseholdId] = useState("");
   const toast = useToast();
-
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const parseMutation = useMutation({
     mutationFn: () => importParse(broker, csvText),
@@ -53,7 +49,7 @@ export default function ImportTransactions() {
   const confirmMutation = useMutation({
     mutationFn: () => {
       const rows = preview.rows.filter((r) => !r.skipped && included[r.row]);
-      return importConfirm(rows, householdId || null);
+      return importConfirm(rows, null);
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
@@ -128,15 +124,6 @@ export default function ImportTransactions() {
             <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>CSV File</label>
             <input type="file" accept=".csv" onChange={handleFileChange} style={{ ...inputStyle, width: "100%" }} />
           </div>
-          {households && households.length > 0 && (
-            <div>
-              <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>Share with household</label>
-              <select value={householdId} onChange={(e) => setHouseholdId(e.target.value)} style={{ ...inputStyle, width: "100%" }}>
-                <option value="">Keep private</option>
-                {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </select>
-            </div>
-          )}
         </div>
         <button
           onClick={() => parseMutation.mutate()}

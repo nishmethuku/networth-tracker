@@ -22,12 +22,12 @@ function formatMonthLabel(monthStr) {
  * blends real contributions with market movement. See
  * holdings_service.get_monthly_net_flow for the full explanation.
  */
-export default function MonthlyNetFlow({ householdId, currency }) {
+export default function MonthlyNetFlow({ currency }) {
   const [expanded, setExpanded] = useState(null); // month string, or null
 
   const { data: rows, isLoading } = useQuery({
-    queryKey: ["monthly-flow", householdId, currency],
-    queryFn: () => fetchMonthlyFlow({ householdId: householdId || undefined, currency, months: 12 }),
+    queryKey: ["monthly-flow", currency],
+    queryFn: () => fetchMonthlyFlow({ currency, months: 12 }),
   });
 
   if (isLoading) return <LoadingState message="Loading net flow..." />;

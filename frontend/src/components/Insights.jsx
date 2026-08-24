@@ -6,7 +6,7 @@ import ErrorState from "./ErrorState";
 import ErrorBoundary from "./ErrorBoundary";
 import MonthlySnapshots from "./dashboard/MonthlySnapshots";
 import MonthlyNetFlow from "./dashboard/MonthlyNetFlow";
-import { fetchNetWorthHistory, fetchHouseholds, ApiError } from "../api";
+import { fetchNetWorthHistory, ApiError } from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 
@@ -20,14 +20,11 @@ const inputStyle = {
 };
 
 export default function Insights() {
-  const [householdId, setHouseholdId] = useState("");
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
-
   const { data: history, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["net-worth-history", householdId, currency],
-    queryFn: () => fetchNetWorthHistory(householdId || null, currency),
+    queryKey: ["net-worth-history", currency],
+    queryFn: () => fetchNetWorthHistory(null, currency),
   });
 
   if (isLoading) return <LoadingState message="Loading insights..." />;
@@ -38,12 +35,6 @@ export default function Insights() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Insights</h1>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-          {households && households.length > 0 && (
-            <select value={householdId} onChange={(e) => setHouseholdId(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
-              <option value="">Just me</option>
-              {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-            </select>
-          )}
           <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -64,7 +55,7 @@ export default function Insights() {
       <div style={{ marginBottom: "1.5rem" }}>
         <Card title="Monthly Net Flow" subtitle="Money in and out of each holding type, per month">
           <ErrorBoundary mode="section" fallbackMessage="Couldn't load monthly net flow.">
-            <MonthlyNetFlow householdId={householdId} currency={currency} />
+            <MonthlyNetFlow currency={currency} />
           </ErrorBoundary>
         </Card>
       </div>

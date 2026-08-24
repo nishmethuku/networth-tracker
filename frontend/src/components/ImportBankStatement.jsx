@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
 import { useToast } from "../contexts/ToastContext";
-import { bankStatementParse, bankStatementConfirm, fetchBudgetCategories, fetchHouseholds, ApiError } from "../api";
+import { bankStatementParse, bankStatementConfirm, fetchBudgetCategories, ApiError } from "../api";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 
 const inputStyle = {
@@ -21,7 +21,6 @@ export default function ImportBankStatement() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [householdId, setHouseholdId] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState(null);
@@ -29,11 +28,10 @@ export default function ImportBankStatement() {
   const [warnings, setWarnings] = useState([]);
   const [notConfigured, setNotConfigured] = useState(false);
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
   const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
 
   const parseMutation = useMutation({
-    mutationFn: (file) => bankStatementParse(file, householdId || null),
+    mutationFn: (file) => bankStatementParse(file, null),
     onSuccess: (result) => {
       if (!result.configured) {
         setNotConfigured(true);
@@ -54,7 +52,7 @@ export default function ImportBankStatement() {
   const confirmMutation = useMutation({
     mutationFn: () => {
       const selected = rows.filter((r) => included[r._key]).map(({ _key, ...r }) => r);
-      return bankStatementConfirm(selected, householdId || null, currency);
+      return bankStatementConfirm(selected, null, currency);
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
@@ -105,15 +103,6 @@ export default function ImportBankStatement() {
               {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {households && households.length > 0 && (
-            <div>
-              <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>Share with household</label>
-              <select value={householdId} onChange={(e) => setHouseholdId(e.target.value)} style={inputStyle}>
-                <option value="">Keep private</option>
-                {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </select>
-            </div>
-          )}
         </div>
         {fileName && (
           <p style={{ marginTop: "1rem", fontSize: "0.8125rem", color: "var(--text-muted)" }}>

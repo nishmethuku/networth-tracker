@@ -20,7 +20,6 @@ import {
   createBudgetLimit,
   deleteBudgetLimit,
   fetchBudgetInsights,
-  fetchHouseholds,
   fetchHoldings,
   ApiError,
 } from "../api";
@@ -93,7 +92,7 @@ function CategoryBreakdown({ breakdown, currency }) {
   );
 }
 
-function AddEntryForm({ categories, householdId, currency }) {
+function AddEntryForm({ categories, currency }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { register, control, watch, setValue, handleSubmit, reset } = useForm({
@@ -117,8 +116,8 @@ function AddEntryForm({ categories, householdId, currency }) {
   // expense automatically instead of updating that account's balance by
   // hand later. Same mechanism as funding a holding purchase from cash.
   const { data: cashHoldings } = useQuery({
-    queryKey: ["holdings", "cash", householdId || null],
-    queryFn: () => fetchHoldings({ assetType: "cash", householdId: householdId || undefined, summary: true }),
+    queryKey: ["holdings", "cash"],
+    queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
     enabled: entryType === "expense",
   });
 
@@ -131,7 +130,6 @@ function AddEntryForm({ categories, householdId, currency }) {
         currency: data.currency,
         category: data.category,
         description: data.description || null,
-        household_id: householdId || null,
         is_recurring: data.is_recurring,
         recurring_frequency: data.is_recurring ? data.recurring_frequency : null,
         ...(data.entry_type === "expense" && data.funding_source_holding_id
@@ -246,10 +244,10 @@ function AddEntryForm({ categories, householdId, currency }) {
   );
 }
 
-function SubscriptionsCard({ householdId, currency }) {
+function SubscriptionsCard({ currency }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["budget-subscriptions", householdId, currency],
-    queryFn: () => fetchSubscriptions({ householdId: householdId || undefined, currency }),
+    queryKey: ["budget-subscriptions", currency],
+    queryFn: () => fetchSubscriptions({ currency }),
   });
 
   if (isLoading) return null;
@@ -284,15 +282,15 @@ function SubscriptionsCard({ householdId, currency }) {
   );
 }
 
-function SpendingLimitsCard({ householdId, currency, limitStatus }) {
+function SpendingLimitsCard({ currency, limitStatus }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { register, handleSubmit, reset } = useForm({ defaultValues: { category: "", monthly_limit: "" } });
 
   const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
   const { data: limits } = useQuery({
-    queryKey: ["budget-limits", householdId],
-    queryFn: () => fetchBudgetLimits({ householdId: householdId || undefined }),
+    queryKey: ["budget-limits"],
+    queryFn: () => fetchBudgetLimits(),
   });
 
   const statusByCategory = Object.fromEntries((limitStatus || []).map((s) => [s.category, s]));
@@ -305,7 +303,6 @@ function SpendingLimitsCard({ householdId, currency, limitStatus }) {
         category: data.category,
         monthly_limit: parseFloat(data.monthly_limit),
         currency,
-        household_id: householdId || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-limits"] });
@@ -383,13 +380,13 @@ function SpendingLimitsCard({ householdId, currency, limitStatus }) {
   );
 }
 
-function AIInsightsCard({ householdId, currency }) {
+function AIInsightsCard({ currency }) {
   const [narrative, setNarrative] = useState(null);
   const [notConfigured, setNotConfigured] = useState(false);
   const toast = useToast();
 
   const mutation = useMutation({
-    mutationFn: () => fetchBudgetInsights({ householdId: householdId || undefined, months: 6, currency }),
+    mutationFn: () => fetchBudgetInsights({ months: 6, currency }),
     onSuccess: (result) => {
       if (!result.configured) {
         setNotConfigured(true);
@@ -426,50 +423,21 @@ function AIInsightsCard({ householdId, currency }) {
   );
 }
 
-function MemberBreakdown({ byMember, currency }) {
-  if (!byMember || byMember.length === 0) return null;
-  const total = byMember.reduce((sum, m) => sum + m.total, 0);
-  return (
-    <Card title="Who Spent What This Month">
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginTop: "0.5rem" }}>
-        {byMember.map((m) => {
-          const pct = total > 0 ? (m.total / total) * 100 : 0;
-          return (
-            <div key={m.user_id}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem" }}>
-                <span style={{ color: "var(--text)" }}>{m.email}</span>
-                <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                  {formatCurrencyForDisplay(m.total, currency)} <span style={{ color: "var(--text-muted)" }}>({Math.round(pct)}%)</span>
-                </span>
-              </div>
-              <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${pct}%`, background: "var(--primary)", borderRadius: 3 }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
 export default function Budget() {
-  const [householdId, setHouseholdId] = useState("");
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
   const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
 
   const { data: summary, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["budget-summary", householdId, currency],
-    queryFn: () => fetchBudgetSummary({ householdId: householdId || undefined, months: 6, currency }),
+    queryKey: ["budget-summary", currency],
+    queryFn: () => fetchBudgetSummary({ months: 6, currency }),
   });
 
   const { data: entries } = useQuery({
-    queryKey: ["budget-entries", householdId],
-    queryFn: () => fetchBudgetEntries({ householdId: householdId || undefined }),
+    queryKey: ["budget-entries"],
+    queryFn: () => fetchBudgetEntries(),
   });
 
   const deleteMutation = useMutation({
@@ -491,12 +459,6 @@ export default function Budget() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Budget</h1>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-          {households && households.length > 0 && (
-            <select value={householdId} onChange={(e) => setHouseholdId(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
-              <option value="">Just me</option>
-              {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-            </select>
-          )}
           <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -536,20 +498,14 @@ export default function Budget() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
-        <SubscriptionsCard householdId={householdId} currency={currency} />
-        <SpendingLimitsCard householdId={householdId} currency={currency} limitStatus={summary.limit_status} />
-        <AIInsightsCard householdId={householdId} currency={currency} />
+        <SubscriptionsCard currency={currency} />
+        <SpendingLimitsCard currency={currency} limitStatus={summary.limit_status} />
+        <AIInsightsCard currency={currency} />
       </div>
-
-      {summary.by_member && summary.by_member.length > 0 && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <MemberBreakdown byMember={summary.by_member} currency={currency} />
-        </div>
-      )}
 
       <div style={{ marginBottom: "1.5rem" }}>
         <Card title="Add an entry">
-          <AddEntryForm categories={categories} householdId={householdId} currency={currency} />
+          <AddEntryForm categories={categories} currency={currency} />
           <p style={{ marginTop: "1rem", fontSize: "0.8125rem" }}>
             <Link to="/import-bank-statement" style={{ color: "var(--primary)" }}>
               Import a bank or credit card statement instead →

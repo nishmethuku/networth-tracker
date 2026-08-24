@@ -22,7 +22,6 @@ const Transactions = lazy(() => import("./components/Transactions"));
 const ImportTransactions = lazy(() => import("./components/ImportTransactions"));
 const Alerts = lazy(() => import("./components/Alerts"));
 const TaxSummary = lazy(() => import("./components/TaxSummary"));
-const Households = lazy(() => import("./components/Households"));
 const AllocationAdvisor = lazy(() => import("./components/ai/AllocationAdvisor"));
 const Settings = lazy(() => import("./components/Settings"));
 const Budget = lazy(() => import("./components/Budget"));
@@ -69,7 +68,7 @@ const BOTTOM_TABS = [
   { to: "/portfolio", icon: "📊", labelKey: "nav.portfolio" },
   { to: "/add-holding", icon: "➕", labelKey: "nav.add", fab: true },
   { to: "/transactions", icon: "📋", labelKey: "nav.history" },
-  { to: "/households", icon: "👪", labelKey: "nav.family" },
+  { to: "/budget", icon: "💰", labelKey: "nav.budget" },
 ];
 
 function MobileBottomNav() {
@@ -191,7 +190,6 @@ function AppShell() {
           <NavLink to="/tax-summary">{t("nav.taxSummary")}</NavLink>
           <NavLink to="/insights">{t("nav.insights")}</NavLink>
           <NavLink to="/allocation-advisor">{t("nav.allocationAdvisor")}</NavLink>
-          <NavLink to="/households">{t("nav.household")}</NavLink>
           <NavLink to="/add-holding" highlight>{t("nav.addHolding")}</NavLink>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -236,7 +234,6 @@ function AppShell() {
               <Route path="tax-summary" element={<TaxSummary />} />
               <Route path="insights" element={<Insights />} />
               <Route path="allocation-advisor" element={<AllocationAdvisor />} />
-              <Route path="households" element={<Households />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

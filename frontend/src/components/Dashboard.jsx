@@ -17,7 +17,7 @@ import MoverHeatGrid from "./dashboard/MoverHeatGrid";
 import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
 import AnimatedNumber from "./AnimatedNumber";
-import { fetchDashboard, fetchNetWorthHistory, fetchHouseholds, fetchHoldings, fetchBenchmark, ApiError } from "../api";
+import { fetchDashboard, fetchNetWorthHistory, fetchHoldings, fetchBenchmark, ApiError } from "../api";
 import { formatCurrencyCompact, formatPercent } from "../utils/formatters";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
@@ -26,11 +26,11 @@ const BENCHMARKS = [
   { value: "NIFTYBEES.NS", label: "Nifty 50 (NIFTYBEES)" },
 ];
 
-function BenchmarkCard({ householdId }) {
+function BenchmarkCard() {
   const [symbol, setSymbol] = useState("SPY");
   const { data: benchmark, isLoading } = useQuery({
-    queryKey: ["benchmark", symbol, householdId],
-    queryFn: () => fetchBenchmark(symbol, householdId || null),
+    queryKey: ["benchmark", symbol],
+    queryFn: () => fetchBenchmark(symbol, null),
     retry: false,
   });
 
@@ -73,11 +73,8 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
-  const [householdId, setHouseholdId] = useState("");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const queryClient = useQueryClient();
-
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const {
     data: dashboard,
@@ -86,21 +83,21 @@ export default function Dashboard() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["dashboard", currency, householdId],
-    queryFn: () => fetchDashboard({ currency, householdId: householdId || undefined }),
+    queryKey: ["dashboard", currency],
+    queryFn: () => fetchDashboard({ currency }),
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });
 
   const { data: history } = useQuery({
-    queryKey: ["net-worth-history", householdId, currency],
-    queryFn: () => fetchNetWorthHistory(householdId || null, currency),
+    queryKey: ["net-worth-history", currency],
+    queryFn: () => fetchNetWorthHistory(null, currency),
     staleTime: 1000 * 60 * 5, // snapshots are written at most once/day
   });
 
   const { data: holdings } = useQuery({
-    queryKey: ["holdings", "summary", currency, householdId],
-    queryFn: () => fetchHoldings({ currency, householdId: householdId || undefined, summary: true }),
+    queryKey: ["holdings", "summary", currency],
+    queryFn: () => fetchHoldings({ currency, summary: true }),
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });
@@ -155,25 +152,6 @@ export default function Dashboard() {
           <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>
             Net Worth
           </h1>
-          {households && households.length > 0 && (
-            <select
-              value={householdId}
-              onChange={(e) => setHouseholdId(e.target.value)}
-              style={{
-                padding: "0.5rem 0.875rem",
-                borderRadius: "var(--radius)",
-                border: "1px solid var(--border)",
-                background: "var(--card)",
-                color: "var(--text)",
-                fontSize: "0.875rem",
-              }}
-            >
-              <option value="">{t("dashboard.justMe")}</option>
-              {households.map((h) => (
-                <option key={h.id} value={h.id}>{h.name}</option>
-              ))}
-            </select>
-          )}
         </div>
         <div
           style={{
@@ -289,7 +267,7 @@ export default function Dashboard() {
 
           <div style={{ marginBottom: "1.5rem" }}>
             <ErrorBoundary mode="section" fallbackMessage="Couldn't load the benchmark comparison.">
-              <BenchmarkCard householdId={householdId} />
+              <BenchmarkCard />
             </ErrorBoundary>
           </div>
 

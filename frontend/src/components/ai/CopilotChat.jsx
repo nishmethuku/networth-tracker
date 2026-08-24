@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
-import { streamAiChat, fetchHouseholds } from "../../api";
+import { streamAiChat } from "../../api";
 
 const SUGGESTIONS = [
   "What's my net worth right now?",
@@ -55,16 +54,8 @@ export default function CopilotChat() {
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(null);
   const [notConfigured, setNotConfigured] = useState(false);
-  const [householdId, setHouseholdId] = useState("");
   const abortRef = useRef(null);
   const scrollRef = useRef(null);
-
-  const { data: households = [] } = useQuery({
-    queryKey: ["households"],
-    queryFn: fetchHouseholds,
-    enabled: open,
-    staleTime: 1000 * 60 * 5,
-  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -101,7 +92,7 @@ export default function CopilotChat() {
     try {
       let assistantText = "";
       for await (const chunk of streamAiChat(
-        { messages: nextMessages, householdId: householdId || null },
+        { messages: nextMessages },
         controller.signal
       )) {
         assistantText += chunk;
@@ -199,26 +190,6 @@ export default function CopilotChat() {
                   <div style={{ fontWeight: 600, color: "var(--text)", fontSize: "0.9375rem" }}>
                     ✨ Portfolio Copilot
                   </div>
-                  {households.length > 0 && (
-                    <select
-                      value={householdId}
-                      onChange={(e) => setHouseholdId(e.target.value)}
-                      style={{
-                        marginTop: "0.35rem",
-                        fontSize: "0.75rem",
-                        color: "var(--text-secondary)",
-                        background: "var(--bg-secondary)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius-sm)",
-                        padding: "0.15rem 0.4rem",
-                      }}
-                    >
-                      <option value="">My data</option>
-                      {households.map((h) => (
-                        <option key={h.id} value={h.id}>{h.name}</option>
-                      ))}
-                    </select>
-                  )}
                 </div>
                 <button
                   onClick={() => setOpen(false)}

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchTaxSummary, fetchHouseholds, ApiError } from "../api";
-import { useMemo, useState } from "react";
+import { fetchTaxSummary, ApiError } from "../api";
+import { useMemo } from "react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
 import Card from "./Card";
 import LoadingState from "./LoadingState";
@@ -67,12 +67,9 @@ export function computeYoyChanges(rows) {
 }
 
 export default function TaxSummary() {
-  const [householdId, setHouseholdId] = useState("");
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
-
   const { data: summary, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["tax-summary", householdId],
-    queryFn: () => fetchTaxSummary(householdId || null),
+    queryKey: ["tax-summary"],
+    queryFn: () => fetchTaxSummary(null),
   });
 
   const yoyChanges = useMemo(() => (summary ? computeYoyChanges(summary.rows) : {}), [summary]);
@@ -84,16 +81,6 @@ export default function TaxSummary() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Tax Summary</h1>
-        {households && households.length > 0 && (
-          <select
-            value={householdId}
-            onChange={(e) => setHouseholdId(e.target.value)}
-            style={{ padding: "0.5rem 0.875rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", fontSize: "0.875rem" }}
-          >
-            <option value="">Just me</option>
-            {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-          </select>
-        )}
       </div>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         Realized gains from sales, grouped by financial year — India runs Apr–Mar, everywhere else runs Jan–Dec.

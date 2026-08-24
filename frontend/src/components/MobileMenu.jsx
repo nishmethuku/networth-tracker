@@ -6,11 +6,10 @@ import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 
 // Everything not already reachable from the 5-item bottom tab bar (Home,
-// Portfolio, Add, Transactions, Family) — including Settings and Sign Out,
+// Portfolio, Add, Transactions, Budget) — including Settings and Sign Out,
 // which previously only existed in the desktop nav that's fully hidden on
 // mobile, so there was literally no way to reach them from a phone.
 const MENU_LINKS = [
-  { to: "/budget", labelKey: "nav.budget", icon: "💰" },
   { to: "/insights", labelKey: "nav.insights", icon: "📈" },
   { to: "/import", label: "Import CSV (Broker)", icon: "📥" },
   { to: "/import-spreadsheet", label: "Import Spreadsheet (AI)", icon: "✨" },

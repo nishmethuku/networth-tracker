@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createHolding, createTransaction, createValuation, searchSymbols, searchCrypto, fetchHouseholds, ApiError } from "../api";
+import { createHolding, createTransaction, createValuation, searchSymbols, searchCrypto, ApiError } from "../api";
 import { useToast } from "../contexts/ToastContext";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, CURRENCIES, isQuantityBased } from "../constants/enums";
 import { currencyForCountry } from "../utils/formatters";
@@ -103,7 +103,6 @@ export default function AddHolding() {
       country: "",
       currency: "",
       account: "",
-      household_id: "",
       is_private: false,
       notes: "",
       tags: "",
@@ -136,8 +135,6 @@ export default function AddHolding() {
   const suggestionsRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
-
   useEffect(() => {
     if (country && !currency) {
       setValue("currency", currencyForCountry(country));
@@ -155,7 +152,6 @@ export default function AddHolding() {
         account: ACCOUNT_LESS_TYPES.has(form.assetType) ? "" : (form.account || "Account 1"),
         institution: form.institution || null,
         currency: form.currency || "USD",
-        household_id: form.household_id || null,
         is_private: form.is_private,
         notes: form.notes || null,
         tags: form.tags || null,
@@ -288,15 +284,6 @@ export default function AddHolding() {
               </select>
             </div>
 
-            {households && households.length > 0 && (
-              <div>
-                <label style={labelStyle}>Share with household</label>
-                <select {...register("household_id")} style={{ ...inputStyle, cursor: "pointer" }}>
-                  <option value="">Keep private</option>
-                  {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-                </select>
-              </div>
-            )}
           </div>
         </div>
 

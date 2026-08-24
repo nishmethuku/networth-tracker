@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { fetchDashboard, fetchHouseholds, fetchAllocationAdvice, ApiError } from "../../api";
+import { fetchDashboard, fetchAllocationAdvice, ApiError } from "../../api";
 import { ASSET_TYPE_LABELS, getAssetTypeLabel } from "../../constants/enums";
 import Card from "../Card";
 import LoadingState from "../LoadingState";
@@ -8,14 +8,12 @@ import ErrorState from "../ErrorState";
 import { formatCurrencyForDisplay } from "../../utils/formatters";
 
 export default function AllocationAdvisor() {
-  const [householdId, setHouseholdId] = useState("");
   const [targets, setTargets] = useState({});
   const [result, setResult] = useState(null);
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
   const { data: dashboard, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["dashboard-for-advisor", householdId],
-    queryFn: () => fetchDashboard({ householdId: householdId || undefined, currency: "USD" }),
+    queryKey: ["dashboard-for-advisor"],
+    queryFn: () => fetchDashboard({ currency: "USD" }),
   });
 
   const currentAllocation = dashboard?.allocationByType || [];
@@ -33,7 +31,6 @@ export default function AllocationAdvisor() {
     mutationFn: () =>
       fetchAllocationAdvice({
         targetAllocation: Object.fromEntries(allTypes.map((t) => [t, Number(targets[t]) || 0])),
-        householdId: householdId || null,
         currency: "USD",
       }),
     onSuccess: (data) => setResult(data),
@@ -65,16 +62,6 @@ export default function AllocationAdvisor() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Allocation Advisor</h1>
-        {households && households.length > 0 && (
-          <select
-            value={householdId}
-            onChange={(e) => { setHouseholdId(e.target.value); setResult(null); }}
-            style={{ padding: "0.5rem 0.875rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", fontSize: "0.875rem" }}
-          >
-            <option value="">Just me</option>
-            {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-          </select>
-        )}
       </div>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         Set a target allocation by asset type and see exactly what to buy or sell to get there — informational only, not financial advice.

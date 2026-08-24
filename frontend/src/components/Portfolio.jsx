@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
-import { fetchHoldings, fetchHouseholds, deleteHolding, ApiError } from "../api";
+import { fetchHoldings, deleteHolding, ApiError } from "../api";
 import Card from "./Card";
 import PortfolioSkeleton from "./PortfolioSkeleton";
 import ErrorState from "./ErrorState";
@@ -138,13 +138,10 @@ export default function Portfolio() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
-  const [householdId, setHouseholdId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [aiFilter, setAiFilter] = useState(
     location.state?.aiFilterSpec ? { spec: location.state.aiFilterSpec, query: location.state.aiFilterQuery } : null
   );
-
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const {
     data: holdings,
@@ -153,8 +150,8 @@ export default function Portfolio() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["holdings", "summary", currency, householdId],
-    queryFn: () => fetchHoldings({ currency, householdId: householdId || undefined, summary: true }),
+    queryKey: ["holdings", "summary", currency],
+    queryFn: () => fetchHoldings({ currency, summary: true }),
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });
@@ -189,18 +186,6 @@ export default function Portfolio() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
           <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>Portfolio</h1>
-          {households && households.length > 0 && (
-            <select
-              value={householdId}
-              onChange={(e) => setHouseholdId(e.target.value)}
-              style={{ padding: "0.5rem 0.875rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", fontSize: "0.875rem" }}
-            >
-              <option value="">Just me</option>
-              {households.map((h) => (
-                <option key={h.id} value={h.id}>{h.name}</option>
-              ))}
-            </select>
-          )}
           <div style={{ display: "inline-flex", gap: "0.25rem", background: "var(--card)", borderRadius: "999px", padding: "0.25rem", border: "1px solid var(--border)" }}>
             {CURRENCIES.map((cur) => (
               <button

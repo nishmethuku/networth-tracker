@@ -9,14 +9,12 @@
     "taxSummary": "Tax Summary",
     "insights": "Insights",
     "allocationAdvisor": "Allocation Advisor",
-    "household": "Household",
     "settings": "Settings",
     "addHolding": "+ Add Holding",
     "signOut": "Sign Out",
     "home": "Home",
     "add": "Add",
-    "history": "History",
-    "family": "Family"
+    "history": "History"
   },
   "dashboard": {
     "totalNetWorth": "Total Net Worth",
@@ -28,8 +26,7 @@
     "whereYourMoneyIs": "Where Your Money Is",
     "returnsByType": "Returns by Asset Type",
     "topGainers": "Top Gainers (this month)",
-    "topLosers": "Top Losers (this month)",
-    "justMe": "Just me"
+    "topLosers": "Top Losers (this month)"
   },
   "common": {
     "save": "Save",

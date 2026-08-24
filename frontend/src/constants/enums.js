@@ -71,11 +71,6 @@ export const ACCOUNT_TYPES = [
   "Other",
 ];
 
-export const HOUSEHOLD_ROLES = [
-  { value: "editor", label: "Editor — can add and edit" },
-  { value: "viewer", label: "Viewer — can only see" },
-];
-
 export function isValidAssetType(value) {
   return Object.values(ASSET_TYPES).includes(value);
 }

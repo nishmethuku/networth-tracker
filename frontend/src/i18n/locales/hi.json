@@ -9,14 +9,12 @@
     "taxSummary": "कर सारांश",
     "insights": "इनसाइट्स",
     "allocationAdvisor": "आवंटन सलाहकार",
-    "household": "परिवार",
     "settings": "सेटिंग्स",
     "addHolding": "+ होल्डिंग जोड़ें",
     "signOut": "साइन आउट",
     "home": "होम",
     "add": "जोड़ें",
-    "history": "इतिहास",
-    "family": "परिवार"
+    "history": "इतिहास"
   },
   "dashboard": {
     "totalNetWorth": "कुल संपत्ति",
@@ -28,8 +26,7 @@
     "whereYourMoneyIs": "आपका पैसा कहाँ है",
     "returnsByType": "प्रकार के अनुसार रिटर्न",
     "topGainers": "शीर्ष लाभार्थी (इस महीने)",
-    "topLosers": "शीर्ष हानि (इस महीने)",
-    "justMe": "सिर्फ मैं"
+    "topLosers": "शीर्ष हानि (इस महीने)"
   },
   "common": {
     "save": "सहेजें",

@@ -8,9 +8,12 @@ valuations, alerts, milestones) via the existing Postgres cascade FKs — it
 does not delete the Supabase auth account itself, which needs the
 service-role Admin API and is out of scope for now.
 """
+import csv
+import io
+import zipfile
 from typing import Dict
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceAlert, Milestone
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceAlert, Milestone, BudgetEntry, BudgetLimit
 
 
 def export_user_data(user_id) -> Dict:
@@ -28,13 +31,48 @@ def export_user_data(user_id) -> Dict:
         else []
     )
     alerts = PriceAlert.query.filter_by(user_id=user_id).all()
+    budget_entries = BudgetEntry.query.filter_by(user_id=user_id).all()
+    budget_limits = BudgetLimit.query.filter_by(user_id=user_id).all()
 
     return {
         "holdings": [h.to_dict() for h in holdings],
         "transactions": [t.to_dict() for t in transactions],
         "valuations": [v.to_dict() for v in valuations],
         "alerts": [a.to_dict() for a in alerts],
+        "budget_entries": [e.to_dict() for e in budget_entries],
+        "budget_limits": [limit.to_dict() for limit in budget_limits],
     }
+
+
+def _write_csv(rows) -> str:
+    """Rows -> CSV text using the union of keys across all rows as the header,
+    since e.g. a stock holding and a cash holding don't share every field."""
+    if not rows:
+        return ""
+    fieldnames = []
+    seen = set()
+    for row in rows:
+        for key in row:
+            if key not in seen:
+                seen.add(key)
+                fieldnames.append(key)
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(rows)
+    return buf.getvalue()
+
+
+def export_user_data_csv_zip(user_id) -> bytes:
+    """Same data as export_user_data, as a zip of one CSV per table — a
+    human-readable backup that opens directly in Excel/Sheets, in case the
+    account or its data is ever lost."""
+    data = export_user_data(user_id)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, rows in data.items():
+            zf.writestr(f"{name}.csv", _write_csv(rows))
+    return buf.getvalue()
 
 
 def delete_all_user_data(user_id) -> Dict:

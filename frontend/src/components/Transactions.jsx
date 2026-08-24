@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { fetchAllTransactions, fetchHouseholds, ApiError } from "../api";
+import { fetchAllTransactions, ApiError } from "../api";
 import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
@@ -24,10 +24,8 @@ const inputStyle = {
 };
 
 export default function Transactions() {
-  const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "", householdId: "" });
+  const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "" });
   const isMobile = useIsMobile();
-
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
 
   const { data: transactions, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["transactions", filters],
@@ -57,14 +55,8 @@ export default function Transactions() {
         </select>
         <input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} style={inputStyle} placeholder="From" />
         <input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} style={inputStyle} placeholder="To" />
-        {households && households.length > 0 && (
-          <select value={filters.householdId} onChange={(e) => setFilters({ ...filters, householdId: e.target.value })} style={inputStyle}>
-            <option value="">Just me</option>
-            {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-          </select>
-        )}
         {hasActiveFilters && (
-          <button onClick={() => setFilters({ assetType: "", country: "", dateFrom: "", dateTo: "", householdId: "" })} style={{ ...inputStyle, cursor: "pointer" }}>
+          <button onClick={() => setFilters({ assetType: "", country: "", dateFrom: "", dateTo: "" })} style={{ ...inputStyle, cursor: "pointer" }}>
             Clear
           </button>
         )}

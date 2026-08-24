@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
 import { useToast } from "../contexts/ToastContext";
-import { smartImportParse, smartImportConfirm, fetchHouseholds, ApiError } from "../api";
+import { smartImportParse, smartImportConfirm, ApiError } from "../api";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, CURRENCIES, isQuantityBased } from "../constants/enums";
 
 const inputStyle = {
@@ -21,17 +21,14 @@ export default function ImportSpreadsheet() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [householdId, setHouseholdId] = useState("");
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState(null);
   const [included, setIncluded] = useState({});
   const [warnings, setWarnings] = useState([]);
   const [notConfigured, setNotConfigured] = useState(false);
 
-  const { data: households } = useQuery({ queryKey: ["households"], queryFn: fetchHouseholds, staleTime: 1000 * 60 * 5 });
-
   const parseMutation = useMutation({
-    mutationFn: (file) => smartImportParse(file, householdId || null),
+    mutationFn: (file) => smartImportParse(file, null),
     onSuccess: (result) => {
       if (!result.configured) {
         setNotConfigured(true);
@@ -52,7 +49,7 @@ export default function ImportSpreadsheet() {
   const confirmMutation = useMutation({
     mutationFn: () => {
       const selected = rows.filter((r) => included[r._key]).map(({ _key, source_note, ...r }) => r);
-      return smartImportConfirm(selected, householdId || null);
+      return smartImportConfirm(selected, null);
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
@@ -96,15 +93,6 @@ export default function ImportSpreadsheet() {
             <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>File (.xlsx or .csv)</label>
             <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} style={inputStyle} />
           </div>
-          {households && households.length > 0 && (
-            <div>
-              <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>Share with household</label>
-              <select value={householdId} onChange={(e) => setHouseholdId(e.target.value)} style={inputStyle}>
-                <option value="">Keep private</option>
-                {households.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </select>
-            </div>
-          )}
         </div>
         {fileName && (
           <p style={{ marginTop: "1rem", fontSize: "0.8125rem", color: "var(--text-muted)" }}>

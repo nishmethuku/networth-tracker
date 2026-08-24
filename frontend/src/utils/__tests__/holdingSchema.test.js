@@ -6,7 +6,6 @@ const base = {
   country: "United States",
   currency: "USD",
   account: "",
-  household_id: "",
   notes: "",
   tags: "",
   date: "2024-01-01",

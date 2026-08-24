@@ -44,11 +44,10 @@ function AddTransactionForm({ holding, onDone }) {
   // Cash holdings to offer as a funding source when this is a purchase —
   // e.g. buying gold and paying for it out of a bank account, which should
   // reduce that account's recorded balance instead of the two staying
-  // disconnected. Scoped to the same household as this holding (or personal
-  // if it has none), matching how sharing works everywhere else.
+  // disconnected.
   const { data: cashHoldings } = useQuery({
-    queryKey: ["holdings", "cash", holding.householdId || null],
-    queryFn: () => fetchHoldings({ assetType: "cash", householdId: holding.householdId || undefined, summary: true }),
+    queryKey: ["holdings", "cash"],
+    queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
     enabled: form.transaction_type === "buy",
   });
 

@@ -37,7 +37,7 @@ from .snapshot_service import snapshot_all_users
 from .digest_service import build_weekly_digest
 from .alert_service import check_all_alerts
 from .unsubscribe_service import verify_unsubscribe_token, unsubscribe as unsubscribe_email
-from .account_service import export_user_data, delete_all_user_data
+from .account_service import export_user_data, export_user_data_csv_zip, delete_all_user_data
 from .sip_service import next_occurrences as next_sip_occurrences, project_future_value as project_sip_future_value
 from .budget_service import (
     get_monthly_summary,
@@ -1191,6 +1191,19 @@ def create_app():
     @require_auth
     def account_export():
         return jsonify(export_user_data(g.user_id))
+
+    @app.route("/account/export.zip", methods=["GET"])
+    @require_auth
+    def account_export_csv():
+        """Same data as /account/export, as a zip of one CSV per table — for
+        a backup that opens directly in Excel/Sheets."""
+        zip_bytes = export_user_data_csv_zip(g.user_id)
+        filename = f"networth-tracker-backup-{date.today().isoformat()}.zip"
+        return Response(
+            zip_bytes,
+            mimetype="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     @app.route("/account/data", methods=["DELETE"])
     @require_auth

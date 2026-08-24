@@ -2,7 +2,7 @@
  * Main API module - exports all API functions with data mapping
  */
 
-import api, { uploadWithColdStartRetry, AI_TIMEOUT } from "./client";
+import api, { uploadWithColdStartRetry, AI_TIMEOUT, ApiError } from "./client";
 import { supabase } from "../lib/supabaseClient";
 import {
   mapHolding,
@@ -168,45 +168,6 @@ export async function searchCrypto(query) {
 }
 
 /**
- * Households / family sharing
- */
-export async function fetchHouseholds() {
-  return (await api.get("/households")) || [];
-}
-
-export async function createHousehold(name) {
-  return api.post("/households", { name });
-}
-
-export async function fetchHouseholdMembers(householdId) {
-  return (await api.get(`/households/${householdId}/members`)) || [];
-}
-
-export async function inviteToHousehold(householdId, email, role = "editor") {
-  return api.post(`/households/${householdId}/invites`, { email, role });
-}
-
-export async function fetchMyInvites() {
-  return (await api.get("/invites")) || [];
-}
-
-export async function acceptInvite(inviteId) {
-  return api.post(`/invites/${inviteId}/accept`, {});
-}
-
-export async function leaveHousehold(householdId) {
-  return api.post(`/households/${householdId}/leave`, {});
-}
-
-export async function removeHouseholdMember(householdId, userId) {
-  return api.delete(`/households/${householdId}/members/${userId}`);
-}
-
-export async function deleteHousehold(householdId) {
-  return api.delete(`/households/${householdId}`, { confirm: "DELETE" });
-}
-
-/**
  * Price alerts
  */
 export async function fetchAlerts() {
@@ -365,6 +326,22 @@ export async function fetchBudgetInsights({ householdId, months = 6, currency = 
  */
 export async function fetchAccountExport() {
   return api.get("/account/export");
+}
+
+/**
+ * Same data as fetchAccountExport, as a zip of CSVs — bypasses the JSON-only
+ * request() helper since this needs to return a Blob, not parsed JSON.
+ */
+export async function fetchAccountExportCsvZip() {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  const response = await fetch(`${API_BASE_URL}/account/export.zip`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+  if (!response.ok) {
+    throw new ApiError(`HTTP ${response.status}`, response.status);
+  }
+  return response.blob();
 }
 
 export async function deleteAllAccountData() {

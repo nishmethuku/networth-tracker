@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
-import { fetchAccountExport, deleteAllAccountData, ApiError } from "../api";
+import { fetchAccountExport, fetchAccountExportCsvZip, deleteAllAccountData, ApiError } from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { SUPPORTED_LANGUAGES, setLanguage } from "../i18n";
 
@@ -15,8 +15,7 @@ const sectionStyle = { marginBottom: "1.5rem" };
 const rowStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 0", borderBottom: "1px solid var(--border-light)" };
 const buttonStyle = { padding: "0.5rem 1rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500 };
 
-function downloadJson(data, filename) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -27,6 +26,10 @@ function downloadJson(data, filename) {
   URL.revokeObjectURL(url);
 }
 
+function downloadJson(data, filename) {
+  downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), filename);
+}
+
 export default function Settings() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -35,6 +38,7 @@ export default function Settings() {
   const toast = useToast();
   const [confirmText, setConfirmText] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const exportMutation = useMutation({
     mutationFn: fetchAccountExport,
@@ -44,6 +48,16 @@ export default function Settings() {
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Export failed"),
     onSettled: () => setExporting(false),
+  });
+
+  const exportCsvMutation = useMutation({
+    mutationFn: fetchAccountExportCsvZip,
+    onSuccess: (blob) => {
+      downloadBlob(blob, `networth-tracker-backup-${new Date().toISOString().split("T")[0]}.zip`);
+      toast.success("Backup downloaded");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Export failed"),
+    onSettled: () => setExportingCsv(false),
   });
 
   const deleteMutation = useMutation({
@@ -69,15 +83,6 @@ export default function Settings() {
             <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Session</span>
             <button onClick={signOut} style={buttonStyle}>{t("nav.signOut")}</button>
           </div>
-        </Card>
-      </div>
-
-      <div style={sectionStyle}>
-        <Card title="Household">
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem", marginBottom: "0.75rem" }}>
-            Manage shared households, invites, and member roles.
-          </p>
-          <Link to="/households" style={buttonStyle}>Go to Household →</Link>
         </Card>
       </div>
 
@@ -122,15 +127,24 @@ export default function Settings() {
       <div style={sectionStyle}>
         <Card title="Data export">
           <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem", marginBottom: "0.75rem" }}>
-            Download everything you own — holdings, transactions, valuations, and alerts — as a JSON file.
+            Download everything you own — holdings, transactions, valuations, alerts, and budget entries — as a backup, just in case.
           </p>
-          <button
-            onClick={() => { setExporting(true); exportMutation.mutate(); }}
-            disabled={exporting}
-            style={{ ...buttonStyle, opacity: exporting ? 0.6 : 1 }}
-          >
-            {exporting ? "Exporting…" : "Export my data"}
-          </button>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <button
+              onClick={() => { setExportingCsv(true); exportCsvMutation.mutate(); }}
+              disabled={exportingCsv}
+              style={{ ...buttonStyle, opacity: exportingCsv ? 0.6 : 1 }}
+            >
+              {exportingCsv ? "Exporting…" : "Download as CSV"}
+            </button>
+            <button
+              onClick={() => { setExporting(true); exportMutation.mutate(); }}
+              disabled={exporting}
+              style={{ ...buttonStyle, opacity: exporting ? 0.6 : 1 }}
+            >
+              {exporting ? "Exporting…" : "Download as JSON"}
+            </button>
+          </div>
         </Card>
       </div>
 

@@ -20,7 +20,6 @@ export const holdingSchema = z
     country: z.string().min(1, "Country is required"),
     currency: z.string().optional(),
     account: z.string().optional(),
-    household_id: z.string().optional(),
     is_private: z.boolean().optional(),
     notes: z.string().optional(),
     tags: z.string().optional(),
