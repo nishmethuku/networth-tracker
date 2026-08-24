@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -63,6 +63,85 @@ function NavLink({ to, children, highlight }) {
     >
       {children}
     </Link>
+  );
+}
+
+// Everything less frequently reached from the top nav — tools and reports
+// rather than the day-to-day pages (Portfolio, Liabilities, Transactions,
+// Budget) that stay inline. Keeps the desktop nav from wrapping into a
+// crowded multi-row block as more of these get added over time.
+function MoreMenu({ items }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const location = useLocation();
+  const active = items.some((item) => item.to === location.pathname);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  useEffect(() => setOpen(false), [location.pathname]);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.3rem",
+          background: "none",
+          border: "none",
+          color: active ? "var(--primary)" : "var(--text-secondary)",
+          fontWeight: active ? 600 : 400,
+          fontSize: "1rem",
+          fontFamily: "inherit",
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        More <span style={{ fontSize: "0.7em", marginTop: 2 }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 0.75rem)",
+            left: 0,
+            minWidth: 190,
+            background: "var(--card)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-lg)",
+            padding: "0.4rem",
+            display: "flex",
+            flexDirection: "column",
+            zIndex: 50,
+          }}
+        >
+          {items.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              style={{
+                padding: "0.5rem 0.75rem",
+                borderRadius: "var(--radius-sm)",
+                color: location.pathname === item.to ? "var(--primary)" : "var(--text)",
+                fontWeight: location.pathname === item.to ? 600 : 400,
+                fontSize: "0.9375rem",
+              }}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -190,12 +269,16 @@ function AppShell() {
           <NavLink to="/liabilities">Liabilities</NavLink>
           <NavLink to="/transactions">{t("nav.transactions")}</NavLink>
           <NavLink to="/budget">{t("nav.budget")}</NavLink>
-          <NavLink to="/import">{t("nav.importCsv")}</NavLink>
-          <NavLink to="/alerts">{t("nav.alerts")}</NavLink>
-          <NavLink to="/tax-summary">{t("nav.taxSummary")}</NavLink>
-          <NavLink to="/insights">{t("nav.insights")}</NavLink>
-          <NavLink to="/allocation-advisor">{t("nav.allocationAdvisor")}</NavLink>
-          <NavLink to="/what-if">{t("nav.whatIf")}</NavLink>
+          <MoreMenu
+            items={[
+              { to: "/import", label: t("nav.importCsv") },
+              { to: "/alerts", label: t("nav.alerts") },
+              { to: "/tax-summary", label: t("nav.taxSummary") },
+              { to: "/insights", label: t("nav.insights") },
+              { to: "/allocation-advisor", label: t("nav.allocationAdvisor") },
+              { to: "/what-if", label: t("nav.whatIf") },
+            ]}
+          />
           <NavLink to="/add-holding" highlight>{t("nav.addHolding")}</NavLink>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>

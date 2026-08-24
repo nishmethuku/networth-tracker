@@ -5,6 +5,7 @@ import Card from "./Card";
 import { fetchDashboard } from "../api";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent } from "../utils/formatters";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
+import useIsMobile from "../hooks/useIsMobile";
 import { projectNetWorth, fireNumber, yearsToTarget } from "../utils/whatIfProjection";
 
 const inputStyle = {
@@ -20,6 +21,7 @@ const labelStyle = { fontSize: "0.8125rem", color: "var(--text-secondary)", disp
 
 export default function WhatIf() {
   const currency = getDefaultDisplayCurrency();
+  const isMobile = useIsMobile();
   const { data: dashboard } = useQuery({
     queryKey: ["dashboard-for-whatif"],
     queryFn: () => fetchDashboard({ currency }),
@@ -63,7 +65,7 @@ export default function WhatIf() {
         Project where a starting amount plus a monthly contribution could get to, at a given growth rate — a scratch calculator, not a forecast.
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(240px, 1fr) minmax(320px, 2fr)", gap: "1.5rem", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(240px, 1fr) minmax(320px, 2fr)", gap: "1.5rem", alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
         <Card title="Assumptions">
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import usePullToRefresh from "../hooks/usePullToRefresh";
+import useIsMobile from "../hooks/useIsMobile";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { useAuth } from "../contexts/AuthContext";
 import Card from "./Card";
@@ -71,6 +72,7 @@ function BenchmarkCard() {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const { t } = useTranslation();
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -242,7 +244,7 @@ export default function Dashboard() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(400px, 1fr))",
               gap: "1.5rem",
               marginBottom: "1.5rem",
             }}
@@ -299,7 +301,7 @@ export default function Dashboard() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(320px, 1fr))",
                 gap: "1.5rem",
                 marginTop: "1.5rem",
               }}

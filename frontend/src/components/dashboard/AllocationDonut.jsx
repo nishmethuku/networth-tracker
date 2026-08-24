@@ -50,7 +50,7 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
         <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
           {drill ? (
             <span>
