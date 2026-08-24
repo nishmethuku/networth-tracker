@@ -13,6 +13,7 @@ import NetWorthChart from "./dashboard/NetWorthChart";
 import DashboardSkeleton from "./dashboard/DashboardSkeleton";
 import AllocationDonut from "./dashboard/AllocationDonut";
 import NetWorthBreakdown from "./dashboard/NetWorthBreakdown";
+import AllAssetsList from "./dashboard/AllAssetsList";
 import GoalsCard from "./dashboard/GoalsCard";
 import MoverHeatGrid from "./dashboard/MoverHeatGrid";
 import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
@@ -267,6 +268,14 @@ export default function Dashboard() {
             <ErrorBoundary mode="section" fallbackMessage="Couldn't load goals.">
               <GoalsCard currentNetWorth={dashboard.totalNetWorth} displayCurrency={currency} />
             </ErrorBoundary>
+          </div>
+
+          <div style={{ marginBottom: "1.5rem" }}>
+            <Card title="All Assets" subtitle="Every holding, click any one to jump to its detail page">
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't load the assets list.">
+                <AllAssetsList holdings={holdings} currency={currency} />
+              </ErrorBoundary>
+            </Card>
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>

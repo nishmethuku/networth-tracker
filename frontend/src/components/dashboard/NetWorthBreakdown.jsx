@@ -1,22 +1,10 @@
 import { useMemo, useState } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { formatCurrencyForDisplay, formatPercent } from "../../utils/formatters";
-import { getAssetTypeLabel, isQuantityBased } from "../../constants/enums";
-import { computeGroupedReturn, computeReturnsByType, holdingGrowthPct } from "../../utils/holdingReturns";
+import { getAssetTypeLabel } from "../../constants/enums";
+import { computeGroupedReturn, computeReturnsByType, holdingReturn } from "../../utils/holdingReturns";
 import EmptyState from "../EmptyState";
 import useIsMobile from "../../hooks/useIsMobile";
-
-// A holding's own annualized return where one actually exists (XIRR,
-// quantity-based types only); everything else falls back to plain
-// growth % — the two are never presented as the same number, since
-// calling a non-annualized figure "XIRR" would be misleading.
-function holdingReturn(h) {
-  if (isQuantityBased(h.assetType) && h.xirr != null) {
-    return { pct: h.xirr * 100, isXirr: true };
-  }
-  const pct = holdingGrowthPct(h);
-  return { pct, isXirr: false };
-}
 
 function buildCategoryRows(holdings) {
   const byType = {};

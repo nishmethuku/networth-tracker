@@ -15,6 +15,20 @@ export function holdingGrowthPct(h) {
 }
 
 /**
+ * A single holding's own return, choosing the right figure and correctly
+ * labeling which one it is: true annualized XIRR where that's meaningful
+ * (quantity-based types with a dated transaction ledger), plain growth %
+ * otherwise. The two are never presented as the same number, since calling
+ * a non-annualized figure "XIRR" would be misleading.
+ */
+export function holdingReturn(h) {
+  if (isQuantityBased(h.assetType) && h.xirr != null) {
+    return { pct: h.xirr * 100, isXirr: true };
+  }
+  return { pct: holdingGrowthPct(h), isXirr: false };
+}
+
+/**
  * Value-weighted average return for an arbitrary group of holdings — a
  * holding-level XIRR average weighted by current value for quantity-based
  * types, and simple gain/first-value % for valuation-based types. Not a
