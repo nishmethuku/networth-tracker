@@ -8,10 +8,25 @@
  * this is a portfolio-wide scratch calculator, not tied to one holding's
  * real SIP schedule.
  */
-export function projectNetWorth({ startingAmount, monthlyContribution, annualRatePct, years }) {
+
+export interface ProjectionPoint {
+  year: number;
+  value: number;
+  contributed: number;
+  growth: number;
+}
+
+export interface ProjectNetWorthArgs {
+  startingAmount: number;
+  monthlyContribution: number;
+  annualRatePct: number;
+  years: number;
+}
+
+export function projectNetWorth({ startingAmount, monthlyContribution, annualRatePct, years }: ProjectNetWorthArgs): ProjectionPoint[] {
   const rate = annualRatePct / 100;
   const periodicRate = Math.pow(1 + rate, 1 / 12) - 1;
-  const points = [];
+  const points: ProjectionPoint[] = [];
 
   for (let year = 0; year <= years; year++) {
     const n = year * 12;
@@ -33,7 +48,7 @@ export function projectNetWorth({ startingAmount, monthlyContribution, annualRat
  * withdrawals at `safeWithdrawalRatePct` cover `annualExpenses` forever —
  * the standard "25x expenses" rule is just this at a 4% withdrawal rate.
  */
-export function fireNumber(annualExpenses, safeWithdrawalRatePct) {
+export function fireNumber(annualExpenses: number, safeWithdrawalRatePct: number): number | null {
   if (!safeWithdrawalRatePct || safeWithdrawalRatePct <= 0) return null;
   return annualExpenses / (safeWithdrawalRatePct / 100);
 }
@@ -43,7 +58,7 @@ export function fireNumber(annualExpenses, safeWithdrawalRatePct) {
  * or null if the series never gets there (target too high / too many years
  * needed) — the caller decides how to render "not reached".
  */
-export function yearsToTarget(points, target) {
+export function yearsToTarget(points: ProjectionPoint[], target: number | null | undefined): number | null {
   if (target == null || target <= 0) return null;
   const hit = points.find((p) => p.value >= target);
   return hit ? hit.year : null;

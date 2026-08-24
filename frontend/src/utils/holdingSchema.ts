@@ -4,13 +4,13 @@ import { isQuantityBased } from "../constants/enums";
 const SYMBOL_REQUIRED_TYPES = ["stock", "mutual_fund", "crypto", "commodity"];
 const NAME_REQUIRED_TYPES = ["real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit"];
 
-function isPositiveNumberString(value) {
-  const n = parseFloat(value);
+function isPositiveNumberString(value: string | undefined): boolean {
+  const n = parseFloat(value as string);
   return value !== "" && value != null && !Number.isNaN(n) && n > 0;
 }
 
-function isNonNegativeNumberString(value) {
-  const n = parseFloat(value);
+function isNonNegativeNumberString(value: string | undefined): boolean {
+  const n = parseFloat(value as string);
   return value !== "" && value != null && !Number.isNaN(n) && n >= 0;
 }
 
@@ -56,3 +56,7 @@ export const holdingSchema = z
       ctx.addIssue({ path: ["date"], code: z.ZodIssueCode.custom, message: "Date can't be in the future" });
     }
   });
+
+/** The shape react-hook-form works with for the Add Holding form, derived
+ * directly from the validation schema so the two can never drift apart. */
+export type HoldingFormValues = z.infer<typeof holdingSchema>;

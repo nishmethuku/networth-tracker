@@ -5,15 +5,32 @@
  * event, without a new backend endpoint (the transactions list is already
  * fully loaded on this page).
  */
-export function computeTransactionTimeline(transactions) {
+
+export interface TransactionLike {
+  id: number;
+  transactionType: string;
+  transactionDate: string;
+  quantity: number;
+  pricePerUnit: number;
+  fees: number;
+}
+
+export interface TimelineEntry {
+  quantityAfter: number;
+  costBasisAfter: number;
+  avgCostAfter: number;
+  cumulativeRealizedGain: number;
+}
+
+export function computeTransactionTimeline(transactions: TransactionLike[]): Record<number, TimelineEntry> {
   const sorted = [...(transactions || [])].sort(
-    (a, b) => new Date(a.transactionDate) - new Date(b.transactionDate) || (a.id ?? 0) - (b.id ?? 0),
+    (a, b) => new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime() || (a.id ?? 0) - (b.id ?? 0),
   );
 
   let quantity = 0;
   let totalCost = 0;
   let cumulativeRealizedGain = 0;
-  const byId = {};
+  const byId: Record<number, TimelineEntry> = {};
 
   for (const t of sorted) {
     if (t.transactionType === "buy") {

@@ -26,7 +26,15 @@ import {
 /**
  * Holdings
  */
-export async function fetchHoldings(filters = {}) {
+export interface HoldingFilters {
+  assetType?: string;
+  country?: string;
+  householdId?: string;
+  currency?: string;
+  summary?: boolean;
+}
+
+export async function fetchHoldings(filters: HoldingFilters = {}) {
   const params = new URLSearchParams();
   if (filters.assetType) params.append("asset_type", filters.assetType);
   if (filters.country) params.append("country", filters.country);
@@ -38,48 +46,56 @@ export async function fetchHoldings(filters = {}) {
   return (data || []).map(mapHolding);
 }
 
-export async function fetchHolding(id, currency = "USD") {
+export async function fetchHolding(id: number | string, currency: string = "USD") {
   const data = await api.get(`/holdings/${id}?currency=${currency}`);
   return mapHolding(data);
 }
 
-export async function createHolding(payload) {
+export async function createHolding(payload: any) {
   const data = await api.post("/holdings", payload);
   return mapHolding(data);
 }
 
-export async function updateHolding(id, payload) {
+export async function updateHolding(id: number | string, payload: any) {
   const data = await api.put(`/holdings/${id}`, payload);
   return mapHolding(data);
 }
 
-export async function deleteHolding(id) {
+export async function deleteHolding(id: number | string) {
   await api.delete(`/holdings/${id}`);
 }
 
 /**
  * Transactions (buy/sell ledger for stock/mutual_fund/crypto/commodity)
  */
-export async function fetchHoldingTransactions(holdingId) {
+export async function fetchHoldingTransactions(holdingId: number | string) {
   const data = await api.get(`/holdings/${holdingId}/transactions`);
   return (data || []).map(mapTransaction);
 }
 
-export async function createTransaction(holdingId, payload) {
+export async function createTransaction(holdingId: number | string, payload: any) {
   const data = await api.post(`/holdings/${holdingId}/transactions`, payload);
   return mapTransaction(data);
 }
 
-export async function updateTransaction(id, payload) {
+export async function updateTransaction(id: number | string, payload: any) {
   const data = await api.put(`/transactions/${id}`, payload);
   return mapTransaction(data);
 }
 
-export async function deleteTransaction(id) {
+export async function deleteTransaction(id: number | string) {
   await api.delete(`/transactions/${id}`);
 }
 
-export async function fetchAllTransactions(filters = {}) {
+export interface TransactionFilters {
+  assetType?: string;
+  country?: string;
+  householdId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export async function fetchAllTransactions(filters: TransactionFilters = {}) {
   const params = new URLSearchParams();
   if (filters.assetType) params.append("asset_type", filters.assetType);
   if (filters.country) params.append("country", filters.country);
@@ -94,29 +110,36 @@ export async function fetchAllTransactions(filters = {}) {
 /**
  * Valuations (periodic value/balance entries for real_estate/fixed_deposit/ppf/epf/cash/loan)
  */
-export async function fetchHoldingValuations(holdingId) {
+export async function fetchHoldingValuations(holdingId: number | string) {
   const data = await api.get(`/holdings/${holdingId}/valuations`);
   return (data || []).map(mapValuation);
 }
 
-export async function createValuation(holdingId, payload) {
+export async function createValuation(holdingId: number | string, payload: any) {
   const data = await api.post(`/holdings/${holdingId}/valuations`, payload);
   return mapValuation(data);
 }
 
-export async function deleteValuation(id) {
+export async function deleteValuation(id: number | string) {
   await api.delete(`/valuations/${id}`);
 }
 
 /**
  * Price history / lookup
  */
-export async function fetchHoldingPriceHistory(holdingId) {
+export async function fetchHoldingPriceHistory(holdingId: number | string) {
   const data = await api.get(`/holdings/${holdingId}/price-history`);
   return mapPriceHistory(data);
 }
 
-export async function priceLookup({ assetType, symbol, date, currency = "USD" }) {
+export interface PriceLookupArgs {
+  assetType: string;
+  symbol: string;
+  date?: string;
+  currency?: string;
+}
+
+export async function priceLookup({ assetType, symbol, date, currency = "USD" }: PriceLookupArgs): Promise<number | null> {
   const params = new URLSearchParams({ asset_type: assetType, symbol, currency });
   if (date) params.append("date", date);
   const data = await api.get(`/price-lookup?${params.toString()}`);
@@ -126,7 +149,12 @@ export async function priceLookup({ assetType, symbol, date, currency = "USD" })
 /**
  * Dashboard / net worth history / exchange rates
  */
-export async function fetchDashboard(filters = {}) {
+export interface DashboardFilters {
+  householdId?: string;
+  currency?: string;
+}
+
+export async function fetchDashboard(filters: DashboardFilters = {}) {
   const params = new URLSearchParams();
   if (filters.householdId) params.append("household_id", filters.householdId);
   if (filters.currency) params.append("currency", filters.currency);
@@ -135,25 +163,37 @@ export async function fetchDashboard(filters = {}) {
   return mapDashboard(data);
 }
 
-export async function fetchNetWorthHistory(householdId = null, currency = "USD") {
+export async function fetchNetWorthHistory(householdId: string | null = null, currency: string = "USD") {
   const params = new URLSearchParams({ currency });
   if (householdId) params.append("household_id", householdId);
   const data = await api.get(`/net-worth-history?${params.toString()}`);
   return mapNetWorthHistory(data);
 }
 
-export async function fetchMonthlyFlow({ householdId, currency = "USD", months = 12 } = {}) {
+export interface MonthlyFlowArgs {
+  householdId?: string;
+  currency?: string;
+  months?: number;
+}
+
+export async function fetchMonthlyFlow({ householdId, currency = "USD", months = 12 }: MonthlyFlowArgs = {}) {
   const params = new URLSearchParams({ currency, months: String(months) });
   if (householdId) params.append("household_id", householdId);
   const data = await api.get(`/monthly-flow?${params.toString()}`);
   return mapMonthlyFlow(data);
 }
 
-export async function fetchExchangeRates(base = "USD") {
+export async function fetchExchangeRates(base: string = "USD") {
   return api.get(`/exchange-rates?base=${base}`);
 }
 
-export async function fetchEmergencyFund({ householdId, currency = "USD", months = 6 } = {}) {
+export interface EmergencyFundArgs {
+  householdId?: string;
+  currency?: string;
+  months?: number;
+}
+
+export async function fetchEmergencyFund({ householdId, currency = "USD", months = 6 }: EmergencyFundArgs = {}) {
   const params = new URLSearchParams({ currency, months: String(months) });
   if (householdId) params.append("household_id", householdId);
   const data = await api.get(`/emergency-fund?${params.toString()}`);
@@ -163,7 +203,7 @@ export async function fetchEmergencyFund({ householdId, currency = "USD", months
 /**
  * Symbol search (autocomplete)
  */
-export async function searchSymbols(query, country = "", assetType = "") {
+export async function searchSymbols(query: string, country: string = "", assetType: string = ""): Promise<any[]> {
   if (!query || query.trim().length < 1) return [];
   const params = new URLSearchParams({ q: query.trim() });
   if (country) params.append("country", country);
@@ -172,7 +212,7 @@ export async function searchSymbols(query, country = "", assetType = "") {
   return data || [];
 }
 
-export async function searchCrypto(query) {
+export async function searchCrypto(query: string): Promise<any[]> {
   if (!query || query.trim().length < 1) return [];
   const data = await api.get(`/search-crypto?q=${encodeURIComponent(query.trim())}`);
   return data || [];
@@ -186,19 +226,19 @@ export async function fetchAlerts() {
   return (data || []).map(mapAlert);
 }
 
-export async function createAlert(payload) {
+export async function createAlert(payload: any) {
   const data = await api.post("/alerts", payload);
   return mapAlert(data);
 }
 
-export async function deleteAlert(id) {
+export async function deleteAlert(id: number | string) {
   await api.delete(`/alerts/${id}`);
 }
 
 /**
  * Tax summary
  */
-export async function fetchTaxSummary(householdId = null, costBasisMethod = "average") {
+export async function fetchTaxSummary(householdId: string | null = null, costBasisMethod: string = "average") {
   const params = new URLSearchParams({ cost_basis_method: costBasisMethod });
   if (householdId) params.append("household_id", householdId);
   const data = await api.get(`/tax-summary?${params.toString()}`);
@@ -208,7 +248,7 @@ export async function fetchTaxSummary(householdId = null, costBasisMethod = "ave
 /**
  * Benchmark comparison
  */
-export async function fetchBenchmark(symbol = "SPY", householdId = null) {
+export async function fetchBenchmark(symbol: string = "SPY", householdId: string | null = null) {
   const params = new URLSearchParams({ symbol });
   if (householdId) params.append("household_id", householdId);
   const data = await api.get(`/benchmark?${params.toString()}`);
@@ -218,15 +258,15 @@ export async function fetchBenchmark(symbol = "SPY", householdId = null) {
 /**
  * CSV import
  */
-export async function fetchImportBrokers() {
+export async function fetchImportBrokers(): Promise<string[]> {
   return (await api.get("/import/brokers")) || [];
 }
 
-export async function importParse(broker, csvText) {
+export async function importParse(broker: string, csvText: string) {
   return api.post("/import/parse", { broker, csv_text: csvText });
 }
 
-export async function importConfirm(rows, householdId = null) {
+export async function importConfirm(rows: any[], householdId: string | null = null) {
   return api.post("/import/confirm", { rows, household_id: householdId });
 }
 
@@ -238,14 +278,14 @@ export async function importConfirm(rows, householdId = null) {
  * as any other request (a file upload is just as likely to be the first
  * thing a user does in a session as a GET is).
  */
-export async function smartImportParse(file, householdId = null) {
+export async function smartImportParse(file: File, householdId: string | null = null) {
   const formData = new FormData();
   formData.append("file", file);
   if (householdId) formData.append("household_id", householdId);
   return uploadWithColdStartRetry("/import/smart-parse", formData);
 }
 
-export async function smartImportConfirm(rows, householdId = null) {
+export async function smartImportConfirm(rows: any[], householdId: string | null = null) {
   return api.post("/import/smart-confirm", { rows, household_id: householdId });
 }
 
@@ -256,12 +296,23 @@ export async function smartImportConfirm(rows, householdId = null) {
  */
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface StreamAiChatArgs {
+  messages: ChatMessage[];
+  householdId?: string | null;
+  currency?: string;
+}
+
 /**
  * Streams the copilot chat response as an async generator of text chunks.
  * Bypasses api/client.js's 10s timeout (unsuitable for a streaming response)
  * and parses the backend's SSE-formatted `data: {...}\n\n` frames by hand.
  */
-export async function* streamAiChat({ messages, householdId, currency = "USD" }, signal) {
+export async function* streamAiChat({ messages, householdId, currency = "USD" }: StreamAiChatArgs, signal?: AbortSignal) {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
@@ -276,19 +327,19 @@ export async function* streamAiChat({ messages, householdId, currency = "USD" },
   });
 
   if (!response.ok) {
-    let errorData;
+    let errorData: any;
     try {
       errorData = await response.json();
     } catch {
       errorData = {};
     }
-    const err = new Error(errorData.error || `HTTP ${response.status}`);
+    const err: any = new Error(errorData.error || `HTTP ${response.status}`);
     err.status = response.status;
     err.code = errorData.code;
     throw err;
   }
 
-  const reader = response.body.getReader();
+  const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
@@ -297,7 +348,7 @@ export async function* streamAiChat({ messages, householdId, currency = "USD" },
     if (done) return;
     buffer += decoder.decode(value, { stream: true });
     const frames = buffer.split("\n\n");
-    buffer = frames.pop();
+    buffer = frames.pop() ?? "";
     for (const frame of frames) {
       if (!frame.startsWith("data: ")) continue;
       const payload = frame.slice(6);
@@ -309,7 +360,13 @@ export async function* streamAiChat({ messages, householdId, currency = "USD" },
   }
 }
 
-export async function fetchAllocationAdvice({ targetAllocation, householdId, currency = "USD" }) {
+export interface AllocationAdviceArgs {
+  targetAllocation: Record<string, number>;
+  householdId?: string | null;
+  currency?: string;
+}
+
+export async function fetchAllocationAdvice({ targetAllocation, householdId, currency = "USD" }: AllocationAdviceArgs) {
   return api.post(
     "/api/ai/allocation-advisor",
     {
@@ -321,7 +378,7 @@ export async function fetchAllocationAdvice({ targetAllocation, householdId, cur
   );
 }
 
-export async function suggestTransactionTags(transactionId) {
+export async function suggestTransactionTags(transactionId: number | string) {
   return api.post(`/transactions/${transactionId}/suggest-tags`, {}, AI_TIMEOUT);
 }
 
@@ -333,7 +390,7 @@ export async function fetchAllocationTargets() {
   return api.get("/allocation-targets");
 }
 
-export async function saveAllocationTargets(targetAllocation) {
+export async function saveAllocationTargets(targetAllocation: Record<string, number>) {
   return api.put("/allocation-targets", { target_allocation: targetAllocation });
 }
 
@@ -341,15 +398,21 @@ export async function clearAllocationTargets() {
   return api.delete("/allocation-targets");
 }
 
-export async function fetchAllocationDrift(currency = "USD") {
+export async function fetchAllocationDrift(currency: string = "USD") {
   return api.get(`/allocation-drift?currency=${currency}`);
 }
 
-export async function aiSearch(query, householdId = null) {
+export async function aiSearch(query: string, householdId: string | null = null) {
   return api.post("/api/ai/search", { query, household_id: householdId }, AI_TIMEOUT);
 }
 
-export async function fetchBudgetInsights({ householdId, months = 6, currency = "USD" } = {}) {
+export interface BudgetInsightsArgs {
+  householdId?: string;
+  months?: number;
+  currency?: string;
+}
+
+export async function fetchBudgetInsights({ householdId, months = 6, currency = "USD" }: BudgetInsightsArgs = {}) {
   return api.post("/api/ai/budget-insights", { household_id: householdId, months, currency }, AI_TIMEOUT);
 }
 
@@ -361,54 +424,59 @@ export async function fetchGoals() {
   return (data || []).map(mapGoal);
 }
 
-export async function createGoal(payload) {
+export async function createGoal(payload: any) {
   const data = await api.post("/goals", payload);
   return mapGoal(data);
 }
 
-export async function updateGoal(id, payload) {
+export async function updateGoal(id: number | string, payload: any) {
   const data = await api.put(`/goals/${id}`, payload);
   return mapGoal(data);
 }
 
-export async function deleteGoal(id) {
+export async function deleteGoal(id: number | string) {
   await api.delete(`/goals/${id}`);
 }
 
 /**
  * Liabilities (debt)
  */
-export async function fetchLiabilities({ householdId, currency = "USD" } = {}) {
+export interface LiabilityFilters {
+  householdId?: string;
+  currency?: string;
+}
+
+export async function fetchLiabilities({ householdId, currency = "USD" }: LiabilityFilters = {}) {
   const params = new URLSearchParams({ currency });
   if (householdId) params.append("household_id", householdId);
   const data = await api.get(`/liabilities?${params.toString()}`);
   return (data || []).map(mapLiability);
 }
 
-export async function createLiability(payload) {
+export async function createLiability(payload: any) {
   const data = await api.post("/liabilities", payload);
   return mapLiability(data);
 }
 
-export async function updateLiability(id, payload) {
+export async function updateLiability(id: number | string, payload: any) {
   const data = await api.put(`/liabilities/${id}`, payload);
   return mapLiability(data);
 }
 
-export async function deleteLiability(id) {
+export async function deleteLiability(id: number | string) {
   await api.delete(`/liabilities/${id}`);
 }
 
 /**
  * Net worth milestones (auto-detected, from the daily snapshot job)
  */
-export async function fetchMilestones({ householdId } = {}) {
+export async function fetchMilestones({ householdId }: { householdId?: string } = {}) {
   const endpoint = householdId ? `/milestones?household_id=${householdId}` : "/milestones";
   const data = await api.get(endpoint);
   return (data || []).map(mapMilestone);
 }
 
-export async function acknowledgeMilestone(id) {
+export async function acknowledgeMilestone(id: number | string) {
   const data = await api.put(`/milestones/${id}/acknowledge`, {});
   return mapMilestone(data);
 }
@@ -424,7 +492,7 @@ export async function fetchAccountExport() {
  * Same data as fetchAccountExport, as a zip of CSVs — bypasses the JSON-only
  * request() helper since this needs to return a Blob, not parsed JSON.
  */
-export async function fetchAccountExportCsvZip() {
+export async function fetchAccountExportCsvZip(): Promise<Blob> {
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
   const response = await fetch(`${API_BASE_URL}/account/export.zip`, {
@@ -443,7 +511,7 @@ export async function deleteAllAccountData() {
 /**
  * SIP (recurring investment) projection.
  */
-export async function fetchSipProjection(holdingId, years = 10) {
+export async function fetchSipProjection(holdingId: number | string, years: number = 10) {
   return api.get(`/holdings/${holdingId}/sip-projection?years=${years}`);
 }
 
@@ -454,7 +522,14 @@ export async function fetchBudgetCategories() {
   return api.get("/budget/categories");
 }
 
-export async function fetchBudgetEntries(filters = {}) {
+export interface BudgetEntryFilters {
+  householdId?: string;
+  entryType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export async function fetchBudgetEntries(filters: BudgetEntryFilters = {}) {
   const params = new URLSearchParams();
   if (filters.householdId) params.append("household_id", filters.householdId);
   if (filters.entryType) params.append("entry_type", filters.entryType);
@@ -465,33 +540,39 @@ export async function fetchBudgetEntries(filters = {}) {
   return (data || []).map(mapBudgetEntry);
 }
 
-export async function createBudgetEntry(payload) {
+export async function createBudgetEntry(payload: any) {
   const data = await api.post("/budget/entries", payload);
   return mapBudgetEntry(data);
 }
 
-export async function updateBudgetEntry(id, payload) {
+export async function updateBudgetEntry(id: number | string, payload: any) {
   const data = await api.put(`/budget/entries/${id}`, payload);
   return mapBudgetEntry(data);
 }
 
-export async function deleteBudgetEntry(id) {
+export async function deleteBudgetEntry(id: number | string) {
   await api.delete(`/budget/entries/${id}`);
 }
 
-export async function fetchBudgetSummary({ householdId, months = 6, currency = "USD" } = {}) {
+export interface BudgetSummaryArgs {
+  householdId?: string;
+  months?: number;
+  currency?: string;
+}
+
+export async function fetchBudgetSummary({ householdId, months = 6, currency = "USD" }: BudgetSummaryArgs = {}) {
   const params = new URLSearchParams({ months: String(months), currency });
   if (householdId) params.append("household_id", householdId);
   return api.get(`/budget/summary?${params.toString()}`);
 }
 
-export async function fetchSubscriptions({ householdId, currency = "USD" } = {}) {
+export async function fetchSubscriptions({ householdId, currency = "USD" }: { householdId?: string; currency?: string } = {}) {
   const params = new URLSearchParams({ currency });
   if (householdId) params.append("household_id", householdId);
   return api.get(`/budget/subscriptions?${params.toString()}`);
 }
 
-export async function fetchBudgetLimits({ householdId } = {}) {
+export async function fetchBudgetLimits({ householdId }: { householdId?: string } = {}) {
   const params = new URLSearchParams();
   if (householdId) params.append("household_id", householdId);
   const endpoint = params.toString() ? `/budget/limits?${params.toString()}` : "/budget/limits";
@@ -499,12 +580,12 @@ export async function fetchBudgetLimits({ householdId } = {}) {
   return (data || []).map(mapBudgetLimit);
 }
 
-export async function createBudgetLimit(payload) {
+export async function createBudgetLimit(payload: any) {
   const data = await api.post("/budget/limits", payload);
   return mapBudgetLimit(data);
 }
 
-export async function deleteBudgetLimit(id) {
+export async function deleteBudgetLimit(id: number | string) {
   await api.delete(`/budget/limits/${id}`);
 }
 
@@ -512,14 +593,14 @@ export async function deleteBudgetLimit(id) {
  * AI-assisted bank/credit card statement import (CSV, Excel, or PDF) into
  * Budget entries — same multipart-upload pattern as smartImportParse above.
  */
-export async function bankStatementParse(file, householdId = null) {
+export async function bankStatementParse(file: File, householdId: string | null = null) {
   const formData = new FormData();
   formData.append("file", file);
   if (householdId) formData.append("household_id", householdId);
   return uploadWithColdStartRetry("/import/bank-statement-parse", formData);
 }
 
-export async function bankStatementConfirm(rows, householdId = null, currency = "USD") {
+export async function bankStatementConfirm(rows: any[], householdId: string | null = null, currency: string = "USD") {
   return api.post("/import/bank-statement-confirm", { rows, household_id: householdId, currency });
 }
 

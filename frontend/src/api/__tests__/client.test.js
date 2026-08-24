@@ -50,7 +50,7 @@ describe("api client cold-start retry", () => {
   it("does not retry a GET when the server returns a real error response", async () => {
     global.fetch.mockResolvedValueOnce(jsonResponse({ error: "Not found" }, false, 404));
 
-    const { api, ApiError } = await import("../client");
+    const { api } = await import("../client");
     await expect(api.get("/holdings/999")).rejects.toMatchObject({ status: 404 });
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });

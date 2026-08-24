@@ -1,19 +1,37 @@
-export const RETURN_RANGES = [
+export interface ReturnRange {
+  label: string;
+  days: number | null;
+  ytd?: boolean;
+}
+
+export const RETURN_RANGES: ReturnRange[] = [
   { label: "1W", days: 7 },
   { label: "1M", days: 30 },
   { label: "3M", days: 90 },
   { label: "6M", days: 182 },
   { label: "1Y", days: 365 },
-  { label: "YTD", ytd: true },
+  { label: "YTD", days: null, ytd: true },
   { label: "All", days: null },
 ];
+
+export interface SeriesPoint {
+  date: string;
+  value: number;
+}
+
+export interface PeriodReturnResult {
+  rows: SeriesPoint[];
+  pct: number | null;
+  start: number;
+  end: number;
+}
 
 /**
  * % change over a selectable window, from a {date, value} series sorted
  * ascending. Falls back to the last two points rather than showing nothing
  * when the series doesn't reach as far back as the selected window.
  */
-export function computePeriodReturn(series, rangeIndex, now = new Date()) {
+export function computePeriodReturn(series: SeriesPoint[], rangeIndex: number, now: Date = new Date()): PeriodReturnResult | null {
   if (!series || series.length < 2) return null;
   const range = RETURN_RANGES[rangeIndex];
   let rows = series;

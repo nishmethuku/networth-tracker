@@ -1,9 +1,62 @@
 /**
- * Data mapping layer: normalize backend responses into frontend-friendly objects
+ * Data mapping layer: normalize backend responses into frontend-friendly
+ * objects. Inputs are typed `any` (raw JSON off the wire, shape owned by
+ * the Flask backend, not yet formally shared with the frontend) — the
+ * value here is in the *output* types, so every consumer of e.g.
+ * mapHolding() gets real autocomplete and a compile error on a typo'd
+ * field name, rather than a silent `undefined` at runtime.
  */
 import { safeNumber } from "../utils/formatters";
 
-export function mapHolding(h) {
+export interface Holding {
+  id: number;
+  userId: string;
+  householdId: string | null;
+  assetType: string;
+  symbol: string | null;
+  name: string;
+  country: string;
+  account: string;
+  institution: string | null;
+  currency: string;
+  interestRate: number | null;
+  maturityDate: string | null;
+  sipAmount: number | null;
+  sipFrequency: string | null;
+  sipStartDate: string | null;
+  isPrivate: boolean;
+  notes: string;
+  tags: string[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+
+  // Quantity-based metrics (stock/mutual_fund/crypto/commodity)
+  quantity: number | null;
+  avgCost: number | null;
+  costBasis: number | null;
+  displayCostBasis: number | null;
+  currentPrice: number | null;
+  realizedGain: number | null;
+  unrealizedGain: number | null;
+  totalGain: number | null;
+  xirr: number | null;
+  incomeReceived: number | null;
+  displayIncomeReceived: number | null;
+
+  // Valuation-based metrics (real_estate/fixed_deposit/ppf/epf/cash/loan)
+  firstValue: number | null;
+  displayFirstValue: number | null;
+  gain: number | null;
+  history: unknown;
+
+  // Common
+  currentValue: number;
+  displayValue: number;
+  displayName: string;
+}
+
+export function mapHolding(h: any): Holding | null {
   if (!h) return null;
   return {
     id: h.id,
@@ -26,14 +79,13 @@ export function mapHolding(h) {
     tags: h.tags
       ? h.tags
           .split(",")
-          .map((t) => t.trim())
+          .map((t: string) => t.trim())
           .filter(Boolean)
       : [],
     status: h.status ?? "active",
     createdAt: h.created_at ?? "",
     updatedAt: h.updated_at ?? "",
 
-    // Quantity-based metrics (stock/mutual_fund/crypto/commodity)
     quantity: h.quantity != null ? safeNumber(h.quantity) : null,
     avgCost: h.avg_cost != null ? safeNumber(h.avg_cost) : null,
     costBasis: h.cost_basis != null ? safeNumber(h.cost_basis) : null,
@@ -46,13 +98,11 @@ export function mapHolding(h) {
     incomeReceived: h.income_received != null ? safeNumber(h.income_received) : null,
     displayIncomeReceived: h.display_income_received != null ? safeNumber(h.display_income_received) : null,
 
-    // Valuation-based metrics (real_estate/fixed_deposit/ppf/epf/cash/loan)
     firstValue: h.first_value != null ? safeNumber(h.first_value) : null,
     displayFirstValue: h.display_first_value != null ? safeNumber(h.display_first_value) : null,
     gain: h.gain != null ? safeNumber(h.gain) : null,
     history: h.history || null,
 
-    // Common
     currentValue: safeNumber(h.current_value),
     displayValue: safeNumber(h.display_value ?? h.current_value),
 
@@ -60,7 +110,32 @@ export function mapHolding(h) {
   };
 }
 
-export function mapTransaction(t) {
+export interface FundingSource {
+  holdingId: number;
+  newBalance: number;
+  currency: string;
+}
+
+export interface Transaction {
+  id: number;
+  holdingId: number;
+  holdingName: string | null;
+  holdingSymbol: string | null;
+  assetType: string | null;
+  country: string | null;
+  transactionType: string;
+  transactionDate: string;
+  quantity: number;
+  pricePerUnit: number;
+  currency: string;
+  fees: number;
+  notes: string;
+  tags: string[];
+  createdAt: string;
+  fundingSource: FundingSource | null;
+}
+
+export function mapTransaction(t: any): Transaction | null {
   if (!t) return null;
   return {
     id: t.id,
@@ -84,7 +159,17 @@ export function mapTransaction(t) {
   };
 }
 
-export function mapValuation(v) {
+export interface Valuation {
+  id: number;
+  holdingId: number;
+  valuationDate: string;
+  value: number;
+  currency: string;
+  notes: string;
+  createdAt: string;
+}
+
+export function mapValuation(v: any): Valuation | null {
   if (!v) return null;
   return {
     id: v.id,
@@ -97,7 +182,37 @@ export function mapValuation(v) {
   };
 }
 
-export function mapDashboard(d) {
+export interface AllocationSlice {
+  label: string;
+  value: number;
+}
+
+export interface Mover {
+  id: number;
+  name: string;
+  symbol: string | null;
+  assetType: string;
+  changePct: number;
+  currentValue: number;
+}
+
+export interface Dashboard {
+  totalNetWorth: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  currency: string;
+  portfolioXirr: number | null;
+  allocationByType: AllocationSlice[];
+  allocationByCountry: AllocationSlice[];
+  allocationByCurrency: AllocationSlice[];
+  topGainers: (Mover | null)[];
+  topLosers: (Mover | null)[];
+  realizedGain: number;
+  unrealizedGain: number;
+  incomeReceived: number;
+}
+
+export function mapDashboard(d: any): Dashboard | null {
   if (!d) return null;
   return {
     totalNetWorth: safeNumber(d.total_net_worth),
@@ -105,15 +220,15 @@ export function mapDashboard(d) {
     totalLiabilities: safeNumber(d.total_liabilities),
     currency: d.currency ?? "USD",
     portfolioXirr: d.portfolio_xirr != null ? safeNumber(d.portfolio_xirr) : null,
-    allocationByType: (d.allocation_by_type || []).map((a) => ({
+    allocationByType: (d.allocation_by_type || []).map((a: any) => ({
       label: a.label,
       value: safeNumber(a.value),
     })),
-    allocationByCountry: (d.allocation_by_country || []).map((a) => ({
+    allocationByCountry: (d.allocation_by_country || []).map((a: any) => ({
       label: a.label,
       value: safeNumber(a.value),
     })),
-    allocationByCurrency: (d.allocation_by_currency || []).map((a) => ({
+    allocationByCurrency: (d.allocation_by_currency || []).map((a: any) => ({
       label: a.label,
       value: safeNumber(a.value),
     })),
@@ -125,7 +240,7 @@ export function mapDashboard(d) {
   };
 }
 
-function mapMover(m) {
+function mapMover(m: any): Mover {
   return {
     id: m.id,
     name: m.name,
@@ -136,7 +251,17 @@ function mapMover(m) {
   };
 }
 
-export function mapNetWorthHistory(rows) {
+export interface NetWorthHistoryPoint {
+  date: string;
+  netWorth: number;
+  stockValue: number;
+  propertyValue: number;
+  profitLoss: number;
+  liabilities: number;
+  byAssetType: Record<string, number>;
+}
+
+export function mapNetWorthHistory(rows: any[]): NetWorthHistoryPoint[] {
   return (rows || []).map((r) => ({
     date: r.snapshot_date,
     netWorth: safeNumber(r.total_net_worth),
@@ -148,7 +273,14 @@ export function mapNetWorthHistory(rows) {
   }));
 }
 
-export function mapPriceHistory(rows) {
+export interface PriceHistoryPoint {
+  date: string;
+  price: number;
+  currency: string;
+  source: string;
+}
+
+export function mapPriceHistory(rows: any[]): PriceHistoryPoint[] {
   return (rows || []).map((r) => ({
     date: r.price_date,
     price: safeNumber(r.price),
@@ -157,7 +289,20 @@ export function mapPriceHistory(rows) {
   }));
 }
 
-export function mapAlert(a) {
+export interface Alert {
+  id: number;
+  holdingId: number | null;
+  symbol: string | null;
+  assetType: string | null;
+  alertType: string;
+  threshold: number;
+  currency: string;
+  status: string;
+  createdAt: string;
+  triggeredAt: string | null;
+}
+
+export function mapAlert(a: any): Alert | null {
   if (!a) return null;
   return {
     id: a.id,
@@ -173,12 +318,34 @@ export function mapAlert(a) {
   };
 }
 
-export function mapTaxSummary(response) {
+export interface TaxEstimate {
+  shortTermTax: number;
+  longTermTax: number;
+  totalTax: number;
+}
+
+export interface TaxSummaryRow {
+  financialYear: string;
+  country: string;
+  realizedGain: number;
+  shortTermGain: number;
+  longTermGain: number;
+  taxEstimate: TaxEstimate | null;
+  byHolding: { name: string; realizedGain: number }[];
+}
+
+export interface TaxSummary {
+  disclaimer: string | null;
+  costBasisMethod: string;
+  rows: TaxSummaryRow[];
+}
+
+export function mapTaxSummary(response: any): TaxSummary {
   const rows = response?.rows || (Array.isArray(response) ? response : []);
   return {
     disclaimer: response?.disclaimer || null,
     costBasisMethod: response?.cost_basis_method || "average",
-    rows: rows.map((r) => ({
+    rows: rows.map((r: any) => ({
       financialYear: r.financial_year,
       country: r.country,
       realizedGain: safeNumber(r.realized_gain),
@@ -191,12 +358,21 @@ export function mapTaxSummary(response) {
             totalTax: safeNumber(r.tax_estimate.total_tax),
           }
         : null,
-      byHolding: (r.by_holding || []).map((h) => ({ name: h.name, realizedGain: safeNumber(h.realized_gain) })),
+      byHolding: (r.by_holding || []).map((h: any) => ({ name: h.name, realizedGain: safeNumber(h.realized_gain) })),
     })),
   };
 }
 
-export function mapBenchmark(b) {
+export interface Benchmark {
+  benchmarkSymbol: string;
+  benchmarkLabel: string;
+  portfolioXirr: number | null;
+  benchmarkXirr: number | null;
+  buysUsed: number;
+  buysSkipped: number;
+}
+
+export function mapBenchmark(b: any): Benchmark | null {
   if (!b) return null;
   return {
     benchmarkSymbol: b.benchmark_symbol,
@@ -208,7 +384,23 @@ export function mapBenchmark(b) {
   };
 }
 
-export function mapBudgetEntry(e) {
+export interface BudgetEntry {
+  id: number;
+  householdId: string | null;
+  entryType: string;
+  entryDate: string;
+  amount: number;
+  currency: string;
+  category: string;
+  description: string;
+  isPrivate: boolean;
+  isRecurring: boolean;
+  recurringFrequency: string | null;
+  createdAt: string;
+  fundingSource: FundingSource | null;
+}
+
+export function mapBudgetEntry(e: any): BudgetEntry | null {
   if (!e) return null;
   return {
     id: e.id,
@@ -229,7 +421,16 @@ export function mapBudgetEntry(e) {
   };
 }
 
-export function mapBudgetLimit(l) {
+export interface BudgetLimit {
+  id: number;
+  householdId: string | null;
+  category: string;
+  monthlyLimit: number;
+  currency: string;
+  createdAt: string;
+}
+
+export function mapBudgetLimit(l: any): BudgetLimit | null {
   if (!l) return null;
   return {
     id: l.id,
@@ -241,7 +442,13 @@ export function mapBudgetLimit(l) {
   };
 }
 
-export function mapMonthlyFlow(rows) {
+export interface MonthlyFlowPoint {
+  month: string;
+  totalFlow: number;
+  byAssetType: Record<string, number>;
+}
+
+export function mapMonthlyFlow(rows: any[]): MonthlyFlowPoint[] {
   return (rows || []).map((r) => ({
     month: r.month,
     totalFlow: safeNumber(r.total_flow),
@@ -249,7 +456,16 @@ export function mapMonthlyFlow(rows) {
   }));
 }
 
-export function mapGoal(g) {
+export interface Goal {
+  id: number;
+  name: string;
+  targetAmount: number;
+  currency: string;
+  targetDate: string | null;
+  createdAt: string;
+}
+
+export function mapGoal(g: any): Goal | null {
   if (!g) return null;
   return {
     id: g.id,
@@ -261,7 +477,15 @@ export function mapGoal(g) {
   };
 }
 
-export function mapEmergencyFund(e) {
+export interface EmergencyFund {
+  currency: string;
+  liquidValue: number;
+  avgMonthlyExpenses: number | null;
+  monthsCovered: number | null;
+  recommendedMonths: number;
+}
+
+export function mapEmergencyFund(e: any): EmergencyFund | null {
   if (!e) return null;
   return {
     currency: e.currency ?? "USD",
@@ -272,7 +496,16 @@ export function mapEmergencyFund(e) {
   };
 }
 
-export function mapMilestone(m) {
+export interface Milestone {
+  id: number;
+  householdId: string | null;
+  threshold: number;
+  currency: string;
+  achievedDate: string;
+  acknowledged: boolean;
+}
+
+export function mapMilestone(m: any): Milestone | null {
   if (!m) return null;
   return {
     id: m.id,
@@ -284,7 +517,23 @@ export function mapMilestone(m) {
   };
 }
 
-export function mapLiability(l) {
+export interface Liability {
+  id: number;
+  householdId: string | null;
+  name: string;
+  liabilityType: string;
+  currency: string;
+  currentBalance: number;
+  displayBalance: number;
+  originalAmount: number | null;
+  interestRate: number | null;
+  notes: string;
+  isPrivate: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapLiability(l: any): Liability | null {
   if (!l) return null;
   return {
     id: l.id,

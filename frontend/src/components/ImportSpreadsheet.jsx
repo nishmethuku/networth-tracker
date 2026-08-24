@@ -50,7 +50,7 @@ export default function ImportSpreadsheet() {
 
   const confirmMutation = useMutation({
     mutationFn: () => {
-      const selected = rows.filter((r) => included[r._key]).map(({ _key, source_note, ...r }) => r);
+      const selected = rows.filter((r) => included[r._key]).map(({ _key, source_note: _source_note, ...r }) => r);
       return smartImportConfirm(selected, null);
     },
     onSuccess: (result) => {

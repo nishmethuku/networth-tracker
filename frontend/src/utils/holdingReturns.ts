@@ -1,6 +1,38 @@
 import { getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 
 /**
+ * The subset of a mapped holding (see api/mappers.js mapHolding) these
+ * pure return/aggregation functions actually read — not every field a
+ * holding has, just the ones relevant to "how did this do."
+ */
+export interface HoldingLike {
+  assetType: string;
+  displayValue: number;
+  costBasis?: number | null;
+  totalGain?: number | null;
+  displayCostBasis?: number | null;
+  firstValue?: number | null;
+  displayFirstValue?: number | null;
+  gain?: number | null;
+  xirr?: number | null;
+}
+
+export interface HoldingReturnResult {
+  pct: number | null;
+  isXirr: boolean;
+}
+
+export interface GroupedReturnResult {
+  returnPct: number | null;
+  isXirr: boolean;
+}
+
+export interface BuyValueAndGain {
+  buyValue: number | null;
+  gainAmount: number | null;
+}
+
+/**
  * Plain total-return % since purchase/first entry — distinct from XIRR
  * (annualized), which only exists for quantity-based holdings with a
  * dated transaction ledger. This works for any holding, quantity-based
@@ -8,9 +40,9 @@ import { getAssetTypeLabel, isQuantityBased } from "../constants/enums";
  * available (e.g. real estate, cash) or when "how much did this actually
  * grow" matters more than the annualized rate.
  */
-export function holdingGrowthPct(h) {
-  if (isQuantityBased(h.assetType) && h.costBasis) return (h.totalGain / h.costBasis) * 100;
-  if (h.firstValue) return (h.gain / Math.abs(h.firstValue)) * 100;
+export function holdingGrowthPct(h: HoldingLike): number | null {
+  if (isQuantityBased(h.assetType) && h.costBasis) return ((h.totalGain ?? 0) / h.costBasis) * 100;
+  if (h.firstValue) return ((h.gain ?? 0) / Math.abs(h.firstValue)) * 100;
   return null;
 }
 
@@ -21,8 +53,8 @@ export function holdingGrowthPct(h) {
  * category aggregate) without mixing currencies. Returns null rather than
  * 0 when unknown, so callers can distinguish "no data" from "worth zero."
  */
-export function holdingBuyValue(h) {
-  if (isQuantityBased(h.assetType)) return h.displayCostBasis;
+export function holdingBuyValue(h: HoldingLike): number | null {
+  if (isQuantityBased(h.assetType)) return h.displayCostBasis ?? null;
   return h.displayFirstValue != null ? Math.abs(h.displayFirstValue) : null;
 }
 
@@ -32,8 +64,8 @@ export function holdingBuyValue(h) {
  * rather than treated as 0, so it doesn't understate the rest), plus the
  * resulting $ gain if there's anything to compare against.
  */
-export function groupBuyValueAndGain(holdings) {
-  let buyValue = null;
+export function groupBuyValueAndGain(holdings: HoldingLike[]): BuyValueAndGain {
+  let buyValue: number | null = null;
   let value = 0;
   for (const h of holdings) {
     value += h.displayValue || 0;
@@ -50,7 +82,7 @@ export function groupBuyValueAndGain(holdings) {
  * otherwise. The two are never presented as the same number, since calling
  * a non-annualized figure "XIRR" would be misleading.
  */
-export function holdingReturn(h) {
+export function holdingReturn(h: HoldingLike): HoldingReturnResult {
   if (isQuantityBased(h.assetType) && h.xirr != null) {
     return { pct: h.xirr * 100, isXirr: true };
   }
@@ -68,7 +100,7 @@ export function holdingReturn(h) {
  * annualized XIRR figure, matching the same "never mislabel a growth % as
  * XIRR" rule ReturnCell enforces per holding.
  */
-export function computeGroupedReturn(holdings) {
+export function computeGroupedReturn(holdings: HoldingLike[]): GroupedReturnResult {
   let weightedSum = 0;
   let weight = 0;
   let sawXirr = false;
@@ -80,7 +112,7 @@ export function computeGroupedReturn(holdings) {
       weight += h.displayValue;
       sawXirr = true;
     } else if (!isQuantityBased(h.assetType) && h.firstValue) {
-      const pct = (h.gain / Math.abs(h.firstValue)) * 100;
+      const pct = ((h.gain ?? 0) / Math.abs(h.firstValue)) * 100;
       weightedSum += pct * h.displayValue;
       weight += h.displayValue;
       sawGrowth = true;
@@ -91,16 +123,21 @@ export function computeGroupedReturn(holdings) {
   return { returnPct: weightedSum / weight, isXirr: sawXirr && !sawGrowth };
 }
 
+export interface ReturnsByTypeRow extends GroupedReturnResult {
+  assetType: string;
+  label: string;
+}
+
 /**
  * Value-weighted average return per asset type — see computeGroupedReturn.
  */
-export function computeReturnsByType(holdings) {
-  const byType = {};
+export function computeReturnsByType(holdings: HoldingLike[]): ReturnsByTypeRow[] {
+  const byType: Record<string, HoldingLike[]> = {};
   for (const h of holdings) {
     (byType[h.assetType] = byType[h.assetType] || []).push(h);
   }
   return Object.entries(byType)
     .map(([type, hs]) => ({ assetType: type, label: getAssetTypeLabel(type), ...computeGroupedReturn(hs) }))
     .filter((r) => r.returnPct != null)
-    .sort((a, b) => b.returnPct - a.returnPct);
+    .sort((a, b) => (b.returnPct ?? 0) - (a.returnPct ?? 0));
 }

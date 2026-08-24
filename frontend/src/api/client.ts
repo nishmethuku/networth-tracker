@@ -23,7 +23,10 @@ const COLD_START_TIMEOUT = 100000;
 export const AI_TIMEOUT = 60000;
 
 class ApiError extends Error {
-  constructor(message, status, data) {
+  status: number;
+  data: unknown;
+
+  constructor(message: string, status: number, data?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -31,14 +34,14 @@ class ApiError extends Error {
   }
 }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT) {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = DEFAULT_TIMEOUT): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     // Ensure GET requests never send a body
     const method = (options.method || "GET").toUpperCase();
-    const sanitizedOptions = { ...options, method };
+    const sanitizedOptions: RequestInit = { ...options, method };
     if (method === "GET") {
       delete sanitizedOptions.body;
     }
@@ -59,7 +62,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT) 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      let errorData;
+      let errorData: any;
       try {
         errorData = await response.json();
       } catch {
@@ -75,7 +78,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT) 
     }
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === "AbortError") {
       throw new ApiError("Request timed out.", 408);
@@ -87,7 +90,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT) 
   }
 }
 
-async function parseResponse(response) {
+async function parseResponse(response: Response): Promise<any> {
   // Handle empty responses (like 204 No Content)
   const contentType = response.headers.get("content-type");
   if (contentType && contentType.includes("application/json")) {
@@ -96,7 +99,7 @@ async function parseResponse(response) {
   return null;
 }
 
-async function request(endpoint, options = {}, timeoutMs = DEFAULT_TIMEOUT) {
+async function request(endpoint: string, options: RequestInit = {}, timeoutMs: number = DEFAULT_TIMEOUT): Promise<any> {
   const url = `${API_BASE_URL}${endpoint}`;
   const method = (options.method || "GET").toUpperCase();
 
@@ -122,7 +125,7 @@ async function request(endpoint, options = {}, timeoutMs = DEFAULT_TIMEOUT) {
   }
 }
 
-async function fetchUpload(url, formData, timeoutMs) {
+async function fetchUpload(url: string, formData: FormData, timeoutMs: number): Promise<any> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -141,7 +144,7 @@ async function fetchUpload(url, formData, timeoutMs) {
     });
     clearTimeout(timeoutId);
 
-    let payload;
+    let payload: any;
     try {
       payload = await response.json();
     } catch {
@@ -151,7 +154,7 @@ async function fetchUpload(url, formData, timeoutMs) {
       throw new ApiError(payload.error || payload.message || `HTTP ${response.status}`, response.status, payload);
     }
     return payload;
-  } catch (error) {
+  } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === "AbortError") {
       throw new ApiError("Request timed out.", 408);
@@ -171,7 +174,7 @@ async function fetchUpload(url, formData, timeoutMs) {
  * session, so they're just as likely to land on a cold backend as any
  * GET — but previously had no timeout or retry at all.
  */
-export async function uploadWithColdStartRetry(endpoint, formData) {
+export async function uploadWithColdStartRetry(endpoint: string, formData: FormData): Promise<any> {
   const url = `${API_BASE_URL}${endpoint}`;
   try {
     return await fetchUpload(url, formData, DEFAULT_TIMEOUT);
@@ -195,8 +198,8 @@ export async function uploadWithColdStartRetry(endpoint, formData) {
 
 // HTTP method helpers
 export const api = {
-  get: (endpoint) => request(endpoint, { method: "GET" }),
-  post: (endpoint, data, timeoutMs) =>
+  get: (endpoint: string) => request(endpoint, { method: "GET" }),
+  post: (endpoint: string, data: unknown, timeoutMs?: number) =>
     request(
       endpoint,
       {
@@ -205,12 +208,12 @@ export const api = {
       },
       timeoutMs,
     ),
-  put: (endpoint, data) =>
+  put: (endpoint: string, data: unknown) =>
     request(endpoint, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  delete: (endpoint, data) =>
+  delete: (endpoint: string, data?: unknown) =>
     request(endpoint, {
       method: "DELETE",
       ...(data !== undefined ? { body: JSON.stringify(data) } : {}),

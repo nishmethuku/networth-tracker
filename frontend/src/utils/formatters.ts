@@ -4,25 +4,27 @@
  * this file only formats already-known-currency values for display.
  */
 
-export function safeNumber(value) {
+export type Currency = "USD" | "INR" | "AUD";
+
+export function safeNumber(value: unknown): number {
   if (value === null || value === undefined) return 0;
-  const num = typeof value === "number" ? value : parseFloat(value);
+  const num = typeof value === "number" ? value : parseFloat(value as string);
   return isNaN(num) ? 0 : num;
 }
 
-const CURRENCY_SYMBOLS = {
+const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
   AUD: "$",
   INR: "₹",
 };
 
 /** Map countries to their native currency (for labeling, not conversion) */
-export function currencyForCountry(country) {
-  const map = { "United States": "USD", Australia: "AUD", India: "INR" };
+export function currencyForCountry(country: string): Currency {
+  const map: Record<string, Currency> = { "United States": "USD", Australia: "AUD", India: "INR" };
   return map[country] || "USD";
 }
 
-export function formatCurrencyForDisplay(value, currency = "USD", options = {}) {
+export function formatCurrencyForDisplay(value: unknown, currency: string = "USD", options: { includeCode?: boolean } = {}): string {
   const { includeCode = true } = options;
   const num = Math.round(safeNumber(value));
   const symbol = CURRENCY_SYMBOLS[currency] || "$";
@@ -34,11 +36,11 @@ export function formatCurrencyForDisplay(value, currency = "USD", options = {}) 
  * Compact currency for dashboard cards / tables: K/M notation.
  * Examples: $24,000 USD, $24K USD, $2.4M USD, ₹240K INR
  */
-export function formatCurrencyCompact(value, currency = "USD") {
+export function formatCurrencyCompact(value: unknown, currency: string = "USD"): string {
   const num = Math.round(safeNumber(value));
   const symbol = CURRENCY_SYMBOLS[currency] || "$";
   const absNum = Math.abs(num);
-  let formatted;
+  let formatted: string;
 
   if (absNum >= 1000000) {
     formatted = `${Math.round(absNum / 1000000)}M`;
@@ -52,7 +54,7 @@ export function formatCurrencyCompact(value, currency = "USD") {
   return `${sign}${symbol}${formatted} ${currency}`;
 }
 
-export function formatPercent(value, decimals = 2) {
+export function formatPercent(value: unknown, decimals: number = 2): string {
   const num = safeNumber(value);
   // toFixed silently switches to scientific notation for |num| >= 1e21 (a
   // documented JS quirk) — clamp first so a stray extreme value can never
@@ -61,12 +63,12 @@ export function formatPercent(value, decimals = 2) {
   return `${clamped.toFixed(decimals)}%`;
 }
 
-export function formatNumber(value, decimals = 2) {
+export function formatNumber(value: unknown, decimals: number = 2): string {
   const num = safeNumber(value);
   return num.toFixed(decimals);
 }
 
-export function formatCompactNumber(value) {
+export function formatCompactNumber(value: unknown): string {
   const num = safeNumber(value);
   if (Math.abs(num) >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
   if (Math.abs(num) >= 1e6) return `${(num / 1e6).toFixed(2)}M`;

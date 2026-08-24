@@ -7,9 +7,22 @@
  */
 const MAX_MONTHS = 600;
 
-export function projectPayoff({ balance, annualRatePct, monthlyPayment }) {
+export interface PayoffPoint {
+  month: number;
+  balance: number;
+  interestPaid: number;
+  principalPaid: number;
+}
+
+export interface ProjectPayoffArgs {
+  balance: number;
+  annualRatePct: number;
+  monthlyPayment: number;
+}
+
+export function projectPayoff({ balance, annualRatePct, monthlyPayment }: ProjectPayoffArgs): PayoffPoint[] {
   const r = annualRatePct / 100 / 12;
-  const points = [{ month: 0, balance, interestPaid: 0, principalPaid: 0 }];
+  const points: PayoffPoint[] = [{ month: 0, balance, interestPaid: 0, principalPaid: 0 }];
   if (balance <= 0 || monthlyPayment <= 0) return points;
 
   let bal = balance;
@@ -32,7 +45,7 @@ export function projectPayoff({ balance, annualRatePct, monthlyPayment }) {
 
 /** The month payoff was reached, or null if the payment never gets there
  * within the horizon (too small, or doesn't cover interest at all). */
-export function monthsToPayoff(points) {
+export function monthsToPayoff(points: PayoffPoint[]): number | null {
   const last = points[points.length - 1];
   return last && last.balance <= 0.01 && last.month > 0 ? last.month : null;
 }
