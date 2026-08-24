@@ -110,6 +110,8 @@ def build_portfolio_snapshot(
     return {
         "display_currency": display_currency,
         "total_net_worth": dashboard.get("total_net_worth"),
+        "total_assets": dashboard.get("total_assets"),
+        "total_liabilities": dashboard.get("total_liabilities"),
         "allocation_by_type": dashboard.get("allocation_by_type"),
         "allocation_by_country": dashboard.get("allocation_by_country"),
         "realized_gain": dashboard.get("realized_gain"),

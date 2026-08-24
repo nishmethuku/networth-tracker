@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchTaxSummary, ApiError } from "../api";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
 import Card from "./Card";
 import LoadingState from "./LoadingState";
@@ -66,10 +66,18 @@ export function computeYoyChanges(rows) {
   return changes;
 }
 
+const COST_BASIS_METHOD_OPTIONS = [
+  { value: "average", label: "Average cost" },
+  { value: "fifo", label: "FIFO (oldest lots first)" },
+  { value: "lifo", label: "LIFO (newest lots first)" },
+];
+
 export default function TaxSummary() {
+  const [costBasisMethod, setCostBasisMethod] = useState("average");
+
   const { data: summary, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["tax-summary"],
-    queryFn: () => fetchTaxSummary(null),
+    queryKey: ["tax-summary", costBasisMethod],
+    queryFn: () => fetchTaxSummary(null, costBasisMethod),
   });
 
   const yoyChanges = useMemo(() => (summary ? computeYoyChanges(summary.rows) : {}), [summary]);
@@ -81,9 +89,20 @@ export default function TaxSummary() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Tax Summary</h1>
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Cost basis method</label>
+          <select
+            value={costBasisMethod}
+            onChange={(e) => setCostBasisMethod(e.target.value)}
+            style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)", fontSize: "0.875rem" }}
+          >
+            {COST_BASIS_METHOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
       </div>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         Realized gains from sales, grouped by financial year — India runs Apr–Mar, everywhere else runs Jan–Dec.
+        {costBasisMethod !== "average" && " This method only changes this report — your dashboard and holdings still use average cost."}
       </p>
 
       {!summary || summary.rows.length === 0 ? (

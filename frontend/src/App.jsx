@@ -19,6 +19,7 @@ const Portfolio = lazy(() => import("./components/Portfolio"));
 const HoldingDetail = lazy(() => import("./components/HoldingDetail"));
 const AddHolding = lazy(() => import("./components/AddHolding"));
 const Transactions = lazy(() => import("./components/Transactions"));
+const Liabilities = lazy(() => import("./components/Liabilities"));
 const ImportTransactions = lazy(() => import("./components/ImportTransactions"));
 const Alerts = lazy(() => import("./components/Alerts"));
 const TaxSummary = lazy(() => import("./components/TaxSummary"));
@@ -184,6 +185,7 @@ function AppShell() {
             {t("nav.netWorth")}
           </Link>
           <NavLink to="/portfolio">{t("nav.portfolio")}</NavLink>
+          <NavLink to="/liabilities">Liabilities</NavLink>
           <NavLink to="/transactions">{t("nav.transactions")}</NavLink>
           <NavLink to="/budget">{t("nav.budget")}</NavLink>
           <NavLink to="/import">{t("nav.importCsv")}</NavLink>
@@ -226,6 +228,7 @@ function AppShell() {
               <Route index element={<Dashboard />} />
               <Route path="portfolio" element={<Portfolio />} />
               <Route path="portfolio/:id" element={<HoldingDetail />} />
+              <Route path="liabilities" element={<Liabilities />} />
               <Route path="add-holding" element={<AddHolding />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="budget" element={<Budget />} />

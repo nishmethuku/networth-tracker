@@ -200,7 +200,19 @@ export default function Dashboard() {
             <Card
               title={t("dashboard.totalNetWorth")}
               value={<AnimatedNumber value={dashboard.totalNetWorth} format={(v) => formatCurrencyCompact(v, currency)} />}
+              subtitle={
+                dashboard.totalLiabilities > 0
+                  ? `Assets ${formatCurrencyCompact(dashboard.totalAssets, currency)} − Liabilities ${formatCurrencyCompact(dashboard.totalLiabilities, currency)}`
+                  : undefined
+              }
             />
+            {dashboard.totalLiabilities > 0 && (
+              <Card
+                title="Total Liabilities"
+                value={formatCurrencyCompact(dashboard.totalLiabilities, currency)}
+                subtitle="Mortgages, loans, credit cards"
+              />
+            )}
             <Card
               title={t("dashboard.unrealizedGains")}
               value={formatCurrencyCompact(dashboard.unrealizedGain, currency)}
@@ -248,6 +260,7 @@ export default function Dashboard() {
                 <AllocationDonut
                   allocationByType={dashboard.allocationByType}
                   allocationByCountry={dashboard.allocationByCountry}
+                  allocationByCurrency={dashboard.allocationByCurrency}
                   holdings={holdings}
                   currency={currency}
                 />

@@ -94,6 +94,8 @@ export function mapDashboard(d) {
   if (!d) return null;
   return {
     totalNetWorth: safeNumber(d.total_net_worth),
+    totalAssets: safeNumber(d.total_assets ?? d.total_net_worth),
+    totalLiabilities: safeNumber(d.total_liabilities),
     currency: d.currency ?? "USD",
     portfolioXirr: d.portfolio_xirr != null ? safeNumber(d.portfolio_xirr) : null,
     allocationByType: (d.allocation_by_type || []).map((a) => ({
@@ -101,6 +103,10 @@ export function mapDashboard(d) {
       value: safeNumber(a.value),
     })),
     allocationByCountry: (d.allocation_by_country || []).map((a) => ({
+      label: a.label,
+      value: safeNumber(a.value),
+    })),
+    allocationByCurrency: (d.allocation_by_currency || []).map((a) => ({
       label: a.label,
       value: safeNumber(a.value),
     })),
@@ -130,6 +136,7 @@ export function mapNetWorthHistory(rows) {
     stockValue: safeNumber(r.total_stock_value),
     propertyValue: safeNumber(r.total_property_value),
     profitLoss: safeNumber(r.total_profit_loss),
+    liabilities: safeNumber(r.total_liabilities),
     byAssetType: r.by_asset_type || {},
   }));
 }
@@ -163,6 +170,7 @@ export function mapTaxSummary(response) {
   const rows = response?.rows || (Array.isArray(response) ? response : []);
   return {
     disclaimer: response?.disclaimer || null,
+    costBasisMethod: response?.cost_basis_method || "average",
     rows: rows.map((r) => ({
       financialYear: r.financial_year,
       country: r.country,
@@ -243,5 +251,24 @@ export function mapGoal(g) {
     currency: g.currency ?? "USD",
     targetDate: g.target_date ?? null,
     createdAt: g.created_at ?? "",
+  };
+}
+
+export function mapLiability(l) {
+  if (!l) return null;
+  return {
+    id: l.id,
+    householdId: l.household_id,
+    name: l.name,
+    liabilityType: l.liability_type,
+    currency: l.currency ?? "USD",
+    currentBalance: safeNumber(l.current_balance),
+    displayBalance: safeNumber(l.display_balance ?? l.current_balance),
+    originalAmount: l.original_amount != null ? safeNumber(l.original_amount) : null,
+    interestRate: l.interest_rate != null ? safeNumber(l.interest_rate) : null,
+    notes: l.notes ?? "",
+    isPrivate: !!l.is_private,
+    createdAt: l.created_at ?? "",
+    updatedAt: l.updated_at ?? "",
   };
 }

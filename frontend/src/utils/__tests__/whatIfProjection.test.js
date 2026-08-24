@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { projectNetWorth } from "../whatIfProjection";
+import { projectNetWorth, fireNumber, yearsToTarget } from "../whatIfProjection";
 
 describe("projectNetWorth", () => {
   it("returns one point per year from 0 to the requested horizon", () => {
@@ -39,5 +39,34 @@ describe("projectNetWorth", () => {
     const low = projectNetWorth({ startingAmount: 1000, monthlyContribution: 100, annualRatePct: 4, years: 20 });
     const high = projectNetWorth({ startingAmount: 1000, monthlyContribution: 100, annualRatePct: 10, years: 20 });
     expect(high[high.length - 1].value).toBeGreaterThan(low[low.length - 1].value);
+  });
+});
+
+describe("fireNumber", () => {
+  it("applies the standard 4% rule as 25x annual expenses", () => {
+    expect(fireNumber(40000, 4)).toBeCloseTo(1000000);
+  });
+
+  it("returns null for a non-positive withdrawal rate (avoids division by zero)", () => {
+    expect(fireNumber(40000, 0)).toBeNull();
+    expect(fireNumber(40000, -1)).toBeNull();
+  });
+});
+
+describe("yearsToTarget", () => {
+  it("returns the first year whose value reaches the target", () => {
+    const points = projectNetWorth({ startingAmount: 0, monthlyContribution: 1000, annualRatePct: 0, years: 10 });
+    // 1000/mo with no growth -> 12000/yr; target 60000 reached in year 5
+    expect(yearsToTarget(points, 60000)).toBe(5);
+  });
+
+  it("returns null when the target is never reached within the horizon", () => {
+    const points = projectNetWorth({ startingAmount: 0, monthlyContribution: 100, annualRatePct: 0, years: 5 });
+    expect(yearsToTarget(points, 1000000)).toBeNull();
+  });
+
+  it("returns null for a non-positive target", () => {
+    const points = projectNetWorth({ startingAmount: 1000, monthlyContribution: 0, annualRatePct: 5, years: 1 });
+    expect(yearsToTarget(points, 0)).toBeNull();
   });
 });

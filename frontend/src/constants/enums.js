@@ -99,6 +99,36 @@ export function isQuantityBased(assetType) {
   return QUANTITY_BASED_TYPES.includes(assetType);
 }
 
+// Mirrors backend liability_service.LIABILITY_TYPES.
+export const LIABILITY_TYPES = {
+  MORTGAGE: "mortgage",
+  CREDIT_CARD: "credit_card",
+  AUTO_LOAN: "auto_loan",
+  STUDENT_LOAN: "student_loan",
+  PERSONAL_LOAN: "personal_loan",
+  LINE_OF_CREDIT: "line_of_credit",
+  OTHER: "other",
+};
+
+export const LIABILITY_TYPE_LABELS = {
+  [LIABILITY_TYPES.MORTGAGE]: "Mortgage",
+  [LIABILITY_TYPES.CREDIT_CARD]: "Credit Card",
+  [LIABILITY_TYPES.AUTO_LOAN]: "Auto Loan",
+  [LIABILITY_TYPES.STUDENT_LOAN]: "Student Loan",
+  [LIABILITY_TYPES.PERSONAL_LOAN]: "Personal Loan",
+  [LIABILITY_TYPES.LINE_OF_CREDIT]: "Line of Credit",
+  [LIABILITY_TYPES.OTHER]: "Other Debt",
+};
+
+export const LIABILITY_TYPE_OPTIONS = Object.values(LIABILITY_TYPES).map((value) => ({
+  value,
+  label: LIABILITY_TYPE_LABELS[value],
+}));
+
+export function getLiabilityTypeLabel(value) {
+  return LIABILITY_TYPE_LABELS[value] || value;
+}
+
 export const BUDGET_CATEGORY_LABELS = {
   paycheck: "Paycheck",
   bonus: "Bonus",

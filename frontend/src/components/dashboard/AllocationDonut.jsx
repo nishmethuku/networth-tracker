@@ -20,15 +20,19 @@ function renderPercentLabel({ cx, cy, midAngle, innerRadius, outerRadius, percen
   );
 }
 
-export default function AllocationDonut({ allocationByType, allocationByCountry, holdings, currency }) {
-  const [view, setView] = useState("type"); // "type" | "country"
-  const [drill, setDrill] = useState(null); // { level: "type"|"country", key: string } | null
+const VIEW_DATA_KEYS = { type: "assetType", country: "country", currency: "currency" };
 
-  const topLevelData = view === "type" ? allocationByType : allocationByCountry;
+export default function AllocationDonut({ allocationByType, allocationByCountry, allocationByCurrency, holdings, currency }) {
+  const [view, setView] = useState("type"); // "type" | "country" | "currency"
+  const [drill, setDrill] = useState(null); // { level: "type"|"country"|"currency", key: string } | null
+
+  const VIEWS = { type: allocationByType, country: allocationByCountry, currency: allocationByCurrency };
+  const topLevelData = VIEWS[view] || [];
 
   const drillData = useMemo(() => {
     if (!drill || !holdings) return null;
-    const matching = holdings.filter((h) => (drill.level === "type" ? h.assetType === drill.key : h.country === drill.key));
+    const field = VIEW_DATA_KEYS[drill.level];
+    const matching = holdings.filter((h) => h[field] === drill.key);
     return matching
       .map((h) => ({ label: h.symbol || h.name, value: h.displayValue }))
       .filter((d) => d.value > 0)
@@ -59,7 +63,7 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
           )}
         </div>
         <div style={{ display: "inline-flex", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "999px", padding: "0.2rem", border: "1px solid var(--border)" }}>
-          {["type", "country"].map((v) => (
+          {["type", "country", "currency"].map((v) => (
             <button
               key={v}
               onClick={() => { setView(v); setDrill(null); }}
@@ -70,7 +74,7 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
                 fontWeight: view === v ? 600 : 500,
               }}
             >
-              {v === "type" ? "Type" : "Country"}
+              {v === "type" ? "Type" : v === "country" ? "Country" : "Currency"}
             </button>
           ))}
         </div>

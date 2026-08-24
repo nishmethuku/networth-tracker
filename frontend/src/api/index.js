@@ -18,6 +18,7 @@ import {
   mapBudgetLimit,
   mapMonthlyFlow,
   mapGoal,
+  mapLiability,
 } from "./mappers";
 
 /**
@@ -188,9 +189,10 @@ export async function deleteAlert(id) {
 /**
  * Tax summary
  */
-export async function fetchTaxSummary(householdId = null) {
-  const endpoint = householdId ? `/tax-summary?household_id=${householdId}` : "/tax-summary";
-  const data = await api.get(endpoint);
+export async function fetchTaxSummary(householdId = null, costBasisMethod = "average") {
+  const params = new URLSearchParams({ cost_basis_method: costBasisMethod });
+  if (householdId) params.append("household_id", householdId);
+  const data = await api.get(`/tax-summary?${params.toString()}`);
   return mapTaxSummary(data);
 }
 
@@ -362,6 +364,30 @@ export async function updateGoal(id, payload) {
 
 export async function deleteGoal(id) {
   await api.delete(`/goals/${id}`);
+}
+
+/**
+ * Liabilities (debt)
+ */
+export async function fetchLiabilities({ householdId, currency = "USD" } = {}) {
+  const params = new URLSearchParams({ currency });
+  if (householdId) params.append("household_id", householdId);
+  const data = await api.get(`/liabilities?${params.toString()}`);
+  return (data || []).map(mapLiability);
+}
+
+export async function createLiability(payload) {
+  const data = await api.post("/liabilities", payload);
+  return mapLiability(data);
+}
+
+export async function updateLiability(id, payload) {
+  const data = await api.put(`/liabilities/${id}`, payload);
+  return mapLiability(data);
+}
+
+export async function deleteLiability(id) {
+  await api.delete(`/liabilities/${id}`);
 }
 
 /**

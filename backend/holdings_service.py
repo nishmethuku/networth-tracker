@@ -279,20 +279,29 @@ def build_dashboard(
     holdings_by_id: Dict[int, Holding],
     display_currency: str = "USD",
     all_transactions: Optional[List[HoldingTransaction]] = None,
+    total_liabilities: float = 0.0,
 ) -> Dict:
     """
     Aggregate metrics already computed by list_holdings_with_metrics into the
-    dashboard payload: total net worth, allocation by type/country, top
-    gainers/losers this month, and realized vs unrealized summary.
+    dashboard payload: total net worth, allocation by type/country/currency,
+    top gainers/losers this month, and realized vs unrealized summary.
 
     all_transactions (every buy/sell across the caller's quantity-based
     holdings) is optional so existing callers/tests that don't need the
     headline portfolio_xirr figure don't have to fetch and pass it.
+
+    total_liabilities (already converted to display_currency by the caller)
+    is subtracted from total assets to get true net worth. allocation_by_*
+    stays asset-only — allocation is about how assets are split, not debt —
+    so callers computing a percentage from it (e.g. rebalance plans) should
+    divide by total_assets, not total_net_worth.
     """
-    total_net_worth = sum(h["display_value"] for h in holdings_with_metrics)
+    total_assets = sum(h["display_value"] for h in holdings_with_metrics)
+    total_net_worth = total_assets - total_liabilities
 
     allocation_by_type: Dict[str, float] = {}
     allocation_by_country: Dict[str, float] = {}
+    allocation_by_currency: Dict[str, float] = {}
     total_realized = 0.0
     total_unrealized = 0.0
     total_income_received = 0.0
@@ -304,6 +313,7 @@ def build_dashboard(
     for h in holdings_with_metrics:
         allocation_by_type[h["asset_type"]] = allocation_by_type.get(h["asset_type"], 0.0) + h["display_value"]
         allocation_by_country[h["country"]] = allocation_by_country.get(h["country"], 0.0) + h["display_value"]
+        allocation_by_currency[h["currency"]] = allocation_by_currency.get(h["currency"], 0.0) + h["display_value"]
 
         if h["asset_type"] in QUANTITY_BASED_TYPES:
             total_realized += h.get("display_realized_gain") or 0.0
@@ -345,10 +355,13 @@ def build_dashboard(
 
     return {
         "total_net_worth": round(total_net_worth, 2),
+        "total_assets": round(total_assets, 2),
+        "total_liabilities": round(total_liabilities, 2),
         "currency": display_currency,
         "portfolio_xirr": overall_xirr,
         "allocation_by_type": [{"label": k, "value": round(v, 2)} for k, v in allocation_by_type.items()],
         "allocation_by_country": [{"label": k, "value": round(v, 2)} for k, v in allocation_by_country.items()],
+        "allocation_by_currency": [{"label": k, "value": round(v, 2)} for k, v in allocation_by_currency.items()],
         "top_gainers": movers[:5],
         "top_losers": list(reversed(movers[-5:])) if len(movers) > 5 else [],
         "realized_gain": round(total_realized, 2),

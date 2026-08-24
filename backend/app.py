@@ -12,7 +12,7 @@ from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException
 import requests
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit, Liability
 from .auth import require_auth
 from .utils import FINNHUB_API_KEY
 from .services import safe_float, rank_symbol_results
@@ -21,6 +21,7 @@ from . import ai_service
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
 from .allocation_target_service import get_target_allocation, save_target_allocation, clear_target_allocation
 from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation, TRANSACTION_TYPES
+from .liability_service import list_liabilities_with_display, total_liabilities_display, LIABILITY_TYPES
 from .household_service import (
     get_member_household_ids,
     get_role,
@@ -54,7 +55,7 @@ from .budget_service import (
 from .smart_import_service import parse_spreadsheet, confirm_smart_import
 from .bank_import_service import parse_statement, confirm_bank_import
 from .benchmark_service import get_benchmark_comparison
-from .tax_service import get_tax_summary, TAX_DISCLAIMER
+from .tax_service import get_tax_summary, TAX_DISCLAIMER, COST_BASIS_METHODS
 from .csv_import_service import parse_csv, confirm_import, SUPPORTED_BROKERS
 
 # Import mf instance if available
@@ -174,6 +175,30 @@ def create_app():
                     return holding
                 if not require_write and not holding.is_private:
                     return holding
+        abort(403)
+
+    def scoped_liabilities_query(household_id_param):
+        """Same shape as scoped_holdings_query, for liabilities."""
+        if household_id_param:
+            member_ids = get_member_household_ids(g.user_id)
+            if household_id_param not in member_ids:
+                abort(403, description="Not a member of this household")
+            return Liability.query.filter(
+                Liability.household_id == household_id_param, Liability.is_private == False  # noqa: E712
+            )
+        return Liability.query.filter(Liability.user_id == g.user_id)
+
+    def get_authorized_liability(liability_id, require_write=False):
+        liability = Liability.query.get_or_404(liability_id)
+        if str(liability.user_id) == str(g.user_id):
+            return liability
+        if liability.household_id:
+            role = get_role(str(liability.household_id), g.user_id)
+            if role:
+                if require_write and role in ("owner", "editor"):
+                    return liability
+                if not require_write and not liability.is_private:
+                    return liability
         abort(403)
 
     def validate_household_id_for_write(household_id):
@@ -522,8 +547,11 @@ def create_app():
         all_transactions = HoldingTransaction.query.filter(
             HoldingTransaction.holding_id.in_([h.id for h in holdings])
         ).all()
+        liabilities = scoped_liabilities_query(household_id_param).all()
+        total_liabilities = total_liabilities_display(liabilities, display_currency=display_currency)
         return jsonify(build_dashboard(
-            holdings_with_metrics, holdings_by_id, display_currency=display_currency, all_transactions=all_transactions
+            holdings_with_metrics, holdings_by_id, display_currency=display_currency,
+            all_transactions=all_transactions, total_liabilities=total_liabilities,
         ))
 
     # ---------------- EXCHANGE RATES ----------------
@@ -565,10 +593,13 @@ def create_app():
         household_id_param = request.args.get("household_id")
         if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
             abort(403)
+        cost_basis_method = request.args.get("cost_basis_method", "average")
+        if cost_basis_method not in COST_BASIS_METHODS:
+            return jsonify({"error": f"cost_basis_method must be one of {COST_BASIS_METHODS}"}), 400
         result = get_tax_summary(
-            g.user_id if not household_id_param else None, household_id_param
+            g.user_id if not household_id_param else None, household_id_param, cost_basis_method=cost_basis_method
         )
-        return jsonify({"rows": result, "disclaimer": TAX_DISCLAIMER})
+        return jsonify({"rows": result, "disclaimer": TAX_DISCLAIMER, "cost_basis_method": cost_basis_method})
 
     # ---------------- PRICE ALERTS ----------------
 
@@ -1090,7 +1121,11 @@ def create_app():
         holdings = scoped_holdings_query(household_id).all()
         holdings_by_id = {h.id: h for h in holdings}
         holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency=currency)
-        dashboard = build_dashboard(holdings_with_metrics, holdings_by_id, display_currency=currency)
+        liabilities = scoped_liabilities_query(household_id).all()
+        total_liabilities = total_liabilities_display(liabilities, display_currency=currency)
+        dashboard = build_dashboard(
+            holdings_with_metrics, holdings_by_id, display_currency=currency, total_liabilities=total_liabilities
+        )
         return ai_service.build_portfolio_snapshot(holdings_with_metrics, dashboard, currency), dashboard
 
     @app.route("/api/ai/chat", methods=["POST"])
@@ -1144,7 +1179,7 @@ def create_app():
 
         currency = data.get("currency", "USD")
         _, dashboard = _portfolio_snapshot_for_caller(household_id, currency)
-        plan = compute_rebalance_plan(dashboard["allocation_by_type"], dashboard["total_net_worth"], target_allocation)
+        plan = compute_rebalance_plan(dashboard["allocation_by_type"], dashboard["total_assets"], target_allocation)
 
         narrative = None
         quota_exceeded = False
@@ -1205,7 +1240,7 @@ def create_app():
 
         currency = request.args.get("currency", "USD").upper()
         _, dashboard = _portfolio_snapshot_for_caller(None, currency)
-        plan = compute_rebalance_plan(dashboard["allocation_by_type"], dashboard["total_net_worth"], target_allocation)
+        plan = compute_rebalance_plan(dashboard["allocation_by_type"], dashboard["total_assets"], target_allocation)
         max_drift_pct = max((abs(p["current_pct"] - p["target_pct"]) for p in plan), default=0.0)
 
         return jsonify({
@@ -1305,6 +1340,84 @@ def create_app():
         except PermissionError:
             abort(403)
         return jsonify({"message": "Goal deleted"}), 200
+
+    # ---------------- LIABILITIES ----------------
+
+    @app.route("/liabilities", methods=["POST"])
+    @require_auth
+    def create_liability():
+        data = request.get_json(force=True)
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+
+        if data.get("liability_type") not in LIABILITY_TYPES:
+            return jsonify({"error": f"liability_type must be one of {LIABILITY_TYPES}"}), 400
+        if not data.get("name") or not str(data["name"]).strip():
+            return jsonify({"error": "name is required"}), 400
+
+        liability = Liability(
+            user_id=g.user_id,
+            household_id=household_id,
+            name=data["name"].strip(),
+            liability_type=data["liability_type"],
+            currency=data.get("currency", "USD"),
+            current_balance=safe_float(data.get("current_balance")),
+            original_amount=safe_float(data["original_amount"]) if data.get("original_amount") not in (None, "") else None,
+            interest_rate=safe_float(data["interest_rate"]) if data.get("interest_rate") not in (None, "") else None,
+            notes=data.get("notes"),
+            is_private=bool(data.get("is_private", False)),
+        )
+        db.session.add(liability)
+        db.session.commit()
+        return jsonify(liability.to_dict()), 201
+
+    @app.route("/liabilities", methods=["GET"])
+    @require_auth
+    def get_liabilities():
+        household_id_param = request.args.get("household_id")
+        display_currency = request.args.get("currency", "USD").upper()
+        liabilities = scoped_liabilities_query(household_id_param).order_by(Liability.created_at.desc()).all()
+        return jsonify(list_liabilities_with_display(liabilities, display_currency=display_currency))
+
+    @app.route("/liabilities/<int:liability_id>", methods=["PUT"])
+    @require_auth
+    def update_liability(liability_id):
+        liability = get_authorized_liability(liability_id, require_write=True)
+        data = request.get_json(force=True)
+
+        if "household_id" in data:
+            validate_household_id_for_write(data["household_id"])
+            liability.household_id = data["household_id"]
+        if "liability_type" in data:
+            if data["liability_type"] not in LIABILITY_TYPES:
+                return jsonify({"error": f"liability_type must be one of {LIABILITY_TYPES}"}), 400
+            liability.liability_type = data["liability_type"]
+        if "name" in data:
+            if not data["name"] or not str(data["name"]).strip():
+                return jsonify({"error": "name is required"}), 400
+            liability.name = data["name"].strip()
+        for field in ("currency", "notes"):
+            if field in data:
+                setattr(liability, field, data[field])
+        if "current_balance" in data:
+            liability.current_balance = safe_float(data["current_balance"])
+        if "original_amount" in data:
+            liability.original_amount = safe_float(data["original_amount"]) if data["original_amount"] not in (None, "") else None
+        if "interest_rate" in data:
+            liability.interest_rate = safe_float(data["interest_rate"]) if data["interest_rate"] not in (None, "") else None
+        if "is_private" in data:
+            liability.is_private = bool(data["is_private"])
+
+        db.session.commit()
+        return jsonify(liability.to_dict())
+
+    @app.route("/liabilities/<int:liability_id>", methods=["DELETE"])
+    @require_auth
+    def delete_liability(liability_id):
+        liability = get_authorized_liability(liability_id, require_write=True)
+        db.session.delete(liability)
+        db.session.commit()
+        return jsonify({"message": "Liability deleted"}), 200
 
     # ---------------- ACCOUNT DATA (Settings page: export / danger zone) ----------------
 

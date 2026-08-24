@@ -239,6 +239,7 @@ class NetWorthSnapshot(db.Model):
     total_stock_value = db.Column(db.Float, nullable=False, default=0.0)
     total_property_value = db.Column(db.Float, nullable=False, default=0.0)
     total_profit_loss = db.Column(db.Float, nullable=False, default=0.0)
+    total_liabilities = db.Column(db.Float, nullable=False, default=0.0)
     by_asset_type = db.Column(JSONB, nullable=False, default=dict)
     currency = db.Column(db.String(8), nullable=False, default="USD")
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
@@ -253,6 +254,7 @@ class NetWorthSnapshot(db.Model):
             "total_stock_value": self.total_stock_value,
             "total_property_value": self.total_property_value,
             "total_profit_loss": self.total_profit_loss,
+            "total_liabilities": self.total_liabilities,
             "by_asset_type": self.by_asset_type,
             "currency": self.currency,
         }
@@ -434,6 +436,48 @@ class AllocationTarget(db.Model):
             "user_id": str(self.user_id),
             "asset_type": self.asset_type,
             "target_pct": self.target_pct,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class Liability(db.Model):
+    """A debt (mortgage, credit card, loan, ...) — subtracted from total
+    assets to get true net worth. Shareable within a household the same way
+    Holding is (household_id + is_private), since a mortgage is often joint."""
+    __tablename__ = "liabilities"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
+
+    name = db.Column(db.String(128), nullable=False)
+    liability_type = db.Column(db.String(32), nullable=False)
+    currency = db.Column(db.String(8), nullable=False)
+    current_balance = db.Column(db.Float, nullable=False)
+    original_amount = db.Column(db.Float)
+    interest_rate = db.Column(db.Float)
+    notes = db.Column(db.Text)
+    is_private = db.Column(db.Boolean, nullable=False, default=False)
+
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": str(self.user_id),
+            "household_id": str(self.household_id) if self.household_id else None,
+            "name": self.name,
+            "liability_type": self.liability_type,
+            "currency": self.currency,
+            "current_balance": self.current_balance,
+            "original_amount": self.original_amount,
+            "interest_rate": self.interest_rate,
+            "notes": self.notes,
+            "is_private": self.is_private,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 

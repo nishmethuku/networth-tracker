@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import Card from "./Card";
 import { fetchDashboard } from "../api";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent } from "../utils/formatters";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
-import { projectNetWorth } from "../utils/whatIfProjection";
+import { projectNetWorth, fireNumber, yearsToTarget } from "../utils/whatIfProjection";
 
 const inputStyle = {
   width: "100%",
@@ -31,6 +31,9 @@ export default function WhatIf() {
   const [monthlyContribution, setMonthlyContribution] = useState(500);
   const [annualRatePct, setAnnualRatePct] = useState(suggestedRate);
   const [years, setYears] = useState(20);
+  const [showFire, setShowFire] = useState(false);
+  const [annualExpenses, setAnnualExpenses] = useState(40000);
+  const [withdrawalRatePct, setWithdrawalRatePct] = useState(4);
 
   // Defaults to the real current net worth once the dashboard loads, but
   // only until the user actually edits the field — never silently
@@ -50,6 +53,9 @@ export default function WhatIf() {
 
   const final = points[points.length - 1];
 
+  const fireTarget = showFire ? fireNumber(Number(annualExpenses) || 0, Number(withdrawalRatePct) || 0) : null;
+  const fireYear = fireTarget != null ? yearsToTarget(points, fireTarget) : null;
+
   return (
     <div>
       <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>What-If</h1>
@@ -58,6 +64,7 @@ export default function WhatIf() {
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(240px, 1fr) minmax(320px, 2fr)", gap: "1.5rem", alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
         <Card title="Assumptions">
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div>
@@ -97,11 +104,39 @@ export default function WhatIf() {
           </div>
         </Card>
 
+        <Card title="FIRE calculator">
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", color: "var(--text)", cursor: "pointer", marginBottom: showFire ? "1rem" : 0 }}>
+            <input type="checkbox" checked={showFire} onChange={(e) => setShowFire(e.target.checked)} />
+            Show when I'd reach financial independence
+          </label>
+          {showFire && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div>
+                <label style={labelStyle}>Annual expenses in retirement</label>
+                <input type="number" step="any" min="0" style={inputStyle} value={annualExpenses} onChange={(e) => setAnnualExpenses(e.target.value)} />
+              </div>
+              <div>
+                <label style={labelStyle}>Safe withdrawal rate (%)</label>
+                <input type="number" step="any" min="0.1" style={inputStyle} value={withdrawalRatePct} onChange={(e) => setWithdrawalRatePct(e.target.value)} />
+                <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>The classic "4% rule" implies a 25x expenses target.</div>
+              </div>
+            </div>
+          )}
+        </Card>
+        </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1.25rem" }}>
             <Card title={`Projected in ${years} yr${years == 1 ? "" : "s"}`} value={formatCurrencyCompact(final.value, currency)} />
             <Card title="Total contributed" value={formatCurrencyCompact(final.contributed, currency)} />
             <Card title="Growth from returns" value={formatCurrencyCompact(final.growth, currency)} subtitle={final.contributed > 0 ? `${((final.growth / final.contributed) * 100).toFixed(0)}% of contributions` : undefined} />
+            {showFire && fireTarget != null && (
+              <Card
+                title="FIRE number"
+                value={formatCurrencyCompact(fireTarget, currency)}
+                subtitle={fireYear != null ? `Reached in year ${fireYear}` : `Not reached within ${years} years`}
+              />
+            )}
           </div>
 
           <Card title="Projected net worth over time">
@@ -119,6 +154,14 @@ export default function WhatIf() {
                   <Legend formatter={(v) => (v === "value" ? "Projected value" : "Total contributed")} wrapperStyle={{ fontSize: "0.75rem" }} />
                   <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2.5} dot={false} />
                   <Line type="monotone" dataKey="contributed" stroke="var(--text-muted)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                  {showFire && fireTarget != null && (
+                    <ReferenceLine
+                      y={fireTarget}
+                      stroke="var(--success)"
+                      strokeDasharray="5 3"
+                      label={{ value: "FIRE number", position: "insideTopRight", fontSize: 10, fill: "var(--success)" }}
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </div>

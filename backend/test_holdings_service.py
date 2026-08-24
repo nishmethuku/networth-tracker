@@ -289,7 +289,7 @@ def test_monthly_net_flow_empty_without_activity():
 def test_build_dashboard_omits_portfolio_xirr_without_transactions():
     holding = _holding(asset_type="stock")
     holding.id = 1
-    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "display_value": 1000.0, "quantity": 0}]
+    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 1000.0, "quantity": 0}]
     result = build_dashboard(metrics, {1: holding})
     assert result["portfolio_xirr"] is None
 
@@ -299,7 +299,7 @@ def test_build_dashboard_computes_portfolio_xirr_from_transactions():
     holding.id = 1
     # quantity omitted (defaults to 0 via .get in build_dashboard) so the "this month mover"
     # lookup — which needs a live historical-price call — is skipped; irrelevant to this test.
-    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "display_value": 2000.0}]
+    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 2000.0}]
     transactions = [_tx("buy", date.today() - timedelta(days=365), 10, 100.0)]  # bought for 1000, worth 2000 a year later
     result = build_dashboard(metrics, {1: holding}, all_transactions=transactions)
     assert result["portfolio_xirr"] is not None
@@ -309,7 +309,7 @@ def test_build_dashboard_computes_portfolio_xirr_from_transactions():
 def test_build_dashboard_ignores_valuation_based_holdings_for_portfolio_xirr():
     holding = _holding(asset_type="real_estate")
     holding.id = 1
-    metrics = [{"id": 1, "asset_type": "real_estate", "country": "United States", "display_value": 500000.0}]
+    metrics = [{"id": 1, "asset_type": "real_estate", "country": "United States", "currency": "USD", "display_value": 500000.0}]
     # No transactions at all for a valuation-based holding (it wouldn't have any) -> no XIRR to compute.
     result = build_dashboard(metrics, {1: holding}, all_transactions=[])
     assert result["portfolio_xirr"] is None
@@ -367,12 +367,12 @@ def test_build_dashboard_sums_display_currency_gains_not_native_currency():
 
     metrics = [
         {
-            "id": 1, "asset_type": "stock", "country": "United States", "display_value": 1000.0,
+            "id": 1, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 1000.0,
             "realized_gain": 100.0, "display_realized_gain": 100.0,  # USD -> USD, no conversion
             "unrealized_gain": 50.0, "display_unrealized_gain": 50.0,
         },
         {
-            "id": 2, "asset_type": "stock", "country": "India", "display_value": 500.0,
+            "id": 2, "asset_type": "stock", "country": "India", "currency": "INR", "display_value": 500.0,
             # 8300 INR realized gain converts to 100 USD at an ~83 rate — if
             # the aggregation used the raw "realized_gain" (8300) instead of
             # "display_realized_gain" (100), the total would be wildly off.
@@ -383,6 +383,35 @@ def test_build_dashboard_sums_display_currency_gains_not_native_currency():
     result = build_dashboard(metrics, {1: usd_holding, 2: inr_holding})
     assert result["realized_gain"] == 200.0
     assert result["unrealized_gain"] == 100.0
+
+
+def test_build_dashboard_subtracts_liabilities_from_net_worth_but_not_assets():
+    """total_net_worth must be assets minus liabilities, but allocation_by_*
+    (used as a rebalance-percentage denominator via total_assets) stays
+    asset-only — debt isn't part of "how your assets are allocated"."""
+    holding = _holding(asset_type="stock")
+    holding.id = 1
+    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 1000.0}]
+    result = build_dashboard(metrics, {1: holding}, total_liabilities=300.0)
+    assert result["total_assets"] == 1000.0
+    assert result["total_liabilities"] == 300.0
+    assert result["total_net_worth"] == 700.0
+    assert sum(a["value"] for a in result["allocation_by_type"]) == 1000.0
+
+
+def test_build_dashboard_groups_allocation_by_currency():
+    usd_holding = _holding(asset_type="stock")
+    usd_holding.id = 1
+    inr_holding = _holding(asset_type="stock")
+    inr_holding.id = 2
+    inr_holding.currency = "INR"
+    metrics = [
+        {"id": 1, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 1000.0},
+        {"id": 2, "asset_type": "stock", "country": "India", "currency": "INR", "display_value": 500.0},
+    ]
+    result = build_dashboard(metrics, {1: usd_holding, 2: inr_holding})
+    by_currency = {a["label"]: a["value"] for a in result["allocation_by_currency"]}
+    assert by_currency == {"USD": 1000.0, "INR": 500.0}
 
 
 if __name__ == "__main__":

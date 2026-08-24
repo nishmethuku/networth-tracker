@@ -84,6 +84,53 @@ def _fifo_holding_period_splits(transactions: List[HoldingTransaction]) -> List[
     return splits
 
 
+COST_BASIS_METHODS = ("average", "fifo", "lifo")
+
+
+def _lot_matched_realized_events(transactions: List[HoldingTransaction], method: str) -> tuple:
+    """Alternative to compute_position's average-cost method: consumes buy
+    lots in FIFO (oldest first) or LIFO (newest first) order, so the taxable
+    gain amount itself — not just the short/long split — reflects which
+    lots were actually sold. Real brokerages offer exactly this choice for
+    tax-loss harvesting; the live dashboard/holdings view still uses average
+    cost, so this is deliberately only wired into the tax summary.
+
+    Returns (realized_events, holding_period_splits) in the same shape as
+    compute_position()["realized_events"] / _fifo_holding_period_splits()."""
+    lots = []  # [{"date": date, "remaining": float, "cost_per_unit": float}]
+    events = []
+    splits = []
+
+    for t in sorted(transactions, key=lambda t: (t.transaction_date, t.id or 0)):
+        if t.transaction_type == "buy":
+            cost_per_unit = t.price_per_unit + (t.fees / t.quantity if t.quantity else 0.0)
+            lots.append({"date": t.transaction_date, "remaining": t.quantity, "cost_per_unit": cost_per_unit})
+        elif t.transaction_type == "sell":
+            consume_order = lots if method == "fifo" else list(reversed(lots))
+            remaining_to_sell = t.quantity
+            gain = 0.0
+            short_term_qty = 0.0
+            long_term_qty = 0.0
+            for lot in consume_order:
+                if remaining_to_sell <= 0:
+                    break
+                if lot["remaining"] <= 0:
+                    continue
+                take = min(lot["remaining"], remaining_to_sell)
+                gain += (t.price_per_unit - lot["cost_per_unit"]) * take
+                if t.transaction_date > _one_year_later(lot["date"]):
+                    long_term_qty += take
+                else:
+                    short_term_qty += take
+                lot["remaining"] -= take
+                remaining_to_sell -= take
+            sold_qty = t.quantity - remaining_to_sell
+            events.append({"date": t.transaction_date, "amount": gain - t.fees, "quantity": sold_qty})
+            splits.append({"short_term_qty": short_term_qty, "long_term_qty": long_term_qty})
+
+    return events, splits
+
+
 def estimate_tax_liability(short_term_gain: float, long_term_gain: float, country: str) -> Optional[Dict]:
     rates = TAX_RATES.get(country)
     if not rates:
@@ -99,9 +146,17 @@ def estimate_tax_liability(short_term_gain: float, long_term_gain: float, countr
     }
 
 
-def get_tax_summary(user_id=None, household_id=None) -> List[Dict]:
+def get_tax_summary(user_id=None, household_id=None, cost_basis_method: str = "average") -> List[Dict]:
     """Realized gains grouped by (financial year, country), across every
-    quantity-based holding the caller can see."""
+    quantity-based holding the caller can see.
+
+    cost_basis_method selects which lots a sell is matched against for the
+    *taxable gain amount* — "average" (default, matches every other realized/
+    unrealized gain figure shown elsewhere in the app) uses compute_position's
+    running average cost; "fifo"/"lifo" use _lot_matched_realized_events so a
+    user optimizing for tax-loss harvesting can see how the choice of lots
+    changes what's owed. This only affects this report, not the live
+    dashboard or holdings view."""
     if household_id:
         holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
     else:
@@ -115,10 +170,14 @@ def get_tax_summary(user_id=None, household_id=None) -> List[Dict]:
 
     for holding_id, holding in quantity_holdings.items():
         transactions = HoldingTransaction.query.filter_by(holding_id=holding_id).all()
-        position = compute_position(transactions)
-        holding_period_splits = _fifo_holding_period_splits(transactions)
+        if cost_basis_method in ("fifo", "lifo"):
+            realized_events, holding_period_splits = _lot_matched_realized_events(transactions, cost_basis_method)
+        else:
+            position = compute_position(transactions)
+            realized_events = position["realized_events"]
+            holding_period_splits = _fifo_holding_period_splits(transactions)
 
-        for event, split in zip(position["realized_events"], holding_period_splits):
+        for event, split in zip(realized_events, holding_period_splits):
             fy = financial_year_label(event["date"], holding.country)
             key = (fy, holding.country)
             bucket = buckets.setdefault(key, {

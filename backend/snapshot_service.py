@@ -6,14 +6,15 @@ Upserts so a manual re-run for the same day is safe.
 from datetime import date
 from typing import Optional
 
-from .models import db, Holding, NetWorthSnapshot
+from .models import db, Holding, Liability, NetWorthSnapshot
 from .holdings_service import list_holdings_with_metrics, QUANTITY_BASED_TYPES
+from .liability_service import total_liabilities_display
 
 
-def _compute_totals(holdings):
+def _compute_totals(holdings, liabilities):
     holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency="USD")
 
-    total_net_worth = 0.0
+    total_assets = 0.0
     total_stock_value = 0.0
     total_property_value = 0.0
     total_profit_loss = 0.0
@@ -21,7 +22,7 @@ def _compute_totals(holdings):
 
     for h in holdings_with_metrics:
         current_value = h["display_value"]
-        total_net_worth += current_value
+        total_assets += current_value
 
         if h["asset_type"] in ("stock", "mutual_fund"):
             total_stock_value += current_value
@@ -35,11 +36,14 @@ def _compute_totals(holdings):
 
         by_asset_type[h["asset_type"]] = by_asset_type.get(h["asset_type"], 0.0) + current_value
 
+    total_liabilities = total_liabilities_display(liabilities, display_currency="USD")
+
     return {
-        "total_net_worth": round(total_net_worth, 2),
+        "total_net_worth": round(total_assets - total_liabilities, 2),
         "total_stock_value": round(total_stock_value, 2),
         "total_property_value": round(total_property_value, 2),
         "total_profit_loss": round(total_profit_loss, 2),
+        "total_liabilities": total_liabilities,
         "by_asset_type": {k: round(v, 2) for k, v in by_asset_type.items()},
     }
 
@@ -54,6 +58,7 @@ def _upsert_snapshot(user_id, household_id, snapshot_date, totals):
         existing.total_stock_value = totals["total_stock_value"]
         existing.total_property_value = totals["total_property_value"]
         existing.total_profit_loss = totals["total_profit_loss"]
+        existing.total_liabilities = totals["total_liabilities"]
         existing.by_asset_type = totals["by_asset_type"]
     else:
         db.session.add(NetWorthSnapshot(
@@ -69,19 +74,26 @@ def snapshot_all_users(snapshot_date: Optional[date] = None):
     household with shared holdings, for the given date (default: today)."""
     snapshot_date = snapshot_date or date.today()
 
-    user_ids = [row[0] for row in db.session.query(Holding.user_id).distinct()]
+    user_ids = {row[0] for row in db.session.query(Holding.user_id).distinct()}
+    user_ids |= {row[0] for row in db.session.query(Liability.user_id).distinct()}
     for user_id in user_ids:
         holdings = Holding.query.filter_by(user_id=user_id).all()
-        totals = _compute_totals(holdings)
+        liabilities = Liability.query.filter_by(user_id=user_id).all()
+        totals = _compute_totals(holdings, liabilities)
         _upsert_snapshot(user_id=user_id, household_id=None, snapshot_date=snapshot_date, totals=totals)
 
-    household_ids = [
+    household_ids = {
         row[0] for row in
         db.session.query(Holding.household_id).filter(Holding.household_id.isnot(None)).distinct()
-    ]
+    }
+    household_ids |= {
+        row[0] for row in
+        db.session.query(Liability.household_id).filter(Liability.household_id.isnot(None)).distinct()
+    }
     for household_id in household_ids:
         holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
-        totals = _compute_totals(holdings)
+        liabilities = Liability.query.filter_by(household_id=household_id, is_private=False).all()
+        totals = _compute_totals(holdings, liabilities)
         _upsert_snapshot(user_id=None, household_id=household_id, snapshot_date=snapshot_date, totals=totals)
 
     db.session.commit()

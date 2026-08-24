@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.tax_service import _fifo_holding_period_splits, estimate_tax_liability
+from backend.tax_service import _fifo_holding_period_splits, _lot_matched_realized_events, estimate_tax_liability
 from backend.models import HoldingTransaction
 
 
@@ -117,6 +117,54 @@ def test_estimate_tax_liability_ignores_net_losses():
 
 def test_estimate_tax_liability_unknown_country_returns_none():
     assert estimate_tax_liability(1000, 1000, "Narnia") is None
+
+
+def test_fifo_lot_matching_consumes_oldest_lot_first():
+    # Two lots: 10 @ $50 (cheap, old), then 10 @ $90 (expensive, recent).
+    # Selling 10 under FIFO consumes the $50 lot -> gain = (100-50)*10 = 500.
+    txs = [
+        _tx("buy", date(2020, 1, 1), 10, 50.0, tx_id=1),
+        _tx("buy", date(2020, 6, 1), 10, 90.0, tx_id=2),
+        _tx("sell", date(2023, 1, 1), 10, 100.0, tx_id=3),
+    ]
+    events, splits = _lot_matched_realized_events(txs, "fifo")
+    assert events[0]["amount"] == 500.0
+    assert splits[0]["long_term_qty"] == 10.0
+
+
+def test_lifo_lot_matching_consumes_newest_lot_first():
+    # Same two lots as above, but LIFO consumes the $90 lot instead ->
+    # gain = (100-90)*10 = 100, and it's short-term (bought 2020-06-01,
+    # sold 2021-01-01, under a year).
+    txs = [
+        _tx("buy", date(2020, 1, 1), 10, 50.0, tx_id=1),
+        _tx("buy", date(2020, 6, 1), 10, 90.0, tx_id=2),
+        _tx("sell", date(2021, 1, 1), 10, 100.0, tx_id=3),
+    ]
+    events, splits = _lot_matched_realized_events(txs, "lifo")
+    assert events[0]["amount"] == 100.0
+    assert splits[0]["short_term_qty"] == 10.0
+    assert splits[0]["long_term_qty"] == 0.0
+
+
+def test_fifo_and_lifo_give_different_gains_for_the_same_sell():
+    txs = [
+        _tx("buy", date(2020, 1, 1), 10, 50.0, tx_id=1),
+        _tx("buy", date(2020, 6, 1), 10, 90.0, tx_id=2),
+        _tx("sell", date(2023, 1, 1), 10, 100.0, tx_id=3),
+    ]
+    fifo_events, _ = _lot_matched_realized_events(txs, "fifo")
+    lifo_events, _ = _lot_matched_realized_events(txs, "lifo")
+    assert fifo_events[0]["amount"] != lifo_events[0]["amount"]
+
+
+def test_lot_matching_deducts_sell_fees_from_gain():
+    txs = [
+        _tx("buy", date(2020, 1, 1), 10, 50.0, tx_id=1),
+        _tx("sell", date(2023, 1, 1), 10, 100.0, fees=25.0, tx_id=2),
+    ]
+    events, _ = _lot_matched_realized_events(txs, "fifo")
+    assert events[0]["amount"] == 475.0  # (100-50)*10 - 25
 
 
 if __name__ == "__main__":

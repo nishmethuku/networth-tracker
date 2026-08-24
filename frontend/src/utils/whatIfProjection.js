@@ -27,3 +27,24 @@ export function projectNetWorth({ startingAmount, monthlyContribution, annualRat
 
   return points;
 }
+
+/**
+ * FIRE ("financial independence") number: the portfolio size whose
+ * withdrawals at `safeWithdrawalRatePct` cover `annualExpenses` forever —
+ * the standard "25x expenses" rule is just this at a 4% withdrawal rate.
+ */
+export function fireNumber(annualExpenses, safeWithdrawalRatePct) {
+  if (!safeWithdrawalRatePct || safeWithdrawalRatePct <= 0) return null;
+  return annualExpenses / (safeWithdrawalRatePct / 100);
+}
+
+/**
+ * First point in a projectNetWorth() series whose value reaches `target`,
+ * or null if the series never gets there (target too high / too many years
+ * needed) — the caller decides how to render "not reached".
+ */
+export function yearsToTarget(points, target) {
+  if (target == null || target <= 0) return null;
+  const hit = points.find((p) => p.value >= target);
+  return hit ? hit.year : null;
+}
