@@ -278,11 +278,34 @@ def create_app():
         if country:
             query = query.filter(Holding.country == country)
 
-        holdings = query.order_by(Holding.created_at.desc()).all()
+        query = query.order_by(Holding.created_at.desc())
+
+        # Same opt-in pagination as /transactions — omitting ?page= keeps
+        # every existing caller (which expects a plain array) working
+        # unchanged.
+        page_param = request.args.get("page")
+        if page_param:
+            page = max(1, int(page_param))
+            per_page = min(200, max(1, int(request.args.get("per_page", 50))))
+            total = query.count()
+            holdings = query.offset((page - 1) * per_page).limit(per_page).all()
+        else:
+            total = None
+            holdings = query.all()
+
         results = list_holdings_with_metrics(holdings, display_currency=display_currency)
         if request.args.get("summary") == "true":
             results = [to_summary(r) for r in results]
-        return jsonify(results)
+
+        if total is None:
+            return jsonify(results)
+        return jsonify({
+            "items": results,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page if per_page else 0,
+        })
 
     @app.route("/holdings/<int:holding_id>", methods=["GET"])
     @require_auth
@@ -459,7 +482,23 @@ def create_app():
         if date_to:
             query = query.filter(HoldingTransaction.transaction_date <= date.fromisoformat(date_to))
 
-        txs = query.order_by(HoldingTransaction.transaction_date.desc()).all()
+        query = query.order_by(HoldingTransaction.transaction_date.desc())
+
+        # Pagination is opt-in via ?page=: omitting it returns the full
+        # array exactly as before (every existing caller keeps working
+        # unchanged). A transaction log can grow into the thousands over
+        # years of use, so a caller that does want to page through it
+        # rather than fetch everything at once can with ?page=&per_page=.
+        page_param = request.args.get("page")
+        if page_param:
+            page = max(1, int(page_param))
+            per_page = min(200, max(1, int(request.args.get("per_page", 50))))
+            total = query.count()
+            txs = query.offset((page - 1) * per_page).limit(per_page).all()
+        else:
+            total = None
+            txs = query.all()
+
         results = []
         for t in txs:
             holding = holdings_by_id.get(t.holding_id)
@@ -470,7 +509,16 @@ def create_app():
                 "asset_type": holding.asset_type if holding else None,
                 "country": holding.country if holding else None,
             })
-        return jsonify(results)
+
+        if total is None:
+            return jsonify(results)
+        return jsonify({
+            "items": results,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page if per_page else 0,
+        })
 
     # ---------------- VALUATIONS (non-tradeable holdings) ----------------
 
