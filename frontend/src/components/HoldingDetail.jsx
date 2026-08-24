@@ -25,6 +25,7 @@ import {
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import { getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 import { computeTransactionTimeline } from "../utils/transactionTimeline";
+import { RETURN_RANGES, computePeriodReturn } from "../utils/periodReturn";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -210,6 +211,69 @@ function AddValuationForm({ holding, onDone }) {
   );
 }
 
+/**
+ * % change over a selectable window (1W/1M/3M/6M/1Y/YTD/All), built from
+ * whatever value series the holding already has — price history for
+ * quantity-based holdings, valuation history for everything else. The
+ * point is a like-for-like comparison ("stocks are up 8% this month, cash
+ * is flat") so someone can decide where to move money, not a replacement
+ * for XIRR (which stays annualized and transaction-aware).
+ */
+function PeriodReturn({ series, currency }) {
+  const [rangeIdx, setRangeIdx] = useState(1); // default 1M
+
+  const result = useMemo(() => computePeriodReturn(series, rangeIdx), [series, rangeIdx]);
+
+  if (!result) return null;
+
+  const positive = result.pct != null && result.pct >= 0;
+
+  return (
+    <Card title="Performance">
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.25rem", marginBottom: "0.75rem" }}>
+        {RETURN_RANGES.map((r, i) => (
+          <button
+            key={r.label}
+            onClick={() => setRangeIdx(i)}
+            style={{
+              padding: "0.25rem 0.625rem",
+              borderRadius: "999px",
+              border: "1px solid var(--border)",
+              background: rangeIdx === i ? "var(--primary)" : "transparent",
+              color: rangeIdx === i ? "var(--text-inverse)" : "var(--text-secondary)",
+              fontSize: "0.75rem",
+              fontWeight: rangeIdx === i ? 600 : 500,
+              cursor: "pointer",
+            }}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: "1.75rem", fontWeight: 700, color: result.pct != null ? (positive ? "var(--success)" : "var(--danger)") : "var(--text-muted)" }}>
+        {result.pct != null ? `${positive ? "+" : ""}${formatPercent(result.pct)}` : "—"}
+      </div>
+      <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+        {formatCurrencyForDisplay(result.start, currency)} → {formatCurrencyForDisplay(result.end, currency)}
+      </div>
+      <div style={{ width: "100%", height: 220 }}>
+        <ResponsiveContainer>
+          <LineChart data={result.rows}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
+            <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} domain={["auto", "auto"]} />
+            <Tooltip
+              formatter={(v) => formatCurrencyForDisplay(v, currency)}
+              contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
+            />
+            <Line type="monotone" dataKey="value" stroke={positive ? "var(--success)" : "var(--danger)"} strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+}
+
 export default function HoldingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -243,6 +307,19 @@ export default function HoldingDetail() {
     queryFn: () => fetchHoldingPriceHistory(id),
     enabled: quantityBased,
   });
+
+  // Normalized {date, value} series for the Performance card — price
+  // history for quantity-based holdings, valuation history for everything
+  // else. Valuations come back newest-first, so reverse for a chart; loans
+  // are stored as positive debt but sign-flipped here (matching
+  // calculate_valuation_metrics) so a shrinking balance reads as a gain.
+  const series = useMemo(() => {
+    if (quantityBased) {
+      return (priceHistory || []).map((p) => ({ date: p.date, value: p.price }));
+    }
+    const sign = holding?.assetType === "loan" ? -1 : 1;
+    return [...(valuations || [])].reverse().map((v) => ({ date: v.valuationDate, value: v.value * sign }));
+  }, [quantityBased, priceHistory, valuations, holding?.assetType]);
 
   const deleteTxMutation = useMutation({
     mutationFn: deleteTransaction,
@@ -320,20 +397,10 @@ export default function HoldingDetail() {
         </div>
       )}
 
-      {quantityBased && priceHistory && priceHistory.length > 1 && (
-        <Card title="Price History" >
-          <div style={{ width: "100%", height: 260, marginTop: "1rem" }}>
-            <ResponsiveContainer>
-              <LineChart data={priceHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-                <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }} />
-                <Line type="monotone" dataKey="price" stroke="var(--primary)" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+      {series.length > 1 && (
+        <div style={{ marginBottom: "1.5rem" }}>
+          <PeriodReturn series={series} currency={holding.currency} />
+        </div>
       )}
 
       {quantityBased && (
