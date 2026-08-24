@@ -13,7 +13,7 @@ import io
 import zipfile
 from typing import Dict
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceAlert, Milestone, BudgetEntry, BudgetLimit
+from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceAlert, Milestone, BudgetEntry, BudgetLimit, Liability
 
 
 def export_user_data(user_id) -> Dict:
@@ -33,6 +33,7 @@ def export_user_data(user_id) -> Dict:
     alerts = PriceAlert.query.filter_by(user_id=user_id).all()
     budget_entries = BudgetEntry.query.filter_by(user_id=user_id).all()
     budget_limits = BudgetLimit.query.filter_by(user_id=user_id).all()
+    liabilities = Liability.query.filter_by(user_id=user_id).all()
 
     return {
         "holdings": [h.to_dict() for h in holdings],
@@ -41,6 +42,7 @@ def export_user_data(user_id) -> Dict:
         "alerts": [a.to_dict() for a in alerts],
         "budget_entries": [e.to_dict() for e in budget_entries],
         "budget_limits": [limit.to_dict() for limit in budget_limits],
+        "liabilities": [l.to_dict() for l in liabilities],
     }
 
 
@@ -88,6 +90,7 @@ def delete_all_user_data(user_id) -> Dict:
 
     alerts_count = PriceAlert.query.filter_by(user_id=user_id).delete()
     milestones_count = Milestone.query.filter_by(user_id=user_id).delete()
+    liabilities_count = Liability.query.filter_by(user_id=user_id).delete()
 
     db.session.commit()
 
@@ -95,4 +98,5 @@ def delete_all_user_data(user_id) -> Dict:
         "holdings_deleted": holdings_count,
         "alerts_deleted": alerts_count,
         "milestones_deleted": milestones_count,
+        "liabilities_deleted": liabilities_count,
     }

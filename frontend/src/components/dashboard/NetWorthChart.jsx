@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import {
   ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
@@ -48,8 +50,24 @@ function CustomTooltip({ active, payload, label, currency }) {
   );
 }
 
+function BreakdownTooltip({ active, payload, label, currency }) {
+  if (!active || !payload || !payload.length) return null;
+  const point = payload[0].payload;
+  return (
+    <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.625rem 0.875rem", boxShadow: "var(--shadow-md)" }}>
+      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>{label}</div>
+      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--success)" }}>Assets: {formatCurrencyCompact(point.assets, currency)}</div>
+      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--danger)" }}>Liabilities: {formatCurrencyCompact(point.liabilities, currency)}</div>
+      <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.15rem" }}>Net: {formatCurrencyCompact(point.netWorth, currency)}</div>
+    </div>
+  );
+}
+
 export default function NetWorthChart({ history, currency }) {
   const [rangeIdx, setRangeIdx] = useState(3); // default "All"
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
+  const hasLiabilityHistory = useMemo(() => (history || []).some((h) => (h.liabilities ?? 0) > 0), [history]);
 
   const filtered = useMemo(() => {
     if (!history || history.length === 0) return [];
@@ -62,7 +80,9 @@ export default function NetWorthChart({ history, currency }) {
       if (rows.length === 0) rows = history.slice(-2); // fall back rather than showing nothing
     }
     const base = rows[0]?.netWorth ?? 0;
-    return rows.map((r) => ({ ...r, delta: r.netWorth - base }));
+    // assets isn't stored directly, but netWorth = assets - liabilities, so
+    // it's always derivable without another round trip to the backend.
+    return rows.map((r) => ({ ...r, delta: r.netWorth - base, assets: r.netWorth + (r.liabilities ?? 0) }));
   }, [history, rangeIdx]);
 
   if (!history || history.length === 0) {
@@ -71,25 +91,44 @@ export default function NetWorthChart({ history, currency }) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.25rem", marginBottom: "0.5rem" }}>
-        {RANGES.map((r, i) => (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", gap: "0.5rem", flexWrap: "wrap" }}>
+        {hasLiabilityHistory ? (
           <button
-            key={r.label}
-            onClick={() => setRangeIdx(i)}
+            onClick={() => setShowBreakdown((v) => !v)}
             style={{
               padding: "0.25rem 0.625rem",
               borderRadius: "999px",
               border: "1px solid var(--border)",
-              background: rangeIdx === i ? "var(--primary)" : "transparent",
-              color: rangeIdx === i ? "var(--text-inverse)" : "var(--text-secondary)",
+              background: showBreakdown ? "var(--primary)" : "transparent",
+              color: showBreakdown ? "var(--text-inverse)" : "var(--text-secondary)",
               fontSize: "0.75rem",
-              fontWeight: rangeIdx === i ? 600 : 500,
+              fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            {r.label}
+            Assets vs Debt
           </button>
-        ))}
+        ) : <span />}
+        <div style={{ display: "flex", gap: "0.25rem" }}>
+          {RANGES.map((r, i) => (
+            <button
+              key={r.label}
+              onClick={() => setRangeIdx(i)}
+              style={{
+                padding: "0.25rem 0.625rem",
+                borderRadius: "999px",
+                border: "1px solid var(--border)",
+                background: rangeIdx === i ? "var(--primary)" : "transparent",
+                color: rangeIdx === i ? "var(--text-inverse)" : "var(--text-secondary)",
+                fontSize: "0.75rem",
+                fontWeight: rangeIdx === i ? 600 : 500,
+                cursor: "pointer",
+              }}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div style={{ width: "100%", height: 280 }}>
         <ResponsiveContainer>
@@ -103,16 +142,27 @@ export default function NetWorthChart({ history, currency }) {
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--text-muted)" }} minTickGap={30} />
             <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => formatYAxis(v, currency)} width={56} />
-            <Tooltip content={<CustomTooltip currency={currency} />} />
-            <Area
-              type="monotone"
-              dataKey="netWorth"
-              stroke="var(--primary)"
-              strokeWidth={2.5}
-              fill="url(#netWorthGradient)"
-              isAnimationActive={true}
-              dot={filtered.length < 60 ? { r: 2, fill: "var(--primary)" } : false}
-            />
+            {showBreakdown ? (
+              <>
+                <Tooltip content={<BreakdownTooltip currency={currency} />} />
+                <Legend formatter={(v) => (v === "assets" ? "Assets" : "Liabilities")} wrapperStyle={{ fontSize: "0.75rem" }} />
+                <Line type="monotone" dataKey="assets" stroke="var(--success)" strokeWidth={2.5} dot={false} isAnimationActive={true} />
+                <Line type="monotone" dataKey="liabilities" stroke="var(--danger)" strokeWidth={2.5} dot={false} isAnimationActive={true} />
+              </>
+            ) : (
+              <>
+                <Tooltip content={<CustomTooltip currency={currency} />} />
+                <Area
+                  type="monotone"
+                  dataKey="netWorth"
+                  stroke="var(--primary)"
+                  strokeWidth={2.5}
+                  fill="url(#netWorthGradient)"
+                  isAnimationActive={true}
+                  dot={filtered.length < 60 ? { r: 2, fill: "var(--primary)" } : false}
+                />
+              </>
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

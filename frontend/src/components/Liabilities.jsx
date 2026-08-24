@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
@@ -10,6 +11,7 @@ import { fetchLiabilities, createLiability, updateLiability, deleteLiability, Ap
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent } from "../utils/formatters";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { CURRENCIES, LIABILITY_TYPE_OPTIONS, getLiabilityTypeLabel } from "../constants/enums";
+import { projectPayoff, monthsToPayoff } from "../utils/debtPayoff";
 
 const inputStyle = {
   width: "100%",
@@ -98,7 +100,60 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
   );
 }
 
+function PayoffCalculator({ liability }) {
+  const [monthlyPayment, setMonthlyPayment] = useState(() => Math.max(1, Math.round(liability.currentBalance / 24)));
+
+  const points = useMemo(
+    () => projectPayoff({ balance: liability.currentBalance, annualRatePct: liability.interestRate || 0, monthlyPayment: Number(monthlyPayment) || 0 }),
+    [liability.currentBalance, liability.interestRate, monthlyPayment]
+  );
+  const months = monthsToPayoff(points);
+  const totalInterest = points[points.length - 1]?.interestPaid ?? 0;
+
+  return (
+    <div style={{ marginTop: "0.75rem", padding: "0.875rem", borderRadius: "var(--radius)", background: "var(--bg-secondary)" }}>
+      <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+        <div>
+          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Monthly payment</label>
+          <input type="number" step="any" min="0" value={monthlyPayment} onChange={(e) => setMonthlyPayment(e.target.value)} style={{ ...inputStyle, width: 140 }} />
+        </div>
+        {liability.interestRate == null && (
+          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>No interest rate set — assuming 0%.</div>
+        )}
+      </div>
+      {months != null ? (
+        <div style={{ fontSize: "0.875rem", color: "var(--text)" }}>
+          Paid off in <strong>{months}</strong> month{months === 1 ? "" : "s"} ({(months / 12).toFixed(1)} yrs), paying{" "}
+          <strong>{formatCurrencyForDisplay(totalInterest, liability.currency, { includeCode: false })}</strong> in total interest.
+        </div>
+      ) : (
+        <div style={{ fontSize: "0.875rem", color: "var(--danger)" }}>
+          At this payment, the balance never shrinks — increase it above the monthly interest to see a payoff date.
+        </div>
+      )}
+      {points.length > 1 && (
+        <div style={{ width: "100%", height: 160, marginTop: "0.75rem" }}>
+          <ResponsiveContainer>
+            <LineChart data={points}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
+              <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(m) => `${m}mo`} />
+              <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => formatCurrencyCompact(v, liability.currency)} width={56} />
+              <Tooltip
+                formatter={(v) => formatCurrencyForDisplay(v, liability.currency)}
+                labelFormatter={(m) => `Month ${m}`}
+                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
+              />
+              <Line type="monotone" dataKey="balance" stroke="var(--danger)" strokeWidth={2} dot={false} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
+  const [showCalc, setShowCalc] = useState(false);
   const progressPct =
     liability.originalAmount && liability.originalAmount > 0
       ? Math.max(0, Math.min(100, 100 - (liability.currentBalance / liability.originalAmount) * 100))
@@ -137,9 +192,13 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
         </div>
       )}
       <div style={{ display: "flex", gap: "1rem", marginTop: "0.6rem" }}>
+        <button onClick={() => setShowCalc((v) => !v)} style={{ fontSize: "0.8125rem", color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>
+          {showCalc ? "Hide payoff calculator" : "Payoff calculator"}
+        </button>
         <button onClick={() => onEdit(liability)} style={{ fontSize: "0.8125rem", color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>Edit</button>
         <button onClick={() => onDelete(liability)} style={{ fontSize: "0.8125rem", color: "var(--danger)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}>Delete</button>
       </div>
+      {showCalc && <PayoffCalculator liability={liability} />}
     </div>
   );
 }
