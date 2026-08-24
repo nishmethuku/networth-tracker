@@ -23,6 +23,7 @@ const ImportTransactions = lazy(() => import("./components/ImportTransactions"))
 const Alerts = lazy(() => import("./components/Alerts"));
 const TaxSummary = lazy(() => import("./components/TaxSummary"));
 const AllocationAdvisor = lazy(() => import("./components/ai/AllocationAdvisor"));
+const WhatIf = lazy(() => import("./components/WhatIf"));
 const Settings = lazy(() => import("./components/Settings"));
 const Budget = lazy(() => import("./components/Budget"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
@@ -190,6 +191,7 @@ function AppShell() {
           <NavLink to="/tax-summary">{t("nav.taxSummary")}</NavLink>
           <NavLink to="/insights">{t("nav.insights")}</NavLink>
           <NavLink to="/allocation-advisor">{t("nav.allocationAdvisor")}</NavLink>
+          <NavLink to="/what-if">{t("nav.whatIf")}</NavLink>
           <NavLink to="/add-holding" highlight>{t("nav.addHolding")}</NavLink>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -234,6 +236,7 @@ function AppShell() {
               <Route path="tax-summary" element={<TaxSummary />} />
               <Route path="insights" element={<Insights />} />
               <Route path="allocation-advisor" element={<AllocationAdvisor />} />
+              <Route path="what-if" element={<WhatIf />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

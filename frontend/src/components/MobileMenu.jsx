@@ -17,6 +17,7 @@ const MENU_LINKS = [
   { to: "/alerts", labelKey: "nav.alerts", icon: "🔔" },
   { to: "/tax-summary", labelKey: "nav.taxSummary", icon: "🧾" },
   { to: "/allocation-advisor", labelKey: "nav.allocationAdvisor", icon: "⚖️" },
+  { to: "/what-if", labelKey: "nav.whatIf", icon: "🔮" },
   { to: "/settings", labelKey: "nav.settings", icon: "⚙️" },
 ];
 
