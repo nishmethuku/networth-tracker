@@ -233,3 +233,15 @@ export function mapMonthlyFlow(rows) {
     byAssetType: r.by_asset_type || {},
   }));
 }
+
+export function mapGoal(g) {
+  if (!g) return null;
+  return {
+    id: g.id,
+    name: g.name,
+    targetAmount: safeNumber(g.target_amount),
+    currency: g.currency ?? "USD",
+    targetDate: g.target_date ?? null,
+    createdAt: g.created_at ?? "",
+  };
+}

@@ -17,6 +17,7 @@ import {
   mapBudgetEntry,
   mapBudgetLimit,
   mapMonthlyFlow,
+  mapGoal,
 } from "./mappers";
 
 /**
@@ -319,6 +320,28 @@ export async function aiSearch(query, householdId = null) {
 
 export async function fetchBudgetInsights({ householdId, months = 6, currency = "USD" } = {}) {
   return api.post("/api/ai/budget-insights", { household_id: householdId, months, currency }, AI_TIMEOUT);
+}
+
+/**
+ * Net worth goals
+ */
+export async function fetchGoals() {
+  const data = await api.get("/goals");
+  return (data || []).map(mapGoal);
+}
+
+export async function createGoal(payload) {
+  const data = await api.post("/goals", payload);
+  return mapGoal(data);
+}
+
+export async function updateGoal(id, payload) {
+  const data = await api.put(`/goals/${id}`, payload);
+  return mapGoal(data);
+}
+
+export async function deleteGoal(id) {
+  await api.delete(`/goals/${id}`);
 }
 
 /**

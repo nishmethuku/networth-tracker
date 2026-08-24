@@ -39,6 +39,7 @@ from .digest_service import build_weekly_digest
 from .alert_service import check_all_alerts
 from .unsubscribe_service import verify_unsubscribe_token, unsubscribe as unsubscribe_email
 from .account_service import export_user_data, export_user_data_csv_zip, delete_all_user_data
+from .goal_service import list_goals, create_goal, update_goal, delete_goal
 from .sip_service import next_occurrences as next_sip_occurrences, project_future_value as project_sip_future_value
 from .budget_service import (
     get_monthly_summary,
@@ -1197,6 +1198,59 @@ def create_app():
         except ai_service.QuotaExceededError as e:
             return jsonify({"error": str(e), "quota_exceeded": True}), 429
         return jsonify({"configured": True, "filter_spec": filter_spec})
+
+    # ---------------- GOALS ----------------
+
+    @app.route("/goals", methods=["GET"])
+    @require_auth
+    def list_goals_route():
+        return jsonify(list_goals(g.user_id))
+
+    @app.route("/goals", methods=["POST"])
+    @require_auth
+    def create_goal_route():
+        data = request.get_json(force=True)
+        try:
+            goal = create_goal(
+                g.user_id,
+                name=data.get("name"),
+                target_amount=safe_float(data.get("target_amount")),
+                currency=data.get("currency", "USD"),
+                target_date=date.fromisoformat(data["target_date"]) if data.get("target_date") else None,
+            )
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify(goal), 201
+
+    @app.route("/goals/<int:goal_id>", methods=["PUT"])
+    @require_auth
+    def update_goal_route(goal_id):
+        data = request.get_json(force=True)
+        fields = {}
+        if "name" in data:
+            fields["name"] = data["name"]
+        if "target_amount" in data:
+            fields["target_amount"] = safe_float(data["target_amount"])
+        if "currency" in data:
+            fields["currency"] = data["currency"]
+        if "target_date" in data:
+            fields["target_date"] = date.fromisoformat(data["target_date"]) if data["target_date"] else None
+        try:
+            goal = update_goal(goal_id, g.user_id, **fields)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except PermissionError:
+            abort(403)
+        return jsonify(goal)
+
+    @app.route("/goals/<int:goal_id>", methods=["DELETE"])
+    @require_auth
+    def delete_goal_route(goal_id):
+        try:
+            delete_goal(goal_id, g.user_id)
+        except PermissionError:
+            abort(403)
+        return jsonify({"message": "Goal deleted"}), 200
 
     # ---------------- ACCOUNT DATA (Settings page: export / danger zone) ----------------
 

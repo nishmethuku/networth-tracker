@@ -381,6 +381,36 @@ class BudgetLimit(db.Model):
         }
 
 
+class Goal(db.Model):
+    """A net worth target — purely an in-app progress indicator (a Dashboard
+    card comparing target_amount against the already-fetched current net
+    worth). No pace/rate projection is computed or stored here; that's what
+    the What-If calculator is for, so this stays a simple target + optional
+    date rather than duplicating that math."""
+    __tablename__ = "goals"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+
+    name = db.Column(db.String(120), nullable=False)
+    target_amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(8), nullable=False)
+    target_date = db.Column(db.Date, nullable=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": str(self.user_id),
+            "name": self.name,
+            "target_amount": self.target_amount,
+            "currency": self.currency,
+            "target_date": self.target_date.isoformat() if self.target_date else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class Milestone(db.Model):
     __tablename__ = "milestones"
 

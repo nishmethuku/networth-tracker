@@ -13,6 +13,7 @@ import NetWorthChart from "./dashboard/NetWorthChart";
 import DashboardSkeleton from "./dashboard/DashboardSkeleton";
 import AllocationDonut from "./dashboard/AllocationDonut";
 import NetWorthBreakdown from "./dashboard/NetWorthBreakdown";
+import GoalsCard from "./dashboard/GoalsCard";
 import MoverHeatGrid from "./dashboard/MoverHeatGrid";
 import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
@@ -262,6 +263,10 @@ export default function Dashboard() {
                 />
               </ErrorBoundary>
             </Card>
+
+            <ErrorBoundary mode="section" fallbackMessage="Couldn't load goals.">
+              <GoalsCard currentNetWorth={dashboard.totalNetWorth} displayCurrency={currency} />
+            </ErrorBoundary>
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>
