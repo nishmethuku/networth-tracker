@@ -155,7 +155,9 @@ cd frontend && npm install && npm run dev
 ### Checks
 
 ```bash
-# Backend
+# Backend (requirements-dev.txt adds pytest on top of requirements.txt —
+# kept separate so the deployed Docker image doesn't carry a test framework)
+./backend/venv/bin/pip install -r backend/requirements-dev.txt
 ./backend/venv/bin/python -m pytest backend/ -q
 
 # Frontend

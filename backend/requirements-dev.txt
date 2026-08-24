@@ -1,0 +1,6 @@
+# Test-only dependencies, on top of the production requirements — kept
+# separate so the Docker image actually deployed to Render doesn't carry
+# a test framework it never runs. CI installs this file; the Dockerfile
+# installs requirements.txt only.
+-r requirements.txt
+pytest==9.1.1
