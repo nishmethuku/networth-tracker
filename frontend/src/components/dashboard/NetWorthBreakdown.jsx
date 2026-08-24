@@ -6,6 +6,21 @@ import { computeGroupedReturn, computeReturnsByType, holdingReturn } from "../..
 import EmptyState from "../EmptyState";
 import useIsMobile from "../../hooks/useIsMobile";
 
+const CATEGORY_ICONS = {
+  stock: "📈",
+  mutual_fund: "📊",
+  crypto: "₿",
+  commodity: "🪙",
+  real_estate: "🏠",
+  fixed_deposit: "🏦",
+  ppf: "🏦",
+  epf: "🏦",
+  retirals: "🏦",
+  cash: "💰",
+  loan: "💳",
+  credit: "🤝",
+};
+
 function buildCategoryRows(holdings) {
   const byType = {};
   for (const h of holdings) {
@@ -197,29 +212,34 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
     );
   }
 
-  // ---- Level 1: categories ----
+  // ---- Level 1: categories, as clickable cards ----
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "0.375rem 0", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>
-        <span>Category</span>
-        <span style={rightGroupStyle(isMobile)}>
-          {!isMobile && <span style={{ minWidth: 64 }}>Trend</span>}
-          <span style={{ minWidth: valueStyle(isMobile).minWidth, textAlign: "right" }}>Value</span>
-          <span style={{ minWidth: returnStyle(isMobile).minWidth, textAlign: "right" }}>Return</span>
-        </span>
-      </div>
-      {categoryRows.map((r, i) => (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem" }}>
+      {categoryRows.map((r) => (
         <div
           key={r.assetType}
           onClick={() => openCategory(r.assetType)}
-          style={{ ...ROW_STYLE, cursor: "pointer", borderBottom: i < categoryRows.length - 1 ? "1px solid var(--border-light)" : "none" }}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+            padding: "1rem 1.125rem",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+            cursor: "pointer",
+          }}
         >
-          <span style={{ color: "var(--text)" }}>{r.label}</span>
-          <span style={rightGroupStyle(isMobile)}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
+            <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <span style={{ fontSize: "1.125rem" }}>{CATEGORY_ICONS[r.assetType] || "📦"}</span>
+              {r.label}
+            </span>
             {!isMobile && <TrajectorySparkline history={history} assetType={r.assetType} />}
-            <span style={valueStyle(isMobile)}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
-            <span style={returnStyle(isMobile)}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
-          </span>
+          </div>
+          <div style={{ fontSize: "1.375rem", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text)" }}>
+            {formatCurrencyForDisplay(r.value, currency, { includeCode: false })}
+          </div>
+          <div style={{ fontSize: "0.8125rem" }}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></div>
         </div>
       ))}
     </div>
