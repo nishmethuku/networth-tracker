@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -183,15 +182,6 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
-      </div>
-
-      <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
-        <Link to="/alerts" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🔔 Alerts</Link>
-        <Link to="/tax-summary" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🧾 Tax Summary</Link>
-        <Link to="/import" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>📥 Import CSV</Link>
-        <Link to="/import-spreadsheet" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>📄 Import Spreadsheet</Link>
-        <Link to="/allocation-advisor" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>🎯 Allocation Advisor</Link>
-        <Link to="/settings" style={{ fontSize: "0.875rem", color: "var(--primary)", fontWeight: 500 }}>⚙️ Settings</Link>
       </div>
 
       {!hasHoldings ? (

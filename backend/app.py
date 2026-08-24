@@ -14,7 +14,7 @@ import requests
 
 from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit
 from .auth import require_auth
-from .utils import FINNHUB_API_KEY, MFTOOL_AVAILABLE
+from .utils import FINNHUB_API_KEY
 from .services import safe_float, rank_symbol_results
 from . import price_service
 from . import ai_service

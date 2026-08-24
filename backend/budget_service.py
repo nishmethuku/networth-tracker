@@ -4,7 +4,6 @@ holdings_service — this never touches net worth, so there's no
 double-counting risk between "money you logged as spent" and "a cash
 holding you track separately."
 """
-from datetime import date
 from typing import Dict, List, Optional
 
 from sqlalchemy import text

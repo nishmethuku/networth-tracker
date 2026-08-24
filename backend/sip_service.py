@@ -39,7 +39,6 @@ def next_occurrences(start_date: date, frequency: str, count: int = 3, today: Op
     current = start_date
     # Fast-forward past dates without an unbounded loop for very old start dates.
     if current < today:
-        periods_per_year = PERIODS_PER_YEAR[frequency]
         approx_days = FREQUENCY_DAYS[frequency]
         elapsed_periods = max(0, (today - start_date).days // approx_days - 1)
         n = elapsed_periods
