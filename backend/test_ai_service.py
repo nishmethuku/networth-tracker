@@ -194,6 +194,61 @@ def test_generate_text_does_not_retry_non_retryable_error():
     assert mock_client.models.generate_content.call_count == 1
 
 
+def test_generate_text_raises_quota_exceeded_on_429():
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = _client_error(429)
+        mock_get_client.return_value = mock_client
+
+        try:
+            ai_service.generate_text("hi")
+            assert False, "expected QuotaExceededError"
+        except ai_service.QuotaExceededError as e:
+            assert "daily" in str(e).lower()
+    assert mock_client.models.generate_content.call_count == 1
+
+
+def test_suggest_transaction_tags_swallows_quota_exceeded():
+    """Ambient, best-effort feature — never surfaces a quota error, unlike
+    the interactive AI features."""
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = _client_error(429)
+        mock_get_client.return_value = mock_client
+
+        result = ai_service.suggest_transaction_tags("AAPL", "stock", "buy", 1, 100, "USD")
+
+    assert result is None
+
+
+def test_generate_digest_narrative_swallows_quota_exceeded():
+    """Background email job — no one to show an error to, so it always
+    falls back to the structured-only email."""
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = _client_error(429)
+        mock_get_client.return_value = mock_client
+
+        result = ai_service.generate_digest_narrative({"net_worth": 1000})
+
+    assert result is None
+
+
+def test_generate_budget_narrative_raises_quota_exceeded():
+    """Interactive "Get AI Insights" button — the route catches this to
+    show a specific message instead of a generic failure."""
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = _client_error(429)
+        mock_get_client.return_value = mock_client
+
+        try:
+            ai_service.generate_budget_narrative({"months": []})
+            assert False, "expected QuotaExceededError"
+        except ai_service.QuotaExceededError:
+            pass
+
+
 def test_chat_stream_retries_once_when_no_chunks_yielded_yet():
     with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
         mock_client = MagicMock()

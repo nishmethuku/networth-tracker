@@ -36,15 +36,26 @@ _RETRYABLE_STATUS_CODES = {500, 503}
 _RETRY_DELAY_SECONDS = 1.5
 
 
+class QuotaExceededError(RuntimeError):
+    """Raised when Gemini's free-tier daily quota is hit (HTTP 429), so
+    interactive callers (app.py routes) can show a specific, actionable
+    message instead of the generic "not configured"/failure state that
+    every other kind of failure falls back to."""
+
+
 def _is_retryable(exc: BaseException) -> bool:
     return isinstance(exc, genai_errors.ServerError) and getattr(exc, "code", None) in _RETRYABLE_STATUS_CODES
+
+
+def _is_quota_exceeded(exc: BaseException) -> bool:
+    return isinstance(exc, genai_errors.ClientError) and getattr(exc, "code", None) == 429
 
 
 def _friendly_error(exc: BaseException) -> str:
     """chat_stream re-raises so app.py's SSE handler can report a failure —
     but the raw SDK exception text includes internal quota metric names and
     doc URLs that shouldn't reach an end user's chat window."""
-    if isinstance(exc, genai_errors.ClientError) and getattr(exc, "code", None) == 429:
+    if _is_quota_exceeded(exc):
         return "The AI assistant has hit its free daily usage limit — please try again later."
     if isinstance(exc, genai_errors.APIError):
         return "The AI assistant is temporarily unavailable — please try again in a moment."
@@ -67,7 +78,13 @@ def get_client() -> Optional["genai.Client"]:
     if not GEMINI_API_KEY:
         return None
     if _client is None:
-        _client = genai.Client(api_key=GEMINI_API_KEY)
+        # The SDK sets no timeout by default, so a stuck connection can hang
+        # a request indefinitely instead of failing cleanly — observed
+        # directly (a single call sat with no response for 10+ minutes).
+        # Bounded comfortably under gunicorn's --timeout 90 so the route
+        # handler gets a normal exception to catch and respond to, rather
+        # than gunicorn force-killing the whole worker mid-request.
+        _client = genai.Client(api_key=GEMINI_API_KEY, http_options=types.HttpOptions(timeout=70_000))
     return _client
 
 
@@ -115,10 +132,15 @@ def _extract_json(raw: str):
 
 def generate_text(prompt: str, system: Optional[str] = None, max_tokens: int = 1024) -> Optional[str]:
     """Single-turn completion, or None if AI isn't configured or the call
-    fails. Shared by every non-streaming caller in this module (and by
-    smart_import_service, which needs a raw completion outside the
-    specific helpers below) so the SDK-specific call shape lives in
-    exactly one place."""
+    fails for a reason that isn't actionable (transient error, network
+    issue, etc). Raises QuotaExceededError specifically for a hit daily
+    quota, since that's the one failure mode worth telling the user about
+    rather than silently degrading — see callers for how each one decides
+    whether to let it propagate to an interactive response or swallow it
+    for a background job. Shared by every non-streaming caller in this
+    module (and by smart_import_service, which needs a raw completion
+    outside the specific helpers below) so the SDK-specific call shape
+    lives in exactly one place."""
     client = get_client()
     if not client:
         return None
@@ -134,6 +156,8 @@ def generate_text(prompt: str, system: Optional[str] = None, max_tokens: int = 1
             if attempt == 0 and _is_retryable(e):
                 time.sleep(_RETRY_DELAY_SECONDS)
                 continue
+            if _is_quota_exceeded(e):
+                raise QuotaExceededError(_friendly_error(e)) from e
             return None
 
 
@@ -195,22 +219,28 @@ def chat_stream(messages: List[Dict], portfolio_snapshot: Dict):
 def generate_digest_narrative(digest_data: Dict, recipient_name: Optional[str] = None) -> Optional[str]:
     """3-4 paragraph narrative for the weekly digest email, from the same
     structured data already computed by digest_service. Returns None if AI
-    isn't configured — callers fall back to the structured-only email."""
+    isn't configured, the call fails, or the daily quota is used up — this
+    runs in a background email job with no one to show an error to, so it
+    always falls back to the structured-only email rather than raising."""
     greeting = f"Address the recipient/household as '{recipient_name}' if it reads naturally." if recipient_name else ""
     prompt = (
         "Write a warm, specific 3-4 paragraph weekly net worth digest narrative from this data. "
         f"{greeting} Reference real numbers naturally. Keep it grounded and factual — no hype. "
         "Plain text only, no markdown headers.\n\nData (JSON):\n" + json.dumps(digest_data)
     )
-    return generate_text(prompt, max_tokens=600)
+    try:
+        return generate_text(prompt, max_tokens=600)
+    except QuotaExceededError:
+        return None
 
 
 def generate_budget_narrative(summary_data: Dict) -> Optional[str]:
     """On-demand (not automatic — see budget_service/app.py) 2-3 paragraph
     narrative over the Budget page's monthly summary: trends, the biggest
     category, anything notable in limit_status. Returns None if AI isn't
-    configured or the call fails; callers show a clean 'not configured'
-    state rather than blocking on this."""
+    configured; raises QuotaExceededError if the daily quota is used up so
+    the interactive caller (the "Get AI Insights" button) can show that
+    specifically instead of a generic failure."""
     prompt = (
         "Write a warm, specific 2-3 paragraph spending insights narrative from this budget data — "
         "trends across the months shown, the biggest spending category, and anything notable about "
@@ -239,9 +269,10 @@ def generate_allocation_narrative(current_allocation: Dict, target_allocation: D
 
 
 def suggest_transaction_tags(holding_name: str, asset_type: str, transaction_type: str, quantity: float, price_per_unit: float, currency: str) -> Optional[Dict]:
-    """Returns {"tags": [...], "note": "..."} or None if AI isn't configured
-    or the call fails — callers should treat this as a best-effort suggestion,
-    never block the transaction on it."""
+    """Returns {"tags": [...], "note": "..."} or None if AI isn't configured,
+    the call fails, or the daily quota is used up — callers should treat
+    this as a best-effort suggestion, never block the transaction on it, so
+    unlike the interactive AI features this one always degrades quietly."""
     prompt = (
         "Suggest 1-3 short lowercase tags (like 'core-holding', 'speculative', 'dip-buy', 'tax-loss-harvest', "
         "'dividend-play', 'rebalance') and a one-line note for this transaction. Respond with ONLY a JSON object "
@@ -249,7 +280,10 @@ def suggest_transaction_tags(holding_name: str, asset_type: str, transaction_typ
         f"Holding: {holding_name} ({asset_type})\n"
         f"Transaction: {transaction_type} {quantity} @ {price_per_unit} {currency}"
     )
-    raw = generate_text(prompt, max_tokens=200)
+    try:
+        raw = generate_text(prompt, max_tokens=200)
+    except QuotaExceededError:
+        return None
     if not raw:
         return None
     try:

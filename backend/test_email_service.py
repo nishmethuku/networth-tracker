@@ -1,6 +1,7 @@
+import base64
 import sys
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -38,6 +39,35 @@ def test_render_digest_email_omits_unsubscribe_link_without_backend_url():
             unsubscribe_token="abc.def",
         )
     assert "Unsubscribe" not in html
+
+
+def test_render_digest_email_mentions_backup_only_when_attached():
+    digest = {"net_worth": 1000.0, "change_this_week": None, "top_movers": []}
+    with_backup = email_service.render_digest_email(digest, backup_attached=True)
+    without_backup = email_service.render_digest_email(digest, backup_attached=False)
+    assert "backup" in with_backup.lower()
+    assert "backup" not in without_backup.lower()
+
+
+def test_send_encodes_attachments_as_base64_for_resend():
+    with patch.object(email_service, "RESEND_API_KEY", "test-key"), patch("backend.email_service.requests.post") as mock_post:
+        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        email_service.send(
+            "a@example.com", "Subject", "<p>Hi</p>",
+            attachments=[("backup.zip", b"zip-bytes-here")],
+        )
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["attachments"] == [
+        {"filename": "backup.zip", "content": base64.b64encode(b"zip-bytes-here").decode("ascii")}
+    ]
+
+
+def test_send_omits_attachments_key_when_none_given():
+    with patch.object(email_service, "RESEND_API_KEY", "test-key"), patch("backend.email_service.requests.post") as mock_post:
+        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        email_service.send("a@example.com", "Subject", "<p>Hi</p>")
+    payload = mock_post.call_args.kwargs["json"]
+    assert "attachments" not in payload
 
 
 if __name__ == "__main__":

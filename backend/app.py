@@ -1140,14 +1140,19 @@ def create_app():
         plan = compute_rebalance_plan(dashboard["allocation_by_type"], dashboard["total_net_worth"], target_allocation)
 
         narrative = None
+        quota_exceeded = False
         if ai_service.is_configured():
             current_allocation = {a["label"]: a["value"] for a in dashboard["allocation_by_type"]}
-            narrative = ai_service.generate_allocation_narrative(current_allocation, target_allocation, plan)
+            try:
+                narrative = ai_service.generate_allocation_narrative(current_allocation, target_allocation, plan)
+            except ai_service.QuotaExceededError:
+                quota_exceeded = True
 
         return jsonify({
             "ai_configured": ai_service.is_configured(),
             "rebalance_plan": plan,
             "narrative": narrative,
+            "quota_exceeded": quota_exceeded,
             "disclaimer": "This is informational only, generated from your own portfolio data, and is not financial advice.",
         })
 
@@ -1182,7 +1187,10 @@ def create_app():
         if not ai_service.is_configured():
             return jsonify({"configured": False, "filter_spec": None})
 
-        filter_spec = ai_service.parse_search_query(query)
+        try:
+            filter_spec = ai_service.parse_search_query(query)
+        except ai_service.QuotaExceededError as e:
+            return jsonify({"error": str(e), "quota_exceeded": True}), 429
         return jsonify({"configured": True, "filter_spec": filter_spec})
 
     # ---------------- ACCOUNT DATA (Settings page: export / danger zone) ----------------
@@ -1435,7 +1443,10 @@ def create_app():
         summary = get_monthly_summary(
             g.user_id if not household_id else None, household_id, months=months, currency=currency
         )
-        narrative = ai_service.generate_budget_narrative(summary)
+        try:
+            narrative = ai_service.generate_budget_narrative(summary)
+        except ai_service.QuotaExceededError as e:
+            return jsonify({"error": str(e), "quota_exceeded": True}), 429
         return jsonify({"configured": True, "narrative": narrative})
 
     return app

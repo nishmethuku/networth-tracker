@@ -13,6 +13,7 @@ from .models import db, Holding, Household, NetWorthSnapshot
 from .holdings_service import list_holdings_with_metrics
 from .email_service import send, render_digest_email
 from .unsubscribe_service import is_unsubscribed, generate_unsubscribe_token
+from .account_service import export_user_data_csv_zip
 
 
 def _recipients(user_id=None, household_id=None) -> List[Dict]:
@@ -102,12 +103,19 @@ def build_weekly_digest(send_emails: bool = True) -> List[Dict]:
         if send_emails:
             recipients = [r for r in _recipients(user_id=user_id) if not is_unsubscribed(r["email"])]
             narrative = _narrative_for_digest(digest, recipients[0]["name"]) if recipients else None
+            backup_zip = None
+            if recipients:
+                try:
+                    backup_zip = export_user_data_csv_zip(user_id)
+                except Exception as e:
+                    print(f"[digest_service] Backup export failed for user {user_id}: {e}")
             for r in recipients:
                 unsubscribe_token = generate_unsubscribe_token(r["email"])
                 send(
                     r["email"],
                     "Your Weekly Net Worth Digest",
-                    render_digest_email(digest, narrative=narrative, unsubscribe_token=unsubscribe_token),
+                    render_digest_email(digest, narrative=narrative, unsubscribe_token=unsubscribe_token, backup_attached=bool(backup_zip)),
+                    attachments=[("networth-tracker-backup.zip", backup_zip)] if backup_zip else None,
                 )
 
     household_ids = [

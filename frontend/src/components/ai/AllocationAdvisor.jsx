@@ -146,6 +146,13 @@ export default function AllocationAdvisor() {
                   </p>
                 </Card>
               )}
+              {result.quota_exceeded && (
+                <Card>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem" }}>
+                    AI narrative unavailable — today's free daily quota is used up. The computed rebalance math below is unaffected.
+                  </p>
+                </Card>
+              )}
               <Card title="Rebalance plan">
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                   {result.rebalance_plan.map((p) => (

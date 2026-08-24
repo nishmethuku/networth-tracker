@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createHolding, createTransaction, createValuation, searchSymbols, searchCrypto, ApiError } from "../api";
+import { createHolding, createTransaction, createValuation, searchSymbols, searchCrypto, fetchHoldings, ApiError } from "../api";
 import { useToast } from "../contexts/ToastContext";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, CURRENCIES, isQuantityBased } from "../constants/enums";
 import { currencyForCountry } from "../utils/formatters";
@@ -135,6 +135,16 @@ export default function AddHolding() {
   const suggestionsRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
+  // Existing account names, offered as autocomplete on the Account field so
+  // "Chase" typed once and "chase" typed a second time don't silently
+  // become two different accounts in the portfolio's account grouping.
+  const { data: existingHoldings } = useQuery({
+    queryKey: ["holdings", "summary", "USD"],
+    queryFn: () => fetchHoldings({ currency: "USD", summary: true }),
+    staleTime: 1000 * 60,
+  });
+  const accountSuggestions = [...new Set((existingHoldings || []).map((h) => h.account).filter(Boolean))].sort();
+
   useEffect(() => {
     if (country && !currency) {
       setValue("currency", currencyForCountry(country));
@@ -245,6 +255,10 @@ export default function AddHolding() {
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "2rem 1rem" }}>
       <h2 style={{ marginBottom: "2.5rem", fontSize: "1.75rem", fontWeight: 700, color: "var(--text)" }}>Add Holding</h2>
 
+      <datalist id="account-suggestions">
+        {accountSuggestions.map((a) => <option key={a} value={a} />)}
+      </datalist>
+
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div style={sectionStyle}>
           <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>What are you adding?</h3>
@@ -337,7 +351,7 @@ export default function AddHolding() {
           {QUANTITY_BASED_SET.has(assetType) && !ACCOUNT_LESS_TYPES.has(assetType) && (
             <div style={{ marginBottom: "1.5rem" }}>
               <label style={labelStyle}>Account</label>
-              <input {...register("account")} placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Brokerage name"} style={inputStyle} />
+              <input {...register("account")} placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Brokerage name"} list="account-suggestions" style={inputStyle} />
             </div>
           )}
 
@@ -357,7 +371,7 @@ export default function AddHolding() {
               {!ACCOUNT_LESS_TYPES.has(assetType) && (
                 <div>
                   <label style={labelStyle}>Account</label>
-                  <input {...register("account")} placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Account name"} style={inputStyle} />
+                  <input {...register("account")} placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Account name"} list="account-suggestions" style={inputStyle} />
                 </div>
               )}
               {INTEREST_BEARING_TYPES.has(assetType) && (
