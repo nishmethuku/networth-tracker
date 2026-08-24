@@ -9,8 +9,11 @@ the caller, so digest/alert computation still works and is inspectable even
 before an email provider is configured.
 """
 import base64
+import logging
 import os
 import requests
+
+logger = logging.getLogger(__name__)
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 FROM_ADDRESS = os.environ.get("EMAIL_FROM", "Net Worth Tracker <onboarding@resend.dev>")
@@ -26,7 +29,7 @@ def send(to_email: str, subject: str, html: str, attachments: list = None) -> bo
     list of (filename, raw_bytes) tuples — base64-encoded here since that's
     the wire format Resend's API expects, so callers just deal in bytes."""
     if not RESEND_API_KEY:
-        print(f"[email_service] RESEND_API_KEY not set — would send to {to_email}: {subject}")
+        logger.info("RESEND_API_KEY not set — would send to %s: %s", to_email, subject)
         return False
 
     payload = {"from": FROM_ADDRESS, "to": [to_email], "subject": subject, "html": html}
@@ -46,7 +49,7 @@ def send(to_email: str, subject: str, html: str, attachments: list = None) -> bo
         response.raise_for_status()
         return True
     except Exception as e:
-        print(f"[email_service] Send failed to {to_email}: {e}")
+        logger.error("Send failed to %s: %s", to_email, e)
         return False
 
 

@@ -252,6 +252,16 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
             metrics["display_realized_gain"] = price_service.convert(metrics["realized_gain"], h.currency, display_currency)
         if metrics.get("unrealized_gain") is not None:
             metrics["display_unrealized_gain"] = price_service.convert(metrics["unrealized_gain"], h.currency, display_currency)
+        # Same reasoning as display_realized_gain/display_unrealized_gain
+        # above: cost_basis (quantity-based) and first_value (valuation-
+        # based) are both "what this holding was originally worth," in its
+        # own currency — a converted twin lets callers sum "buy value"
+        # across holdings in different currencies (e.g. an account-level or
+        # portfolio-wide aggregate) without mixing currencies.
+        if metrics.get("cost_basis") is not None:
+            metrics["display_cost_basis"] = price_service.convert(metrics["cost_basis"], h.currency, display_currency)
+        if metrics.get("first_value") is not None:
+            metrics["display_first_value"] = price_service.convert(metrics["first_value"], h.currency, display_currency)
         results.append({**h.to_dict(), **metrics})
 
     return results
@@ -266,7 +276,7 @@ SUMMARY_FIELDS = (
     "quantity", "avg_cost", "current_price", "current_value", "display_value",
     "realized_gain", "unrealized_gain", "display_realized_gain", "display_unrealized_gain",
     "total_gain", "xirr", "income_received", "display_income_received",
-    "first_value", "gain", "cost_basis",
+    "first_value", "gain", "cost_basis", "display_cost_basis", "display_first_value",
 )
 
 

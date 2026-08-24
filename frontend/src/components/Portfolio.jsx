@@ -61,6 +61,7 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
             <th style={{ padding: "0.75rem 0.5rem" }}>Name</th>
             {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Quantity</th>}
             {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Avg Cost</th>}
+            {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Cost Basis</th>}
             {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Current Price</th>}
             <th style={{ padding: "0.75rem 0.5rem" }}>Value</th>
             <th style={{ padding: "0.75rem 0.5rem" }}>Gain</th>
@@ -93,6 +94,11 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
                 {quantityBased && (
                   <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
                     {h.avgCost != null ? formatCurrencyForDisplay(h.avgCost, h.currency, { includeCode: false }) : "—"}
+                  </td>
+                )}
+                {quantityBased && (
+                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
+                    {h.costBasis != null ? formatCurrencyForDisplay(h.costBasis, h.currency, { includeCode: false }) : "—"}
                   </td>
                 )}
                 {quantityBased && (

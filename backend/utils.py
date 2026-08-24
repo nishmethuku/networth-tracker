@@ -33,17 +33,15 @@ try:
     from mftool import Mftool
     MFTOOL_AVAILABLE = True
     mf = Mftool()  # Initialize mftool instance
-    print(f"[utils.py] mftool initialized successfully, mf instance: {mf is not None}")
+    logger.info("mftool initialized successfully, mf instance: %s", mf is not None)
 except ImportError as e:
     MFTOOL_AVAILABLE = False
     mf = None
-    print(f"[utils.py] mftool import failed: {e}")
+    logger.warning("mftool import failed: %s", e)
 except Exception as e:
     MFTOOL_AVAILABLE = False
     mf = None
-    print(f"[utils.py] mftool initialization failed: {e}")
-    import traceback
-    traceback.print_exc()
+    logger.warning("mftool initialization failed: %s", e, exc_info=True)
 
 FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY")
 
@@ -90,12 +88,12 @@ def _get_price_from_finnhub(ticker: str, asset_type: str = None):
 
         # Check if response is empty or None
         if not data:
-            print(f"Finnhub empty response for {ticker}")
+            logger.warning("Finnhub empty response for %s", ticker)
             return None
 
         # Check for API errors
         if "error" in data:
-            print(f"Finnhub API error for {ticker}: {data.get('error')}")
+            logger.warning("Finnhub API error for %s: %s", ticker, data.get("error"))
             return None
 
         # Finnhub quote endpoint returns:
@@ -116,26 +114,26 @@ def _get_price_from_finnhub(ticker: str, asset_type: str = None):
             price = data.get("pc")  # previous close
         
         if price is None or price == 0:
-            print(f"Finnhub no valid price for {ticker}, response: {data}")
+            logger.warning("Finnhub no valid price for %s, response: %s", ticker, data)
             return None
 
         price_float = float(price)
         if price_float <= 0:
-            print(f"Finnhub invalid price for {ticker}: {price_float}")
+            logger.warning("Finnhub invalid price for %s: %s", ticker, price_float)
             return None
 
         return price_float
     except requests.exceptions.Timeout:
-        print(f"Finnhub timeout for {ticker}")
+        logger.warning("Finnhub timeout for %s", ticker)
         return None
     except requests.exceptions.RequestException as e:
-        print(f"Finnhub network error for {ticker}: {e}")
+        logger.warning("Finnhub network error for %s: %s", ticker, e)
         return None
     except (ValueError, TypeError) as e:
-        print(f"Finnhub data parsing error for {ticker}: {e}")
+        logger.warning("Finnhub data parsing error for %s: %s", ticker, e)
         return None
     except Exception as e:
-        print(f"Finnhub price fetch failed for {ticker}: {e}")
+        logger.warning("Finnhub price fetch failed for %s: %s", ticker, e)
         return None
 
 def _get_price_from_nselib(ticker: str):
@@ -165,7 +163,7 @@ def _get_price_from_nselib(ticker: str):
             return None
         return price
     except Exception as e:
-        print(f"nselib price fetch failed for {ticker}: {e}")
+        logger.warning("nselib price fetch failed for %s: %s", ticker, e)
         return None
 
 
@@ -199,7 +197,7 @@ def _get_price_from_nsepython(ticker: str):
             return None
         return price
     except Exception as e:
-        print(f"nsepython price fetch failed for {ticker}: {e}")
+        logger.warning("nsepython price fetch failed for %s: %s", ticker, e)
         return None
 
 
@@ -236,7 +234,7 @@ def _get_price_from_nsepy(ticker: str):
             return None
         return price
     except Exception as e:
-        print(f"NSEpy price fetch failed for {ticker}: {e}")
+        logger.warning("NSEpy price fetch failed for %s: %s", ticker, e)
         return None
 
 
@@ -254,7 +252,7 @@ def get_historical_price_from_nsepy(ticker: str, target_date: date):
         price = float(hist["Close"].iloc[-1])
         return price if price > 0 else None
     except Exception as e:
-        print(f"NSEpy historical price fetch failed for {ticker}: {e}")
+        logger.warning("NSEpy historical price fetch failed for %s: %s", ticker, e)
         return None
 
 
@@ -286,7 +284,7 @@ def get_historical_price_from_finnhub(ticker: str, target_date: date):
         price = float(data["c"][-1])
         return price if price > 0 else None
     except Exception as e:
-        print(f"Finnhub historical price fetch failed for {ticker}: {e}")
+        logger.warning("Finnhub historical price fetch failed for %s: %s", ticker, e)
         return None
 
 
@@ -323,7 +321,7 @@ def get_historical_price_from_yahoo(ticker: str, target_date: date):
         price = float(closes[-1])
         return price if price > 0 else None
     except Exception as e:
-        print(f"Yahoo historical price fetch failed for {ticker}: {e}")
+        logger.warning("Yahoo historical price fetch failed for %s: %s", ticker, e)
         return None
 
 
@@ -358,7 +356,7 @@ def _get_price_from_mftool(scheme_code: str):
         
         return None
     except Exception as e:
-        print(f"mftool NAV fetch failed for scheme {scheme_code}: {e}")
+        logger.warning("mftool NAV fetch failed for scheme %s: %s", scheme_code, e)
         return None
 
 
@@ -531,7 +529,7 @@ def get_crypto_price(coingecko_id: str, currency: str = "usd"):
         _PRICE_CACHE[cache_key] = (price, current_time)
         return price
     except Exception as e:
-        print(f"CoinGecko price fetch failed for {coingecko_id}: {e}")
+        logger.warning("CoinGecko price fetch failed for %s: %s", coingecko_id, e)
         return None
 
 
@@ -551,7 +549,7 @@ def get_crypto_historical_price(coingecko_id: str, target_date: date, currency: 
         price = data.get("market_data", {}).get("current_price", {}).get(currency.lower())
         return float(price) if price is not None else None
     except Exception as e:
-        print(f"CoinGecko historical price fetch failed for {coingecko_id}: {e}")
+        logger.warning("CoinGecko historical price fetch failed for %s: %s", coingecko_id, e)
         return None
 
 
@@ -586,7 +584,7 @@ def get_metal_price(metal: str, currency: str = "USD"):
         response.raise_for_status()
         data = response.json()
         if not data.get("success", True) and "rates" not in data:
-            print(f"metals-api error: {data.get('error')}")
+            logger.warning("metals-api error: %s", data.get("error"))
             return None
         # metals-api returns rates as "units of the metal per 1 unit of base
         # currency" (a troy-oz fraction), not a price — invert to get price.
@@ -597,7 +595,7 @@ def get_metal_price(metal: str, currency: str = "USD"):
         _PRICE_CACHE[cache_key] = (price, current_time)
         return price
     except Exception as e:
-        print(f"metals-api price fetch failed for {metal}: {e}")
+        logger.warning("metals-api price fetch failed for %s: %s", metal, e)
         return None
 
 
@@ -636,5 +634,5 @@ def get_exchange_rate(from_currency: str, to_currency: str, target_date: date = 
         _PRICE_CACHE[cache_key] = (rate, current_time)
         return rate
     except Exception as e:
-        print(f"frankfurter.app FX fetch failed for {from_currency}->{to_currency}: {e}")
+        logger.warning("frankfurter.app FX fetch failed for %s->%s: %s", from_currency, to_currency, e)
         return None

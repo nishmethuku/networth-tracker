@@ -32,6 +32,7 @@ export function mapHolding(h) {
     quantity: h.quantity != null ? safeNumber(h.quantity) : null,
     avgCost: h.avg_cost != null ? safeNumber(h.avg_cost) : null,
     costBasis: h.cost_basis != null ? safeNumber(h.cost_basis) : null,
+    displayCostBasis: h.display_cost_basis != null ? safeNumber(h.display_cost_basis) : null,
     currentPrice: h.current_price != null ? safeNumber(h.current_price) : null,
     realizedGain: h.realized_gain != null ? safeNumber(h.realized_gain) : null,
     unrealizedGain: h.unrealized_gain != null ? safeNumber(h.unrealized_gain) : null,
@@ -42,6 +43,7 @@ export function mapHolding(h) {
 
     // Valuation-based metrics (real_estate/fixed_deposit/ppf/epf/cash/loan)
     firstValue: h.first_value != null ? safeNumber(h.first_value) : null,
+    displayFirstValue: h.display_first_value != null ? safeNumber(h.display_first_value) : null,
     gain: h.gain != null ? safeNumber(h.gain) : null,
     history: h.history || null,
 

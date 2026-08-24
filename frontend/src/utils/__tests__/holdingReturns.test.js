@@ -1,13 +1,57 @@
 import { describe, it, expect } from "vitest";
-import { holdingGrowthPct, computeReturnsByType, computeGroupedReturn } from "../holdingReturns";
+import { holdingGrowthPct, holdingBuyValue, groupBuyValueAndGain, computeReturnsByType, computeGroupedReturn } from "../holdingReturns";
 
-function stock({ costBasis, totalGain, displayValue, xirr }) {
-  return { assetType: "stock", costBasis, totalGain, displayValue, xirr };
+function stock({ costBasis, displayCostBasis, totalGain, displayValue, xirr }) {
+  return { assetType: "stock", costBasis, displayCostBasis, totalGain, displayValue, xirr };
 }
 
-function realEstate({ firstValue, gain, displayValue }) {
-  return { assetType: "real_estate", firstValue, gain, displayValue };
+function realEstate({ firstValue, displayFirstValue, gain, displayValue }) {
+  return { assetType: "real_estate", firstValue, displayFirstValue, gain, displayValue };
 }
+
+describe("holdingBuyValue", () => {
+  it("uses displayCostBasis for quantity-based holdings", () => {
+    const h = stock({ costBasis: 1000, displayCostBasis: 83000, totalGain: 250, displayValue: 103750 });
+    expect(holdingBuyValue(h)).toBe(83000);
+  });
+
+  it("uses the absolute value of displayFirstValue for valuation-based holdings", () => {
+    const h = realEstate({ firstValue: 400000, displayFirstValue: 400000, gain: 40000, displayValue: 440000 });
+    expect(holdingBuyValue(h)).toBe(400000);
+  });
+
+  it("returns null (not 0) when unknown, so it's distinguishable from a real zero", () => {
+    expect(holdingBuyValue(stock({ costBasis: null, displayCostBasis: null, totalGain: null, displayValue: 0 }))).toBeNull();
+  });
+});
+
+describe("groupBuyValueAndGain", () => {
+  it("sums buy value and computes $ gain across a mixed group", () => {
+    const holdings = [
+      stock({ costBasis: 1000, displayCostBasis: 1000, totalGain: 250, displayValue: 1250 }),
+      realEstate({ firstValue: 400000, displayFirstValue: 400000, gain: 40000, displayValue: 440000 }),
+    ];
+    const result = groupBuyValueAndGain(holdings);
+    expect(result.buyValue).toBe(401000);
+    expect(result.gainAmount).toBe(40250); // (1250+440000) - 401000
+  });
+
+  it("excludes holdings with unknown buy value from the sum rather than treating them as 0", () => {
+    const holdings = [
+      stock({ costBasis: 1000, displayCostBasis: 1000, totalGain: 250, displayValue: 1250 }),
+      stock({ costBasis: null, displayCostBasis: null, totalGain: null, displayValue: 500 }), // unknown buy value
+    ];
+    const result = groupBuyValueAndGain(holdings);
+    expect(result.buyValue).toBe(1000); // only the first holding's buy value, not padded with a 0 for the second
+  });
+
+  it("returns null buyValue/gainAmount when nothing in the group has a known buy value", () => {
+    const holdings = [stock({ costBasis: null, displayCostBasis: null, totalGain: null, displayValue: 500 })];
+    const result = groupBuyValueAndGain(holdings);
+    expect(result.buyValue).toBeNull();
+    expect(result.gainAmount).toBeNull();
+  });
+});
 
 describe("holdingGrowthPct", () => {
   it("computes total return from cost basis for quantity-based holdings", () => {

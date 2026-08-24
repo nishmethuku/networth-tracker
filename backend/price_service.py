@@ -5,12 +5,15 @@ Checks price_history/exchange_rates first, calls out to the live APIs on a
 miss, and writes the result back — so repeat lookups and the daily snapshot
 job don't re-hit rate-limited free tiers every time.
 """
+import logging
 from datetime import date, datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import func
 
 from .models import db, PriceHistory, ExchangeRate
+
+logger = logging.getLogger(__name__)
 from .utils import (
     get_current_stock_price,
     get_crypto_price,
@@ -69,7 +72,7 @@ def _get_mftool_historical_nav(scheme_code: str, target_date: date) -> Optional[
                 return float(entry.get("nav"))
         return None
     except Exception as e:
-        print(f"mftool historical NAV fetch failed for {scheme_code}: {e}")
+        logger.warning("mftool historical NAV fetch failed for %s: %s", scheme_code, e)
         return None
 
 

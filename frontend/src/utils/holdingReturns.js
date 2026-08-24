@@ -15,6 +15,35 @@ export function holdingGrowthPct(h) {
 }
 
 /**
+ * What this holding was originally worth ("buy value"), in the display
+ * currency — the cost-basis twin of h.displayValue, so the two can be
+ * summed across holdings in different native currencies (an account or
+ * category aggregate) without mixing currencies. Returns null rather than
+ * 0 when unknown, so callers can distinguish "no data" from "worth zero."
+ */
+export function holdingBuyValue(h) {
+  if (isQuantityBased(h.assetType)) return h.displayCostBasis;
+  return h.displayFirstValue != null ? Math.abs(h.displayFirstValue) : null;
+}
+
+/**
+ * Total buy value across a group of holdings (sum of whatever holdings
+ * actually have it — one with unknown buy value is excluded from the sum
+ * rather than treated as 0, so it doesn't understate the rest), plus the
+ * resulting $ gain if there's anything to compare against.
+ */
+export function groupBuyValueAndGain(holdings) {
+  let buyValue = null;
+  let value = 0;
+  for (const h of holdings) {
+    value += h.displayValue || 0;
+    const bv = holdingBuyValue(h);
+    if (bv != null) buyValue = (buyValue ?? 0) + bv;
+  }
+  return { buyValue, gainAmount: buyValue != null ? value - buyValue : null };
+}
+
+/**
  * A single holding's own return, choosing the right figure and correctly
  * labeling which one it is: true annualized XIRR where that's meaningful
  * (quantity-based types with a dated transaction ledger), plain growth %

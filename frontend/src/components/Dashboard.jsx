@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import usePullToRefresh from "../hooks/usePullToRefresh";
@@ -17,10 +17,12 @@ import GoalsCard from "./dashboard/GoalsCard";
 import EmergencyFundCard from "./dashboard/EmergencyFundCard";
 import MoverHeatGrid from "./dashboard/MoverHeatGrid";
 import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
+import CagrHistogram from "./dashboard/CagrHistogram";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
 import AnimatedNumber from "./AnimatedNumber";
 import { fetchDashboard, fetchNetWorthHistory, fetchHoldings, fetchBenchmark, ApiError } from "../api";
 import { formatCurrencyCompact, formatPercent } from "../utils/formatters";
+import { groupBuyValueAndGain } from "../utils/holdingReturns";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
 const BENCHMARKS = [
@@ -104,6 +106,8 @@ export default function Dashboard() {
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });
+
+  const buyValueSummary = useMemo(() => groupBuyValueAndGain(holdings || []), [holdings]);
 
   const { containerRef, pullDistance, refreshing, threshold } = usePullToRefresh(async () => {
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -216,6 +220,17 @@ export default function Dashboard() {
                 subtitle="Mortgages, loans, credit cards"
               />
             )}
+            {buyValueSummary.buyValue != null && (
+              <Card
+                title="Total Buy Value"
+                value={formatCurrencyCompact(buyValueSummary.buyValue, currency)}
+                subtitle={
+                  buyValueSummary.gainAmount != null
+                    ? `${buyValueSummary.gainAmount >= 0 ? "+" : ""}${formatCurrencyCompact(buyValueSummary.gainAmount, currency)} (${buyValueSummary.gainAmount >= 0 ? "+" : ""}${((buyValueSummary.gainAmount / buyValueSummary.buyValue) * 100).toFixed(1)}%) overall`
+                    : "What you originally paid for what you still hold"
+                }
+              />
+            )}
             <Card
               title={t("dashboard.unrealizedGains")}
               value={formatCurrencyCompact(dashboard.unrealizedGain, currency)}
@@ -297,6 +312,14 @@ export default function Dashboard() {
             <Card title={t("dashboard.returnsByType")} subtitle="Value-weighted average return per type">
               <ErrorBoundary mode="section" fallbackMessage="Couldn't compute returns by asset type.">
                 <ReturnsByTypeChart holdings={holdings} />
+              </ErrorBoundary>
+            </Card>
+          </div>
+
+          <div style={{ marginBottom: "1.5rem" }}>
+            <Card title="CAGR by Holding" subtitle="Annualized return (XIRR) per holding, plus your overall portfolio CAGR">
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't compute CAGR by holding.">
+                <CagrHistogram holdings={holdings} portfolioXirr={dashboard.portfolioXirr} />
               </ErrorBoundary>
             </Card>
           </div>

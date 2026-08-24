@@ -12,6 +12,14 @@ from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException
 import requests
 
+# Configured before any local module import below, since several of them
+# (utils.py in particular) log at import time — e.g. whether mftool
+# initialized successfully. Without this, those early messages would fall
+# back to logging's unconfigured "handler of last resort" (stderr,
+# WARNING+ only, no timestamp/module name), so INFO-level import-time
+# diagnostics would be silently dropped.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
 from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit, Liability, Milestone
 from .auth import require_auth
 from .utils import FINNHUB_API_KEY
@@ -1020,7 +1028,7 @@ def create_app():
                 for c in coins
             ])
         except Exception as e:
-            print(f"CoinGecko search failed: {e}")
+            logger.warning("CoinGecko search failed: %s", e)
             return jsonify([])
 
     def _search_finnhub_symbols(query):
@@ -1050,7 +1058,7 @@ def create_app():
                     })
             return results
         except Exception as e:
-            print(f"Finnhub symbol search failed: {e}")
+            logger.warning("Finnhub symbol search failed: %s", e)
             return []
 
     def _search_nse_symbols(query):
@@ -1071,7 +1079,7 @@ def create_app():
             response.raise_for_status()
             data = response.json()
         except Exception as e:
-            print(f"NSE symbol search failed: {e}")
+            logger.warning("NSE symbol search failed: %s", e)
             return []
 
         results = []
@@ -1096,7 +1104,7 @@ def create_app():
                 from mftool import Mftool
                 mf_instance = Mftool()
             except ImportError as e:
-                print(f"[ERROR] mftool import failed: {e}")
+                logger.error("mftool import failed: %s", e)
                 return []
         else:
             try:
@@ -1106,7 +1114,7 @@ def create_app():
                     from mftool import Mftool
                     mf_instance = Mftool()
             except Exception as e:
-                print(f"[ERROR] Failed to get mftool instance: {e}")
+                logger.error("Failed to get mftool instance: %s", e)
                 return []
 
         try:
@@ -1130,7 +1138,7 @@ def create_app():
                         break
             return results
         except Exception as e:
-            print(f"[ERROR] Mutual fund symbol search failed: {e}")
+            logger.error("Mutual fund symbol search failed: %s", e)
             return []
 
     # ---------------- AI FEATURES (owner/editor only, graceful when unconfigured) ----------------

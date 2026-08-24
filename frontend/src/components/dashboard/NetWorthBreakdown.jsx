@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { formatCurrencyForDisplay, formatPercent } from "../../utils/formatters";
 import { getAssetTypeLabel } from "../../constants/enums";
-import { computeGroupedReturn, computeReturnsByType, holdingReturn } from "../../utils/holdingReturns";
+import { computeGroupedReturn, computeReturnsByType, holdingReturn, groupBuyValueAndGain } from "../../utils/holdingReturns";
 import EmptyState from "../EmptyState";
 import useIsMobile from "../../hooks/useIsMobile";
 
@@ -24,17 +24,18 @@ const CATEGORY_ICONS = {
 function buildCategoryRows(holdings) {
   const byType = {};
   for (const h of holdings) {
-    if (!byType[h.assetType]) byType[h.assetType] = { value: 0 };
-    byType[h.assetType].value += h.displayValue || 0;
+    if (!byType[h.assetType]) byType[h.assetType] = [];
+    byType[h.assetType].push(h);
   }
   const returnsByType = Object.fromEntries(computeReturnsByType(holdings).map((r) => [r.assetType, r]));
   return Object.entries(byType)
-    .map(([assetType, b]) => ({
+    .map(([assetType, hs]) => ({
       assetType,
       label: getAssetTypeLabel(assetType),
-      value: b.value,
+      value: hs.reduce((sum, h) => sum + (h.displayValue || 0), 0),
       returnPct: returnsByType[assetType]?.returnPct ?? null,
       isXirr: returnsByType[assetType]?.isXirr ?? false,
+      ...groupBuyValueAndGain(hs),
     }))
     .sort((a, b) => b.value - a.value);
 }
@@ -52,6 +53,7 @@ function buildAccountRows(holdings, assetType) {
       value: hs.reduce((sum, h) => sum + (h.displayValue || 0), 0),
       count: hs.length,
       ...computeGroupedReturn(hs),
+      ...groupBuyValueAndGain(hs),
     }))
     .sort((a, b) => b.value - a.value);
 }
@@ -196,15 +198,26 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
             <div
               key={r.account}
               onClick={() => setDrill({ category: drill.category, account: r.account })}
-              style={{ ...ROW_STYLE, cursor: "pointer", borderBottom: i < accountRows.length - 1 ? "1px solid var(--border-light)" : "none" }}
+              style={{ display: "flex", flexDirection: "column", cursor: "pointer", padding: "0.625rem 0", borderBottom: i < accountRows.length - 1 ? "1px solid var(--border-light)" : "none" }}
             >
-              <span style={{ color: "var(--text)" }}>
-                {r.account} <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>({r.count})</span>
-              </span>
-              <span style={rightGroupStyle(isMobile)}>
-                <span style={valueStyle(isMobile)}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
-                <span style={returnStyle(isMobile)}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
-              </span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "var(--text)" }}>
+                  {r.account} <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>({r.count})</span>
+                </span>
+                <span style={rightGroupStyle(isMobile)}>
+                  <span style={valueStyle(isMobile)}>{formatCurrencyForDisplay(r.value, currency, { includeCode: false })}</span>
+                  <span style={returnStyle(isMobile)}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
+                </span>
+              </div>
+              {r.buyValue != null && (
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+                  Buy value {formatCurrencyForDisplay(r.buyValue, currency, { includeCode: false })}
+                  {" · "}
+                  <span style={{ color: r.gainAmount >= 0 ? "var(--success)" : "var(--danger)" }}>
+                    {r.gainAmount >= 0 ? "+" : ""}{formatCurrencyForDisplay(r.gainAmount, currency, { includeCode: false })}
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -239,7 +252,14 @@ export default function NetWorthBreakdown({ holdings, currency, history }) {
           <div style={{ fontSize: "1.375rem", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text)" }}>
             {formatCurrencyForDisplay(r.value, currency, { includeCode: false })}
           </div>
-          <div style={{ fontSize: "0.8125rem" }}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.5rem" }}>
+            <span style={{ fontSize: "0.8125rem" }}><ReturnCell pct={r.returnPct} isXirr={r.isXirr} /></span>
+            {r.gainAmount != null && (
+              <span style={{ fontSize: "0.75rem", fontWeight: 600, color: r.gainAmount >= 0 ? "var(--success)" : "var(--danger)" }}>
+                {r.gainAmount >= 0 ? "+" : ""}{formatCurrencyForDisplay(r.gainAmount, currency, { includeCode: false })}
+              </span>
+            )}
+          </div>
         </div>
       ))}
     </div>

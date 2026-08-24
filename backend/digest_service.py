@@ -3,10 +3,13 @@ Weekly net worth digest computation and delivery. Called by
 /internal/weekly-digest (a GitHub Actions cron, mirroring the daily snapshot
 job).
 """
+import logging
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 from . import ai_service
 from .models import db, Holding, Household, NetWorthSnapshot
@@ -108,7 +111,7 @@ def build_weekly_digest(send_emails: bool = True) -> List[Dict]:
                 try:
                     backup_zip = export_user_data_csv_zip(user_id)
                 except Exception as e:
-                    print(f"[digest_service] Backup export failed for user {user_id}: {e}")
+                    logger.error("Backup export failed for user %s: %s", user_id, e)
             for r in recipients:
                 unsubscribe_token = generate_unsubscribe_token(r["email"])
                 send(
