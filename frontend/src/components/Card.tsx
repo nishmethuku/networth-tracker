@@ -1,4 +1,13 @@
-export default function Card({ title, value, subtitle, children }) {
+import type { ReactNode } from "react";
+
+interface CardProps {
+  title?: ReactNode;
+  value?: ReactNode;
+  subtitle?: ReactNode;
+  children?: ReactNode;
+}
+
+export default function Card({ title, value, subtitle, children }: CardProps) {
   return (
     <div
       style={{

@@ -1,7 +1,11 @@
+interface LoadingStateProps {
+  message?: string;
+}
+
 /**
  * Loading state component - reusable spinner
  */
-export default function LoadingState({ message = "Loading..." }) {
+export default function LoadingState({ message = "Loading..." }: LoadingStateProps) {
   return (
     <div
       style={{

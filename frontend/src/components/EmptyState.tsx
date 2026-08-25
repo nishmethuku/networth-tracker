@@ -1,7 +1,14 @@
+import type { ReactNode } from "react";
+
+interface EmptyStateProps {
+  message: ReactNode;
+  action?: ReactNode;
+}
+
 /**
  * Empty state component - shows when there's no data
  */
-export default function EmptyState({ message, action }) {
+export default function EmptyState({ message, action }: EmptyStateProps) {
   return (
     <div
       style={{

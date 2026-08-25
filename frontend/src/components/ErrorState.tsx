@@ -1,8 +1,18 @@
+interface ErrorLike {
+  message?: string;
+}
+
+interface ErrorStateProps {
+  error?: ErrorLike | string | null;
+  onRetry?: () => void;
+  message?: string;
+}
+
 /**
  * Error state component - reusable error display with retry option
  */
-export default function ErrorState({ error, onRetry, message = "Failed to load data" }) {
-  const errorMessage = error?.message || error || message;
+export default function ErrorState({ error, onRetry, message = "Failed to load data" }: ErrorStateProps) {
+  const errorMessage = (typeof error === "string" ? error : error?.message) || message;
 
   return (
     <div
@@ -35,14 +45,14 @@ export default function ErrorState({ error, onRetry, message = "Failed to load d
             boxShadow: "var(--shadow)",
           }}
           onMouseEnter={(e) => {
-            e.target.style.background = "var(--primary-hover)";
-            e.target.style.transform = "translateY(-2px)";
-            e.target.style.boxShadow = "var(--shadow-md)";
+            e.currentTarget.style.background = "var(--primary-hover)";
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "var(--shadow-md)";
           }}
           onMouseLeave={(e) => {
-            e.target.style.background = "var(--primary)";
-            e.target.style.transform = "translateY(0)";
-            e.target.style.boxShadow = "var(--shadow)";
+            e.currentTarget.style.background = "var(--primary)";
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "var(--shadow)";
           }}
         >
           Retry
