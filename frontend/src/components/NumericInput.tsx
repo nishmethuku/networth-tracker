@@ -11,8 +11,10 @@ function formatDisplay(raw: string | number | null | undefined): string {
   return decPart !== undefined ? `${withCommas}.${decPart}` : withCommas;
 }
 
-interface NumericInputProps<TFieldValues extends FieldValues>
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, "style" | "value" | "onChange" | "onBlur" | "onFocus" | "name"> {
+interface NumericInputProps<TFieldValues extends FieldValues> extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "style" | "value" | "onChange" | "onBlur" | "onFocus" | "name"
+> {
   control: Control<TFieldValues>;
   name: FieldPath<TFieldValues>;
   style?: CSSProperties;
