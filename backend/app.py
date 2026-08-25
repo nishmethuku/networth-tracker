@@ -11,6 +11,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException
 import requests
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 # Configured before any local module import below, since several of them
 # (utils.py in particular) log at import time — e.g. whether mftool
@@ -96,6 +98,25 @@ _ERROR_CODES = {
 
 
 def create_app():
+    # Same "gracefully absent" pattern as every other optional integration
+    # in this app (RESEND_API_KEY, GEMINI_API_KEY, ...): without SENTRY_DSN
+    # set, this is a no-op — no error tracking, but nothing breaks either.
+    # Called before Flask(__name__) so import-time errors in anything
+    # imported below are captured too, not just request-time exceptions.
+    sentry_dsn = os.environ.get("SENTRY_DSN")
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FlaskIntegration()],
+            environment=os.environ.get("FLASK_ENV", "development"),
+            # Error tracking only, not performance tracing — this is a
+            # single free-tier Render instance for a personal app, and
+            # trace sampling burns through Sentry's free-tier quota fast
+            # for very little benefit at this scale.
+            traces_sample_rate=0.0,
+            send_default_pii=False,
+        )
+
     app = Flask(__name__)
 
     database_url = os.environ.get("DATABASE_URL")
@@ -116,14 +137,21 @@ def create_app():
     else:
         CORS(app, expose_headers=["X-Request-ID"])
 
-    # In-memory storage: fine for a single Render instance (matches the
-    # no-Redis decision); resets on deploy/restart and won't share state
-    # across multiple workers/instances if the app ever scales out.
+    # In-memory storage is per-process, not per-instance: gunicorn already
+    # runs 2 worker processes (see Dockerfile), so even today, on a single
+    # Render instance, "60 per minute" is actually up to 120/minute split
+    # unevenly across whichever worker a request happens to land on — the
+    # limit was never reliably enforced per-user to begin with. REDIS_URL
+    # (optional — e.g. a free Upstash/Render Redis instance) gives every
+    # worker (and every instance, if this ever scales horizontally) a
+    # shared view of each caller's request count; unset, it falls back to
+    # the same in-memory behavior as before rather than failing to start.
+    redis_url = os.environ.get("REDIS_URL")
     limiter = Limiter(
         get_remote_address,
         app=app,
         default_limits=["60 per minute"],
-        storage_uri="memory://",
+        storage_uri=redis_url or "memory://",
         headers_enabled=True,
     )
     app.extensions["limiter"] = limiter
@@ -154,6 +182,8 @@ def create_app():
     @app.errorhandler(Exception)
     def _handle_unexpected_exception(err):
         logger.exception("Unhandled exception (request_id=%s)", getattr(g, "request_id", None))
+        if sentry_dsn:
+            sentry_sdk.capture_exception(err)
         return jsonify(_error_payload("An unexpected error occurred", 500)), 500
 
     # ---------------- SCOPE / AUTHORIZATION HELPERS ----------------

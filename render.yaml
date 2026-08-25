@@ -24,3 +24,7 @@ services:
         sync: false # optional, free — powers the AI copilot chat, digest narrative, allocation advisor, categorizer, and search. Get one at aistudio.google.com
       - key: FRONTEND_URL
         sync: false # your Vercel deployment URL, e.g. https://networth-tracker.vercel.app
+      - key: SENTRY_DSN
+        sync: false # optional, free — error tracking (sentry.io). Unset = no-op, nothing breaks.
+      - key: REDIS_URL
+        sync: false # optional — shared rate-limit storage across gunicorn's 2 worker processes. Unset = falls back to in-memory (approximate across workers).
