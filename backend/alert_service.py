@@ -7,9 +7,10 @@ from typing import Dict
 
 from sqlalchemy import text
 
-from .models import db, PriceAlert, Holding
+from .models import db, PriceAlert, Holding, Liability
 from . import price_service
 from .holdings_service import list_holdings_with_metrics
+from .liability_service import total_liabilities_display
 from .email_service import send, render_alert_email
 
 
@@ -21,9 +22,19 @@ def _user_email(user_id):
 
 
 def _current_net_worth(user_id, currency="USD") -> float:
+    """True net worth (assets minus liabilities), matching the dashboard
+    and daily snapshots — this function predates the liabilities feature
+    and was assets-only until found live (same class of bug already fixed
+    in digest_service.py): a net_worth_above/below alert would trigger
+    against gross assets, firing well before (or never, for _below) the
+    threshold the user actually meant relative to their real net worth."""
     holdings = Holding.query.filter_by(user_id=user_id).all()
     metrics = list_holdings_with_metrics(holdings, display_currency=currency)
-    return sum(h["display_value"] for h in metrics)
+    total_assets = sum(h["display_value"] for h in metrics)
+
+    liabilities = Liability.query.filter_by(user_id=user_id).all()
+    total_liabilities = total_liabilities_display(liabilities, display_currency=currency)
+    return total_assets - total_liabilities
 
 
 def check_all_alerts() -> Dict:
