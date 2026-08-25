@@ -31,7 +31,7 @@ from . import ai_service
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
 from .allocation_target_service import get_target_allocation, save_target_allocation, clear_target_allocation
 from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation, TRANSACTION_TYPES
-from .liability_service import list_liabilities_with_display, total_liabilities_display, LIABILITY_TYPES
+from .liability_service import list_liabilities_with_display, total_liabilities_display, apply_payment, LIABILITY_TYPES
 from .emergency_fund_service import get_emergency_fund_status
 from .household_service import (
     get_member_household_ids,
@@ -1650,6 +1650,14 @@ def create_app():
         if recurring_frequency and recurring_frequency not in ("weekly", "monthly", "quarterly", "yearly"):
             return jsonify({"error": "recurring_frequency must be weekly, monthly, quarterly, or yearly"}), 400
 
+        # Authorize the linked liability (if any) *before* constructing/
+        # adding the entry — get_authorized_liability's lookup would
+        # otherwise trigger SQLAlchemy's autoflush on an already-added
+        # entry carrying a bad linked_liability_id, turning a clean 404
+        # into a raw IntegrityError (foreign-key violation) and a 500.
+        linked_liability_id = data.get("linked_liability_id") if entry_type == "expense" else None
+        liability = get_authorized_liability(linked_liability_id, require_write=True) if linked_liability_id else None
+
         entry = BudgetEntry(
             user_id=g.user_id,
             household_id=household_id,
@@ -1662,6 +1670,7 @@ def create_app():
             is_private=bool(data.get("is_private", False)),
             is_recurring=bool(data.get("is_recurring", False)),
             recurring_frequency=recurring_frequency,
+            linked_liability_id=linked_liability_id,
         )
         db.session.add(entry)
 
@@ -1679,8 +1688,16 @@ def create_app():
                 return jsonify({"error": str(e)}), 400
             db.session.add(funding_valuation)
 
+        liability_after_payment = None
+        if liability:
+            liability_after_payment = apply_payment(liability, entry.amount, entry.currency)
+
         db.session.commit()
-        return jsonify({**entry.to_dict(), "funding_source": funding_valuation.to_dict() if funding_valuation else None}), 201
+        return jsonify({
+            **entry.to_dict(),
+            "funding_source": funding_valuation.to_dict() if funding_valuation else None,
+            "linked_liability": liability_after_payment.to_dict() if liability_after_payment else None,
+        }), 201
 
     @app.route("/budget/entries/<int:entry_id>", methods=["PUT"])
     @require_auth

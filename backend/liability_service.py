@@ -8,7 +8,7 @@ directly, like a valuation-based holding.
 from typing import Dict, List
 
 from . import price_service
-from .models import Liability
+from .models import db, Liability
 
 LIABILITY_TYPES = (
     "mortgage",
@@ -34,3 +34,16 @@ def total_liabilities_display(liabilities: List[Liability], display_currency: st
     return round(
         sum(price_service.convert(l.current_balance, l.currency, display_currency) for l in liabilities), 2
     )
+
+
+def apply_payment(liability: Liability, amount: float, amount_currency: str) -> Liability:
+    """Reduces a liability's balance by a payment amount (converted into the
+    liability's own currency), floored at 0 — used when a Budget expense
+    entry is linked to a liability (see create_budget_entry / update_
+    budget_entry in app.py), so logging "paid the mortgage" in Budget
+    doesn't also require a separate manual edit to the Liability balance.
+    Uncommitted -- caller commits alongside the BudgetEntry insert."""
+    converted = price_service.convert(amount, amount_currency, liability.currency)
+    liability.current_balance = max(0.0, liability.current_balance - converted)
+    db.session.add(liability)
+    return liability

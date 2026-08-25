@@ -21,6 +21,7 @@ import {
   deleteBudgetLimit,
   fetchBudgetInsights,
   fetchHoldings,
+  fetchLiabilities,
   ApiError,
 } from "../api";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
@@ -112,6 +113,7 @@ function AddEntryForm({ categories, currency }) {
       is_recurring: false,
       recurring_frequency: "monthly",
       funding_source_holding_id: "",
+      linked_liability_id: "",
     },
   });
   const entryType = watch("entry_type");
@@ -124,6 +126,15 @@ function AddEntryForm({ categories, currency }) {
   const { data: cashHoldings } = useQuery({
     queryKey: ["holdings", "cash"],
     queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
+    enabled: entryType === "expense",
+  });
+
+  // Liabilities this expense can pay down — picking one reduces that
+  // liability's balance automatically instead of a separate manual edit,
+  // same mechanism as the cash-funding-source field above.
+  const { data: liabilities } = useQuery({
+    queryKey: ["liabilities", currency],
+    queryFn: () => fetchLiabilities({ currency }),
     enabled: entryType === "expense",
   });
 
@@ -141,6 +152,9 @@ function AddEntryForm({ categories, currency }) {
         ...(data.entry_type === "expense" && data.funding_source_holding_id
           ? { funding_source_holding_id: Number(data.funding_source_holding_id) }
           : {}),
+        ...(data.entry_type === "expense" && data.linked_liability_id
+          ? { linked_liability_id: Number(data.linked_liability_id) }
+          : {}),
       }),
     onSuccess: (entry) => {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
@@ -152,6 +166,11 @@ function AddEntryForm({ categories, currency }) {
         queryClient.invalidateQueries({ queryKey: ["holdings"] });
         toast.success(
           `Expense added — account balance updated to ${formatCurrencyForDisplay(entry.fundingSource.newBalance, entry.fundingSource.currency, { includeCode: false })}`,
+        );
+      } else if (entry.linkedLiability) {
+        queryClient.invalidateQueries({ queryKey: ["liabilities"] });
+        toast.success(
+          `Expense added — liability balance updated to ${formatCurrencyForDisplay(entry.linkedLiability.newBalance, entry.linkedLiability.currency, { includeCode: false })}`,
         );
       } else {
         toast.success(entryType === "income" ? "Income added" : "Expense added");
@@ -166,6 +185,7 @@ function AddEntryForm({ categories, currency }) {
         is_recurring: false,
         recurring_frequency: "monthly",
         funding_source_holding_id: "",
+        linked_liability_id: "",
       });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add entry"),
@@ -252,6 +272,25 @@ function AddEntryForm({ categories, currency }) {
                 <option key={c.id} value={c.id}>
                   {c.name}
                   {c.account ? ` (${c.account})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {entryType === "expense" && liabilities?.length > 0 && (
+          <div>
+            <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+              Pays down
+            </label>
+            <select
+              {...register("linked_liability_id")}
+              style={inputStyle}
+              title="Reduces the selected liability's balance by this expense amount"
+            >
+              <option value="">— none —</option>
+              {liabilities.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
                 </option>
               ))}
             </select>

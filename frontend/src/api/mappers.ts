@@ -116,6 +116,12 @@ export interface FundingSource {
   currency: string;
 }
 
+export interface LinkedLiabilityPayment {
+  liabilityId: number;
+  newBalance: number;
+  currency: string;
+}
+
 export interface Transaction {
   id: number;
   holdingId: number;
@@ -398,6 +404,8 @@ export interface BudgetEntry {
   recurringFrequency: string | null;
   createdAt: string;
   fundingSource: FundingSource | null;
+  linkedLiabilityId: number | null;
+  linkedLiability: LinkedLiabilityPayment | null;
 }
 
 export function mapBudgetEntry(e: any): BudgetEntry | null {
@@ -417,6 +425,10 @@ export function mapBudgetEntry(e: any): BudgetEntry | null {
     createdAt: e.created_at ?? "",
     fundingSource: e.funding_source
       ? { holdingId: e.funding_source.holding_id, newBalance: safeNumber(e.funding_source.value), currency: e.funding_source.currency }
+      : null,
+    linkedLiabilityId: e.linked_liability_id ?? null,
+    linkedLiability: e.linked_liability
+      ? { liabilityId: e.linked_liability.id, newBalance: safeNumber(e.linked_liability.current_balance), currency: e.linked_liability.currency }
       : null,
   };
 }

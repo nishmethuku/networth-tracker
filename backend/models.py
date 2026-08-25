@@ -332,6 +332,15 @@ class BudgetEntry(db.Model):
     is_recurring = db.Column(db.Boolean, nullable=False, default=False)
     recurring_frequency = db.Column(db.String(16))  # 'weekly' | 'monthly' | 'quarterly' | 'yearly'
 
+    # Optional: this expense IS a payment on a liability (mortgage, loan,
+    # credit card, ...) — logging it also reduces the linked liability's
+    # balance (liability_service.apply_payment), so paying a bill down
+    # doesn't separately require a manual liability edit. One-directional:
+    # editing/deleting this entry later does not reverse the balance
+    # change, same as a valuation-based holding's balance is never
+    # auto-reconstructed from its history.
+    linked_liability_id = db.Column(db.BigInteger, db.ForeignKey("liabilities.id"), nullable=True)
+
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
     def to_dict(self):
@@ -348,6 +357,7 @@ class BudgetEntry(db.Model):
             "is_private": self.is_private,
             "is_recurring": self.is_recurring,
             "recurring_frequency": self.recurring_frequency,
+            "linked_liability_id": self.linked_liability_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
