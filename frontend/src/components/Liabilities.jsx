@@ -64,8 +64,11 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
     <form onSubmit={handleSubmit}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1rem" }}>
         <div>
-          <label style={labelStyle}>Name</label>
+          <label style={labelStyle} htmlFor="liability-name">
+            Name
+          </label>
           <input
+            id="liability-name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="e.g., Home mortgage"
@@ -74,8 +77,15 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
           />
         </div>
         <div>
-          <label style={labelStyle}>Type</label>
-          <select value={form.liability_type} onChange={(e) => setForm({ ...form, liability_type: e.target.value })} style={inputStyle}>
+          <label style={labelStyle} htmlFor="liability-type">
+            Type
+          </label>
+          <select
+            id="liability-type"
+            value={form.liability_type}
+            onChange={(e) => setForm({ ...form, liability_type: e.target.value })}
+            style={inputStyle}
+          >
             {LIABILITY_TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -84,8 +94,15 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Currency</label>
-          <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={inputStyle}>
+          <label style={labelStyle} htmlFor="liability-currency">
+            Currency
+          </label>
+          <select
+            id="liability-currency"
+            value={form.currency}
+            onChange={(e) => setForm({ ...form, currency: e.target.value })}
+            style={inputStyle}
+          >
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -94,8 +111,11 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Current balance</label>
+          <label style={labelStyle} htmlFor="liability-current-balance">
+            Current balance
+          </label>
           <input
+            id="liability-current-balance"
             type="number"
             step="any"
             min="0"
@@ -106,8 +126,11 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
           />
         </div>
         <div>
-          <label style={labelStyle}>Original amount (optional)</label>
+          <label style={labelStyle} htmlFor="liability-original-amount">
+            Original amount (optional)
+          </label>
           <input
+            id="liability-original-amount"
             type="number"
             step="any"
             min="0"
@@ -117,8 +140,11 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
           />
         </div>
         <div>
-          <label style={labelStyle}>Interest rate % (optional)</label>
+          <label style={labelStyle} htmlFor="liability-interest-rate">
+            Interest rate % (optional)
+          </label>
           <input
+            id="liability-interest-rate"
             type="number"
             step="any"
             min="0"
@@ -129,8 +155,10 @@ function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
         </div>
       </div>
       <div style={{ marginBottom: "1rem" }}>
-        <label style={labelStyle}>Notes (optional)</label>
-        <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={inputStyle} />
+        <label style={labelStyle} htmlFor="liability-notes">
+          Notes (optional)
+        </label>
+        <input id="liability-notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={inputStyle} />
       </div>
       <div style={{ display: "flex", gap: "0.75rem" }}>
         <button

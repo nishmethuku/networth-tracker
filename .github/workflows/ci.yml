@@ -4,8 +4,10 @@ name: CI
 # tests wouldn't) on every push and pull request against main — separate
 # from the other workflows in this directory, which are scheduled crons
 # that operate on the deployed app rather than testing the codebase.
-# Every job here runs against mocked/pure-function tests only, so none of
-# it needs real Supabase/database credentials.
+# Every job here runs against mocked/pure-function tests only (e2e-tests
+# mocks the backend and Supabase auth at the network/localStorage level —
+# see frontend/e2e/fixtures.ts), so none of it needs real Supabase/
+# database credentials.
 
 on:
   push:
@@ -52,3 +54,28 @@ jobs:
         run: npx vitest run
       - name: Production build
         run: npm run build
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E tests
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

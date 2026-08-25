@@ -62,6 +62,16 @@ export default [
     },
   }),
   {
+    // Playwright fixtures/specs aren't React code — most notably,
+    // Playwright's own `use()` fixture callback isn't a React hook despite
+    // the name, which react-hooks/rules-of-hooks would otherwise flag.
+    files: ["e2e/**/*.ts", "playwright.config.ts"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+      "react/react-in-jsx-scope": "off",
+    },
+  },
+  {
     // vitest.config.js sets test.globals: true, so describe/it/expect/vi/
     // beforeEach/afterEach are available unimported in test files.
     files: ["**/*.test.js", "**/__tests__/**", "src/test-setup.js"],

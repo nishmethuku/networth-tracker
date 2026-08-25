@@ -13,7 +13,8 @@ A full-stack family net worth tracker: real transaction-based portfolio accounti
 - **AI**: Google Gemini, chosen for its free tier (copilot chat, AI-narrated digest, allocation advisor, transaction categorizer, spreadsheet/bank-statement import, natural-language search) — fully optional, degrades to a clean "not configured" response (or a friendly quota-exceeded message) without ever hard-failing a request
 - **Live/historical prices**: Finnhub (US live), Yahoo Finance (historical + NSE fallback, unofficial/keyless), NSE libraries + mftool (India), CoinGecko (crypto), metals-api.com (gold/silver/platinum), frankfurter.app (FX)
 - **Email**: Resend (weekly digest, price alerts, milestone celebrations)
-- **Tooling**: ESLint (flat config, typescript-eslint for `.ts`) + Prettier, `tsc --noEmit` for type checking, pytest (backend) + Vitest (frontend), GitHub Actions CI on every push/PR
+- **Tooling**: ESLint (flat config, typescript-eslint for `.ts`) + Prettier, `tsc --noEmit` for type checking, pytest + Vitest for unit/component tests, Playwright for real-browser E2E tests (network + auth mocked, no secrets needed), GitHub Actions CI on every push/PR
+- **Observability**: Sentry (optional — `SENTRY_DSN`; unset = no-op, same graceful-degradation pattern as every other integration)
 - **Deployment**: Vercel (frontend) + Render (backend, Docker) + GitHub Actions (daily snapshot, weekly digest, alert-check crons)
 
 ## Engineering highlights
@@ -165,8 +166,10 @@ cd frontend
 npm run lint        # ESLint (flat config, TS-aware)
 npm run typecheck   # tsc --noEmit
 npm run format:check
-npx vitest run
+npx vitest run       # unit/component tests (jsdom)
 npm run build
+npx playwright install --with-deps chromium   # once
+npm run test:e2e    # real-browser E2E (Chromium) — network + Supabase auth mocked, no secrets needed
 ```
 
 All of the above run in CI on every push and pull request against `main` ([.github/workflows/ci.yml](./.github/workflows/ci.yml)).
