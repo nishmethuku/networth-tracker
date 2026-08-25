@@ -122,6 +122,36 @@ def test_summarize_subscriptions_empty_without_entries():
     assert result["monthly_total"] == 0.0
 
 
+def test_summarize_subscriptions_does_not_merge_distinct_undescribed_entries():
+    """Regression test: two different subscriptions in the same category
+    that both have no description used to group under the same (category,
+    description) key, silently merging into one -- the smaller one just
+    vanished from the list and monthly_total undercounted the household's
+    real recurring spend. Description-less entries now also key on amount
+    so two genuinely different subscriptions don't collide."""
+    entries = [
+        _entry("expense", date(2026, 1, 1), 15.99, "entertainment", is_recurring=True, recurring_frequency="monthly"),
+        _entry("expense", date(2026, 1, 2), 9.99, "entertainment", is_recurring=True, recurring_frequency="monthly"),
+    ]
+    result = summarize_subscriptions(entries)
+    assert len(result["items"]) == 2
+    assert result["monthly_total"] == 25.98
+
+
+def test_summarize_subscriptions_still_merges_same_description_across_months():
+    """Sanity check alongside the fix above: re-logging the same named
+    subscription (even at a changed amount, e.g. a price increase) must
+    still collapse to its latest entry -- the amount-based fallback key
+    only kicks in when description is blank."""
+    entries = [
+        _entry("expense", date(2026, 1, 1), 2000.0, "housing", is_recurring=True, recurring_frequency="monthly", description="Rent"),
+        _entry("expense", date(2026, 2, 1), 2100.0, "housing", is_recurring=True, recurring_frequency="monthly", description="Rent"),
+    ]
+    result = summarize_subscriptions(entries)
+    assert len(result["items"]) == 1
+    assert result["items"][0]["amount"] == 2100.0
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])

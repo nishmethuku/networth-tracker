@@ -133,12 +133,22 @@ def summarize_subscriptions(entries: List[BudgetEntry], currency: str = "USD") -
     filter that at the query level (get_subscriptions) or the test level."""
     groups: Dict[tuple, BudgetEntry] = {}
     for e in sorted(entries, key=lambda e: e.entry_date):
-        key = (e.category, (e.description or "").strip().lower())
+        desc_key = (e.description or "").strip().lower()
+        # An empty description isn't a real identifier -- grouping two
+        # undescribed entries in the same category together (e.g. two
+        # unrelated subscriptions both left blank) would silently merge
+        # distinct subscriptions into one, dropping one of them from the
+        # list and undercounting monthly_total. Falling back to amount
+        # keeps the intended "re-logging the same subscription updates it
+        # in place" behavior for described entries, while still telling
+        # apart undescribed entries that are actually different amounts.
+        key = (e.category, desc_key) if desc_key else (e.category, desc_key, e.amount)
         groups[key] = e  # ascending date order, so the last write per key is the most recent
 
     items = []
     monthly_total = 0.0
-    for (category, _desc_key), latest in groups.items():
+    for key, latest in groups.items():
+        category = key[0]
         frequency = latest.recurring_frequency or "monthly"
         next_due_dates = sip_service.next_occurrences(latest.entry_date, frequency, count=1)
         monthly_equivalent = latest.amount * _MONTHLY_EQUIVALENT.get(frequency, 1.0)
