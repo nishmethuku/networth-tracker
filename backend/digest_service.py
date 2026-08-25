@@ -12,8 +12,9 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 from . import ai_service
-from .models import db, Holding, Household, NetWorthSnapshot
+from .models import db, Holding, Household, Liability, NetWorthSnapshot
 from .holdings_service import list_holdings_with_metrics
+from .liability_service import total_liabilities_display
 from .email_service import send, render_digest_email
 from .unsubscribe_service import is_unsubscribed, generate_unsubscribe_token
 from .account_service import export_user_data_csv_zip
@@ -49,10 +50,32 @@ def _recipient_emails(user_id=None, household_id=None) -> List[str]:
 
 
 def _build_digest_for_scope(user_id=None, household_id=None) -> Dict:
-    query = Holding.query.filter_by(user_id=user_id) if user_id is not None else Holding.query.filter_by(household_id=household_id)
+    # is_private=False on the household branch matters here specifically:
+    # this digest gets emailed to every household member, and without it a
+    # member's private holding's name and value (via top_movers below) would
+    # leak into an email the whole household receives — exactly what
+    # is_private exists to prevent everywhere else in the app
+    # (scoped_holdings_query in app.py, etc.). Caught while fixing the
+    # adjacent net-worth/liabilities bug just above.
+    query = (
+        Holding.query.filter_by(user_id=user_id)
+        if user_id is not None
+        else Holding.query.filter_by(household_id=household_id, is_private=False)
+    )
     holdings = query.all()
     holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency="USD")
-    net_worth = sum(h["display_value"] for h in holdings_with_metrics)
+    total_assets = sum(h["display_value"] for h in holdings_with_metrics)
+
+    # Same assets-minus-liabilities net worth every other figure in the app
+    # uses (dashboard, daily snapshots) — this digest predates the
+    # liabilities feature and was never updated when it shipped, so it was
+    # reporting an assets-only total here while comparing it against
+    # past_snapshot.total_net_worth below, which *does* subtract
+    # liabilities: a real week-over-week change miscalculation for anyone
+    # with any liability at all.
+    liab_query = Liability.query.filter_by(user_id=user_id) if user_id is not None else Liability.query.filter_by(household_id=household_id, is_private=False)
+    total_liabilities = total_liabilities_display(liab_query.all(), display_currency="USD")
+    net_worth = total_assets - total_liabilities
 
     week_ago = date.today() - timedelta(days=7)
     snap_query = NetWorthSnapshot.query.filter_by(user_id=user_id) if user_id is not None else NetWorthSnapshot.query.filter_by(household_id=household_id)
