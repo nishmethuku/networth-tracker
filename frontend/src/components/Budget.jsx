@@ -152,9 +152,7 @@ function AddEntryForm({ categories, currency }) {
         ...(data.entry_type === "expense" && data.funding_source_holding_id
           ? { funding_source_holding_id: Number(data.funding_source_holding_id) }
           : {}),
-        ...(data.entry_type === "expense" && data.linked_liability_id
-          ? { linked_liability_id: Number(data.linked_liability_id) }
-          : {}),
+        ...(data.entry_type === "expense" && data.linked_liability_id ? { linked_liability_id: Number(data.linked_liability_id) } : {}),
       }),
     onSuccess: (entry) => {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });

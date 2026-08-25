@@ -428,7 +428,11 @@ export function mapBudgetEntry(e: any): BudgetEntry | null {
       : null,
     linkedLiabilityId: e.linked_liability_id ?? null,
     linkedLiability: e.linked_liability
-      ? { liabilityId: e.linked_liability.id, newBalance: safeNumber(e.linked_liability.current_balance), currency: e.linked_liability.currency }
+      ? {
+          liabilityId: e.linked_liability.id,
+          newBalance: safeNumber(e.linked_liability.current_balance),
+          currency: e.linked_liability.currency,
+        }
       : null,
   };
 }
