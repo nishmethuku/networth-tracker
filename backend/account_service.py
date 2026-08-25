@@ -87,8 +87,11 @@ def export_user_data_csv_zip(user_id) -> bytes:
 def delete_all_user_data(user_id) -> Dict:
     """Deletes every holding this user owns (transactions/valuations cascade
     via the DB's own ON DELETE CASCADE foreign keys — see
-    supabase/migrations/0002_holdings.sql), plus their alerts and personal
-    milestones. Returns a count summary for the confirmation UI."""
+    supabase/migrations/0002_holdings.sql), plus their alerts, personal
+    milestones, liabilities, goals, allocation targets, budget entries, and
+    budget limits — every table export_user_data() reports, so "delete all
+    my data" actually leaves nothing behind. Returns a count summary for
+    the confirmation UI."""
     holdings = Holding.query.filter_by(user_id=user_id).all()
     holdings_count = len(holdings)
 
@@ -100,6 +103,8 @@ def delete_all_user_data(user_id) -> Dict:
     liabilities_count = Liability.query.filter_by(user_id=user_id).delete()
     goals_count = Goal.query.filter_by(user_id=user_id).delete()
     allocation_targets_count = AllocationTarget.query.filter_by(user_id=user_id).delete()
+    budget_entries_count = BudgetEntry.query.filter_by(user_id=user_id).delete()
+    budget_limits_count = BudgetLimit.query.filter_by(user_id=user_id).delete()
 
     db.session.commit()
 
@@ -110,4 +115,6 @@ def delete_all_user_data(user_id) -> Dict:
         "liabilities_deleted": liabilities_count,
         "goals_deleted": goals_count,
         "allocation_targets_deleted": allocation_targets_count,
+        "budget_entries_deleted": budget_entries_count,
+        "budget_limits_deleted": budget_limits_count,
     }
