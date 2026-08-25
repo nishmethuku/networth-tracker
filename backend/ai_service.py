@@ -20,6 +20,7 @@ smart_import_service.py didn't need to change when this was swapped —
 only this module's internals did.
 """
 import json
+import logging
 import os
 import time
 from typing import Dict, List, Optional
@@ -28,11 +29,17 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 
+logger = logging.getLogger(__name__)
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-# Gemini's free-tier Flash endpoint occasionally returns a transient 500/503
-# under load ("please try again later") with no client-side cause — every
-# retrying call below gets one automatic retry for exactly these codes.
-_RETRYABLE_STATUS_CODES = {500, 503}
+# Gemini's free-tier Flash endpoint occasionally returns a transient
+# 500/503/504 under load ("please try again later") with no client-side
+# cause — every retrying call below gets one automatic retry for exactly
+# these codes. 504 (DEADLINE_EXCEEDED) was missing here until caught live:
+# a natural-language search call sat for ~69s then failed with a 504 that
+# went completely unretried and silently returned null — same failure
+# class as 500/503, just missing from this set.
+_RETRYABLE_STATUS_CODES = {500, 503, 504}
 _RETRY_DELAY_SECONDS = 1.5
 
 
@@ -160,6 +167,15 @@ def generate_text(prompt: str, system: Optional[str] = None, max_tokens: int = 1
                 continue
             if _is_quota_exceeded(e):
                 raise QuotaExceededError(_friendly_error(e)) from e
+            # Every other failure (timeout, network error, unexpected API
+            # response) degrades to None with no way for the caller to
+            # know why — this is the only place that sees the real
+            # exception, so it's the only place that can log it. Without
+            # this, "the AI feature just returned nothing" was completely
+            # unobservable (this module had no logger at all until found
+            # live: a search query took ~65s, close to the 70s client
+            # timeout, then silently came back null).
+            logger.warning("Gemini call failed (non-quota): %s: %s", type(e).__name__, e)
             return None
 
 
@@ -293,7 +309,8 @@ def suggest_transaction_tags(holding_name: str, asset_type: str, transaction_typ
         tags = [str(t).lower().strip() for t in parsed.get("tags", [])][:3]
         note = str(parsed.get("note", "")).strip()[:200]
         return {"tags": tags, "note": note}
-    except (json.JSONDecodeError, ValueError, KeyError, IndexError):
+    except (json.JSONDecodeError, ValueError, KeyError, IndexError) as e:
+        logger.warning("Gemini responded but its output wasn't valid JSON (tag suggestion): %s", e)
         return None
 
 
@@ -313,5 +330,6 @@ def parse_search_query(query: str) -> Optional[Dict]:
         return None
     try:
         return _extract_json(raw)
-    except (json.JSONDecodeError, ValueError, IndexError):
+    except (json.JSONDecodeError, ValueError, IndexError) as e:
+        logger.warning("Gemini responded but its output wasn't valid JSON (search): %s", e)
         return None

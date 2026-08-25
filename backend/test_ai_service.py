@@ -182,6 +182,25 @@ def test_generate_text_returns_none_after_second_retryable_failure():
     assert mock_client.models.generate_content.call_count == 2
 
 
+def test_generate_text_retries_on_504_deadline_exceeded():
+    """Caught live: a real Gemini call returned 504 DEADLINE_EXCEEDED after
+    ~69s and was not retried, because 504 was missing from
+    _RETRYABLE_STATUS_CODES (only 500/503 were covered) — same transient-
+    server-error class as the codes that were already retried."""
+    with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = [
+            _server_error(504),
+            _fake_text_response("hello"),
+        ]
+        mock_get_client.return_value = mock_client
+
+        result = ai_service.generate_text("hi")
+
+    assert result == "hello"
+    assert mock_client.models.generate_content.call_count == 2
+
+
 def test_generate_text_does_not_retry_non_retryable_error():
     with patch.object(ai_service, "get_client") as mock_get_client, patch.object(ai_service.time, "sleep"):
         mock_client = MagicMock()

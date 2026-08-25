@@ -1257,6 +1257,7 @@ def create_app():
                     yield f"data: {json.dumps({'text': chunk})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
+                logger.warning("AI chat stream failed: %s: %s", type(e).__name__, e)
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
         return Response(
