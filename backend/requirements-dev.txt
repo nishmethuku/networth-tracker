@@ -4,3 +4,4 @@
 # installs requirements.txt only.
 -r requirements.txt
 pytest==9.1.1
+locust==2.46.4

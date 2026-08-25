@@ -13,8 +13,9 @@ A full-stack family net worth tracker: real transaction-based portfolio accounti
 - **AI**: Google Gemini, chosen for its free tier (copilot chat, AI-narrated digest, allocation advisor, transaction categorizer, spreadsheet/bank-statement import, natural-language search) — fully optional, degrades to a clean "not configured" response (or a friendly quota-exceeded message) without ever hard-failing a request
 - **Live/historical prices**: Finnhub (US live), Yahoo Finance (historical + NSE fallback, unofficial/keyless), NSE libraries + mftool (India), CoinGecko (crypto), metals-api.com (gold/silver/platinum), frankfurter.app (FX)
 - **Email**: Resend (weekly digest, price alerts, milestone celebrations)
-- **Tooling**: ESLint (flat config, typescript-eslint for `.ts`) + Prettier, `tsc --noEmit` for type checking, pytest + Vitest for unit/component tests, Playwright for real-browser E2E tests (network + auth mocked, no secrets needed), GitHub Actions CI on every push/PR
+- **Tooling**: ESLint (flat config, typescript-eslint for `.ts`) + Prettier, `tsc --noEmit` for type checking, pytest + Vitest for unit/component tests, Playwright for real-browser E2E tests (network + auth mocked, no secrets needed), Locust for load testing (see [LOAD_TEST_RESULTS.md](./LOAD_TEST_RESULTS.md)), GitHub Actions CI on every push/PR
 - **Observability**: Sentry (optional — `SENTRY_DSN`; unset = no-op, same graceful-degradation pattern as every other integration)
+- **Rate limiting**: Redis-backed when `REDIS_URL` is set (required for the limit to actually be enforced correctly across gunicorn's 2 worker processes — see [LOAD_TEST_RESULTS.md](./LOAD_TEST_RESULTS.md)), falls back to in-memory otherwise
 - **Deployment**: Vercel (frontend) + Render (backend, Docker) + GitHub Actions (daily snapshot, weekly digest, alert-check crons)
 
 ## Engineering highlights
