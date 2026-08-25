@@ -142,7 +142,7 @@ export default function Transactions() {
                       style={{
                         padding: "0.75rem 0.5rem",
                         textTransform: "capitalize",
-                        color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)",
+                        color: t.transactionType === "sell" ? "var(--danger)" : "var(--success)",
                         fontWeight: 600,
                       }}
                     >

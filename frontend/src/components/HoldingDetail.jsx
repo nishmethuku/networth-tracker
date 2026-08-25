@@ -618,7 +618,7 @@ export default function HoldingDetail() {
                               style={{
                                 padding: "0.6rem",
                                 textTransform: "capitalize",
-                                color: t.transactionType === "buy" ? "var(--success)" : "var(--danger)",
+                                color: t.transactionType === "sell" ? "var(--danger)" : "var(--success)",
                                 fontWeight: 600,
                               }}
                             >

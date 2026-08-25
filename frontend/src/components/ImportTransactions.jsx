@@ -200,7 +200,7 @@ export default function ImportTransactions() {
                           style={{
                             padding: "0.5rem",
                             textTransform: "capitalize",
-                            color: r.transaction_type === "buy" ? "var(--success)" : "var(--danger)",
+                            color: r.transaction_type === "sell" ? "var(--danger)" : "var(--success)",
                           }}
                         >
                           {r.transaction_type}
