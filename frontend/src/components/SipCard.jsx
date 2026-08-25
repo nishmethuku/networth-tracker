@@ -41,8 +41,14 @@ function SipSetupForm({ holding, onDone }) {
       style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", alignItems: "end" }}
     >
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Amount</label>
+        <label
+          htmlFor="sip-amount"
+          style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+        >
+          Amount
+        </label>
         <NumericInput
+          id="sip-amount"
           control={control}
           name="sip_amount"
           style={{
@@ -56,8 +62,14 @@ function SipSetupForm({ holding, onDone }) {
         />
       </div>
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Frequency</label>
+        <label
+          htmlFor="sip-frequency"
+          style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+        >
+          Frequency
+        </label>
         <select
+          id="sip-frequency"
           {...register("sip_frequency")}
           style={{
             width: "100%",
@@ -74,8 +86,14 @@ function SipSetupForm({ holding, onDone }) {
         </select>
       </div>
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Start date</label>
+        <label
+          htmlFor="sip-start-date"
+          style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+        >
+          Start date
+        </label>
         <input
+          id="sip-start-date"
           type="date"
           {...register("sip_start_date")}
           style={{

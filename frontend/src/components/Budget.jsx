@@ -229,12 +229,22 @@ function AddEntryForm({ categories, currency }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem" }}>
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Amount</label>
-          <NumericInput control={control} name="amount" style={inputStyle} />
+          <label
+            htmlFor="budget-amount"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
+            Amount
+          </label>
+          <NumericInput id="budget-amount" control={control} name="amount" style={inputStyle} />
         </div>
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Category</label>
-          <select {...register("category")} style={inputStyle}>
+          <label
+            htmlFor="budget-category"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
+            Category
+          </label>
+          <select id="budget-category" {...register("category")} style={inputStyle}>
             {categoryOptions.map((c) => (
               <option key={c} value={c}>
                 {getBudgetCategoryLabel(c)}
@@ -243,12 +253,28 @@ function AddEntryForm({ categories, currency }) {
           </select>
         </div>
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Date</label>
-          <input type="date" {...register("entry_date")} max={new Date().toISOString().split("T")[0]} style={inputStyle} />
+          <label
+            htmlFor="budget-entry-date"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
+            Date
+          </label>
+          <input
+            id="budget-entry-date"
+            type="date"
+            {...register("entry_date")}
+            max={new Date().toISOString().split("T")[0]}
+            style={inputStyle}
+          />
         </div>
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Currency</label>
-          <select {...register("currency")} style={inputStyle}>
+          <label
+            htmlFor="budget-currency"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
+            Currency
+          </label>
+          <select id="budget-currency" {...register("currency")} style={inputStyle}>
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -258,10 +284,14 @@ function AddEntryForm({ categories, currency }) {
         </div>
         {entryType === "expense" && cashHoldings?.length > 0 && (
           <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+            <label
+              htmlFor="budget-funding-source"
+              style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+            >
               Paid from
             </label>
             <select
+              id="budget-funding-source"
               {...register("funding_source_holding_id")}
               style={inputStyle}
               title="Deducts this expense from the selected account's balance"
@@ -278,10 +308,14 @@ function AddEntryForm({ categories, currency }) {
         )}
         {entryType === "expense" && liabilities?.length > 0 && (
           <div>
-            <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+            <label
+              htmlFor="budget-linked-liability"
+              style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+            >
               Pays down
             </label>
             <select
+              id="budget-linked-liability"
               {...register("linked_liability_id")}
               style={inputStyle}
               title="Reduces the selected liability's balance by this expense amount"
@@ -298,10 +332,14 @@ function AddEntryForm({ categories, currency }) {
       </div>
 
       <div style={{ marginTop: "0.75rem" }}>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+        <label
+          htmlFor="budget-description"
+          style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+        >
           Description (optional)
         </label>
         <input
+          id="budget-description"
           {...register("description")}
           placeholder={entryType === "income" ? "e.g., August paycheck" : "e.g., Groceries"}
           style={inputStyle}
@@ -481,7 +519,11 @@ function SpendingLimitsCard({ currency, limitStatus }) {
           onSubmit={handleSubmit((data) => data.category && data.monthly_limit && createMutation.mutate(data))}
           style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap" }}
         >
-          <select {...register("category")} style={{ ...inputStyle, flex: 1, minWidth: "140px" }}>
+          <select
+            aria-label="Category to add a spending limit for"
+            {...register("category")}
+            style={{ ...inputStyle, flex: 1, minWidth: "140px" }}
+          >
             <option value="">Add a limit for...</option>
             {availableCategories.map((c) => (
               <option key={c} value={c}>
@@ -490,6 +532,7 @@ function SpendingLimitsCard({ currency, limitStatus }) {
             ))}
           </select>
           <input
+            aria-label="Monthly limit amount"
             {...register("monthly_limit")}
             type="number"
             step="any"

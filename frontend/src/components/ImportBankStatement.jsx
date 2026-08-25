@@ -96,16 +96,22 @@ export default function ImportBankStatement() {
       <Card>
         <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+            <label
+              htmlFor="statement-file"
+              style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}
+            >
               Statement (.xlsx, .csv, or .pdf)
             </label>
-            <input type="file" accept=".xlsx,.xls,.csv,.pdf" onChange={handleFileChange} style={inputStyle} />
+            <input id="statement-file" type="file" accept=".xlsx,.xls,.csv,.pdf" onChange={handleFileChange} style={inputStyle} />
           </div>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+            <label
+              htmlFor="statement-currency"
+              style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}
+            >
               Currency
             </label>
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={inputStyle}>
+            <select id="statement-currency" value={currency} onChange={(e) => setCurrency(e.target.value)} style={inputStyle}>
               {CURRENCIES.map((c) => (
                 <option key={c} value={c}>
                   {c}

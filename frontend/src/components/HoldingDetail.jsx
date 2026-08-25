@@ -146,8 +146,15 @@ function AddTransactionForm({ holding, onDone }) {
       style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", alignItems: "end" }}
     >
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Type</label>
-        <select value={form.transaction_type} onChange={(e) => setForm({ ...form, transaction_type: e.target.value })} style={inputStyle}>
+        <label htmlFor="tx-type" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+          Type
+        </label>
+        <select
+          id="tx-type"
+          value={form.transaction_type}
+          onChange={(e) => setForm({ ...form, transaction_type: e.target.value })}
+          style={inputStyle}
+        >
           {TRANSACTION_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
@@ -156,8 +163,11 @@ function AddTransactionForm({ holding, onDone }) {
         </select>
       </div>
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Date</label>
+        <label htmlFor="tx-date" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+          Date
+        </label>
         <input
+          id="tx-date"
           type="date"
           value={form.transaction_date}
           max={new Date().toISOString().split("T")[0]}
@@ -168,8 +178,14 @@ function AddTransactionForm({ holding, onDone }) {
       </div>
       {!isIncome && (
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Quantity</label>
+          <label
+            htmlFor="tx-quantity"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
+            Quantity
+          </label>
           <input
+            id="tx-quantity"
             type="number"
             step="any"
             min="0.0001"
@@ -181,11 +197,15 @@ function AddTransactionForm({ holding, onDone }) {
         </div>
       )}
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+        <label
+          htmlFor="tx-price"
+          style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+        >
           {isIncome ? "Amount" : "Price / unit"}
         </label>
         <div style={{ display: "flex", gap: "0.35rem" }}>
           <input
+            id="tx-price"
             type="number"
             step="any"
             min="0"
@@ -208,8 +228,11 @@ function AddTransactionForm({ holding, onDone }) {
         </div>
       </div>
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Fees</label>
+        <label htmlFor="tx-fees" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+          Fees
+        </label>
         <input
+          id="tx-fees"
           type="number"
           step="any"
           min="0"
@@ -220,10 +243,14 @@ function AddTransactionForm({ holding, onDone }) {
       </div>
       {form.transaction_type === "buy" && cashHoldings?.length > 0 && (
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+          <label
+            htmlFor="tx-funding-source"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
             Funded from
           </label>
           <select
+            id="tx-funding-source"
             value={form.funding_source_holding_id}
             onChange={(e) => setForm({ ...form, funding_source_holding_id: e.target.value })}
             style={inputStyle}
@@ -283,8 +310,14 @@ function AddValuationForm({ holding, onDone }) {
       style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem", alignItems: "end" }}
     >
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>Date</label>
+        <label
+          htmlFor="valuation-date"
+          style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+        >
+          Date
+        </label>
         <input
+          id="valuation-date"
           type="date"
           value={form.valuation_date}
           max={new Date().toISOString().split("T")[0]}
@@ -294,10 +327,14 @@ function AddValuationForm({ holding, onDone }) {
         />
       </div>
       <div>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+        <label
+          htmlFor="valuation-value"
+          style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+        >
           {holding.assetType === "loan" ? "Balance owed" : holding.assetType === "credit" ? "Owed to you" : "Value"}
         </label>
         <input
+          id="valuation-value"
           type="number"
           step="any"
           min="0"

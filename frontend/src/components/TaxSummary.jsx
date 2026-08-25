@@ -108,10 +108,14 @@ export default function TaxSummary() {
       >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Tax Summary</h1>
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
+          <label
+            htmlFor="cost-basis-method"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
             Cost basis method
           </label>
           <select
+            id="cost-basis-method"
             value={costBasisMethod}
             onChange={(e) => setCostBasisMethod(e.target.value)}
             style={{

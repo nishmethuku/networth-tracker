@@ -109,10 +109,14 @@ export default function ImportTransactions() {
       <Card>
         <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+            <label
+              htmlFor="broker-select"
+              style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}
+            >
               Broker
             </label>
             <select
+              id="broker-select"
               value={broker}
               onChange={(e) => {
                 setBroker(e.target.value);
@@ -128,10 +132,13 @@ export default function ImportTransactions() {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+            <label
+              htmlFor="csv-file"
+              style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}
+            >
               CSV File
             </label>
-            <input type="file" accept=".csv" onChange={handleFileChange} style={{ ...inputStyle, width: "100%" }} />
+            <input id="csv-file" type="file" accept=".csv" onChange={handleFileChange} style={{ ...inputStyle, width: "100%" }} />
           </div>
         </div>
         <button

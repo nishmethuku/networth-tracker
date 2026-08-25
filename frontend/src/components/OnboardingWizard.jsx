@@ -95,10 +95,14 @@ export default function OnboardingWizard({ onClose }) {
               <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
                 Let's set a couple of defaults before you get started.
               </p>
-              <label style={{ display: "block", fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.35rem" }}>
+              <label
+                htmlFor="onboarding-country"
+                style={{ display: "block", fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.35rem" }}
+              >
                 Primary country
               </label>
               <select
+                id="onboarding-country"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 style={{
@@ -117,10 +121,14 @@ export default function OnboardingWizard({ onClose }) {
                   </option>
                 ))}
               </select>
-              <label style={{ display: "block", fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.35rem" }}>
+              <label
+                htmlFor="onboarding-currency"
+                style={{ display: "block", fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.35rem" }}
+              >
                 Default display currency
               </label>
               <select
+                id="onboarding-currency"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 style={{

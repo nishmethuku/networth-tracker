@@ -78,8 +78,11 @@ export default function WhatIf() {
           <Card title="Assumptions">
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
-                <label style={labelStyle}>Starting amount</label>
+                <label htmlFor="whatif-starting-amount" style={labelStyle}>
+                  Starting amount
+                </label>
                 <input
+                  id="whatif-starting-amount"
                   type="number"
                   step="any"
                   min="0"
@@ -106,8 +109,11 @@ export default function WhatIf() {
                 )}
               </div>
               <div>
-                <label style={labelStyle}>Monthly contribution</label>
+                <label htmlFor="whatif-monthly-contribution" style={labelStyle}>
+                  Monthly contribution
+                </label>
                 <input
+                  id="whatif-monthly-contribution"
                   type="number"
                   step="any"
                   min="0"
@@ -117,8 +123,11 @@ export default function WhatIf() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Annual growth rate (%)</label>
+                <label htmlFor="whatif-annual-rate" style={labelStyle}>
+                  Annual growth rate (%)
+                </label>
                 <input
+                  id="whatif-annual-rate"
                   type="number"
                   step="any"
                   style={inputStyle}
@@ -132,8 +141,11 @@ export default function WhatIf() {
                 )}
               </div>
               <div>
-                <label style={labelStyle}>Years</label>
+                <label htmlFor="whatif-years" style={labelStyle}>
+                  Years
+                </label>
                 <input
+                  id="whatif-years"
                   type="number"
                   step="1"
                   min="1"
@@ -164,8 +176,11 @@ export default function WhatIf() {
             {showFire && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 <div>
-                  <label style={labelStyle}>Annual expenses in retirement</label>
+                  <label htmlFor="whatif-annual-expenses" style={labelStyle}>
+                    Annual expenses in retirement
+                  </label>
                   <input
+                    id="whatif-annual-expenses"
                     type="number"
                     step="any"
                     min="0"
@@ -175,8 +190,11 @@ export default function WhatIf() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Safe withdrawal rate (%)</label>
+                  <label htmlFor="whatif-withdrawal-rate" style={labelStyle}>
+                    Safe withdrawal rate (%)
+                  </label>
                   <input
+                    id="whatif-withdrawal-rate"
                     type="number"
                     step="any"
                     min="0.1"

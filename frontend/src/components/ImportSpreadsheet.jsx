@@ -92,10 +92,13 @@ export default function ImportSpreadsheet() {
       <Card>
         <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
           <div>
-            <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+            <label
+              htmlFor="spreadsheet-file"
+              style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.4rem" }}
+            >
               File (.xlsx or .csv)
             </label>
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} style={inputStyle} />
+            <input id="spreadsheet-file" type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} style={inputStyle} />
           </div>
         </div>
         {fileName && (

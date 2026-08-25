@@ -273,8 +273,11 @@ export default function AddHolding() {
           </h3>
           <div style={{ display: "grid", gap: "1.5rem" }}>
             <div>
-              <label style={labelStyle}>Type *</label>
+              <label htmlFor="holding-asset-type" style={labelStyle}>
+                Type *
+              </label>
               <select
+                id="holding-asset-type"
                 {...register("assetType")}
                 onChange={(e) => {
                   setValue("assetType", e.target.value);
@@ -293,8 +296,14 @@ export default function AddHolding() {
             </div>
 
             <div>
-              <label style={labelStyle}>Country *</label>
-              <select {...register("country")} style={{ ...(errors.country ? inputErrorStyle : inputStyle), cursor: "pointer" }}>
+              <label htmlFor="holding-country" style={labelStyle}>
+                Country *
+              </label>
+              <select
+                id="holding-country"
+                {...register("country")}
+                style={{ ...(errors.country ? inputErrorStyle : inputStyle), cursor: "pointer" }}
+              >
                 <option value="">Select country...</option>
                 {COUNTRIES.map((c) => (
                   <option key={c} value={c}>
@@ -306,8 +315,10 @@ export default function AddHolding() {
             </div>
 
             <div>
-              <label style={labelStyle}>Currency</label>
-              <select {...register("currency")} style={{ ...inputStyle, cursor: "pointer" }}>
+              <label htmlFor="holding-currency" style={labelStyle}>
+                Currency
+              </label>
+              <select id="holding-currency" {...register("currency")} style={{ ...inputStyle, cursor: "pointer" }}>
                 <option value="">Auto (from country)</option>
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
@@ -324,8 +335,11 @@ export default function AddHolding() {
 
           {QUANTITY_BASED_SET.has(assetType) && assetType !== "commodity" && (
             <div style={{ position: "relative", marginBottom: "1.5rem" }}>
-              <label style={labelStyle}>Symbol *</label>
+              <label htmlFor="holding-symbol" style={labelStyle}>
+                Symbol *
+              </label>
               <input
+                id="holding-symbol"
                 ref={symbolInputRef}
                 value={symbol}
                 onChange={handleSymbolChange}
@@ -370,8 +384,11 @@ export default function AddHolding() {
 
           {assetType === "commodity" && (
             <div style={{ marginBottom: "1.5rem" }}>
-              <label style={labelStyle}>Metal *</label>
+              <label htmlFor="holding-metal" style={labelStyle}>
+                Metal *
+              </label>
               <select
+                id="holding-metal"
                 value={symbol}
                 onChange={(e) => {
                   setValue("symbol", e.target.value, { shouldValidate: true });
@@ -392,8 +409,11 @@ export default function AddHolding() {
 
           {QUANTITY_BASED_SET.has(assetType) && !ACCOUNT_LESS_TYPES.has(assetType) && (
             <div style={{ marginBottom: "1.5rem" }}>
-              <label style={labelStyle}>Account</label>
+              <label htmlFor="holding-account" style={labelStyle}>
+                Account
+              </label>
               <input
+                id="holding-account"
                 {...register("account")}
                 placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Brokerage name"}
                 list="account-suggestions"
@@ -405,8 +425,11 @@ export default function AddHolding() {
           {NAME_BASED_SET.has(assetType) && (
             <div style={{ display: "grid", gap: "1.5rem", marginBottom: "1.5rem" }}>
               <div>
-                <label style={labelStyle}>Name *</label>
+                <label htmlFor="holding-name" style={labelStyle}>
+                  Name *
+                </label>
                 <input
+                  id="holding-name"
                   {...register("name")}
                   placeholder={assetType === "real_estate" ? "e.g., My House" : "e.g., HDFC FD #1"}
                   style={errors.name ? inputErrorStyle : inputStyle}
@@ -415,8 +438,11 @@ export default function AddHolding() {
               </div>
               {assetType !== "real_estate" && (
                 <div>
-                  <label style={labelStyle}>Institution</label>
+                  <label htmlFor="holding-institution" style={labelStyle}>
+                    Institution
+                  </label>
                   <input
+                    id="holding-institution"
                     {...register("institution")}
                     placeholder={INSTITUTION_PLACEHOLDERS[assetType] || "e.g., Bank or provider name"}
                     style={inputStyle}
@@ -425,8 +451,11 @@ export default function AddHolding() {
               )}
               {!ACCOUNT_LESS_TYPES.has(assetType) && (
                 <div>
-                  <label style={labelStyle}>Account</label>
+                  <label htmlFor="holding-account" style={labelStyle}>
+                    Account
+                  </label>
                   <input
+                    id="holding-account"
                     {...register("account")}
                     placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Account name"}
                     list="account-suggestions"
@@ -437,14 +466,16 @@ export default function AddHolding() {
               {INTEREST_BEARING_TYPES.has(assetType) && (
                 <>
                   <div>
-                    <label style={labelStyle}>Interest Rate (%)</label>
-                    <NumericInput control={control} name="interest_rate" style={inputStyle} />
+                    <label htmlFor="holding-interest-rate" style={labelStyle}>
+                      Interest Rate (%)
+                    </label>
+                    <NumericInput id="holding-interest-rate" control={control} name="interest_rate" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>
+                    <label htmlFor="holding-maturity-date" style={labelStyle}>
                       {assetType === "loan" ? "Payoff Date" : assetType === "credit" ? "Repayment Date" : "Maturity Date"}
                     </label>
-                    <input type="date" {...register("maturity_date")} style={inputStyle} />
+                    <input id="holding-maturity-date" type="date" {...register("maturity_date")} style={inputStyle} />
                   </div>
                 </>
               )}
@@ -453,8 +484,11 @@ export default function AddHolding() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.5rem" }}>
             <div>
-              <label style={labelStyle}>{quantityBased ? "Purchase Date *" : "Date *"}</label>
+              <label htmlFor="holding-date" style={labelStyle}>
+                {quantityBased ? "Purchase Date *" : "Date *"}
+              </label>
               <input
+                id="holding-date"
                 type="date"
                 {...register("date")}
                 max={new Date().toISOString().split("T")[0]}
@@ -465,22 +499,36 @@ export default function AddHolding() {
             {quantityBased ? (
               <>
                 <div>
-                  <label style={labelStyle}>Quantity *</label>
-                  <NumericInput control={control} name="quantity" style={errors.quantity ? inputErrorStyle : inputStyle} />
+                  <label htmlFor="holding-quantity" style={labelStyle}>
+                    Quantity *
+                  </label>
+                  <NumericInput
+                    id="holding-quantity"
+                    control={control}
+                    name="quantity"
+                    style={errors.quantity ? inputErrorStyle : inputStyle}
+                  />
                   <FieldError message={errors.quantity?.message} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Price / unit *</label>
-                  <NumericInput control={control} name="price_per_unit" style={errors.price_per_unit ? inputErrorStyle : inputStyle} />
+                  <label htmlFor="holding-price-per-unit" style={labelStyle}>
+                    Price / unit *
+                  </label>
+                  <NumericInput
+                    id="holding-price-per-unit"
+                    control={control}
+                    name="price_per_unit"
+                    style={errors.price_per_unit ? inputErrorStyle : inputStyle}
+                  />
                   <FieldError message={errors.price_per_unit?.message} />
                 </div>
               </>
             ) : (
               <div>
-                <label style={labelStyle}>
+                <label htmlFor="holding-value" style={labelStyle}>
                   {assetType === "loan" ? "Amount Owed *" : assetType === "credit" ? "Amount Owed to You *" : "Value *"}
                 </label>
-                <NumericInput control={control} name="value" style={errors.value ? inputErrorStyle : inputStyle} />
+                <NumericInput id="holding-value" control={control} name="value" style={errors.value ? inputErrorStyle : inputStyle} />
                 <FieldError message={errors.value?.message} />
               </div>
             )}
@@ -491,12 +539,16 @@ export default function AddHolding() {
           <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>Optional</h3>
           <div style={{ display: "grid", gap: "1.5rem", marginBottom: "2rem" }}>
             <div>
-              <label style={labelStyle}>Notes</label>
-              <textarea {...register("notes")} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+              <label htmlFor="holding-notes" style={labelStyle}>
+                Notes
+              </label>
+              <textarea id="holding-notes" {...register("notes")} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
             </div>
             <div>
-              <label style={labelStyle}>Tags</label>
-              <input {...register("tags")} placeholder="retirement, long-term" style={inputStyle} />
+              <label htmlFor="holding-tags" style={labelStyle}>
+                Tags
+              </label>
+              <input id="holding-tags" {...register("tags")} placeholder="retirement, long-term" style={inputStyle} />
             </div>
 
             {quantityBased && (
@@ -520,20 +572,26 @@ export default function AddHolding() {
                     style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1rem", marginTop: "1rem" }}
                   >
                     <div>
-                      <label style={labelStyle}>Amount per contribution</label>
-                      <NumericInput control={control} name="sip_amount" style={inputStyle} />
+                      <label htmlFor="holding-sip-amount" style={labelStyle}>
+                        Amount per contribution
+                      </label>
+                      <NumericInput id="holding-sip-amount" control={control} name="sip_amount" style={inputStyle} />
                     </div>
                     <div>
-                      <label style={labelStyle}>Frequency</label>
-                      <select {...register("sip_frequency")} style={{ ...inputStyle, cursor: "pointer" }}>
+                      <label htmlFor="holding-sip-frequency" style={labelStyle}>
+                        Frequency
+                      </label>
+                      <select id="holding-sip-frequency" {...register("sip_frequency")} style={{ ...inputStyle, cursor: "pointer" }}>
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>
                         <option value="quarterly">Quarterly</option>
                       </select>
                     </div>
                     <div>
-                      <label style={labelStyle}>Start date</label>
-                      <input type="date" {...register("sip_start_date")} style={inputStyle} />
+                      <label htmlFor="holding-sip-start-date" style={labelStyle}>
+                        Start date
+                      </label>
+                      <input id="holding-sip-start-date" type="date" {...register("sip_start_date")} style={inputStyle} />
                     </div>
                   </div>
                 )}
