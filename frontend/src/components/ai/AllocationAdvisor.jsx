@@ -14,8 +14,10 @@ import LoadingState from "../LoadingState";
 import ErrorState from "../ErrorState";
 import { useToast } from "../../contexts/ToastContext";
 import { formatCurrencyForDisplay, formatPercent } from "../../utils/formatters";
+import useIsMobile from "../../hooks/useIsMobile";
 
 export default function AllocationAdvisor() {
+  const isMobile = useIsMobile();
   const [targets, setTargets] = useState({});
   const [result, setResult] = useState(null);
   const [prefilled, setPrefilled] = useState(false);
@@ -140,7 +142,14 @@ export default function AllocationAdvisor() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(280px, 1.4fr)", gap: "1.5rem", alignItems: "start" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "minmax(280px, 1fr) minmax(280px, 1.4fr)",
+          gap: "1.5rem",
+          alignItems: "start",
+        }}
+      >
         <Card title="Target allocation">
           {currentAllocation.length === 0 && Object.keys(targets).length === 0 ? (
             <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>Add some holdings first to get allocation suggestions.</p>

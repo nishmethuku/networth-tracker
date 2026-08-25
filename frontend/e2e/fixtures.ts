@@ -178,6 +178,35 @@ async function mockBackend(page: Page, opts: MockOptions = {}) {
     json(route, { portfolioXirr: null, benchmarkXirr: null, benchmarkLabel: "S&P 500 (SPY)" }),
   );
   await page.route(`${API_BASE}/price-cache-status**`, (route) => json(route, {}));
+  await page.route(`${API_BASE}/budget/categories**`, (route) =>
+    json(route, {
+      income: ["paycheck", "bonus", "interest", "gift", "other_income"],
+      expense: [
+        "housing",
+        "food",
+        "transport",
+        "utilities",
+        "healthcare",
+        "entertainment",
+        "shopping",
+        "education",
+        "insurance",
+        "other_expense",
+      ],
+    }),
+  );
+  await page.route(`${API_BASE}/budget/summary**`, (route) =>
+    json(route, { months: [], category_breakdown: [], limit_status: [], other_currency_entries: 0, latest_month: null }),
+  );
+  await page.route(`${API_BASE}/budget/entries**`, (route) => {
+    if (route.request().method() === "GET") return json(route, []);
+    return route.continue();
+  });
+  await page.route(`${API_BASE}/budget/subscriptions**`, (route) => json(route, { items: [], monthly_total: 0 }));
+  await page.route(`${API_BASE}/budget/limits**`, (route) => {
+    if (route.request().method() === "GET") return json(route, []);
+    return route.continue();
+  });
 }
 
 export const test = base.extend<{ mockedPage: Page }>({

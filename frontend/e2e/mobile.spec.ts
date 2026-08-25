@@ -67,4 +67,19 @@ test.describe("Mobile layout", () => {
 
     await expectNoElementOverflowsViewport(page);
   });
+
+  test("Budget has no horizontal overflow on a narrow viewport", async ({ mockedPage: page }) => {
+    await page.goto("/budget");
+    await expect(page.getByText("Add an entry")).toBeVisible();
+
+    await expectNoElementOverflowsViewport(page);
+  });
+
+  test("Allocation Advisor has no horizontal overflow on a narrow viewport", async ({ mockedPage: page }) => {
+    await mockBackend(page, { dashboard: populatedDashboard, holdings: [sampleHolding] });
+    await page.goto("/allocation-advisor");
+    await expect(page.getByText("Target allocation", { exact: true })).toBeVisible();
+
+    await expectNoElementOverflowsViewport(page);
+  });
 });

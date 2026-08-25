@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import useIsMobile from "../hooks/useIsMobile";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -575,6 +576,7 @@ function AIInsightsCard({ currency }) {
 
 export default function Budget() {
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -654,7 +656,14 @@ export default function Budget() {
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(400px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "1.5rem",
+        }}
+      >
         <Card title="Income vs Expenses">
           {summary.months.length === 0 ? (
             <EmptyState message="No entries yet — add your first income or expense below." />
@@ -667,7 +676,14 @@ export default function Budget() {
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "1.5rem",
+        }}
+      >
         <SubscriptionsCard currency={currency} />
         <SpendingLimitsCard currency={currency} limitStatus={summary.limit_status} />
         <AIInsightsCard currency={currency} />

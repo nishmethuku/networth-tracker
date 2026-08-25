@@ -1,12 +1,21 @@
 import Skeleton from "../Skeleton";
 import Card from "../Card";
+import useIsMobile from "../../hooks/useIsMobile";
 
 export default function DashboardSkeleton() {
+  const isMobile = useIsMobile();
   return (
     <div>
       <Skeleton width="180px" height="2rem" style={{ marginBottom: "1.5rem" }} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "2rem",
+        }}
+      >
         {[0, 1, 2].map((i) => (
           <Card key={i}>
             <Skeleton width="90px" height="0.8rem" style={{ marginBottom: "0.75rem" }} />
@@ -15,7 +24,14 @@ export default function DashboardSkeleton() {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(400px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "1.5rem",
+        }}
+      >
         <Card>
           <Skeleton width="100%" height="280px" radius="var(--radius)" />
         </Card>
@@ -24,7 +40,7 @@ export default function DashboardSkeleton() {
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
         {[0, 1].map((i) => (
           <Card key={i}>
             {[0, 1, 2].map((j) => (
