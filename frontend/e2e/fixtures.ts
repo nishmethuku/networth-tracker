@@ -18,7 +18,11 @@ import { test as base, expect, type Page, type Route } from "@playwright/test";
  *    real server.
  */
 
-const PROJECT_REF = "yoykhatwyrxuzcesbhhf"; // from VITE_SUPABASE_URL — see frontend/.env.example
+// Must match playwright.config.ts's webServer.env.VITE_SUPABASE_URL exactly
+// -- that's what the app is actually built against for these tests,
+// regardless of whatever (if anything) frontend/.env contains locally.
+const E2E_SUPABASE_URL = "https://e2e-test-project.supabase.co";
+const PROJECT_REF = new URL(E2E_SUPABASE_URL).hostname.split(".")[0];
 const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
 const API_BASE = "http://localhost:5001"; // the app's VITE_API_URL fallback when unset at build time
 
