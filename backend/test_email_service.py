@@ -49,6 +49,36 @@ def test_render_digest_email_mentions_backup_only_when_attached():
     assert "backup" not in without_backup.lower()
 
 
+def test_render_digest_email_escapes_a_holding_name_in_top_movers():
+    # Regression: a holding's name is freeform user-entered (or CSV/AI-
+    # imported) text, not a fixed enum -- for a household digest it can be
+    # someone else's holding rendering in every member's inbox, so it must
+    # be escaped rather than dropped straight into the HTML.
+    digest = {
+        "net_worth": 1000.0, "change_this_week": None,
+        "top_movers": [{"name": "<img src=x onerror=alert(1)>", "unrealized_gain": 50.0}],
+    }
+    html = email_service.render_digest_email(digest)
+    assert "<img src=x onerror" not in html
+    assert "&lt;img src=x onerror" in html
+
+
+def test_render_digest_email_escapes_the_ai_narrative():
+    html = email_service.render_digest_email(
+        {"net_worth": 1000.0, "change_this_week": None, "top_movers": []},
+        narrative="Your <b>Fake Holding</b> did well.",
+    )
+    assert "<b>Fake Holding</b>" not in html
+    assert "&lt;b&gt;Fake Holding&lt;/b&gt;" in html
+
+
+def test_render_alert_email_escapes_the_symbol():
+    alert = {"symbol": "<script>alert(1)</script>", "alert_type": "price_above", "threshold": 100.0, "currency": "USD"}
+    html = email_service.render_alert_email(alert, 150.0)
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html
+
+
 def test_send_encodes_attachments_as_base64_for_resend():
     with patch.object(email_service, "RESEND_API_KEY", "test-key"), patch("backend.email_service.requests.post") as mock_post:
         mock_post.return_value = MagicMock(raise_for_status=lambda: None)

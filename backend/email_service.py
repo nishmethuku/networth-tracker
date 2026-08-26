@@ -9,6 +9,7 @@ the caller, so digest/alert computation still works and is inspectable even
 before an email provider is configured.
 """
 import base64
+import html as html_lib
 import logging
 import os
 
@@ -64,15 +65,22 @@ def _card(label: str, value: str) -> str:
 
 
 def render_digest_email(digest: dict, narrative: str = None, unsubscribe_token: str = None, backup_attached: bool = False) -> str:
+    # A holding's name is a freeform user-entered (or CSV/AI-imported)
+    # string, not a fixed enum -- escape it before it lands in an HTML
+    # email, especially for a household digest where it's someone else's
+    # holding rendering in every member's inbox.
     movers_html = "".join(
-        f'<li>{m["name"]}: {"+" if m["unrealized_gain"] >= 0 else ""}{m["unrealized_gain"]:.2f}</li>'
+        f'<li>{html_lib.escape(m["name"])}: {"+" if m["unrealized_gain"] >= 0 else ""}{m["unrealized_gain"]:.2f}</li>'
         for m in digest.get("top_movers", [])
     )
     change = digest.get("change_this_week")
     change_html = f'{"+" if change and change >= 0 else ""}{change:.2f}' if change is not None else "—"
 
+    # AI-generated prose, not markup -- escape before wrapping in <p> tags.
+    # Not directly user-controlled, but a holding name quoted verbatim in
+    # the narrative could carry HTML through indirectly.
     narrative_html = (
-        "".join(f'<p style="color:#334155;line-height:1.6;">{p}</p>' for p in narrative.strip().split("\n\n"))
+        "".join(f'<p style="color:#334155;line-height:1.6;">{html_lib.escape(p)}</p>' for p in narrative.strip().split("\n\n"))
         if narrative
         else ""
     )
@@ -109,7 +117,7 @@ def render_digest_email(digest: dict, narrative: str = None, unsubscribe_token: 
 
 
 def render_alert_email(alert: dict, current_value: float) -> str:
-    label = alert.get("symbol") or "Net Worth"
+    label = html_lib.escape(alert["symbol"]) if alert.get("symbol") else "Net Worth"
     return f"""
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
       <h2 style="color:#0f172a;">Price Alert Triggered</h2>
