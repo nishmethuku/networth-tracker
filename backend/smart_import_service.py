@@ -1,10 +1,21 @@
 """
-AI-assisted import of a freeform personal net worth spreadsheet — unlike
+AI-assisted import of a freeform personal spreadsheet — unlike
 csv_import_service.py, which parses known broker export formats, this
-reads whatever layout someone already uses (an Excel file with a stocks
-tab, a real estate row, a bank balance, etc.) and asks Claude to map it
-onto this app's holding schema. Preview-then-confirm, same as broker CSV
-import: nothing is saved until the parsed rows are reviewed and confirmed.
+reads whatever layout someone already uses and asks the AI to map it onto
+this app's schema. Preview-then-confirm, same as broker CSV import:
+nothing is saved until the parsed rows are reviewed and confirmed.
+
+Handles two different shapes of input, both through the same endpoint:
+  - A snapshot sheet (one row per holding, a current value) -- the
+    original use case: a stocks tab, a real estate row, a bank balance.
+  - A transaction log (one row per buy/sell event, e.g. a "Src fund ac,
+    Target ac, Stock symbol, Date, Qty, price, Transaction type" export) --
+    each row becomes its own HoldingTransaction rather than a fresh
+    holding, multiple rows for the same symbol+account merge into one
+    holding with several transactions, and a funding/source account column
+    is resolved against the user's existing cash holdings by name so a buy
+    can deduct its cost the same way the manual "Funded from" picker does
+    (see build_funding_valuation).
 """
 import io
 import json
@@ -14,7 +25,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from . import ai_service
-from .holdings_service import QUANTITY_BASED_TYPES
+from .holdings_service import QUANTITY_BASED_TYPES, build_funding_valuation
 from .models import Holding, HoldingTransaction, HoldingValuation, db
 
 MAX_ROWS_TO_SEND = 300  # keeps the prompt bounded for unusually large sheets
@@ -25,6 +36,7 @@ VALID_ASSET_TYPES = (
 )
 VALID_COUNTRIES = ("United States", "India", "Australia")
 VALID_CURRENCIES = ("USD", "INR", "AUD")
+VALID_TRANSACTION_TYPES = ("buy", "sell")
 
 
 def extract_sheet_text(file_bytes: bytes, filename: str) -> str:
@@ -55,11 +67,12 @@ def extract_sheet_text(file_bytes: bytes, filename: str) -> str:
 
 
 SMART_IMPORT_SYSTEM_PROMPT = f"""You read a personal net worth spreadsheet (not a standardized broker export —
-whatever ad-hoc layout the person already uses) and map each real holding to this app's schema.
+whatever ad-hoc layout the person already uses) and map each row to this app's schema.
 
 Valid asset_type values: {", ".join(VALID_ASSET_TYPES)}
 Valid country values: {", ".join(VALID_COUNTRIES)} (best guess from currency/context; default "United States" if unclear)
 Valid currency values: {", ".join(VALID_CURRENCIES)} (infer from symbols like $/₹/A$, or country)
+Valid transaction_type values: {", ".join(VALID_TRANSACTION_TYPES)}
 
 Respond with ONLY a JSON object, no other text, shaped exactly like:
 {{
@@ -75,23 +88,49 @@ Respond with ONLY a JSON object, no other text, shaped exactly like:
       "country": "United States",
       "account": "",
       "date": "2026-01-01",
+      "transaction_type": null,
+      "source_account": null,
       "source_note": "row 3, 'Apple' sheet"
     }}
   ],
   "warnings": ["Skipped row 'Misc total' — not a real holding"]
 }}
 
+Two different kinds of sheet come through here — tell them apart from the columns present:
+
+1. A SNAPSHOT sheet: one row per holding, stating its current value (a stocks tab, a real estate row, a
+   bank balance). This is the common case. Leave "transaction_type" and "source_account" null.
+2. A TRANSACTION LOG: one row per buy/sell event, e.g. columns like "Src fund ac, Target ac, Stock
+   symbol, Date, Qty, price, Transaction type" — the same symbol may appear on several rows (a buy, then
+   later a sell). For this kind:
+   - Emit one output row per transaction row in the sheet — do NOT merge multiple transactions for the
+     same symbol into a single row; merging happens after import, not here.
+   - Set "transaction_type" to "buy" or "sell" from that column.
+   - "account" is where the position is held (a "Target ac" / brokerage column).
+   - "source_account" is the OTHER account money moved through on a buy — a "Src fund ac" / funding
+     account column, if the sheet has one. Pass through whatever name is in that column verbatim (e.g.
+     "Vijay Chase"); it gets matched against the person's existing accounts after this step, not by you.
+     Leave it null for a sell, and null if the sheet has no such column at all.
+   - "quantity" and "price_per_unit" are required for these rows (they're the point of a transaction log);
+     "value" should be quantity * price_per_unit.
+   - "date" is the transaction date. Column headers vary a lot (e.g. "Src fund ac"/"Source", "Target
+     ac"/"Account", "Stock symbol"/"Stock", "Transaction type"/"Transaction", "Qty"/"Transaction Units",
+     "price"/"Transaction price") — map by meaning, not by exact header text. Ignore any extra column that
+     doesn't map to one of these (e.g. a broker/institution name) rather than guessing what it means.
+
 Rules:
-- One row per actual holding (a stock position, a bank account, a house, a loan, etc.) — skip totals,
-  headers, blank separators, and notes that aren't holdings themselves; mention skips in "warnings".
-- "value" (current total value) is required for every row — it's the one field you should always be
-  able to determine. "quantity" and "price_per_unit" are optional refinements: include them only if the
-  sheet actually states them (e.g. a share count and a price), don't invent numbers that aren't there.
+- One row per actual holding or transaction — skip totals, headers, blank separators, and notes that
+  aren't real entries; mention skips in "warnings".
+- "value" (current total value, or quantity * price_per_unit for a transaction row) is required for every
+  row. For a snapshot row, "quantity" and "price_per_unit" are optional refinements: include them only if
+  the sheet actually states them, don't invent numbers that aren't there.
 - For stock/mutual_fund/crypto/commodity without a clear symbol, still include the row with your best
   guess at "name" and leave "symbol" as null — the person will fix it in the review step.
-- "date" is the date the value is as-of, if stated; otherwise use today's date.
+- Always output "date" as YYYY-MM-DD regardless of the input format (e.g. "7/8/2020", "6/10/2024",
+  "Jan 5 2026"). If a date is genuinely ambiguous (day vs. month order) just make your best guess — it's
+  editable in the review step before anything is saved.
 - Real estate, cash, loans, fixed deposits, PPF, EPF never need "symbol", "quantity", or "price_per_unit".
-- Never fabricate a holding that isn't actually represented in the data.
+- Never fabricate a row that isn't actually represented in the data.
 """
 
 
@@ -136,6 +175,9 @@ def parse_spreadsheet(file_bytes: bytes, filename: str) -> Dict:
         if row["currency"] not in VALID_CURRENCIES:
             row["currency"] = "USD"
         row.setdefault("date", date.today().isoformat())
+        if row.get("transaction_type") not in VALID_TRANSACTION_TYPES:
+            row["transaction_type"] = None
+        row.setdefault("source_account", None)
         validated_rows.append(row)
 
     return {"configured": True, "rows": validated_rows, "warnings": warnings}
@@ -150,6 +192,10 @@ def _validate_row(row: Dict) -> Dict:
     if asset_type not in VALID_ASSET_TYPES:
         raise ValueError(f"Unknown asset_type '{asset_type}'")
 
+    transaction_type = row.get("transaction_type") or None
+    if transaction_type is not None and transaction_type not in VALID_TRANSACTION_TYPES:
+        raise ValueError(f"Unknown transaction_type '{transaction_type}'")
+
     entry_date = date.fromisoformat(row.get("date") or date.today().isoformat())
     value = float(row.get("value") or 0)
 
@@ -162,14 +208,27 @@ def _validate_row(row: Dict) -> Dict:
         "currency": row.get("currency") or "USD",
         "date": entry_date,
         "value": value,
+        "transaction_type": transaction_type,
+        "source_account": (row.get("source_account") or "").strip() or None,
     }
     if asset_type in QUANTITY_BASED_TYPES:
-        has_quantity = row.get("quantity") is not None and row.get("quantity") != ""
-        quantity = float(row["quantity"]) if has_quantity else 1.0
-        if quantity <= 0:
-            raise ValueError("quantity must be greater than 0")
-        has_price = row.get("price_per_unit") is not None and row.get("price_per_unit") != ""
-        price_per_unit = float(row["price_per_unit"]) if has_price else (value / quantity if quantity else value)
+        if transaction_type:
+            # A transaction-log row -- quantity and price are the point of
+            # it, not an optional refinement to fall back away from.
+            try:
+                quantity = float(row["quantity"])
+                price_per_unit = float(row["price_per_unit"])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("Transaction rows need a quantity and a price")
+            if quantity <= 0:
+                raise ValueError("quantity must be greater than 0")
+        else:
+            has_quantity = row.get("quantity") is not None and row.get("quantity") != ""
+            quantity = float(row["quantity"]) if has_quantity else 1.0
+            if quantity <= 0:
+                raise ValueError("quantity must be greater than 0")
+            has_price = row.get("price_per_unit") is not None and row.get("price_per_unit") != ""
+            price_per_unit = float(row["price_per_unit"]) if has_price else (value / quantity if quantity else value)
         normalized["quantity"] = quantity
         normalized["price_per_unit"] = price_per_unit
     return normalized
@@ -178,7 +237,17 @@ def _validate_row(row: Dict) -> Dict:
 def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] = None) -> Dict:
     """Validates every row first (no DB writes), then writes only the rows
     that passed validation in a single transaction — so one malformed AI
-    row can't corrupt or partially-roll-back the rows around it."""
+    row can't corrupt or partially-roll-back the rows around it.
+
+    Snapshot rows (no transaction_type) keep the original behavior: one
+    fresh holding per row. Transaction-log rows (transaction_type set) are
+    grouped by (asset_type, symbol/name, account, currency) so several
+    buy/sell rows for the same position merge into one holding with
+    multiple transactions instead of a duplicate holding per row -- both
+    against holdings already in this batch and against ones that already
+    exist in the account, so re-running an import (or importing a top-up)
+    adds to the existing holding rather than forking it.
+    """
     normalized_rows = []
     errors = []
     for i, row in enumerate(rows):
@@ -187,8 +256,65 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
         except (ValueError, TypeError, KeyError) as e:
             errors.append({"row": i, "error": str(e)})
 
+    def holding_key(row):
+        return (row["asset_type"], (row["symbol"] or row["name"]).upper(), row["account"], row["currency"])
+
+    batch_holdings = {}  # holding_key -> Holding, for rows created earlier in this same import
     created = 0
+    transactions_added = 0
+    warnings = []
+
     for row in normalized_rows:
+        if row["transaction_type"]:
+            key = holding_key(row)
+            holding = batch_holdings.get(key)
+            if holding is None:
+                holding = Holding.query.filter_by(
+                    user_id=user_id, household_id=household_id,
+                    asset_type=row["asset_type"], account=row["account"], currency=row["currency"],
+                ).filter(
+                    (Holding.symbol == row["symbol"]) if row["symbol"] else (Holding.name == row["name"])
+                ).first()
+            if holding is None:
+                holding = Holding(
+                    user_id=user_id, household_id=household_id,
+                    asset_type=row["asset_type"], symbol=row["symbol"], name=row["name"],
+                    country=row["country"], account=row["account"], currency=row["currency"],
+                )
+                db.session.add(holding)
+                db.session.flush()
+                created += 1
+            batch_holdings[key] = holding
+
+            db.session.add(HoldingTransaction(
+                holding_id=holding.id, user_id=user_id,
+                transaction_type=row["transaction_type"],
+                transaction_date=row["date"], quantity=row["quantity"], price_per_unit=row["price_per_unit"],
+                currency=holding.currency,
+            ))
+            transactions_added += 1
+
+            if row["transaction_type"] == "buy" and row["source_account"]:
+                source_holding = Holding.query.filter(
+                    Holding.user_id == user_id, Holding.household_id == household_id,
+                    Holding.asset_type == "cash", db.func.lower(Holding.name) == row["source_account"].lower(),
+                ).first()
+                if source_holding is None:
+                    warnings.append(
+                        f"'{row['source_account']}' (source account for a {row['symbol'] or row['name']} buy) "
+                        "wasn't found as an existing cash holding -- imported the transaction without deducting a funding source."
+                    )
+                else:
+                    source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
+                    total_cost = row["quantity"] * row["price_per_unit"]
+                    try:
+                        db.session.add(build_funding_valuation(
+                            source_holding, source_valuations, total_cost, row["currency"], row["date"], user_id
+                        ))
+                    except ValueError as e:
+                        warnings.append(f"Couldn't deduct the funding source for a {row['symbol'] or row['name']} buy: {e}")
+            continue
+
         holding = Holding(
             user_id=user_id,
             household_id=household_id,
@@ -223,4 +349,4 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
         created += 1
 
     db.session.commit()
-    return {"holdings_created": created, "errors": errors}
+    return {"holdings_created": created, "transactions_added": transactions_added, "errors": errors, "warnings": warnings}

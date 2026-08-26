@@ -57,9 +57,12 @@ export default function ImportSpreadsheet() {
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       const errorCount = result.errors?.length || 0;
-      toast.success(
-        `Imported ${result.holdings_created} holding${result.holdings_created === 1 ? "" : "s"}${errorCount ? ` (${errorCount} row${errorCount === 1 ? "" : "s"} skipped)` : ""}`,
-      );
+      const txCount = result.transactions_added || 0;
+      const summary = txCount
+        ? `Imported ${txCount} transaction${txCount === 1 ? "" : "s"} into ${result.holdings_created} holding${result.holdings_created === 1 ? "" : "s"}`
+        : `Imported ${result.holdings_created} holding${result.holdings_created === 1 ? "" : "s"}`;
+      toast.success(`${summary}${errorCount ? ` (${errorCount} row${errorCount === 1 ? "" : "s"} skipped)` : ""}`);
+      (result.warnings || []).forEach((w) => toast.info(w, 8000));
       setTimeout(() => navigate("/portfolio"), 1200);
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Import failed"),
@@ -80,13 +83,15 @@ export default function ImportSpreadsheet() {
   }
 
   const includedCount = Object.values(included).filter(Boolean).length;
+  const hasTransactionRows = !!rows?.some((r) => r.transaction_type);
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "2rem 1rem" }}>
       <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>Import from Spreadsheet</h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
-        Upload your own Excel or CSV file — whatever layout you already use. AI reads it and maps each row to a holding; nothing is saved
-        until you review and confirm below.
+        Upload your own Excel or CSV file — whatever layout you already use, including a transaction log (a funding account, target account,
+        symbol, date, quantity, price, and buy/sell per row). AI reads it and maps each row; nothing is saved until you review and confirm
+        below.
       </p>
 
       <Card>
@@ -150,14 +155,26 @@ export default function ImportSpreadsheet() {
         <div style={{ marginTop: "1.5rem" }}>
           <Card title={`Review before importing (${includedCount} of ${rows.length} selected)`}>
             <div style={{ overflowX: "auto", marginTop: "0.75rem" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8125rem", minWidth: 900 }}>
+              <table
+                style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8125rem", minWidth: hasTransactionRows ? 1250 : 900 }}
+              >
                 <thead>
                   <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
                     <th style={{ padding: "0.5rem" }}></th>
                     <th style={{ padding: "0.5rem" }}>Type</th>
                     <th style={{ padding: "0.5rem" }}>Name</th>
                     <th style={{ padding: "0.5rem" }}>Symbol</th>
-                    <th style={{ padding: "0.5rem" }}>Value</th>
+                    {hasTransactionRows && (
+                      <>
+                        <th style={{ padding: "0.5rem" }}>Account</th>
+                        <th style={{ padding: "0.5rem" }}>Date</th>
+                        <th style={{ padding: "0.5rem" }}>Buy/Sell</th>
+                        <th style={{ padding: "0.5rem" }}>Qty</th>
+                        <th style={{ padding: "0.5rem" }}>Price</th>
+                        <th style={{ padding: "0.5rem" }}>Funded from</th>
+                      </>
+                    )}
+                    {!hasTransactionRows && <th style={{ padding: "0.5rem" }}>Value</th>}
                     <th style={{ padding: "0.5rem" }}>Currency</th>
                     <th style={{ padding: "0.5rem" }}>Country</th>
                   </tr>
@@ -196,15 +213,81 @@ export default function ImportSpreadsheet() {
                           <span style={{ color: "var(--text-muted)" }}>—</span>
                         )}
                       </td>
-                      <td style={{ padding: "0.5rem" }}>
-                        <input
-                          type="number"
-                          step="any"
-                          value={r.value ?? ""}
-                          onChange={(e) => updateRow(r._key, "value", e.target.value)}
-                          style={inputStyle}
-                        />
-                      </td>
+                      {hasTransactionRows && (
+                        <>
+                          <td style={{ padding: "0.5rem" }}>
+                            <input
+                              value={r.account || ""}
+                              onChange={(e) => updateRow(r._key, "account", e.target.value)}
+                              style={inputStyle}
+                            />
+                          </td>
+                          <td style={{ padding: "0.5rem" }}>
+                            <input
+                              type="date"
+                              value={r.date || ""}
+                              onChange={(e) => updateRow(r._key, "date", e.target.value)}
+                              style={inputStyle}
+                            />
+                          </td>
+                          <td style={{ padding: "0.5rem" }}>
+                            {r.transaction_type ? (
+                              <select
+                                value={r.transaction_type}
+                                onChange={(e) => updateRow(r._key, "transaction_type", e.target.value)}
+                                style={inputStyle}
+                              >
+                                <option value="buy">Buy</option>
+                                <option value="sell">Sell</option>
+                              </select>
+                            ) : (
+                              <span style={{ color: "var(--text-muted)" }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "0.5rem" }}>
+                            <input
+                              type="number"
+                              step="any"
+                              value={r.quantity ?? ""}
+                              onChange={(e) => updateRow(r._key, "quantity", e.target.value)}
+                              style={inputStyle}
+                            />
+                          </td>
+                          <td style={{ padding: "0.5rem" }}>
+                            <input
+                              type="number"
+                              step="any"
+                              value={r.price_per_unit ?? ""}
+                              onChange={(e) => updateRow(r._key, "price_per_unit", e.target.value)}
+                              style={inputStyle}
+                            />
+                          </td>
+                          <td style={{ padding: "0.5rem" }}>
+                            {r.transaction_type === "buy" ? (
+                              <input
+                                value={r.source_account || ""}
+                                onChange={(e) => updateRow(r._key, "source_account", e.target.value)}
+                                placeholder="e.g., Vijay Chase"
+                                style={inputStyle}
+                                title="Matched by name against your existing cash holdings; deducts the cost from its balance."
+                              />
+                            ) : (
+                              <span style={{ color: "var(--text-muted)" }}>—</span>
+                            )}
+                          </td>
+                        </>
+                      )}
+                      {!hasTransactionRows && (
+                        <td style={{ padding: "0.5rem" }}>
+                          <input
+                            type="number"
+                            step="any"
+                            value={r.value ?? ""}
+                            onChange={(e) => updateRow(r._key, "value", e.target.value)}
+                            style={inputStyle}
+                          />
+                        </td>
+                      )}
                       <td style={{ padding: "0.5rem" }}>
                         <select
                           value={r.currency || "USD"}
@@ -238,8 +321,9 @@ export default function ImportSpreadsheet() {
             </div>
 
             <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              Each row becomes a holding with its current value — you can add proper buy/sell history for stocks and funds afterward from
-              the holding's page if you want exact cost basis and returns.
+              {hasTransactionRows
+                ? "Rows for the same symbol + account merge into one holding with a transaction per row. “Funded from” is matched by name against your existing cash holdings and deducts the cost from its balance on a buy — leave it blank to skip that."
+                : "Each row becomes a holding with its current value — you can add proper buy/sell history for stocks and funds afterward from the holding's page if you want exact cost basis and returns."}
             </p>
 
             <button
@@ -257,7 +341,11 @@ export default function ImportSpreadsheet() {
                 opacity: includedCount === 0 || confirmMutation.isPending ? 0.6 : 1,
               }}
             >
-              {confirmMutation.isPending ? "Importing..." : `Import ${includedCount} Holding${includedCount === 1 ? "" : "s"}`}
+              {confirmMutation.isPending
+                ? "Importing..."
+                : hasTransactionRows
+                  ? `Import ${includedCount} Transaction${includedCount === 1 ? "" : "s"}`
+                  : `Import ${includedCount} Holding${includedCount === 1 ? "" : "s"}`}
             </button>
           </Card>
         </div>

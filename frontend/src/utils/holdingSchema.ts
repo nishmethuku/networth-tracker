@@ -32,6 +32,11 @@ export const holdingSchema = z
     quantity: z.string().optional(),
     price_per_unit: z.string().optional(),
     value: z.string().optional(),
+    funding_source_holding_id: z.string().optional(),
+    sip_enabled: z.boolean().optional(),
+    sip_amount: z.string().optional(),
+    sip_frequency: z.string().optional(),
+    sip_start_date: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (SYMBOL_REQUIRED_TYPES.includes(data.assetType) && !data.symbol?.trim()) {

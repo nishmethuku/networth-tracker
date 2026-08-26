@@ -134,6 +134,7 @@ export default function AddHolding() {
       quantity: "",
       price_per_unit: "",
       value: "",
+      funding_source_holding_id: "",
       sip_enabled: false,
       sip_amount: "",
       sip_frequency: "monthly",
@@ -163,6 +164,16 @@ export default function AddHolding() {
     staleTime: 1000 * 60,
   });
   const accountSuggestions = [...new Set((existingHoldings || []).map((h) => h.account).filter(Boolean))].sort();
+
+  // Cash holdings to offer as a funding source for the initial buy -- e.g.
+  // buying a stock and paying for it out of a bank account, which should
+  // reduce that account's recorded balance instead of the two staying
+  // disconnected. Same pattern as HoldingDetail.jsx's AddTransactionForm.
+  const { data: cashHoldings } = useQuery({
+    queryKey: ["holdings", "cash"],
+    queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
+    enabled: quantityBased,
+  });
 
   useEffect(() => {
     if (country && !currency) {
@@ -198,13 +209,18 @@ export default function AddHolding() {
       const holding = await createHolding(holdingPayload);
 
       if (isQuantityBased(form.assetType)) {
-        await createTransaction(holding.id, {
+        const tx = await createTransaction(holding.id, {
           transaction_type: "buy",
           transaction_date: form.date,
           quantity: parseFloat(form.quantity),
           price_per_unit: parseFloat(form.price_per_unit),
           currency: form.currency || "USD",
+          ...(form.funding_source_holding_id ? { funding_source_holding_id: Number(form.funding_source_holding_id) } : {}),
         });
+        if (tx.fundingSource) {
+          queryClient.invalidateQueries({ queryKey: ["holding", tx.fundingSource.holdingId] });
+          queryClient.invalidateQueries({ queryKey: ["holding-valuations", tx.fundingSource.holdingId] });
+        }
       } else {
         await createValuation(holding.id, {
           valuation_date: form.date,
@@ -552,6 +568,28 @@ export default function AddHolding() {
               </div>
             )}
           </div>
+
+          {quantityBased && cashHoldings?.length > 0 && (
+            <div style={{ marginTop: "1.5rem" }}>
+              <label htmlFor="holding-funding-source" style={labelStyle}>
+                Funded from
+              </label>
+              <select
+                id="holding-funding-source"
+                {...register("funding_source_holding_id")}
+                style={{ ...inputStyle, cursor: "pointer" }}
+                title="Deducts this purchase's cost from the selected account's balance"
+              >
+                <option value="">— none —</option>
+                {cashHoldings.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.account ? ` (${c.account})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div>

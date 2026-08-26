@@ -53,6 +53,43 @@ def test_validate_row_defaults_missing_date_to_today():
     assert normalized["date"] == date.today()
 
 
+def test_validate_row_transaction_type_requires_quantity_and_price():
+    row = {"asset_type": "stock", "symbol": "AAPL", "transaction_type": "buy", "date": "2026-08-01"}
+    with pytest.raises(ValueError):
+        _validate_row(row)
+
+
+def test_validate_row_transaction_type_buy_with_full_data():
+    row = {
+        "asset_type": "stock", "symbol": "AAPL", "account": "Morgan Stanley",
+        "transaction_type": "buy", "quantity": 10, "price_per_unit": 190.5,
+        "source_account": "Vijay Chase", "date": "2026-08-01",
+    }
+    normalized = _validate_row(row)
+    assert normalized["transaction_type"] == "buy"
+    assert normalized["source_account"] == "Vijay Chase"
+    assert normalized["quantity"] == 10
+    assert normalized["price_per_unit"] == 190.5
+
+
+def test_validate_row_rejects_unknown_transaction_type():
+    row = {"asset_type": "stock", "symbol": "AAPL", "transaction_type": "transfer", "quantity": 1, "price_per_unit": 1}
+    with pytest.raises(ValueError):
+        _validate_row(row)
+
+
+def test_validate_row_blank_source_account_normalizes_to_none():
+    row = {"asset_type": "stock", "symbol": "AAPL", "transaction_type": "sell", "quantity": 1, "price_per_unit": 1, "source_account": "  "}
+    normalized = _validate_row(row)
+    assert normalized["source_account"] is None
+
+
+def test_validate_row_snapshot_row_has_no_transaction_type_by_default():
+    row = {"asset_type": "stock", "symbol": "AAPL", "quantity": 10, "value": 2000.0}
+    normalized = _validate_row(row)
+    assert normalized["transaction_type"] is None
+
+
 def test_extract_sheet_text_reads_csv():
     csv_bytes = b"Name,Value\nApple,1000\nHouse,500000\n"
     text = extract_sheet_text(csv_bytes, "portfolio.csv")
