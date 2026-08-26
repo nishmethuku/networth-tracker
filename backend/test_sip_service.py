@@ -4,7 +4,18 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.sip_service import next_occurrences, project_future_value
+from backend.sip_service import _advance, next_occurrences, project_future_value
+
+
+def _brute_force_next_occurrence(start_date, frequency, today):
+    """Ground truth for next_occurrences' fast-forward heuristic: walk one
+    period at a time (slow, but exact) until reaching >= today."""
+    n = 0
+    current = start_date
+    while current < today:
+        n += 1
+        current = _advance(start_date, frequency, n)
+    return current
 
 
 def test_next_occurrences_monthly_from_future_start():
@@ -33,6 +44,29 @@ def test_next_occurrences_handles_month_length_clamping():
 
 def test_next_occurrences_unknown_frequency_returns_empty():
     assert next_occurrences(date(2026, 1, 1), "daily", count=3) == []
+
+
+def test_next_occurrences_long_running_monthly_sip_does_not_skip_the_true_next_date():
+    # Regression: the fast-forward heuristic approximates elapsed periods
+    # using a fixed 30-day month, but _advance moves by real calendar
+    # months (~30.44 days average) -- the drift compounds with age, and
+    # for a 20-year-old monthly SIP it overshot by a full period, silently
+    # skipping the actual next occurrence. A flat "-1" period safety
+    # margin doesn't scale with how long the SIP has been running.
+    start = date(2006, 1, 15)
+    today = date(2026, 8, 26)
+    true_next = _brute_force_next_occurrence(start, "monthly", today)
+    assert next_occurrences(start, "monthly", count=1, today=today) == [true_next.isoformat()]
+
+
+def test_next_occurrences_matches_brute_force_across_ages_and_frequencies():
+    today = date(2026, 8, 26)
+    for frequency in ("weekly", "monthly", "quarterly", "yearly"):
+        for years_ago in (1, 5, 20, 40, 80):
+            start = date(today.year - years_ago, 3, 17)
+            expected = _brute_force_next_occurrence(start, frequency, today).isoformat()
+            actual = next_occurrences(start, frequency, count=1, today=today)
+            assert actual == [expected], f"{frequency}, {years_ago}yr: expected {expected}, got {actual}"
 
 
 def test_project_future_value_grows_with_contributions_and_rate():

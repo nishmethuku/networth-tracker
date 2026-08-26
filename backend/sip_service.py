@@ -37,7 +37,17 @@ def next_occurrences(start_date: date, frequency: str, count: int = 3, today: Op
 
     n = 0
     current = start_date
-    # Fast-forward past dates without an unbounded loop for very old start dates.
+    # Fast-forward past dates without an unbounded loop for very old start
+    # dates. approx_days is a fixed average (e.g. 30 for "monthly") but
+    # _advance moves by real calendar months, which average ~30.44 days --
+    # so the day-count estimate below drifts increasingly optimistic
+    # (overshoots n) the longer the SIP has been running: for a 20-year-old
+    # monthly SIP this overshot by a full period, silently skipping the
+    # true next occurrence entirely (found by hand-computing against a
+    # brute-force walk). The forward loop alone only ever corrects an
+    # undershoot; the backward loop after it corrects the overshoot case
+    # symmetrically, landing on the smallest n that's actually >= today
+    # regardless of which direction the approximation errs.
     if current < today:
         approx_days = FREQUENCY_DAYS[frequency]
         elapsed_periods = max(0, (today - start_date).days // approx_days - 1)
@@ -45,6 +55,9 @@ def next_occurrences(start_date: date, frequency: str, count: int = 3, today: Op
         current = _advance(start_date, frequency, n)
         while current < today:
             n += 1
+            current = _advance(start_date, frequency, n)
+        while n > 0 and _advance(start_date, frequency, n - 1) >= today:
+            n -= 1
             current = _advance(start_date, frequency, n)
 
     results = []
