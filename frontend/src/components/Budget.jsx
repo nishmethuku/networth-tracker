@@ -26,7 +26,7 @@ import {
   fetchLiabilities,
   ApiError,
 } from "../api";
-import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
+import { getBudgetCategoryLabel, getAssetTypeLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatCurrencyCompact } from "../utils/formatters";
 
@@ -123,14 +123,23 @@ function AddEntryForm({ categories, currency }) {
   const isRecurring = watch("is_recurring");
   const categoryOptions = entryType === "income" ? categories?.income || [] : categories?.expense || [];
 
-  // Cash accounts to pay an expense out of (or deposit income into) —
-  // picking one adjusts that account's balance automatically instead of
-  // updating it by hand later. Same mechanism as funding a holding
-  // purchase from cash.
+  // Cash accounts to pay an expense out of — picking one adjusts that
+  // account's balance automatically instead of updating it by hand later.
+  // Same mechanism as funding a holding purchase from cash.
   const { data: cashHoldings } = useQuery({
     queryKey: ["holdings", "cash"],
     queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
-    enabled: entryType === "expense" || entryType === "income",
+    enabled: entryType === "expense",
+  });
+
+  // Every holding, to deposit income "into" -- a cash target's balance
+  // actually gets bumped (same mechanism as the funding source above); a
+  // non-cash target (a stock/brokerage account) just tags the entry for
+  // record-keeping, since it has no stored balance to add to.
+  const { data: depositTargets } = useQuery({
+    queryKey: ["holdings", "all"],
+    queryFn: () => fetchHoldings({ summary: true }),
+    enabled: entryType === "income",
   });
 
   // Liabilities this expense can pay down — picking one reduces that
@@ -184,6 +193,12 @@ function AddEntryForm({ categories, currency }) {
         toast.success(
           `Income added — account balance updated to ${formatCurrencyForDisplay(entry.depositTarget.newBalance, entry.depositTarget.currency, { includeCode: false })}`,
         );
+      } else if (entry.depositTargetHoldingId) {
+        // A non-cash deposit target (e.g. a stock account) has no balance
+        // to bump -- the entry is tagged with it, nothing more.
+        const target = (depositTargets || []).find((h) => h.id === entry.depositTargetHoldingId);
+        const label = target ? target.symbol || target.name : "the selected account";
+        toast.success(`Income added — tagged to ${label}`);
       } else {
         toast.success(entryType === "income" ? "Income added" : "Expense added");
       }
@@ -343,7 +358,7 @@ function AddEntryForm({ categories, currency }) {
             </select>
           </div>
         )}
-        {entryType === "income" && cashHoldings?.length > 0 && (
+        {entryType === "income" && depositTargets?.length > 0 && (
           <div>
             <label
               htmlFor="budget-deposit-target"
@@ -355,13 +370,14 @@ function AddEntryForm({ categories, currency }) {
               id="budget-deposit-target"
               {...register("deposit_target_holding_id")}
               style={inputStyle}
-              title="Adds this income to the selected account's balance"
+              title="Adds this income to the selected account's balance (cash accounts) or just tags this entry with it (any other account type)"
             >
               <option value="">— none —</option>
-              {cashHoldings.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                  {c.account ? ` (${c.account})` : ""}
+              {depositTargets.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.symbol || h.name}
+                  {h.account ? ` (${h.account})` : ""}
+                  {h.assetType !== "cash" ? ` · ${getAssetTypeLabel(h.assetType)}` : ""}
                 </option>
               ))}
             </select>

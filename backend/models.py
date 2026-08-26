@@ -350,12 +350,14 @@ class BudgetEntry(db.Model):
     # auto-reconstructed from its history.
     linked_liability_id = db.Column(db.BigInteger, db.ForeignKey("liabilities.id"), nullable=True)
 
-    # Optional: this income entry gets deposited INTO a cash holding (e.g.
-    # a paycheck logged here also credits a bank account you track), the
-    # mirror of linked_liability_id/funding_source. holdings_service.
-    # build_deposit_valuation increases the target holding's balance.
-    # One-directional, same as linked_liability_id: editing/deleting this
-    # entry later does not reverse the balance change.
+    # Optional: which holding this income is "for" -- e.g. a paycheck
+    # logged here also credits a bank account you track (the mirror of
+    # linked_liability_id/funding_source), or just tags the entry with a
+    # brokerage account for record-keeping. Only a cash holding actually
+    # gets its balance bumped (holdings_service.build_deposit_valuation);
+    # any other type is a label only, since it has no storable balance to
+    # add to. One-directional, same as linked_liability_id: editing/
+    # deleting this entry later does not reverse a balance change.
     deposit_target_holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id", ondelete="SET NULL"), nullable=True)
 
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)

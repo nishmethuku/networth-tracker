@@ -1746,8 +1746,13 @@ def create_app():
         if liability:
             liability_after_payment = apply_payment(liability, entry.amount, entry.currency)
 
+        # A deposit target doesn't have to be a cash holding -- picking a
+        # stock/other account here also tags the income entry with it
+        # (deposit_target_holding_id, already set above) as a "this is
+        # what this income was for" record even when there's no balance to
+        # actually add to. Only cash holdings get the balance bump itself.
         deposit_valuation = None
-        if deposit_target:
+        if deposit_target and deposit_target.asset_type == "cash":
             target_valuations = HoldingValuation.query.filter_by(holding_id=deposit_target.id).all()
             try:
                 deposit_valuation = build_deposit_valuation(
