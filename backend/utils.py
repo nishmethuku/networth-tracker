@@ -1,3 +1,4 @@
+import concurrent.futures
 import logging
 import os
 import requests
@@ -5,6 +6,22 @@ from datetime import date, timedelta
 from time import time
 
 logger = logging.getLogger(__name__)
+
+
+def _with_timeout(fn, timeout, *args, **kwargs):
+    """Bounds a call into a third-party library (nsefetch, nsepy, mftool)
+    that has no timeout parameter of its own — unlike every direct
+    requests.get/post call in this file, which already passes one. Python
+    can't forcibly kill a running thread, so on timeout the background
+    call is abandoned (not joined) rather than blocking the caller until
+    it eventually finishes on its own: the fallback chain these are all
+    part of needs the worker back, not a delayed exception after the real
+    hang duration."""
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        return executor.submit(fn, *args, **kwargs).result(timeout=timeout)
+    finally:
+        executor.shutdown(wait=False)
 
 # Optional NSE library imports for Indian stocks (multiple fallbacks)
 try:
@@ -182,7 +199,7 @@ def _get_price_from_nsepython(ticker: str):
         
         # Fetch quote data
         quote_url = f"https://www.nseindia.com/api/quote-equity?symbol={symbol}"
-        data = nsefetch(quote_url)
+        data = _with_timeout(nsefetch, 5, quote_url)
         
         if not data:
             return None
@@ -219,11 +236,7 @@ def _get_price_from_nsepy(ticker: str):
         start_date = end_date - timedelta(days=5)
         
         # Fetch historical data
-        hist = nsepy_get_history(
-            symbol=symbol,
-            start=start_date,
-            end=end_date
-        )
+        hist = _with_timeout(nsepy_get_history, 5, symbol=symbol, start=start_date, end=end_date)
         
         if hist is None or hist.empty:
             return None
@@ -246,7 +259,7 @@ def get_historical_price_from_nsepy(ticker: str, target_date: date):
     try:
         symbol = ticker.upper().replace(".NS", "").replace(".NSE", "")
         start_date = target_date - timedelta(days=7)
-        hist = nsepy_get_history(symbol=symbol, start=start_date, end=target_date)
+        hist = _with_timeout(nsepy_get_history, 5, symbol=symbol, start=start_date, end=target_date)
         if hist is None or hist.empty:
             return None
         price = float(hist["Close"].iloc[-1])
@@ -339,7 +352,7 @@ def _get_price_from_mftool(scheme_code: str):
         scheme_code_str = str(scheme_code).strip()
         
         # Get quote for the mutual fund scheme
-        quote = mf.get_scheme_quote(scheme_code_str)
+        quote = _with_timeout(mf.get_scheme_quote, 6, scheme_code_str)
         
         if not quote:
             return None
