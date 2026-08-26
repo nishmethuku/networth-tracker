@@ -8,6 +8,7 @@ from typing import List, Optional
 from sqlalchemy import text
 
 from .models import (
+    BudgetCategory,
     BudgetEntry,
     BudgetLimit,
     Holding,
@@ -132,16 +133,17 @@ def leave_household(household_id, user_id):
 def delete_household(household_id, requester_id):
     """Owner-only. Deleting a household never deletes anyone's financial
     data — every record shared into it (holdings, snapshots, budget
-    entries, budget limits, liabilities, milestones) just gets unshared
-    (household_id -> NULL) and reverts to being that member's private
-    data, matching how sharing already works everywhere else in the app."""
+    entries, budget limits, budget categories, liabilities, milestones)
+    just gets unshared (household_id -> NULL) and reverts to being that
+    member's private data, matching how sharing already works everywhere
+    else in the app."""
     household = Household.query.get(household_id)
     if not household:
         raise ValueError("Household not found")
     if str(household.owner_id) != str(requester_id):
         raise PermissionError("Only the household owner can delete the household")
 
-    for model in (Holding, NetWorthSnapshot, BudgetEntry, BudgetLimit, Liability, Milestone):
+    for model in (Holding, NetWorthSnapshot, BudgetEntry, BudgetLimit, BudgetCategory, Liability, Milestone):
         model.query.filter_by(household_id=household_id).update({"household_id": None})
     HouseholdInvite.query.filter_by(household_id=household_id).delete()
     HouseholdMember.query.filter_by(household_id=household_id).delete()
