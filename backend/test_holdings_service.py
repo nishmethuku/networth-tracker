@@ -507,6 +507,42 @@ def test_list_holdings_with_metrics_batches_transactions_and_valuations_in_one_q
     assert mock_val_query.filter.call_count == 1
 
 
+def test_list_holdings_with_metrics_computes_display_x_fields_via_real_conversion():
+    """A holding in a non-display currency must have its display_value
+    (and display_cost_basis/display_realized_gain/display_unrealized_gain)
+    actually converted, not just copied from the native-currency figure --
+    summing native-currency values across holdings in different
+    currencies is the exact bug class this app specifically guards
+    against (see README's multi-currency-aggregation highlight)."""
+    from unittest.mock import MagicMock, patch
+
+    inr_cash = _holding(asset_type="cash")
+    inr_cash.id = 1
+    inr_cash.currency = "INR"
+
+    valuation = MagicMock(holding_id=1, value=83000.0, valuation_date=date(2026, 1, 1))
+
+    mock_val_query = MagicMock()
+    mock_val_query.filter.return_value.all.return_value = [valuation]
+
+    with patch("backend.holdings_service.HoldingTransaction") as mock_tx_model, \
+         patch("backend.holdings_service.HoldingValuation") as mock_val_model, \
+         patch("backend.holdings_service.price_service") as mock_price_service:
+        mock_tx_model.query.filter.return_value.all.return_value = []
+        mock_val_model.query = mock_val_query
+        mock_val_model.holding_id.in_ = lambda ids: ids
+        # 83000 INR -> $1000 USD, i.e. divide by 83 -- a real conversion,
+        # not the pass-through used by the N+1 regression test above.
+        mock_price_service.convert.side_effect = lambda amount, from_ccy, to_ccy: amount / 83.0 if from_ccy == "INR" else amount
+
+        results = list_holdings_with_metrics([inr_cash], display_currency="USD")
+
+    assert len(results) == 1
+    result = results[0]
+    assert result["current_value"] == 83000.0  # native currency untouched
+    assert result["display_value"] == 1000.0  # converted to display currency
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
