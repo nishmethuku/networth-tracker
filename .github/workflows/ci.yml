@@ -52,6 +52,19 @@ jobs:
         run: npm run typecheck
       - name: Format check
         run: npm run format:check
+      - name: Check for hardcoded strings (i18n coverage, informational)
+        # Only 6 of ~50 component files use react-i18next today. This is a
+        # soft signal for follow-up work, not a gate: real JSX-text
+        # detection needs a parser, and this app has legitimate English-only
+        # surfaces (currency codes, ticker symbols, formatted numbers) that
+        # a plain grep can't tell apart from real UI copy. continue-on-error
+        # keeps it from ever failing the build.
+        continue-on-error: true
+        run: |
+          grep -rL "useTranslation" src/components/ --include="*.jsx" \
+            | xargs grep -n '>[A-Z][a-zA-Z ,'"'"'"-]\{2,\}<' 2>/dev/null \
+            | grep -v -E '\{t\(|//' \
+            | head -40 || true
       - name: Run vitest
         run: npx vitest run
       - name: Production build
