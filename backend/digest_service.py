@@ -122,7 +122,12 @@ def build_weekly_digest(send_emails: bool = True) -> List[Dict]:
     digest scope using the first recipient's name, not once per recipient."""
     digests = []
 
-    user_ids = [row[0] for row in db.session.query(Holding.user_id).distinct()]
+    # Union with Liability, not just Holding -- someone (or a household)
+    # tracking only debt with no holdings yet would otherwise never get a
+    # digest at all, even though they'd still get daily snapshots (which
+    # already does this union; this one was missed when it was written).
+    user_ids = {row[0] for row in db.session.query(Holding.user_id).distinct()}
+    user_ids |= {row[0] for row in db.session.query(Liability.user_id).distinct()}
     for user_id in user_ids:
         digest = _build_digest_for_scope(user_id=user_id)
         digests.append(digest)
@@ -144,10 +149,14 @@ def build_weekly_digest(send_emails: bool = True) -> List[Dict]:
                     attachments=[("networth-tracker-backup.zip", backup_zip)] if backup_zip else None,
                 )
 
-    household_ids = [
+    household_ids = {
         row[0] for row in
         db.session.query(Holding.household_id).filter(Holding.household_id.isnot(None)).distinct()
-    ]
+    }
+    household_ids |= {
+        row[0] for row in
+        db.session.query(Liability.household_id).filter(Liability.household_id.isnot(None)).distinct()
+    }
     for household_id in household_ids:
         digest = _build_digest_for_scope(household_id=household_id)
         digests.append(digest)
