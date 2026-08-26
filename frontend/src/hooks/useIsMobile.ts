@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 // same width as the rest of the mobile layout.
 const MOBILE_BREAKPOINT = "(max-width: 640px)";
 
-export default function useIsMobile() {
+export default function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT).matches);
 
   useEffect(() => {
     const mql = window.matchMedia(MOBILE_BREAKPOINT);
-    const handler = (e) => setIsMobile(e.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mql.addEventListener("change", handler);
     return () => mql.removeEventListener("change", handler);
   }, []);

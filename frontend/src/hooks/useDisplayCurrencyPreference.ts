@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 const STORAGE_KEY = "default_display_currency";
 
-export function getDefaultDisplayCurrency() {
+export function getDefaultDisplayCurrency(): string {
   return localStorage.getItem(STORAGE_KEY) || "USD";
 }
 
-export default function useDisplayCurrencyPreference() {
+export default function useDisplayCurrencyPreference(): [string, Dispatch<SetStateAction<string>>] {
   const [currency, setCurrencyState] = useState(getDefaultDisplayCurrency);
 
   useEffect(() => {

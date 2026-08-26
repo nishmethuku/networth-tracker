@@ -9,17 +9,17 @@ const MAX_PULL = 110;
  * only on touch devices. Returns a ref to attach to the scroll container
  * and the current pull state for rendering an indicator.
  */
-export default function usePullToRefresh(onRefresh) {
-  const containerRef = useRef(null);
+export default function usePullToRefresh(onRefresh: () => Promise<unknown>) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const startY = useRef(null);
+  const startY = useRef<number | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    function handleTouchStart(e) {
+    function handleTouchStart(e: TouchEvent) {
       if (window.scrollY > 0 || refreshing) {
         startY.current = null;
         return;
@@ -27,7 +27,7 @@ export default function usePullToRefresh(onRefresh) {
       startY.current = e.touches[0].clientY;
     }
 
-    function handleTouchMove(e) {
+    function handleTouchMove(e: TouchEvent) {
       if (startY.current == null) return;
       const delta = e.touches[0].clientY - startY.current;
       if (delta > 0 && window.scrollY === 0) {

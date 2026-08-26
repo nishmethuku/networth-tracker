@@ -1,10 +1,24 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 
-const AuthContext = createContext();
+interface AuthContextValue {
+  session: Session | null;
+  user: Session["user"] | null;
+  accessToken: string | null;
+  loading: boolean;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signOut: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
+}
 
-export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +41,7 @@ export function AuthProvider({ children }) {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
-  async function signUpWithEmail(email, password) {
+  async function signUpWithEmail(email: string, password: string) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -36,7 +50,7 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
-  async function signInWithEmail(email, password) {
+  async function signInWithEmail(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   }
@@ -54,19 +68,19 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
-  async function sendPasswordReset(email) {
+  async function sendPasswordReset(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) throw error;
   }
 
-  async function updatePassword(newPassword) {
+  async function updatePassword(newPassword: string) {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
   }
 
-  const value = {
+  const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
     accessToken: session?.access_token ?? null,
@@ -82,7 +96,7 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within AuthProvider");

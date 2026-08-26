@@ -1,10 +1,14 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-function isTypingTarget(el) {
+function isTypingTarget(el: Element | null): boolean {
   if (!el) return false;
   const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (el as HTMLElement).isContentEditable;
+}
+
+interface UseKeyboardShortcutsOptions {
+  onShowHelp?: () => void;
 }
 
 /**
@@ -12,11 +16,11 @@ function isTypingTarget(el) {
  * CommandSearch.jsx since it needs its own modal state; this hook covers
  * the plain single-key shortcuts that only need to navigate or toggle help.
  */
-export default function useKeyboardShortcuts({ onShowHelp } = {}) {
+export default function useKeyboardShortcuts({ onShowHelp }: UseKeyboardShortcutsOptions = {}) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    function handleKeyDown(e) {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (isTypingTarget(document.activeElement)) return;
 
