@@ -1,4 +1,5 @@
 import hmac
+import html
 import json
 import logging
 import os
@@ -1068,7 +1069,11 @@ def create_app():
         if not email:
             return "<p>This unsubscribe link is invalid or has expired.</p>", 400
         unsubscribe_email(email)
-        return f"<p>{email} has been unsubscribed from the weekly net worth digest.</p>", 200
+        # Escaped even though a valid HMAC means this can only be an email
+        # that was genuinely issued a token (see verify_unsubscribe_token) —
+        # defense in depth against interpolating any externally-influenced
+        # string straight into an HTML response.
+        return f"<p>{html.escape(email)} has been unsubscribed from the weekly net worth digest.</p>", 200
 
     @app.route("/internal/check-alerts", methods=["POST"])
     @limiter.limit("10 per minute")

@@ -43,3 +43,24 @@ def test_request_id_header_present_on_every_response(client):
 def test_request_id_echoes_a_caller_supplied_value(client):
     resp = client.get("/holdings", headers={"X-Request-ID": "test-trace-123"})
     assert resp.headers["X-Request-ID"] == "test-trace-123"
+
+
+def test_unsubscribe_route_escapes_email_in_html_response(client, monkeypatch):
+    # Regression: the route used to interpolate the unsubscribed email
+    # straight into an HTML response with no escaping. A valid HMAC means
+    # this can only ever be an email a token was genuinely issued for (see
+    # unsubscribe_service.generate/verify_unsubscribe_token), but that's
+    # defense in depth, not a reason to skip escaping externally-influenced
+    # data before it lands in an HTML response.
+    from unittest.mock import patch
+
+    from backend import unsubscribe_service as svc
+
+    monkeypatch.setattr(svc, "_SECRET", b"test-secret")
+    token = svc.generate_unsubscribe_token('"><script>alert(1)</script>@example.com')
+
+    with patch("backend.app.unsubscribe_email"):
+        resp = client.get(f"/internal/unsubscribe?token={token}")
+
+    assert b"<script>" not in resp.data
+    assert b"&lt;script&gt;" in resp.data
