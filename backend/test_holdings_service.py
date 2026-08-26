@@ -17,6 +17,7 @@ from backend.holdings_service import (
     build_dashboard,
     build_funding_valuation,
     build_deposit_valuation,
+    list_holdings_with_metrics,
 )
 from backend.models import Holding, HoldingTransaction, HoldingValuation
 
@@ -454,6 +455,56 @@ def test_build_dashboard_groups_allocation_by_currency():
     result = build_dashboard(metrics, {1: usd_holding, 2: inr_holding})
     by_currency = {a["label"]: a["value"] for a in result["allocation_by_currency"]}
     assert by_currency == {"USD": 1000.0, "INR": 500.0}
+
+
+def test_list_holdings_with_metrics_batches_transactions_and_valuations_in_one_query_each():
+    """Regression test: list_holdings_with_metrics used to issue one
+    HoldingTransaction/HoldingValuation query per holding inside its loop --
+    an N+1 that scaled with portfolio size for no reason, since every
+    holding's full history was always going to be read regardless of how
+    many other holdings existed. Fixed to two bulk `IN` queries total.
+    Verified live against the real DB too: 5 holdings (3 stock + 2 cash)
+    -> exactly 2 queries against those tables, not 5."""
+    from unittest.mock import patch, MagicMock
+
+    stocks = []
+    for i in range(3):
+        h = _holding(asset_type="stock")
+        h.id = i + 1
+        h.symbol = f"TEST{i}"
+        stocks.append(h)
+    cashes = []
+    for i in range(2):
+        h = _holding(asset_type="cash")
+        h.id = i + 10
+        cashes.append(h)
+    holdings = stocks + cashes
+
+    # Both .filter() (the bulk-IN fix) and .filter_by() (the old per-holding
+    # call) resolve to an empty list -- the regression check below is the
+    # call_count assertions, not an incidental crash from an unconfigured
+    # mock path if someone reverts to the per-holding query style.
+    mock_tx_query = MagicMock()
+    mock_tx_query.filter.return_value.all.return_value = []
+    mock_tx_query.filter_by.return_value.all.return_value = []
+    mock_val_query = MagicMock()
+    mock_val_query.filter.return_value.all.return_value = []
+    mock_val_query.filter_by.return_value.all.return_value = []
+
+    with patch("backend.holdings_service.HoldingTransaction") as mock_tx_model, \
+         patch("backend.holdings_service.HoldingValuation") as mock_val_model, \
+         patch("backend.holdings_service.price_service") as mock_price_service:
+        mock_tx_model.query = mock_tx_query
+        mock_tx_model.holding_id.in_ = lambda ids: ids  # pass-through, just needs to be callable
+        mock_val_model.query = mock_val_query
+        mock_val_model.holding_id.in_ = lambda ids: ids
+        mock_price_service.get_current_price.return_value = 100.0
+        mock_price_service.convert.side_effect = lambda amount, *_: amount
+
+        list_holdings_with_metrics(holdings, display_currency="USD")
+
+    assert mock_tx_query.filter.call_count == 1
+    assert mock_val_query.filter.call_count == 1
 
 
 if __name__ == "__main__":

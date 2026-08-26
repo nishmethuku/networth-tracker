@@ -7,6 +7,7 @@ crypto, commodity) or valuation history (everything else: real_estate,
 fixed_deposit, ppf, epf, retirals, cash, loan, credit) instead of one frozen
 buy price/quantity.
 """
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from typing import Dict, List, Optional
@@ -255,6 +256,13 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
     a row, which is the single biggest source of a slow dashboard/portfolio
     load, especially when NSE's flaky fallback chain has to fail through a
     couple of sources per symbol before landing on Yahoo.
+
+    Transactions and valuations are likewise fetched in two bulk `IN`
+    queries up front rather than one query per holding in the loop below —
+    a portfolio of N holdings previously issued N queries here alone
+    (on top of the dashboard/summary routes' own queries), scaling with
+    portfolio size for no reason: every holding's full history was always
+    going to be read regardless of how many other holdings exist.
     """
     quantity_keys = list({(h.asset_type, h.symbol, h.currency) for h in holdings if h.asset_type in QUANTITY_BASED_TYPES})
 
@@ -264,13 +272,26 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
             fetched = pool.map(lambda k: price_service.get_current_price(k[0], k[1], k[2]), quantity_keys)
         price_cache = dict(zip(((k[0], k[1]) for k in quantity_keys), fetched))
 
+    quantity_holding_ids = [h.id for h in holdings if h.asset_type in QUANTITY_BASED_TYPES]
+    valuation_holding_ids = [h.id for h in holdings if h.asset_type not in QUANTITY_BASED_TYPES]
+
+    transactions_by_holding: Dict[int, List[HoldingTransaction]] = defaultdict(list)
+    if quantity_holding_ids:
+        for tx in HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(quantity_holding_ids)).all():
+            transactions_by_holding[tx.holding_id].append(tx)
+
+    valuations_by_holding: Dict[int, List[HoldingValuation]] = defaultdict(list)
+    if valuation_holding_ids:
+        for val in HoldingValuation.query.filter(HoldingValuation.holding_id.in_(valuation_holding_ids)).all():
+            valuations_by_holding[val.holding_id].append(val)
+
     results = []
     for h in holdings:
         if h.asset_type in QUANTITY_BASED_TYPES:
-            transactions = HoldingTransaction.query.filter_by(holding_id=h.id).all()
+            transactions = transactions_by_holding.get(h.id, [])
             metrics = calculate_holding_metrics(h, transactions, current_price=price_cache.get((h.asset_type, h.symbol)))
         else:
-            valuations = HoldingValuation.query.filter_by(holding_id=h.id).all()
+            valuations = valuations_by_holding.get(h.id, [])
             metrics = calculate_valuation_metrics(h, valuations)
 
         metrics["display_value"] = price_service.convert(metrics["current_value"], h.currency, display_currency)
