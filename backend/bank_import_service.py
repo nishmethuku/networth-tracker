@@ -15,7 +15,7 @@ import pandas as pd
 import pdfplumber
 
 from . import ai_service
-from .budget_service import EXPENSE_CATEGORIES, INCOME_CATEGORIES
+from .budget_service import EXPENSE_CATEGORIES, INCOME_CATEGORIES, category_exists
 from .models import BudgetEntry, db
 
 MAX_ROWS_TO_SEND = 300  # keeps the prompt bounded for unusually long statements
@@ -142,20 +142,25 @@ def parse_statement(file_bytes: bytes, filename: str) -> Dict:
     return {"configured": True, "rows": validated_rows, "warnings": warnings}
 
 
-def _validate_row(row: Dict) -> Dict:
+def _validate_row(row: Dict, user_id=None, household_id=None) -> Dict:
     """Raises ValueError with a human-readable message if the row can't be
-    imported; otherwise returns a normalized copy. Pure — no DB writes —
-    same reasoning as smart_import_service._validate_row: check every row
-    before writing any of them, so one malformed row can't force a partial
-    transaction to be unwound mid-import."""
+    imported; otherwise returns a normalized copy. Pure(ish) — no DB
+    writes, only a read to check a custom category — same reasoning as
+    smart_import_service._validate_row: check every row before writing any
+    of them, so one malformed row can't force a partial transaction to be
+    unwound mid-import.
+
+    category_exists (not just a check against the two fixed lists) since
+    the review table offers a user's custom categories too -- this used to
+    reject any row someone had recategorized to one in the review step,
+    even though a plain Budget entry with the same category saves fine."""
     direction = row.get("direction")
     if direction not in ("debit", "credit"):
         raise ValueError(f"direction must be 'debit' or 'credit', got '{direction}'")
     entry_type = "expense" if direction == "debit" else "income"
 
-    valid_categories = EXPENSE_CATEGORIES if entry_type == "expense" else INCOME_CATEGORIES
     category = row.get("category")
-    if category not in valid_categories:
+    if not category_exists(category, entry_type, user_id, household_id):
         raise ValueError(f"category '{category}' is not valid for a {entry_type}")
 
     has_amount = row.get("amount") is not None and row.get("amount") != ""
@@ -189,7 +194,7 @@ def confirm_bank_import(rows: List[Dict], user_id, household_id: Optional[str] =
     errors = []
     for i, row in enumerate(rows):
         try:
-            normalized_rows.append(_validate_row(row))
+            normalized_rows.append(_validate_row(row, user_id=user_id, household_id=household_id))
         except (ValueError, TypeError, KeyError) as e:
             errors.append({"row": i, "error": str(e)})
 

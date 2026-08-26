@@ -232,6 +232,12 @@ def category_exists(category: str, entry_type: str, user_id, household_id=None) 
     presets = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
     if category in presets:
         return True
+    if user_id is None and household_id is None:
+        # No real scope to have created a custom category in -- skip the
+        # DB round trip rather than querying a scope that can't match
+        # anything (also keeps this callable in a pure/no-DB context,
+        # e.g. a unit test asserting a category is rejected).
+        return False
     return _custom_categories_query(entry_type, user_id, household_id).filter_by(name=category).first() is not None
 
 

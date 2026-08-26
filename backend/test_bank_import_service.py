@@ -70,6 +70,20 @@ def test_validate_row_rejects_category_from_wrong_direction():
         _validate_row(row)
 
 
+def test_validate_row_rejects_a_custom_category_with_no_user_scope():
+    # Regression companion: _validate_row used to check only the two fixed
+    # preset lists, rejecting any category a user had actually created as
+    # a custom one (the review table offers those too) even though a
+    # plain Budget entry with the same category saves fine. Full
+    # acceptance of a real custom category needs a DB/user context (see
+    # the live check this module's own docstring points to for
+    # confirm_bank_import); this asserts the no-scope case still rejects
+    # cleanly rather than erroring.
+    row = {"date": "2026-01-15", "amount": 10, "direction": "debit", "category": "Pet care"}
+    with pytest.raises(ValueError):
+        _validate_row(row)
+
+
 def test_validate_row_rejects_invalid_direction():
     with pytest.raises(ValueError):
         _validate_row({"date": "2026-01-15", "amount": 10, "direction": "sideways", "category": "food"})
