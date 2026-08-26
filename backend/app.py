@@ -39,7 +39,7 @@ from . import price_service
 from . import ai_service
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
 from .allocation_target_service import get_target_allocation, save_target_allocation, clear_target_allocation
-from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation, TRANSACTION_TYPES
+from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation, build_deposit_valuation, TRANSACTION_TYPES
 from .liability_service import list_liabilities_with_display, total_liabilities_display, apply_payment, LIABILITY_TYPES
 from .emergency_fund_service import get_emergency_fund_status
 from .household_service import (
@@ -1683,6 +1683,13 @@ def create_app():
         linked_liability_id = data.get("linked_liability_id") if entry_type == "expense" else None
         liability = get_authorized_liability(linked_liability_id, require_write=True) if linked_liability_id else None
 
+        # Same autoflush-safe ordering as linked_liability_id above:
+        # authorize the deposit target *before* constructing/adding the
+        # entry, so a bad id 404s cleanly instead of surfacing as a raw
+        # IntegrityError when the next query autoflushes the session.
+        deposit_target_id = data.get("deposit_target_holding_id") if entry_type == "income" else None
+        deposit_target = get_authorized_holding(deposit_target_id, require_write=True) if deposit_target_id else None
+
         entry = BudgetEntry(
             user_id=g.user_id,
             household_id=household_id,
@@ -1696,6 +1703,7 @@ def create_app():
             is_recurring=bool(data.get("is_recurring", False)),
             recurring_frequency=recurring_frequency,
             linked_liability_id=linked_liability_id,
+            deposit_target_holding_id=deposit_target_id,
         )
         db.session.add(entry)
 
@@ -1717,11 +1725,24 @@ def create_app():
         if liability:
             liability_after_payment = apply_payment(liability, entry.amount, entry.currency)
 
+        deposit_valuation = None
+        if deposit_target:
+            target_valuations = HoldingValuation.query.filter_by(holding_id=deposit_target.id).all()
+            try:
+                deposit_valuation = build_deposit_valuation(
+                    deposit_target, target_valuations, entry.amount, entry.currency, entry.entry_date, g.user_id
+                )
+            except ValueError as e:
+                db.session.rollback()
+                return jsonify({"error": str(e)}), 400
+            db.session.add(deposit_valuation)
+
         db.session.commit()
         return jsonify({
             **entry.to_dict(),
             "funding_source": funding_valuation.to_dict() if funding_valuation else None,
             "linked_liability": liability_after_payment.to_dict() if liability_after_payment else None,
+            "deposit_target": deposit_valuation.to_dict() if deposit_valuation else None,
         }), 201
 
     @app.route("/budget/entries/<int:entry_id>", methods=["PUT"])

@@ -115,19 +115,21 @@ function AddEntryForm({ categories, currency }) {
       recurring_frequency: "monthly",
       funding_source_holding_id: "",
       linked_liability_id: "",
+      deposit_target_holding_id: "",
     },
   });
   const entryType = watch("entry_type");
   const isRecurring = watch("is_recurring");
   const categoryOptions = entryType === "income" ? categories?.income || [] : categories?.expense || [];
 
-  // Cash accounts to pay an expense out of — picking one deducts the
-  // expense automatically instead of updating that account's balance by
-  // hand later. Same mechanism as funding a holding purchase from cash.
+  // Cash accounts to pay an expense out of (or deposit income into) —
+  // picking one adjusts that account's balance automatically instead of
+  // updating it by hand later. Same mechanism as funding a holding
+  // purchase from cash.
   const { data: cashHoldings } = useQuery({
     queryKey: ["holdings", "cash"],
     queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
-    enabled: entryType === "expense",
+    enabled: entryType === "expense" || entryType === "income",
   });
 
   // Liabilities this expense can pay down — picking one reduces that
@@ -154,6 +156,9 @@ function AddEntryForm({ categories, currency }) {
           ? { funding_source_holding_id: Number(data.funding_source_holding_id) }
           : {}),
         ...(data.entry_type === "expense" && data.linked_liability_id ? { linked_liability_id: Number(data.linked_liability_id) } : {}),
+        ...(data.entry_type === "income" && data.deposit_target_holding_id
+          ? { deposit_target_holding_id: Number(data.deposit_target_holding_id) }
+          : {}),
       }),
     onSuccess: (entry) => {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
@@ -171,6 +176,13 @@ function AddEntryForm({ categories, currency }) {
         toast.success(
           `Expense added — liability balance updated to ${formatCurrencyForDisplay(entry.linkedLiability.newBalance, entry.linkedLiability.currency, { includeCode: false })}`,
         );
+      } else if (entry.depositTarget) {
+        queryClient.invalidateQueries({ queryKey: ["holding", entry.depositTarget.holdingId] });
+        queryClient.invalidateQueries({ queryKey: ["holding-valuations", entry.depositTarget.holdingId] });
+        queryClient.invalidateQueries({ queryKey: ["holdings"] });
+        toast.success(
+          `Income added — account balance updated to ${formatCurrencyForDisplay(entry.depositTarget.newBalance, entry.depositTarget.currency, { includeCode: false })}`,
+        );
       } else {
         toast.success(entryType === "income" ? "Income added" : "Expense added");
       }
@@ -185,6 +197,7 @@ function AddEntryForm({ categories, currency }) {
         recurring_frequency: "monthly",
         funding_source_holding_id: "",
         linked_liability_id: "",
+        deposit_target_holding_id: "",
       });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add entry"),
@@ -324,6 +337,30 @@ function AddEntryForm({ categories, currency }) {
               {liabilities.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {entryType === "income" && cashHoldings?.length > 0 && (
+          <div>
+            <label
+              htmlFor="budget-deposit-target"
+              style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+            >
+              Deposit into
+            </label>
+            <select
+              id="budget-deposit-target"
+              {...register("deposit_target_holding_id")}
+              style={inputStyle}
+              title="Adds this income to the selected account's balance"
+            >
+              <option value="">— none —</option>
+              {cashHoldings.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.account ? ` (${c.account})` : ""}
                 </option>
               ))}
             </select>

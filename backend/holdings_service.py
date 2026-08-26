@@ -181,6 +181,40 @@ def build_funding_valuation(
     )
 
 
+def build_deposit_valuation(
+    target_holding: Holding,
+    existing_valuations: List[HoldingValuation],
+    amount: float,
+    amount_currency: str,
+    on_date: date,
+    acting_user_id,
+) -> HoldingValuation:
+    """
+    Build (uncommitted) the valuation entry that records income being
+    deposited into a cash holding — e.g. logging a paycheck in Budget with
+    a "Deposit into" account. The mirror of build_funding_valuation (money
+    OUT of a cash holding); this is money IN. Same "cash" restriction and
+    same reasoning. Unlike funding, an empty valuation history isn't an
+    error here — you can't spend from a balance that doesn't exist yet,
+    but depositing into a brand-new cash holding is fine; it just starts
+    from 0.
+    """
+    if target_holding.asset_type != "cash":
+        raise ValueError("Deposit target must be a cash holding")
+
+    starting_value = max(existing_valuations, key=lambda v: v.valuation_date).value if existing_valuations else 0.0
+    converted_amount = price_service.convert(amount, amount_currency, target_holding.currency)
+
+    return HoldingValuation(
+        holding_id=target_holding.id,
+        user_id=acting_user_id,
+        valuation_date=on_date,
+        value=starting_value + converted_amount,
+        currency=target_holding.currency,
+        notes="Deposited from income",
+    )
+
+
 def get_holding_metrics(
     holding: Holding,
     transactions: Optional[List[HoldingTransaction]] = None,

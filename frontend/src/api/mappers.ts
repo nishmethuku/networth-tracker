@@ -406,6 +406,8 @@ export interface BudgetEntry {
   fundingSource: FundingSource | null;
   linkedLiabilityId: number | null;
   linkedLiability: LinkedLiabilityPayment | null;
+  depositTargetHoldingId: number | null;
+  depositTarget: FundingSource | null;
 }
 
 export function mapBudgetEntry(e: any): BudgetEntry | null {
@@ -433,6 +435,10 @@ export function mapBudgetEntry(e: any): BudgetEntry | null {
           newBalance: safeNumber(e.linked_liability.current_balance),
           currency: e.linked_liability.currency,
         }
+      : null,
+    depositTargetHoldingId: e.deposit_target_holding_id ?? null,
+    depositTarget: e.deposit_target
+      ? { holdingId: e.deposit_target.holding_id, newBalance: safeNumber(e.deposit_target.value), currency: e.deposit_target.currency }
       : null,
   };
 }

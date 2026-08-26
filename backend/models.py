@@ -341,6 +341,14 @@ class BudgetEntry(db.Model):
     # auto-reconstructed from its history.
     linked_liability_id = db.Column(db.BigInteger, db.ForeignKey("liabilities.id"), nullable=True)
 
+    # Optional: this income entry gets deposited INTO a cash holding (e.g.
+    # a paycheck logged here also credits a bank account you track), the
+    # mirror of linked_liability_id/funding_source. holdings_service.
+    # build_deposit_valuation increases the target holding's balance.
+    # One-directional, same as linked_liability_id: editing/deleting this
+    # entry later does not reverse the balance change.
+    deposit_target_holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id", ondelete="SET NULL"), nullable=True)
+
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
     def to_dict(self):
@@ -358,6 +366,7 @@ class BudgetEntry(db.Model):
             "is_recurring": self.is_recurring,
             "recurring_frequency": self.recurring_frequency,
             "linked_liability_id": self.linked_liability_id,
+            "deposit_target_holding_id": self.deposit_target_holding_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

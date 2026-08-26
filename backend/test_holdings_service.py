@@ -16,6 +16,7 @@ from backend.holdings_service import (
     get_monthly_net_flow,
     build_dashboard,
     build_funding_valuation,
+    build_deposit_valuation,
 )
 from backend.models import Holding, HoldingTransaction, HoldingValuation
 
@@ -353,6 +354,47 @@ def test_build_funding_valuation_rejects_cash_with_no_history():
     import pytest
     with pytest.raises(ValueError):
         build_funding_valuation(cash, [], amount=100.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
+
+
+def test_build_deposit_valuation_adds_income_to_latest_cash_balance():
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    valuations = [HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2026, 1, 1), value=5000.0, currency="USD")]
+    val = build_deposit_valuation(cash, valuations, amount=3000.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
+    assert val.value == 8000.0
+    assert val.currency == "USD"
+    assert val.holding_id == 9
+
+
+def test_build_deposit_valuation_converts_currency():
+    from unittest.mock import patch
+
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    cash.currency = "USD"
+    valuations = [HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2026, 1, 1), value=1000.0, currency="USD")]
+    # Depositing an INR salary into a USD cash balance should convert first, not add raw INR to raw USD.
+    with patch("backend.holdings_service.price_service.convert", return_value=50.0) as mock_convert:
+        val = build_deposit_valuation(cash, valuations, amount=4150.0, amount_currency="INR", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
+    mock_convert.assert_called_once_with(4150.0, "INR", "USD")
+    assert val.value == 1050.0
+
+
+def test_build_deposit_valuation_rejects_non_cash_target():
+    stock = _holding(asset_type="stock")
+    stock.id = 1
+    import pytest
+    with pytest.raises(ValueError):
+        build_deposit_valuation(stock, [], amount=100.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=stock.user_id)
+
+
+def test_build_deposit_valuation_starts_from_zero_with_no_history():
+    # Unlike funding (can't spend from nothing), depositing into a cash
+    # holding with no recorded balance yet is fine -- it just starts at 0.
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    val = build_deposit_valuation(cash, [], amount=500.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
+    assert val.value == 500.0
 
 
 def test_build_dashboard_sums_display_currency_gains_not_native_currency():
