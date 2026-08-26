@@ -377,10 +377,10 @@ export default function Liabilities() {
 
   const createMutation = useMutation({
     mutationFn: createLiability,
-    onSuccess: () => {
+    onSuccess: (liability) => {
       queryClient.invalidateQueries({ queryKey: ["liabilities"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("Liability added");
+      toast.success(`${liability.name} added`);
       setShowForm(false);
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add liability"),
@@ -388,10 +388,10 @@ export default function Liabilities() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => updateLiability(id, payload),
-    onSuccess: () => {
+    onSuccess: (liability) => {
       queryClient.invalidateQueries({ queryKey: ["liabilities"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("Liability updated");
+      toast.success(`${liability.name} updated`);
       setEditing(null);
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to update liability"),
@@ -402,7 +402,7 @@ export default function Liabilities() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["liabilities"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("Liability deleted");
+      toast.success(deleting?.name ? `${deleting.name} deleted` : "Liability deleted");
       setDeleting(null);
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete liability"),

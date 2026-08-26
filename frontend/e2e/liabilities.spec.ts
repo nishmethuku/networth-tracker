@@ -54,7 +54,7 @@ test.describe("Liabilities", () => {
       interest_rate: 6.5,
     });
 
-    await expect(page.getByText("Home mortgage")).toBeVisible();
+    await expect(page.getByText("Home mortgage", { exact: true })).toBeVisible();
   });
 
   test("the payoff calculator computes months-to-payoff for an existing liability", async ({ mockedPage: page }) => {

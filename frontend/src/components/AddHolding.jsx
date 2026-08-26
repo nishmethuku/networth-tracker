@@ -21,6 +21,7 @@ const inputStyle = {
 };
 
 const inputErrorStyle = { ...inputStyle, borderColor: "var(--danger)" };
+const inputValidStyle = { ...inputStyle, borderColor: "var(--success)" };
 
 const labelStyle = {
   display: "block",
@@ -32,6 +33,12 @@ const labelStyle = {
 
 const errorTextStyle = {
   color: "var(--danger)",
+  fontSize: "0.8125rem",
+  marginTop: "0.4rem",
+};
+
+const validTextStyle = {
+  color: "var(--success)",
   fontSize: "0.8125rem",
   marginTop: "0.4rem",
 };
@@ -78,9 +85,21 @@ const INSTITUTION_PLACEHOLDERS = {
   retirals: "e.g., Fidelity, Vanguard",
 };
 
-function FieldError({ message }) {
-  if (!message) return null;
-  return <p style={errorTextStyle}>{message}</p>;
+// Shows a red warning + message once a field has been touched and is
+// invalid, or a green checkmark once it's been touched and passes --
+// react-hook-form's touchedFields, not raw errors, since flagging a field
+// red before the user has even reached it (or blurred past it) reads as
+// the form scolding them for nothing.
+function FieldStatus({ message, touched }) {
+  if (message) return <p style={errorTextStyle}>{message}</p>;
+  if (touched) return <p style={validTextStyle}>✓ Looks good</p>;
+  return null;
+}
+
+function fieldStyle(touched, hasError) {
+  if (hasError) return inputErrorStyle;
+  if (touched) return inputValidStyle;
+  return inputStyle;
 }
 
 export default function AddHolding() {
@@ -94,7 +113,7 @@ export default function AddHolding() {
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, touchedFields, isSubmitting },
   } = useForm({
     resolver: zodResolver(holdingSchema),
     mode: "onBlur",
@@ -195,10 +214,10 @@ export default function AddHolding() {
       }
       return holding;
     },
-    onSuccess: () => {
+    onSuccess: (holding) => {
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("Holding added! ✔");
+      toast.success(`${holding.symbol || holding.name} added to portfolio`);
       setTimeout(() => navigate("/portfolio"), 1200);
     },
     onError: (err) => {
@@ -302,7 +321,7 @@ export default function AddHolding() {
               <select
                 id="holding-country"
                 {...register("country")}
-                style={{ ...(errors.country ? inputErrorStyle : inputStyle), cursor: "pointer" }}
+                style={{ ...fieldStyle(touchedFields.country, errors.country), cursor: "pointer" }}
               >
                 <option value="">Select country...</option>
                 {COUNTRIES.map((c) => (
@@ -311,7 +330,7 @@ export default function AddHolding() {
                   </option>
                 ))}
               </select>
-              <FieldError message={errors.country?.message} />
+              <FieldStatus message={errors.country?.message} touched={touchedFields.country} />
             </div>
 
             <div>
@@ -345,7 +364,7 @@ export default function AddHolding() {
                 onChange={handleSymbolChange}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                 placeholder={assetType === "crypto" ? "e.g., Bitcoin" : "e.g., AAPL"}
-                style={errors.symbol ? inputErrorStyle : inputStyle}
+                style={fieldStyle(touchedFields.symbol, errors.symbol)}
                 autoComplete="off"
               />
               {showSuggestions && suggestions.length > 0 && (
@@ -378,7 +397,7 @@ export default function AddHolding() {
                   ))}
                 </div>
               )}
-              <FieldError message={errors.symbol?.message} />
+              <FieldStatus message={errors.symbol?.message} touched={touchedFields.symbol} />
             </div>
           )}
 
@@ -394,7 +413,7 @@ export default function AddHolding() {
                   setValue("symbol", e.target.value, { shouldValidate: true });
                   setValue("name", METALS.find((m) => m.value === e.target.value)?.label || "");
                 }}
-                style={{ ...(errors.symbol ? inputErrorStyle : inputStyle), cursor: "pointer" }}
+                style={{ ...fieldStyle(touchedFields.symbol, errors.symbol), cursor: "pointer" }}
               >
                 <option value="">Select metal...</option>
                 {METALS.map((m) => (
@@ -403,7 +422,7 @@ export default function AddHolding() {
                   </option>
                 ))}
               </select>
-              <FieldError message={errors.symbol?.message} />
+              <FieldStatus message={errors.symbol?.message} touched={touchedFields.symbol} />
             </div>
           )}
 
@@ -432,9 +451,9 @@ export default function AddHolding() {
                   id="holding-name"
                   {...register("name")}
                   placeholder={assetType === "real_estate" ? "e.g., My House" : "e.g., HDFC FD #1"}
-                  style={errors.name ? inputErrorStyle : inputStyle}
+                  style={fieldStyle(touchedFields.name, errors.name)}
                 />
-                <FieldError message={errors.name?.message} />
+                <FieldStatus message={errors.name?.message} touched={touchedFields.name} />
               </div>
               {assetType !== "real_estate" && (
                 <div>
@@ -492,9 +511,9 @@ export default function AddHolding() {
                 type="date"
                 {...register("date")}
                 max={new Date().toISOString().split("T")[0]}
-                style={errors.date ? inputErrorStyle : inputStyle}
+                style={fieldStyle(touchedFields.date, errors.date)}
               />
-              <FieldError message={errors.date?.message} />
+              <FieldStatus message={errors.date?.message} touched={touchedFields.date} />
             </div>
             {quantityBased ? (
               <>
@@ -506,9 +525,9 @@ export default function AddHolding() {
                     id="holding-quantity"
                     control={control}
                     name="quantity"
-                    style={errors.quantity ? inputErrorStyle : inputStyle}
+                    style={fieldStyle(touchedFields.quantity, errors.quantity)}
                   />
-                  <FieldError message={errors.quantity?.message} />
+                  <FieldStatus message={errors.quantity?.message} touched={touchedFields.quantity} />
                 </div>
                 <div>
                   <label htmlFor="holding-price-per-unit" style={labelStyle}>
@@ -518,9 +537,9 @@ export default function AddHolding() {
                     id="holding-price-per-unit"
                     control={control}
                     name="price_per_unit"
-                    style={errors.price_per_unit ? inputErrorStyle : inputStyle}
+                    style={fieldStyle(touchedFields.price_per_unit, errors.price_per_unit)}
                   />
-                  <FieldError message={errors.price_per_unit?.message} />
+                  <FieldStatus message={errors.price_per_unit?.message} touched={touchedFields.price_per_unit} />
                 </div>
               </>
             ) : (
@@ -528,8 +547,8 @@ export default function AddHolding() {
                 <label htmlFor="holding-value" style={labelStyle}>
                   {assetType === "loan" ? "Amount Owed *" : assetType === "credit" ? "Amount Owed to You *" : "Value *"}
                 </label>
-                <NumericInput id="holding-value" control={control} name="value" style={errors.value ? inputErrorStyle : inputStyle} />
-                <FieldError message={errors.value?.message} />
+                <NumericInput id="holding-value" control={control} name="value" style={fieldStyle(touchedFields.value, errors.value)} />
+                <FieldStatus message={errors.value?.message} touched={touchedFields.value} />
               </div>
             )}
           </div>

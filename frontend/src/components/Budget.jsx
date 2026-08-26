@@ -490,10 +490,10 @@ function SpendingLimitsCard({ currency, limitStatus }) {
         monthly_limit: parseFloat(data.monthly_limit),
         currency,
       }),
-    onSuccess: () => {
+    onSuccess: (limit) => {
       queryClient.invalidateQueries({ queryKey: ["budget-limits"] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
-      toast.success("Limit set");
+      toast.success(`Limit set for ${getBudgetCategoryLabel(limit.category)}`);
       reset({ category: "", monthly_limit: "" });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to set limit"),
