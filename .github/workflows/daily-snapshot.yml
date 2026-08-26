@@ -15,13 +15,36 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     steps:
+      # Render's free tier spins the backend down after 15 min idle, and this
+      # cron fires at 06:00 UTC when nobody's been using the app -- so it's
+      # almost always waking a cold instance. Cold-start wake alone can take
+      # up to ~100s (see backend/../frontend's own client.ts cold-start
+      # handling), and Render's proxy appears to cut off requests around
+      # there too, which was silently eating every single scheduled run
+      # (curl has no explicit timeout below, so a killed connection surfaces
+      # as an empty/non-200 status here, not a hang). Paying the cold-start
+      # cost with a cheap, generously-timed GET first means the actual
+      # snapshot POST below hits an already-warm backend.
+      - name: Wake up backend
+        run: curl -s -o /dev/null --max-time 120 "${{ secrets.BACKEND_URL }}/" || true
       - name: Trigger snapshot
         run: |
-          status=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
-            "${{ secrets.BACKEND_URL }}/internal/snapshot" \
-            -H "X-Snapshot-Secret: ${{ secrets.SNAPSHOT_SECRET }}")
+          trigger() {
+            curl -s -o /tmp/response.json -w "%{http_code}" --max-time 250 -X POST \
+              "${{ secrets.BACKEND_URL }}/internal/snapshot" \
+              -H "X-Snapshot-Secret: ${{ secrets.SNAPSHOT_SECRET }}"
+          }
+          status=$(trigger)
           echo "Response ($status):"
-          cat /tmp/response.json
+          cat /tmp/response.json 2>/dev/null || true
+          # Upserts by date, so a retry after a transient failure is safe.
+          if [ "$status" != "200" ]; then
+            echo "First attempt failed ($status) -- retrying once after 15s"
+            sleep 15
+            status=$(trigger)
+            echo "Retry response ($status):"
+            cat /tmp/response.json 2>/dev/null || true
+          fi
           if [ "$status" != "200" ]; then
             echo "Snapshot request failed with status $status"
             exit 1

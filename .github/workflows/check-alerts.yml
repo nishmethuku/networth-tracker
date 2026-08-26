@@ -16,9 +16,18 @@ jobs:
   check-alerts:
     runs-on: ubuntu-latest
     steps:
+      # Render's free tier spins the backend down after 15 min idle, so a
+      # scheduled run is often waking a cold instance -- pay that cold-start
+      # cost (up to ~100s) with a cheap GET first rather than risking the
+      # actual trigger below getting cut off mid-wake (see daily-snapshot.yml
+      # for the full story; this endpoint isn't retried on failure the way
+      # that one is, since sending duplicate alert emails on a lost-response
+      # retry would be worse than just failing this run).
+      - name: Wake up backend
+        run: curl -s -o /dev/null --max-time 120 "${{ secrets.BACKEND_URL }}/" || true
       - name: Trigger alert check
         run: |
-          status=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 250 -X POST \
             "${{ secrets.BACKEND_URL }}/internal/check-alerts" \
             -H "X-Snapshot-Secret: ${{ secrets.SNAPSHOT_SECRET }}")
           echo "Response ($status):"
