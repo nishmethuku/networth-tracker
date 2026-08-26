@@ -29,8 +29,17 @@ jobs:
         run: pip install -r backend/requirements-dev.txt
       - name: Lint (ruff)
         run: ruff check backend/
-      - name: Run pytest
-        run: python -m pytest backend/ -q
+      - name: Run pytest with coverage
+        # Informational only, no --cov-fail-under gate: this codebase
+        # deliberately verifies a lot of DB/network-touching code via live
+        # checks against the real Supabase DB (see test_account_service.py's
+        # own docstring) rather than mocking it out, so raw line coverage
+        # (58% at the time this was added) undercounts what's actually
+        # verified. A hard threshold here would either permanently fail CI
+        # or push toward padding out low-value mocked tests against that
+        # established philosophy -- this stays a visibility signal, not a
+        # gate.
+        run: python -m pytest backend/ --cov=backend --cov-report=term-missing -q
 
   frontend-tests:
     runs-on: ubuntu-latest

@@ -1,3 +1,12 @@
+"""
+SQLAlchemy models for every table this app owns, mapped 1:1 onto the
+Postgres schema (see supabase/migrations/*.sql for the original tables
+and migrations/versions/*.py for everything added since via Flask-
+Migrate). Flask connects with a direct/service-role Postgres connection,
+so Postgres RLS is not the authorization boundary here -- backend/auth.py's
+require_auth plus each route's own user_id/household_id query scoping is
+(see README for the full reasoning).
+"""
 import uuid
 from datetime import datetime
 

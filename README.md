@@ -69,6 +69,21 @@ flowchart TB
     Digest -- "X-Snapshot-Secret" --> API
 ```
 
+### Price & FX data flow
+
+Each asset class has its own provider order, tried in sequence until one returns a price (`backend/utils.py`); a 5-minute in-memory cache sits in front of all of them, and `price_service.py` layers a persistent DB cache (`price_history`/`exchange_rates`) on top of that for the daily snapshot job and repeat lookups.
+
+| Asset class | Fallback order |
+|---|---|
+| Indian NSE stocks (`.NS`/`.NSE`) | nselib → nsepython → NSEpy → Finnhub (if `FINNHUB_API_KEY` set) |
+| Indian mutual funds (AMFI scheme codes) | mftool only |
+| US / other stocks | Finnhub (if set) → Yahoo Finance (unofficial, keyless) |
+| Crypto | CoinGecko only |
+| Metals (gold/silver/platinum) | metals-api.com only (needs `METALS_API_KEY`) |
+| FX rates | frankfurter.app only |
+
+Every external call in this chain has an explicit `timeout=`; the three NSE-library calls with no native timeout parameter of their own are wrapped in `utils._with_timeout`, which bounds them via a background thread rather than blocking a request indefinitely if one hangs.
+
 ## Features
 
 - Email/password and Google sign-in via Supabase Auth; every user sees only their own data
@@ -174,6 +189,8 @@ npm run test:e2e    # real-browser E2E (Chromium) — network + Supabase auth mo
 ```
 
 All of the above run in CI on every push and pull request against `main` ([.github/workflows/ci.yml](./.github/workflows/ci.yml)).
+
+To actually require these before a PR can merge, turn on branch protection for `main` in GitHub repo Settings → Branches → Add rule: enable "Require status checks to pass before merging" and select `backend-tests`, `frontend-tests`, and `e2e-tests`. CI running on every push is enforcement-optional without this — the workflow itself doesn't block a merge on its own.
 
 ## API Overview
 

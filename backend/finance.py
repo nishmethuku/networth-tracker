@@ -1,3 +1,9 @@
+"""
+XIRR (annualized return over irregular, dated cash flows) via Newton's
+method with a bisection fallback for cases Newton's method fails to
+converge on. Pure math, no DB access — used for both per-holding and
+portfolio-wide XIRR in holdings_service.py.
+"""
 from datetime import date
 from typing import List, Optional, Tuple
 

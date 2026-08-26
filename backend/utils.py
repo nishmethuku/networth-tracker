@@ -1,3 +1,11 @@
+"""
+Live/historical price, FX, and metal price fetching from external
+providers, each asset class with its own fallback chain (see the README's
+"Price & FX data flow" section for the full order per class), plus a
+5-minute in-memory cache so a burst of requests for the same ticker
+doesn't re-hit rate-limited free tiers. price_service.py layers a
+persistent DB cache on top of this for repeat lookups across requests.
+"""
 import concurrent.futures
 import logging
 import os
