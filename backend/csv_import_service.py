@@ -104,7 +104,7 @@ def parse_zerodha(csv_text: str) -> Dict:
             trade_date = _parse_date(row.get(date_col))
             quantity = _clean_number(row.get(qty_col))
             price = _clean_number(row.get(price_col))
-            if not symbol or quantity <= 0 or price < 0 or not trade_date:
+            if not symbol or quantity <= 0 or price <= 0 or not trade_date:
                 rows.append({"row": i, "skipped": True, "reason": "Missing or invalid required field"})
                 continue
             rows.append({
@@ -160,7 +160,7 @@ def _parse_groww_stocks(csv_text: str, normalized: Dict[str, str]) -> Dict:
             trade_date = _parse_date(row.get(date_col))
             quantity = _clean_number(row.get(qty_col))
             price = _clean_number(row.get(price_col))
-            if not symbol or quantity <= 0 or price < 0 or not trade_date:
+            if not symbol or quantity <= 0 or price <= 0 or not trade_date:
                 rows.append({"row": i, "skipped": True, "reason": "Missing or invalid required field"})
                 continue
             rows.append({
@@ -205,7 +205,7 @@ def _parse_groww_mutual_funds(csv_text: str, normalized: Dict[str, str]) -> Dict
             trade_date = _parse_date(row.get(date_col))
             units = _clean_number(row.get(units_col))
             nav = _clean_number(row.get(nav_col))
-            if not scheme or units <= 0 or nav < 0 or not trade_date:
+            if not scheme or units <= 0 or nav <= 0 or not trade_date:
                 rows.append({"row": i, "skipped": True, "reason": "Missing or invalid required field"})
                 continue
             rows.append({
@@ -262,7 +262,7 @@ def parse_fidelity(csv_text: str) -> Dict:
             quantity = abs(_clean_number(row.get(qty_col)))
             price = abs(_clean_number(row.get(price_col)))
             fees = abs(_clean_number(row.get(fees_col))) if fees_col else 0.0
-            if not symbol or quantity <= 0 or price < 0 or not trade_date:
+            if not symbol or quantity <= 0 or price <= 0 or not trade_date:
                 rows.append({"row": i, "skipped": True, "reason": "Missing or invalid required field"})
                 continue
             rows.append({
@@ -316,7 +316,7 @@ def parse_robinhood(csv_text: str) -> Dict:
             trade_date = _parse_date(row.get(date_col))
             quantity = abs(_clean_number(row.get(qty_col)))
             price = abs(_clean_number(row.get(price_col)))
-            if not symbol or quantity <= 0 or price < 0 or not trade_date:
+            if not symbol or quantity <= 0 or price <= 0 or not trade_date:
                 rows.append({"row": i, "skipped": True, "reason": "Missing or invalid required field"})
                 continue
             rows.append({

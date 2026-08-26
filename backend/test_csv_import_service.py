@@ -11,6 +11,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.csv_import_service import parse_fidelity, parse_groww, parse_robinhood, parse_zerodha
 
+# Regression: an unparseable price cell (e.g. "N/A", a stray dash, a merged
+# cell) makes _clean_number silently return 0.0. Every parser's row-validity
+# check used to be `price < 0`, which a 0.0 price passes -- so instead of
+# being skipped like any other malformed row, it was imported as a real
+# transaction with price_per_unit=0.0, quietly making it look like the
+# shares were acquired for free (wrong cost basis, wrong unrealized gain).
+# Fixed to `price <= 0` (and `nav <= 0` for the Groww mutual-fund path),
+# matching how a zero/garbled quantity was already correctly rejected.
+
 
 def test_zerodha_parses_buy_and_sell():
     csv_text = (
@@ -101,6 +110,55 @@ def test_robinhood_skips_non_trade_codes():
     csv_text = (
         "Activity Date,Process Date,Settle Date,Instrument,Description,Trans Code,Quantity,Price,Amount\n"
         "01/15/2024,01/16/2024,01/17/2024,TSLA,TESLA INC,CDIV,,,$5.00\n"
+    )
+    result = parse_robinhood(csv_text)
+    assert result["rows"][0]["skipped"] is True
+
+
+def test_zerodha_skips_unparseable_price_instead_of_importing_it_as_zero():
+    csv_text = (
+        "symbol,trade_date,trade_type,quantity,price\n"
+        "RELIANCE,2024-01-15,buy,10,N/A\n"
+        "RELIANCE,2024-01-16,buy,5,250.50\n"
+    )
+    result = parse_zerodha(csv_text)
+    garbled, valid = result["rows"]
+    assert garbled["skipped"] is True
+    assert valid["skipped"] is False
+    assert valid["price_per_unit"] == 250.50
+
+
+def test_groww_stocks_skips_unparseable_price():
+    csv_text = (
+        "Stock Name,Trade Date,Trade Type,Quantity,Price\n"
+        "TCS,2024-02-01,buy,3,--\n"
+    )
+    result = parse_groww(csv_text)
+    assert result["rows"][0]["skipped"] is True
+
+
+def test_groww_mutual_funds_skips_unparseable_nav():
+    csv_text = (
+        "Scheme Name,Folio No,Transaction Type,Transaction Date,Amount (INR),NAV,Units\n"
+        "Axis Bluechip Fund,12345,Purchase,2024-03-01,10000,n/a,219.78\n"
+    )
+    result = parse_groww(csv_text)
+    assert result["rows"][0]["skipped"] is True
+
+
+def test_fidelity_skips_unparseable_price():
+    csv_text = (
+        "Run Date,Account,Action,Symbol,Description,Type,Quantity,Price ($),Commission ($),Fees ($),Amount ($),Settlement Date\n"
+        "01/15/2024,X123,YOU BOUGHT COMMON STOCK,AAPL,APPLE INC,Cash,10,--,0,0,-1500.00,01/17/2024\n"
+    )
+    result = parse_fidelity(csv_text)
+    assert result["rows"][0]["skipped"] is True
+
+
+def test_robinhood_skips_unparseable_price():
+    csv_text = (
+        "Activity Date,Process Date,Settle Date,Instrument,Description,Trans Code,Quantity,Price,Amount\n"
+        "01/15/2024,01/16/2024,01/17/2024,TSLA,TESLA INC,Buy,4,n/a,($800.00)\n"
     )
     result = parse_robinhood(csv_text)
     assert result["rows"][0]["skipped"] is True
