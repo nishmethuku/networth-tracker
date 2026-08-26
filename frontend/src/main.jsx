@@ -5,6 +5,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { RatesProvider } from "./contexts/RatesContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import { HouseholdProvider } from "./contexts/HouseholdContext";
 import App from "./App.jsx";
 import "./index.css";
 import "./styles/theme.css";
@@ -27,9 +28,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
           <RatesProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
+            <HouseholdProvider>
+              <ToastProvider>
+                <App />
+              </ToastProvider>
+            </HouseholdProvider>
           </RatesProvider>
         </QueryClientProvider>
       </AuthProvider>

@@ -19,6 +19,7 @@ const MENU_LINKS = [
   { to: "/tax-summary", labelKey: "nav.taxSummary", icon: "🧾" },
   { to: "/allocation-advisor", labelKey: "nav.allocationAdvisor", icon: "⚖️" },
   { to: "/what-if", labelKey: "nav.whatIf", icon: "🔮" },
+  { to: "/household", labelKey: "nav.household", icon: "👪" },
   { to: "/settings", labelKey: "nav.settings", icon: "⚙️" },
 ];
 

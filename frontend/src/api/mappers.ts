@@ -573,3 +573,64 @@ export function mapLiability(l: any): Liability | null {
     updatedAt: l.updated_at ?? "",
   };
 }
+
+export interface Household {
+  id: string;
+  name: string;
+  ownerId: string;
+  createdAt: string;
+  myRole: string | null;
+}
+
+export function mapHousehold(h: any): Household | null {
+  if (!h) return null;
+  return {
+    id: h.id,
+    name: h.name,
+    ownerId: h.owner_id,
+    createdAt: h.created_at ?? "",
+    myRole: h.my_role ?? null,
+  };
+}
+
+export interface HouseholdMember {
+  householdId: string;
+  userId: string;
+  role: string;
+  joinedAt: string | null;
+  email: string;
+}
+
+export function mapHouseholdMember(m: any): HouseholdMember | null {
+  if (!m) return null;
+  return {
+    householdId: m.household_id,
+    userId: m.user_id,
+    role: m.role,
+    joinedAt: m.joined_at ?? null,
+    email: m.email,
+  };
+}
+
+export interface HouseholdInvite {
+  id: string;
+  householdId: string;
+  invitedBy: string;
+  invitedEmail: string;
+  role: string;
+  status: string;
+  createdAt: string;
+}
+
+export function mapInvite(i: any): HouseholdInvite | null {
+  if (!i) return null;
+  return {
+    id: i.id,
+    householdId: i.household_id,
+    invitedBy: i.invited_by,
+    invitedEmail: i.invited_email,
+    role: i.role,
+    status: i.status,
+    createdAt: i.created_at ?? "",
+  };
+}

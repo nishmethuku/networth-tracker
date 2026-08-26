@@ -7,6 +7,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchExchangeRates } from "../api";
 import { safeNumber } from "../utils/formatters";
+import { useAuth } from "./AuthContext";
 
 interface ExchangeRatesResponse {
   base: string;
@@ -22,10 +23,17 @@ interface RatesContextValue {
 const RatesContext = createContext<RatesContextValue | undefined>(undefined);
 
 export function RatesProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const { data, isLoading } = useQuery<ExchangeRatesResponse>({
     queryKey: ["exchange-rates", "USD"],
     queryFn: () => fetchExchangeRates("USD"),
     staleTime: 1000 * 60 * 60, // 1 hour — FX rates don't need to be second-fresh
+    // Every route under /login and /reset-password renders with
+    // RatesProvider still in the tree (it wraps the whole app in main.jsx),
+    // so without this gate every unauthenticated page load fired a
+    // doomed-to-401 request the moment the provider mounted, before auth
+    // had even resolved.
+    enabled: !!user,
   });
 
   // rates are all "1 USD = X <currency>"

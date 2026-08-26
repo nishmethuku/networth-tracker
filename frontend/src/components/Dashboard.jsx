@@ -5,6 +5,7 @@ import usePullToRefresh from "../hooks/usePullToRefresh";
 import useIsMobile from "../hooks/useIsMobile";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { useAuth } from "../contexts/AuthContext";
+import { useHousehold } from "../contexts/HouseholdContext";
 import Card from "./Card";
 import ErrorBoundary from "./ErrorBoundary";
 import ErrorState from "./ErrorState";
@@ -31,10 +32,11 @@ const BENCHMARKS = [
 ];
 
 function BenchmarkCard() {
+  const { currentHouseholdId } = useHousehold();
   const [symbol, setSymbol] = useState("SPY");
   const { data: benchmark, isLoading } = useQuery({
-    queryKey: ["benchmark", symbol],
-    queryFn: () => fetchBenchmark(symbol, null),
+    queryKey: ["benchmark", symbol, currentHouseholdId],
+    queryFn: () => fetchBenchmark(symbol, currentHouseholdId),
     retry: false,
   });
 
@@ -86,6 +88,7 @@ function BenchmarkCard() {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { currentHouseholdId } = useHousehold();
   const isMobile = useIsMobile();
   const { t } = useTranslation();
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
@@ -99,21 +102,21 @@ export default function Dashboard() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["dashboard", currency],
-    queryFn: () => fetchDashboard({ currency }),
+    queryKey: ["dashboard", currency, currentHouseholdId],
+    queryFn: () => fetchDashboard({ currency, householdId: currentHouseholdId }),
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });
 
   const { data: history } = useQuery({
-    queryKey: ["net-worth-history", currency],
-    queryFn: () => fetchNetWorthHistory(null, currency),
+    queryKey: ["net-worth-history", currency, currentHouseholdId],
+    queryFn: () => fetchNetWorthHistory(currentHouseholdId, currency),
     staleTime: 1000 * 60 * 5, // snapshots are written at most once/day
   });
 
   const { data: holdings } = useQuery({
-    queryKey: ["holdings", "summary", currency],
-    queryFn: () => fetchHoldings({ currency, summary: true }),
+    queryKey: ["holdings", "summary", currency, currentHouseholdId],
+    queryFn: () => fetchHoldings({ currency, summary: true, householdId: currentHouseholdId }),
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });

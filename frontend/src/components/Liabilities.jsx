@@ -7,6 +7,7 @@ import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import { useToast } from "../contexts/ToastContext";
+import { useHousehold } from "../contexts/HouseholdContext";
 import { fetchLiabilities, createLiability, updateLiability, deleteLiability, ApiError } from "../api";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent } from "../utils/formatters";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -364,6 +365,8 @@ export default function Liabilities() {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
 
+  const { currentHouseholdId } = useHousehold();
+
   const {
     data: liabilities,
     isLoading,
@@ -371,8 +374,8 @@ export default function Liabilities() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["liabilities", currency],
-    queryFn: () => fetchLiabilities({ currency }),
+    queryKey: ["liabilities", currency, currentHouseholdId],
+    queryFn: () => fetchLiabilities({ currency, householdId: currentHouseholdId }),
   });
 
   const createMutation = useMutation({

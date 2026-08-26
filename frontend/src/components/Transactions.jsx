@@ -9,6 +9,7 @@ import EmptyState from "./EmptyState";
 import VirtualTransactionList from "./VirtualTransactionList";
 import TransactionCard from "./TransactionCard";
 import useIsMobile from "../hooks/useIsMobile";
+import { useHousehold } from "../contexts/HouseholdContext";
 import { formatCurrencyForDisplay } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, getAssetTypeLabel } from "../constants/enums";
 
@@ -26,6 +27,7 @@ const inputStyle = {
 export default function Transactions() {
   const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "" });
   const isMobile = useIsMobile();
+  const { currentHouseholdId } = useHousehold();
 
   const {
     data: transactions,
@@ -34,8 +36,8 @@ export default function Transactions() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["transactions", filters],
-    queryFn: () => fetchAllTransactions(filters),
+    queryKey: ["transactions", filters, currentHouseholdId],
+    queryFn: () => fetchAllTransactions({ ...filters, householdId: currentHouseholdId }),
     staleTime: 1000 * 30,
   });
 

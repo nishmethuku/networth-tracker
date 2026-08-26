@@ -10,6 +10,7 @@ import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
 import NumericInput from "./NumericInput";
 import { useToast } from "../contexts/ToastContext";
+import { useHousehold } from "../contexts/HouseholdContext";
 import {
   fetchBudgetCategories,
   fetchBudgetEntries,
@@ -422,9 +423,10 @@ function AddEntryForm({ categories, currency }) {
 }
 
 function SubscriptionsCard({ currency }) {
+  const { currentHouseholdId } = useHousehold();
   const { data, isLoading } = useQuery({
-    queryKey: ["budget-subscriptions", currency],
-    queryFn: () => fetchSubscriptions({ currency }),
+    queryKey: ["budget-subscriptions", currency, currentHouseholdId],
+    queryFn: () => fetchSubscriptions({ currency, householdId: currentHouseholdId }),
   });
 
   if (isLoading) return null;
@@ -473,10 +475,11 @@ function SpendingLimitsCard({ currency, limitStatus }) {
   const toast = useToast();
   const { register, handleSubmit, reset } = useForm({ defaultValues: { category: "", monthly_limit: "" } });
 
+  const { currentHouseholdId } = useHousehold();
   const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
   const { data: limits } = useQuery({
-    queryKey: ["budget-limits"],
-    queryFn: () => fetchBudgetLimits(),
+    queryKey: ["budget-limits", currentHouseholdId],
+    queryFn: () => fetchBudgetLimits({ householdId: currentHouseholdId }),
   });
 
   const statusByCategory = Object.fromEntries((limitStatus || []).map((s) => [s.category, s]));
@@ -660,6 +663,7 @@ export default function Budget() {
   const queryClient = useQueryClient();
   const toast = useToast();
 
+  const { currentHouseholdId } = useHousehold();
   const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
 
   const {
@@ -669,13 +673,13 @@ export default function Budget() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["budget-summary", currency],
-    queryFn: () => fetchBudgetSummary({ months: 6, currency }),
+    queryKey: ["budget-summary", currency, currentHouseholdId],
+    queryFn: () => fetchBudgetSummary({ months: 6, currency, householdId: currentHouseholdId }),
   });
 
   const { data: entries } = useQuery({
-    queryKey: ["budget-entries"],
-    queryFn: () => fetchBudgetEntries(),
+    queryKey: ["budget-entries", currentHouseholdId],
+    queryFn: () => fetchBudgetEntries({ householdId: currentHouseholdId }),
   });
 
   const deleteMutation = useMutation({

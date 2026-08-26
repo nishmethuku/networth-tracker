@@ -9,6 +9,7 @@ import EmptyState from "./EmptyState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import HoldingCard from "./HoldingCard";
 import useIsMobile from "../hooks/useIsMobile";
+import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
@@ -256,6 +257,8 @@ export default function Portfolio() {
     filterTimer.current = setTimeout(() => setFilterText(val), 200);
   }
 
+  const { currentHouseholdId } = useHousehold();
+
   const {
     data: holdings,
     isLoading,
@@ -263,8 +266,8 @@ export default function Portfolio() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["holdings", "summary", currency],
-    queryFn: () => fetchHoldings({ currency, summary: true }),
+    queryKey: ["holdings", "summary", currency, currentHouseholdId],
+    queryFn: () => fetchHoldings({ currency, summary: true, householdId: currentHouseholdId }),
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });

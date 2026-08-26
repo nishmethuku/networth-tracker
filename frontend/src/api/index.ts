@@ -21,6 +21,9 @@ import {
   mapLiability,
   mapMilestone,
   mapEmergencyFund,
+  mapHousehold,
+  mapHouseholdMember,
+  mapInvite,
 } from "./mappers";
 
 /**
@@ -602,6 +605,57 @@ export async function bankStatementParse(file: File, householdId: string | null 
 
 export async function bankStatementConfirm(rows: any[], householdId: string | null = null, currency: string = "USD") {
   return api.post("/import/bank-statement-confirm", { rows, household_id: householdId, currency });
+}
+
+/**
+ * Household sharing: create/list households you belong to, invite by
+ * email with a role, accept an invite sent to you, view members, and
+ * leave/remove/delete. See README's Household sharing feature entry --
+ * this is the management surface for it (the household_id query param
+ * accepted throughout the rest of this file is the *viewing* half,
+ * already wired everywhere; this is what actually lets a user obtain a
+ * household_id to pass in in the first place).
+ */
+export async function fetchHouseholds() {
+  const data = await api.get("/households");
+  return (data || []).map(mapHousehold);
+}
+
+export async function createHousehold(name: string) {
+  const data = await api.post("/households", { name });
+  return mapHousehold(data);
+}
+
+export async function fetchHouseholdMembers(householdId: string) {
+  const data = await api.get(`/households/${householdId}/members`);
+  return (data || []).map(mapHouseholdMember);
+}
+
+export async function inviteToHousehold(householdId: string, email: string, role: string) {
+  const data = await api.post(`/households/${householdId}/invites`, { email, role });
+  return mapInvite(data);
+}
+
+export async function fetchMyInvites() {
+  const data = await api.get("/invites");
+  return (data || []).map(mapInvite);
+}
+
+export async function acceptInvite(inviteId: string) {
+  const data = await api.post(`/invites/${inviteId}/accept`, {});
+  return mapInvite(data);
+}
+
+export async function leaveHousehold(householdId: string) {
+  await api.post(`/households/${householdId}/leave`, {});
+}
+
+export async function removeHouseholdMember(householdId: string, userId: string) {
+  await api.delete(`/households/${householdId}/members/${userId}`);
+}
+
+export async function deleteHousehold(householdId: string) {
+  await api.delete(`/households/${householdId}`, { confirm: "DELETE" });
 }
 
 export { api } from "./client";

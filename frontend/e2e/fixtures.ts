@@ -207,6 +207,14 @@ async function mockBackend(page: Page, opts: MockOptions = {}) {
     if (route.request().method() === "GET") return json(route, []);
     return route.continue();
   });
+  await page.route(`${API_BASE}/households**`, (route) => {
+    if (route.request().method() === "GET") return json(route, []);
+    return route.continue();
+  });
+  await page.route(`${API_BASE}/invites**`, (route) => {
+    if (route.request().method() === "GET") return json(route, []);
+    return route.continue();
+  });
 }
 
 export const test = base.extend<{ mockedPage: Page }>({

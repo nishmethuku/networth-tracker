@@ -7,6 +7,7 @@ import ToastContainer from "./components/ToastContainer";
 import ShortcutsHelp from "./components/ShortcutsHelp";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useAuth } from "./contexts/AuthContext";
+import { useHousehold } from "./contexts/HouseholdContext";
 import ThemeToggle from "./components/ThemeToggle";
 import MobileMenu from "./components/MobileMenu";
 import LoadingState from "./components/LoadingState";
@@ -31,6 +32,7 @@ const Budget = lazy(() => import("./components/Budget"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
 const ImportBankStatement = lazy(() => import("./components/ImportBankStatement"));
 const Insights = lazy(() => import("./components/Insights"));
+const Household = lazy(() => import("./components/Household"));
 import Login from "./components/Login";
 import ResetPassword from "./components/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -229,6 +231,7 @@ function MobileBottomNav() {
 
 function AppShell() {
   const { user, signOut } = useAuth();
+  const { currentHousehold } = useHousehold();
   const { t } = useTranslation();
   const [helpOpen, setHelpOpen] = useState(false);
   useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true) });
@@ -282,6 +285,7 @@ function AppShell() {
               { to: "/insights", label: t("nav.insights") },
               { to: "/allocation-advisor", label: t("nav.allocationAdvisor") },
               { to: "/what-if", label: t("nav.whatIf") },
+              { to: "/household", label: t("nav.household") },
             ]}
           />
           <NavLink to="/add-holding" highlight>
@@ -289,6 +293,22 @@ function AppShell() {
           </NavLink>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          {currentHousehold && (
+            <Link
+              to="/household"
+              title="Viewing this household's shared data — click to manage"
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                color: "var(--primary-dark)",
+                background: "var(--primary-light)",
+                padding: "0.25rem 0.625rem",
+                borderRadius: "999px",
+              }}
+            >
+              👪 {currentHousehold.name}
+            </Link>
+          )}
           {user && <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{user.email}</span>}
           <Link to="/settings" aria-label="Settings" style={{ color: "var(--text-secondary)", fontSize: "1.125rem", lineHeight: 1 }}>
             ⚙️
@@ -333,6 +353,7 @@ function AppShell() {
               <Route path="allocation-advisor" element={<AllocationAdvisor />} />
               <Route path="what-if" element={<WhatIf />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="household" element={<Household />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
