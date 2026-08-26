@@ -20,7 +20,16 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 # back to logging's unconfigured "handler of last resort" (stderr,
 # WARNING+ only, no timestamp/module name), so INFO-level import-time
 # diagnostics would be silently dropped.
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+#
+# JSON-formatted (via .logging_config.JSONFormatter) so Render's log search
+# can filter/group by request_id, user_id, level, or module instead of
+# grepping plain text — every field a log line carries is greppable on its
+# own rather than buried in a formatted string.
+from .logging_config import JSONFormatter  # noqa: E402
+
+_log_handler = logging.StreamHandler()
+_log_handler.setFormatter(JSONFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 
 from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit, Liability, Milestone
 from .auth import require_auth
@@ -165,6 +174,22 @@ def create_app():
     @app.after_request
     def _attach_request_id(response):
         response.headers["X-Request-ID"] = getattr(g, "request_id", "")
+        return response
+
+    @app.after_request
+    def _security_headers(response):
+        """Skips /internal/* — those are cron-triggered, never rendered by a
+        browser (except /internal/unsubscribe, a one-click HTML page opened
+        from an email; left out of scope here same as the rest of /internal).
+        default-src 'none' rather than a script/style-permissive CSP: this
+        backend only ever returns JSON, so there's nothing legitimate for a
+        browser to load even in the edge case of someone navigating directly
+        to an API URL."""
+        if not request.path.startswith("/internal/"):
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            response.headers["Content-Security-Policy"] = "default-src 'none'"
         return response
 
     def _error_payload(message, status, code=None, details=None):
