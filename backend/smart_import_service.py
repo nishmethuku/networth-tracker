@@ -111,8 +111,11 @@ Two different kinds of sheet come through here — tell them apart from the colu
      account column, if the sheet has one. Pass through whatever name is in that column verbatim (e.g.
      "Vijay Chase"); it gets matched against the person's existing accounts after this step, not by you.
      Leave it null for a sell, and null if the sheet has no such column at all.
-   - "quantity" and "price_per_unit" are required for these rows (they're the point of a transaction log);
-     "value" should be quantity * price_per_unit.
+   - "quantity" and "price_per_unit" are required for a quantity-based row (stock/mutual_fund/crypto/
+     commodity); "value" should be quantity * price_per_unit. For a non-quantity row (real estate, a fixed
+     deposit, PPF, EPF, cash, a loan) on a transaction log, still include a "Units"/"Qty"-style column's
+     number if the sheet has one, but what actually matters is "value" -- set it from that row directly
+     (a lump amount column) or as quantity * price if that's what the sheet gives instead.
    - "date" is the transaction date. Column headers vary a lot (e.g. "Src fund ac"/"Source", "Target
      ac"/"Account", "Stock symbol"/"Stock", "Transaction type"/"Transaction", "Qty"/"Transaction Units",
      "price"/"Transaction price") — map by meaning, not by exact header text. Ignore any extra column that
@@ -286,12 +289,27 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                 created += 1
             batch_holdings[key] = holding
 
-            db.session.add(HoldingTransaction(
-                holding_id=holding.id, user_id=user_id,
-                transaction_type=row["transaction_type"],
-                transaction_date=row["date"], quantity=row["quantity"], price_per_unit=row["price_per_unit"],
-                currency=holding.currency,
-            ))
+            # Quantity-based types (stock/mutual_fund/crypto/commodity) get a
+            # real buy/sell HoldingTransaction, same as everywhere else in
+            # the app. Everything else (real estate, fixed deposits, loans,
+            # ...) doesn't have transactions at all here -- a "Buy" row for
+            # one of those just means "this is the value as of this date",
+            # so it becomes a HoldingValuation instead. _validate_row never
+            # populated quantity/price_per_unit for these, so branching is
+            # required, not optional -- reaching for those keys below would
+            # KeyError.
+            if row["asset_type"] in QUANTITY_BASED_TYPES:
+                db.session.add(HoldingTransaction(
+                    holding_id=holding.id, user_id=user_id,
+                    transaction_type=row["transaction_type"],
+                    transaction_date=row["date"], quantity=row["quantity"], price_per_unit=row["price_per_unit"],
+                    currency=holding.currency,
+                ))
+            else:
+                db.session.add(HoldingValuation(
+                    holding_id=holding.id, user_id=user_id,
+                    valuation_date=row["date"], value=row["value"], currency=holding.currency,
+                ))
             transactions_added += 1
 
             if row["transaction_type"] == "buy" and row["source_account"]:
@@ -306,7 +324,7 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                     )
                 else:
                     source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
-                    total_cost = row["quantity"] * row["price_per_unit"]
+                    total_cost = row["quantity"] * row["price_per_unit"] if row["asset_type"] in QUANTITY_BASED_TYPES else row["value"]
                     try:
                         db.session.add(build_funding_valuation(
                             source_holding, source_valuations, total_cost, row["currency"], row["date"], user_id

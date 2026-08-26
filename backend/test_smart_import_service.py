@@ -84,6 +84,20 @@ def test_validate_row_blank_source_account_normalizes_to_none():
     assert normalized["source_account"] is None
 
 
+def test_validate_row_non_quantity_type_transaction_row_has_no_quantity_or_price():
+    # Regression: confirm_smart_import branches on whether "quantity"/
+    # "price_per_unit" are present to decide HoldingTransaction (quantity-
+    # based types) vs. HoldingValuation (real_estate/cash/etc.) -- a
+    # transaction-log row for a non-quantity type must not carry those keys,
+    # or confirm_smart_import would KeyError trying to build a transaction
+    # for a type that doesn't have one.
+    row = {"asset_type": "real_estate", "name": "Sobha1", "account": "XYZ", "transaction_type": "buy", "quantity": 1, "price_per_unit": 100000000, "value": 100000000}
+    normalized = _validate_row(row)
+    assert "quantity" not in normalized
+    assert "price_per_unit" not in normalized
+    assert normalized["value"] == 100000000
+
+
 def test_validate_row_snapshot_row_has_no_transaction_type_by_default():
     row = {"asset_type": "stock", "symbol": "AAPL", "quantity": 10, "value": 2000.0}
     normalized = _validate_row(row)
