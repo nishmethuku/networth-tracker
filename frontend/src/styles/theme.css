@@ -164,6 +164,19 @@ a:hover {
   color: var(--primary-hover);
 }
 
+/* Portfolio table row actions: hidden until the row is hovered, so a
+   quick-delete button doesn't permanently eat column width for a rarely
+   used action. Touch devices have no hover, so this only applies on
+   desktop — the table already switches to a card layout on mobile. */
+.portfolio-row-action {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.portfolio-row:hover .portfolio-row-action,
+.portfolio-row-action:focus-visible {
+  opacity: 1;
+}
+
 /* ---------------------------------------------------------------------
    Mobile layout: top nav swaps for a bottom tab bar below 640px, and the
    page content gets bottom padding so it doesn't sit under the tab bar.

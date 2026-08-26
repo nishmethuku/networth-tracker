@@ -130,7 +130,10 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
               ))}
             </Pie>
             <Tooltip
-              formatter={(v, name) => [formatCurrencyCompact(v, currency), labelFor(name)]}
+              formatter={(v, name) => [
+                `${formatCurrencyCompact(v, currency)} (${total > 0 ? Math.round((v / total) * 100) : 0}%)`,
+                labelFor(name),
+              ]}
               contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
             />
           </PieChart>

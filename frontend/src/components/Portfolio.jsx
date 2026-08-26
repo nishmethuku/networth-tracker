@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { fetchHoldings, deleteHolding, ApiError } from "../api";
 import Card from "./Card";
 import PortfolioSkeleton from "./PortfolioSkeleton";
@@ -39,14 +39,72 @@ function matchesFilterSpec(h, spec) {
   return true;
 }
 
-function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
+// Column key -> a getter for that column's sort value. Kept here (not
+// inline per-column) so the same key works across every asset-type table,
+// even though each one only shows a subset of these columns.
+const SORT_ACCESSORS = {
+  name: (h) => (h.symbol || h.name || "").toLowerCase(),
+  quantity: (h) => h.quantity,
+  avgCost: (h) => h.avgCost,
+  costBasis: (h) => h.costBasis,
+  currentPrice: (h) => h.currentPrice,
+  value: (h) => h.displayValue,
+  gain: (h) => (isQuantityBased(h.assetType) ? h.totalGain : h.gain),
+  xirr: (h) => h.xirr,
+  growth: (h) => gainPct(h),
+};
+
+function sortHoldings(holdings, sortKey, dir) {
+  if (!sortKey || !SORT_ACCESSORS[sortKey]) return holdings;
+  const accessor = SORT_ACCESSORS[sortKey];
+  const sign = dir === "asc" ? 1 : -1;
+  return [...holdings].sort((a, b) => {
+    const av = accessor(a);
+    const bv = accessor(b);
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1; // nulls last regardless of direction
+    if (bv == null) return -1;
+    if (typeof av === "string") return sign * av.localeCompare(bv);
+    return sign * (av - bv);
+  });
+}
+
+function SortableHeader({ label, sortKey, currentSort, currentDir, onSort }) {
+  const active = currentSort === sortKey;
+  return (
+    <th style={{ padding: 0 }}>
+      <button
+        onClick={() => onSort(sortKey)}
+        style={{
+          all: "unset",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.25rem",
+          padding: "0.75rem 0.5rem",
+          width: "100%",
+          boxSizing: "border-box",
+          fontWeight: active ? 700 : "inherit",
+          color: active ? "var(--text)" : "inherit",
+        }}
+        aria-label={`Sort by ${label}${active ? (currentDir === "asc" ? ", ascending" : ", descending") : ""}`}
+      >
+        {label}
+        {active && <span style={{ fontSize: "0.7rem" }}>{currentDir === "asc" ? "▲" : "▼"}</span>}
+      </button>
+    </th>
+  );
+}
+
+function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sortKey, sortDir, onSort }) {
   const quantityBased = isQuantityBased(assetType);
   const isMobile = useIsMobile();
+  const sorted = sortHoldings(holdings, sortKey, sortDir);
 
   if (isMobile) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-        {holdings.map((h) => (
+        {sorted.map((h) => (
           <HoldingCard key={h.id} holding={h} currency={currency} onOpen={() => navigate(`/portfolio/${h.id}`)} onDelete={onDelete} />
         ))}
       </div>
@@ -58,25 +116,36 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
         <thead>
           <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
-            <th style={{ padding: "0.75rem 0.5rem" }}>Name</th>
-            {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Quantity</th>}
-            {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Avg Cost</th>}
-            {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Cost Basis</th>}
-            {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Current Price</th>}
-            <th style={{ padding: "0.75rem 0.5rem" }}>Value</th>
-            <th style={{ padding: "0.75rem 0.5rem" }}>Gain</th>
-            {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Return (XIRR)</th>}
-            {quantityBased && <th style={{ padding: "0.75rem 0.5rem" }}>Growth</th>}
+            <SortableHeader label="Name" sortKey="name" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+            {quantityBased && (
+              <SortableHeader label="Quantity" sortKey="quantity" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+            )}
+            {quantityBased && (
+              <SortableHeader label="Avg Cost" sortKey="avgCost" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+            )}
+            {quantityBased && (
+              <SortableHeader label="Cost Basis" sortKey="costBasis" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+            )}
+            {quantityBased && (
+              <SortableHeader label="Current Price" sortKey="currentPrice" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+            )}
+            <SortableHeader label="Value" sortKey="value" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+            <SortableHeader label="Gain" sortKey="gain" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+            {quantityBased && (
+              <SortableHeader label="Return (XIRR)" sortKey="xirr" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+            )}
+            {quantityBased && <SortableHeader label="Growth" sortKey="growth" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />}
             <th style={{ padding: "0.75rem 0.5rem" }}>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {holdings.map((h) => {
+          {sorted.map((h) => {
             const gain = quantityBased ? h.totalGain : h.gain;
             const positive = safeNumber(gain) >= 0;
             return (
               <tr
                 key={h.id}
+                className="portfolio-row"
                 style={{ borderBottom: "1px solid var(--border-light)", cursor: "pointer" }}
                 onClick={() => navigate(`/portfolio/${h.id}`)}
               >
@@ -127,8 +196,14 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency }) {
                 )}
                 <td style={{ padding: "0.75rem 0.5rem" }} onClick={(e) => e.stopPropagation()}>
                   <button
+                    className="portfolio-row-action"
                     onClick={() => onDelete(h)}
-                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.35rem 0.75rem" }}
+                    style={{
+                      fontSize: "0.8125rem",
+                      background: "var(--danger)",
+                      color: "white",
+                      padding: "0.35rem 0.75rem",
+                    }}
                   >
                     Delete
                   </button>
@@ -151,6 +226,35 @@ export default function Portfolio() {
   const [aiFilter, setAiFilter] = useState(
     location.state?.aiFilterSpec ? { spec: location.state.aiFilterSpec, query: location.state.aiFilterQuery } : null,
   );
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortKey = searchParams.get("sort");
+  const sortDir = searchParams.get("dir") === "asc" ? "asc" : "desc";
+
+  function handleSort(key) {
+    const next = new URLSearchParams(searchParams);
+    if (sortKey === key) {
+      next.set("dir", sortDir === "asc" ? "desc" : "asc");
+    } else {
+      next.set("sort", key);
+      next.set("dir", "desc");
+    }
+    setSearchParams(next, { replace: true });
+  }
+
+  // Instant client-side filter over the already-fetched holdings — separate
+  // from the AI-powered natural-language search above, which re-derives a
+  // filter spec from a typed sentence. This just matches name/ticker/account
+  // substrings as you type, debounced so it doesn't re-filter every
+  // keystroke on a large portfolio.
+  const [filterInput, setFilterInput] = useState("");
+  const [filterText, setFilterText] = useState("");
+  const filterTimer = useRef(null);
+  function handleFilterChange(e) {
+    const val = e.target.value;
+    setFilterInput(val);
+    clearTimeout(filterTimer.current);
+    filterTimer.current = setTimeout(() => setFilterText(val), 200);
+  }
 
   const {
     data: holdings,
@@ -179,7 +283,11 @@ export default function Portfolio() {
     return <ErrorState error={error instanceof ApiError ? error.message : "Failed to load portfolio"} onRetry={refetch} />;
   }
 
-  const filteredHoldings = aiFilter ? (holdings || []).filter((h) => matchesFilterSpec(h, aiFilter.spec)) : holdings || [];
+  const aiFiltered = aiFilter ? (holdings || []).filter((h) => matchesFilterSpec(h, aiFilter.spec)) : holdings || [];
+  const needle = filterText.trim().toLowerCase();
+  const filteredHoldings = needle
+    ? aiFiltered.filter((h) => `${h.name} ${h.symbol || ""} ${h.account || ""}`.toLowerCase().includes(needle))
+    : aiFiltered;
 
   const grouped = filteredHoldings.reduce((acc, h) => {
     (acc[h.assetType] = acc[h.assetType] || []).push(h);
@@ -257,6 +365,27 @@ export default function Portfolio() {
         assetName={deleteTarget?.displayName}
       />
 
+      {holdings && holdings.length > 0 && (
+        <input
+          type="text"
+          value={filterInput}
+          onChange={handleFilterChange}
+          placeholder="Filter by name, ticker, or account..."
+          aria-label="Filter holdings by name, ticker, or account"
+          style={{
+            width: "100%",
+            maxWidth: "360px",
+            marginBottom: "1.25rem",
+            padding: "0.625rem 0.875rem",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            color: "var(--text)",
+            fontSize: "0.875rem",
+          }}
+        />
+      )}
+
       {aiFilter && (
         <div
           style={{
@@ -291,6 +420,10 @@ export default function Portfolio() {
 
       {orderedTypes.length === 0 && aiFilter ? (
         <EmptyState message={`No holdings match "${aiFilter.query}".`} />
+      ) : orderedTypes.length === 0 && needle ? (
+        <EmptyState message={`No holdings match "${filterInput}".`} />
+      ) : orderedTypes.length === 0 && holdings && holdings.length > 0 ? (
+        <EmptyState message="No holdings match the current filter." />
       ) : orderedTypes.length === 0 ? (
         <EmptyState
           message="No holdings yet. Add your first one!"
@@ -318,7 +451,16 @@ export default function Portfolio() {
               {getAssetTypeLabel(type)}
             </h2>
             <Card>
-              <HoldingsTable holdings={grouped[type]} assetType={type} navigate={navigate} onDelete={setDeleteTarget} currency={currency} />
+              <HoldingsTable
+                holdings={grouped[type]}
+                assetType={type}
+                navigate={navigate}
+                onDelete={setDeleteTarget}
+                currency={currency}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
             </Card>
           </div>
         ))

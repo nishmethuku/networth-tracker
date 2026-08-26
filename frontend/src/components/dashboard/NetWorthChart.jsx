@@ -4,11 +4,21 @@ import EmptyState from "../EmptyState";
 import { formatCurrencyCompact, safeNumber } from "../../utils/formatters";
 
 const RANGES = [
+  { label: "1W", days: 7 },
   { label: "1M", days: 30 },
   { label: "3M", days: 90 },
+  { label: "6M", days: 180 },
   { label: "1Y", days: 365 },
   { label: "All", days: null },
 ];
+
+const RANGE_STORAGE_KEY = "nw_chart_range";
+
+function getStoredRangeIdx() {
+  const stored = localStorage.getItem(RANGE_STORAGE_KEY);
+  const idx = RANGES.findIndex((r) => r.label === stored);
+  return idx >= 0 ? idx : RANGES.length - 1; // default "All"
+}
 
 function formatYAxis(value, currency) {
   const num = Math.round(safeNumber(value));
@@ -76,8 +86,13 @@ function BreakdownTooltip({ active, payload, label, currency }) {
 }
 
 export default function NetWorthChart({ history, currency }) {
-  const [rangeIdx, setRangeIdx] = useState(3); // default "All"
+  const [rangeIdx, setRangeIdxState] = useState(getStoredRangeIdx);
   const [showBreakdown, setShowBreakdown] = useState(false);
+
+  function setRangeIdx(i) {
+    setRangeIdxState(i);
+    localStorage.setItem(RANGE_STORAGE_KEY, RANGES[i].label);
+  }
 
   const hasLiabilityHistory = useMemo(() => (history || []).some((h) => (h.liabilities ?? 0) > 0), [history]);
 
