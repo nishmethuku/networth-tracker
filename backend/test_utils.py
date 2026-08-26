@@ -5,8 +5,8 @@ by reading every call site); this file covers _with_timeout, the wrapper
 used for the three NSE/mftool libraries that have no timeout parameter of
 their own (nsefetch, nsepy's get_history, mftool's get_scheme_quote).
 """
-import time
 import concurrent.futures
+import time
 
 import pytest
 

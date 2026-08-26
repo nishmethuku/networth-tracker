@@ -11,19 +11,21 @@ from typing import Optional
 
 from sqlalchemy import func
 
-from .models import db, PriceHistory, ExchangeRate
-
-logger = logging.getLogger(__name__)
+from .models import ExchangeRate, PriceHistory, db
 from .utils import (
-    get_current_stock_price,
-    get_crypto_price,
     get_crypto_historical_price,
-    get_metal_price,
-    get_historical_price_from_yahoo,
-    get_historical_price_from_nsepy,
+    get_crypto_price,
+    get_current_stock_price,
     get_historical_price_from_finnhub,
+    get_historical_price_from_nsepy,
+    get_historical_price_from_yahoo,
+    get_metal_price,
+)
+from .utils import (
     get_exchange_rate as _fetch_exchange_rate,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_current_price(asset_type: str, symbol: str, currency: str = "USD") -> Optional[float]:

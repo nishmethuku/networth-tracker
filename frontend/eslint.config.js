@@ -18,6 +18,10 @@ const reactRules = {
   "react/prop-types": "off", // no PropTypes in this codebase; TypeScript is the planned path for prop validation
   "react/no-unescaped-entities": "off", // stylistic only (raw ' and " in JSX text) -- not a real bug class
   "react-refresh/only-export-components": "warn",
+  // console.error/warn stay allowed (ErrorBoundary and the API client's
+  // request-failure logging both use console.error deliberately) --
+  // this only flags a stray console.log left in from debugging.
+  "no-console": ["warn", { allow: ["warn", "error"] }],
 };
 
 export default [

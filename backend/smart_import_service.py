@@ -14,8 +14,8 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from . import ai_service
-from .models import db, Holding, HoldingTransaction, HoldingValuation
 from .holdings_service import QUANTITY_BASED_TYPES
+from .models import Holding, HoldingTransaction, HoldingValuation, db
 
 MAX_ROWS_TO_SEND = 300  # keeps the prompt bounded for unusually large sheets
 

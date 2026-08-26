@@ -11,6 +11,7 @@ before an email provider is configured.
 import base64
 import logging
 import os
+
 import requests
 
 logger = logging.getLogger(__name__)

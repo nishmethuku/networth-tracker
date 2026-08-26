@@ -7,11 +7,11 @@ from typing import Dict
 
 from sqlalchemy import text
 
-from .models import db, PriceAlert, Holding, Liability
 from . import price_service
+from .email_service import render_alert_email, send
 from .holdings_service import list_holdings_with_metrics
 from .liability_service import total_liabilities_display
-from .email_service import send, render_alert_email
+from .models import Holding, Liability, PriceAlert, db
 
 
 def _user_email(user_id):

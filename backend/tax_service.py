@@ -13,8 +13,9 @@ rules. Every response carries an explicit disclaimer for this reason.
 from datetime import date
 from typing import Dict, List, Optional
 
-from .holdings_service import compute_position, QUANTITY_BASED_TYPES
+from .holdings_service import QUANTITY_BASED_TYPES, compute_position
 from .models import Holding, HoldingTransaction
+
 
 def _one_year_later(d: date) -> date:
     """d's calendar anniversary one year later — used instead of a fixed

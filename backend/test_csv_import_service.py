@@ -4,12 +4,12 @@ documented export format. These are NOT verified against real exports —
 see the plan's risk note. They confirm the parsing logic is internally
 correct; your first real file per broker is the actual acceptance test.
 """
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.csv_import_service import parse_zerodha, parse_groww, parse_fidelity, parse_robinhood
+from backend.csv_import_service import parse_fidelity, parse_groww, parse_robinhood, parse_zerodha
 
 
 def test_zerodha_parses_buy_and_sell():

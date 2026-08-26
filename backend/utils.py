@@ -1,9 +1,10 @@
 import concurrent.futures
 import logging
 import os
-import requests
 from datetime import date, timedelta
 from time import time
+
+import requests
 
 logger = logging.getLogger(__name__)
 

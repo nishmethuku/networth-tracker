@@ -9,15 +9,15 @@ from typing import Dict, List, Optional
 
 from sqlalchemy import text
 
-logger = logging.getLogger(__name__)
-
 from . import ai_service
-from .models import db, Holding, Household, Liability, NetWorthSnapshot
+from .account_service import export_user_data_csv_zip
+from .email_service import render_digest_email, send
 from .holdings_service import list_holdings_with_metrics
 from .liability_service import total_liabilities_display
-from .email_service import send, render_digest_email
-from .unsubscribe_service import is_unsubscribed, generate_unsubscribe_token
-from .account_service import export_user_data_csv_zip
+from .models import Holding, Household, Liability, NetWorthSnapshot, db
+from .unsubscribe_service import generate_unsubscribe_token, is_unsubscribed
+
+logger = logging.getLogger(__name__)
 
 
 def _recipients(user_id=None, household_id=None) -> List[Dict]:

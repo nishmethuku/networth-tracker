@@ -14,8 +14,17 @@ import zipfile
 from typing import Dict
 
 from .models import (
-    db, Holding, HoldingTransaction, HoldingValuation, PriceAlert, Milestone, BudgetEntry, BudgetLimit,
-    Liability, Goal, AllocationTarget,
+    AllocationTarget,
+    BudgetEntry,
+    BudgetLimit,
+    Goal,
+    Holding,
+    HoldingTransaction,
+    HoldingValuation,
+    Liability,
+    Milestone,
+    PriceAlert,
+    db,
 )
 
 
@@ -47,7 +56,7 @@ def export_user_data(user_id) -> Dict:
         "alerts": [a.to_dict() for a in alerts],
         "budget_entries": [e.to_dict() for e in budget_entries],
         "budget_limits": [limit.to_dict() for limit in budget_limits],
-        "liabilities": [l.to_dict() for l in liabilities],
+        "liabilities": [liability.to_dict() for liability in liabilities],
         "goals": [g.to_dict() for g in goals],
         "allocation_targets": [t.to_dict() for t in allocation_targets],
     }

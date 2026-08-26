@@ -2,21 +2,21 @@
 Correctness tests for the transaction-based calc engine: average cost basis,
 realized/unrealized gains, XIRR, and non-tradeable valuation metrics.
 """
-import sys
 import os
+import sys
 from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.finance import xirr
 from backend.holdings_service import (
-    compute_position,
+    build_dashboard,
+    build_deposit_valuation,
+    build_funding_valuation,
     calculate_holding_metrics,
     calculate_valuation_metrics,
+    compute_position,
     get_monthly_net_flow,
-    build_dashboard,
-    build_funding_valuation,
-    build_deposit_valuation,
     list_holdings_with_metrics,
 )
 from backend.models import Holding, HoldingTransaction, HoldingValuation
@@ -465,7 +465,7 @@ def test_list_holdings_with_metrics_batches_transactions_and_valuations_in_one_q
     many other holdings existed. Fixed to two bulk `IN` queries total.
     Verified live against the real DB too: 5 holdings (3 stock + 2 cash)
     -> exactly 2 queries against those tables, not 5."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     stocks = []
     for i in range(3):

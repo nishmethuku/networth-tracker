@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 130
+extend-exclude = ["backend/venv", "migrations"]
+
+[tool.ruff.lint]
+# "UP" (pyupgrade) deliberately left out: 223 of this codebase's 311
+# findings were UP006/UP035/UP045 alone (List[str] -> list[str], Optional[X]
+# -> X | None, ...) -- purely cosmetic typing-syntax preference with zero
+# functional value, and rewriting every type hint in the backend is a huge,
+# noisy diff for that. E/F/I catch real issues (unused imports, unsorted
+# imports, genuine import-order problems) without that cost.
+select = ["E", "F", "I"]
+ignore = ["E501"]  # line length handled by black-style formatting elsewhere; not enforced here
+
+[tool.ruff.lint.per-file-ignores]
+# app.py's imports deliberately start after logging.basicConfig() so that
+# import-time logs (e.g. utils.py's mftool init message) get the real JSON
+# formatter instead of logging's unconfigured last-resort handler -- see
+# the comment at the top of app.py. Every E402 here is that one documented,
+# intentional block, not scattered accidental violations.
+"backend/app.py" = ["E402"]

@@ -6,7 +6,7 @@ pure rebalance math with no DB access.
 """
 from typing import Dict
 
-from .models import db, AllocationTarget
+from .models import AllocationTarget, db
 
 
 def get_target_allocation(user_id) -> Dict[str, float]:

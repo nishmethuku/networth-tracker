@@ -6,10 +6,10 @@ Upserts so a manual re-run for the same day is safe.
 from datetime import date
 from typing import Optional
 
-from .models import db, Holding, Liability, NetWorthSnapshot
-from .holdings_service import list_holdings_with_metrics, QUANTITY_BASED_TYPES
+from .holdings_service import QUANTITY_BASED_TYPES, list_holdings_with_metrics
 from .liability_service import total_liabilities_display
 from .milestone_service import detect_and_record_milestones
+from .models import Holding, Liability, NetWorthSnapshot, db
 
 
 def _compute_totals(holdings, liabilities):

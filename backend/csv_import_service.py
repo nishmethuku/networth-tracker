@@ -15,7 +15,7 @@ import io
 from datetime import date, datetime
 from typing import Dict, List, Optional
 
-from .models import db, Holding, HoldingTransaction
+from .models import Holding, HoldingTransaction, db
 
 SUPPORTED_BROKERS = ["zerodha", "groww", "fidelity", "robinhood"]
 

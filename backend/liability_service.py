@@ -8,7 +8,7 @@ directly, like a valuation-based holding.
 from typing import Dict, List
 
 from . import price_service
-from .models import db, Liability
+from .models import Liability, db
 
 LIABILITY_TYPES = (
     "mortgage",
@@ -23,16 +23,16 @@ LIABILITY_TYPES = (
 
 def list_liabilities_with_display(liabilities: List[Liability], display_currency: str = "USD") -> List[Dict]:
     results = []
-    for l in liabilities:
-        d = l.to_dict()
-        d["display_balance"] = round(price_service.convert(l.current_balance, l.currency, display_currency), 2)
+    for liability in liabilities:
+        d = liability.to_dict()
+        d["display_balance"] = round(price_service.convert(liability.current_balance, liability.currency, display_currency), 2)
         results.append(d)
     return results
 
 
 def total_liabilities_display(liabilities: List[Liability], display_currency: str = "USD") -> float:
     return round(
-        sum(price_service.convert(l.current_balance, l.currency, display_currency) for l in liabilities), 2
+        sum(price_service.convert(liability.current_balance, liability.currency, display_currency) for liability in liabilities), 2
     )
 
 

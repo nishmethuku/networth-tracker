@@ -5,7 +5,6 @@ needs DATABASE_URL to be *set*, not a live connection -- SQLAlchemy is
 lazy, and every route exercised here returns before touching the DB) so
 the actual hooks run, not a reimplementation of them.
 """
-import os
 
 import pytest
 

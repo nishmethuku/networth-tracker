@@ -9,7 +9,7 @@ import hashlib
 import hmac
 import os
 
-from .models import db, EmailUnsubscribe
+from .models import EmailUnsubscribe, db
 
 _SECRET = (os.environ.get("DIGEST_SECRET") or os.environ.get("SNAPSHOT_SECRET") or "").encode()
 

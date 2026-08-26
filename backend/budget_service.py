@@ -8,8 +8,8 @@ from typing import Dict, List, Optional
 
 from sqlalchemy import text
 
-from .models import db, BudgetEntry, BudgetLimit
 from . import sip_service
+from .models import BudgetEntry, BudgetLimit, db
 
 INCOME_CATEGORIES = ["paycheck", "bonus", "interest", "gift", "other_income"]
 EXPENSE_CATEGORIES = [

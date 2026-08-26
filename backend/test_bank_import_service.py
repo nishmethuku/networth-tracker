@@ -1,12 +1,12 @@
-import sys
 import os
+import sys
 from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 
-from backend.bank_import_service import _validate_row, extract_statement_text, confirm_bank_import
+from backend.bank_import_service import _validate_row, confirm_bank_import, extract_statement_text
 
 
 def _minimal_pdf(text_lines):

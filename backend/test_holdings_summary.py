@@ -1,9 +1,9 @@
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.holdings_service import to_summary, SUMMARY_FIELDS
+from backend.holdings_service import SUMMARY_FIELDS, to_summary
 
 
 def test_to_summary_keeps_only_summary_fields():

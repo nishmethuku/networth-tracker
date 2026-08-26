@@ -4,10 +4,10 @@ which used to be able to diverge to an astronomical or crashing rate on
 certain cash flow patterns. See git history for the original bug report:
 a holding's XIRR displayed as "+9.589250927988066e+52%" in the UI.
 """
-import sys
 import os
-from datetime import date, timedelta
 import random
+import sys
+from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

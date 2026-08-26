@@ -2,8 +2,8 @@
 ai_service tests. No real Gemini API calls — the client is mocked so
 these run in CI without a GEMINI_API_KEY.
 """
-import sys
 import os
+import sys
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

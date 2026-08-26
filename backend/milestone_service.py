@@ -13,7 +13,7 @@ once.
 """
 from typing import List, Optional
 
-from .models import db, Milestone
+from .models import Milestone, db
 
 THRESHOLDS_USD = [
     10_000, 25_000, 50_000, 100_000, 250_000, 500_000,

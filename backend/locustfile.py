@@ -33,8 +33,7 @@ immediately hitting 429s for reasons unrelated to what you're measuring.
 """
 import os
 
-from locust import HttpUser, task, between
-
+from locust import HttpUser, between, task
 
 TOKEN = os.environ.get("LOAD_TEST_TOKEN")
 if not TOKEN:

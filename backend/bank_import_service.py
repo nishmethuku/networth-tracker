@@ -15,8 +15,8 @@ import pandas as pd
 import pdfplumber
 
 from . import ai_service
-from .models import db, BudgetEntry
-from .budget_service import INCOME_CATEGORIES, EXPENSE_CATEGORIES
+from .budget_service import EXPENSE_CATEGORIES, INCOME_CATEGORIES
+from .models import BudgetEntry, db
 
 MAX_ROWS_TO_SEND = 300  # keeps the prompt bounded for unusually long statements
 VALID_FREQUENCIES = ("weekly", "monthly", "quarterly", "yearly")

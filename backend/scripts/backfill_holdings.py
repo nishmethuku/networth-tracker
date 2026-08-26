@@ -9,8 +9,8 @@ and the rename never happens.
 
 Usage: PYTHONPATH=<repo root> python -m backend.scripts.backfill_holdings
 """
-import sys
 import os
+import sys
 from collections import defaultdict
 from datetime import date
 
@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from sqlalchemy import text
 
 from backend.app import create_app
-from backend.models import db, Holding, HoldingTransaction, HoldingValuation
+from backend.models import Holding, HoldingTransaction, HoldingValuation, db
 
 COUNTRY_CURRENCY = {"United States": "USD", "Australia": "AUD", "India": "INR"}
 

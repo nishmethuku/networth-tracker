@@ -1,18 +1,19 @@
-from datetime import date
 import hmac
 import json
 import logging
 import os
 import uuid
-from flask import Flask, jsonify, request, g, abort, Response
-from flask_cors import CORS
-from flask_migrate import Migrate
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from werkzeug.exceptions import HTTPException
+from datetime import date
+
 import requests
 import sentry_sdk
+from flask import Flask, Response, abort, g, jsonify, request
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_migrate import Migrate
 from sentry_sdk.integrations.flask import FlaskIntegration
+from werkzeug.exceptions import HTTPException
 
 # Configured before any local module import below, since several of them
 # (utils.py in particular) log at import time — e.g. whether mftool
@@ -31,57 +32,77 @@ _log_handler = logging.StreamHandler()
 _log_handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 
-from .models import db, Holding, HoldingTransaction, HoldingValuation, PriceHistory, PriceAlert, BudgetEntry, BudgetLimit, Liability, Milestone
-from .auth import require_auth
-from .utils import FINNHUB_API_KEY
-from .services import safe_float, rank_symbol_results
-from . import price_service
-from . import ai_service
-from .allocation_service import compute_rebalance_plan, validate_target_allocation
-from .allocation_target_service import get_target_allocation, save_target_allocation, clear_target_allocation
-from .holdings_service import list_holdings_with_metrics, build_dashboard, to_summary, get_monthly_net_flow, build_funding_valuation, build_deposit_valuation, TRANSACTION_TYPES
-from .liability_service import list_liabilities_with_display, total_liabilities_display, apply_payment, LIABILITY_TYPES
-from .emergency_fund_service import get_emergency_fund_status
-from .household_service import (
-    get_member_household_ids,
-    get_role,
-    can_edit_household,
-    create_household,
-    list_my_households,
-    list_members_with_email,
-    create_invite,
-    list_my_pending_invites,
-    accept_invite,
-    leave_household,
-    remove_member,
-    delete_household,
-)
-from .snapshot_service import snapshot_all_users
-from .digest_service import build_weekly_digest
+from . import ai_service, price_service
+from .account_service import delete_all_user_data, export_user_data, export_user_data_csv_zip
 from .alert_service import check_all_alerts
-from .unsubscribe_service import verify_unsubscribe_token, unsubscribe as unsubscribe_email
-from .account_service import export_user_data, export_user_data_csv_zip, delete_all_user_data
-from .goal_service import list_goals, create_goal, update_goal, delete_goal
-from .milestone_service import list_milestones
-from .sip_service import next_occurrences as next_sip_occurrences, project_future_value as project_sip_future_value
+from .allocation_service import compute_rebalance_plan, validate_target_allocation
+from .allocation_target_service import clear_target_allocation, get_target_allocation, save_target_allocation
+from .auth import require_auth
+from .bank_import_service import confirm_bank_import, parse_statement
+from .benchmark_service import get_benchmark_comparison
 from .budget_service import (
+    EXPENSE_CATEGORIES,
+    INCOME_CATEGORIES,
+    delete_limit,
+    get_limits,
     get_monthly_summary,
     get_subscriptions,
-    get_limits,
     set_limit,
-    delete_limit,
-    INCOME_CATEGORIES,
-    EXPENSE_CATEGORIES,
 )
-from .smart_import_service import parse_spreadsheet, confirm_smart_import
-from .bank_import_service import parse_statement, confirm_bank_import
-from .benchmark_service import get_benchmark_comparison
-from .tax_service import get_tax_summary, TAX_DISCLAIMER, COST_BASIS_METHODS
-from .csv_import_service import parse_csv, confirm_import, SUPPORTED_BROKERS
+from .csv_import_service import SUPPORTED_BROKERS, confirm_import, parse_csv
+from .digest_service import build_weekly_digest
+from .emergency_fund_service import get_emergency_fund_status
+from .goal_service import create_goal, delete_goal, list_goals, update_goal
+from .holdings_service import (
+    TRANSACTION_TYPES,
+    build_dashboard,
+    build_deposit_valuation,
+    build_funding_valuation,
+    get_monthly_net_flow,
+    list_holdings_with_metrics,
+    to_summary,
+)
+from .household_service import (
+    accept_invite,
+    can_edit_household,
+    create_household,
+    create_invite,
+    delete_household,
+    get_member_household_ids,
+    get_role,
+    leave_household,
+    list_members_with_email,
+    list_my_households,
+    list_my_pending_invites,
+    remove_member,
+)
+from .liability_service import LIABILITY_TYPES, apply_payment, list_liabilities_with_display, total_liabilities_display
+from .milestone_service import list_milestones
+from .models import (
+    BudgetEntry,
+    BudgetLimit,
+    Holding,
+    HoldingTransaction,
+    HoldingValuation,
+    Liability,
+    Milestone,
+    PriceAlert,
+    PriceHistory,
+    db,
+)
+from .services import rank_symbol_results, safe_float
+from .sip_service import next_occurrences as next_sip_occurrences
+from .sip_service import project_future_value as project_sip_future_value
+from .smart_import_service import confirm_smart_import, parse_spreadsheet
+from .snapshot_service import snapshot_all_users
+from .tax_service import COST_BASIS_METHODS, TAX_DISCLAIMER, get_tax_summary
+from .unsubscribe_service import unsubscribe as unsubscribe_email
+from .unsubscribe_service import verify_unsubscribe_token
+from .utils import FINNHUB_API_KEY
 
 # Import mf instance if available
 try:
-    from .utils import mf, MFTOOL_AVAILABLE
+    from .utils import MFTOOL_AVAILABLE, mf
 except (ImportError, AttributeError):
     mf = None
     MFTOOL_AVAILABLE = False

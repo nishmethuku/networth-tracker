@@ -8,7 +8,7 @@ that math.
 from datetime import date
 from typing import Dict, List, Optional
 
-from .models import db, Goal
+from .models import Goal, db
 
 
 def list_goals(user_id) -> List[Dict]:

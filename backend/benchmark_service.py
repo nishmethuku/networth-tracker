@@ -21,10 +21,10 @@ native trading currency, not an arbitrary requested one.
 from datetime import date
 from typing import Dict, Optional
 
-from .models import HoldingTransaction, Holding
-from .holdings_service import QUANTITY_BASED_TYPES, list_holdings_with_metrics
 from . import price_service
 from .finance import xirr
+from .holdings_service import QUANTITY_BASED_TYPES, list_holdings_with_metrics
+from .models import Holding, HoldingTransaction
 
 BENCHMARKS = {
     "SPY": {"label": "S&P 500 (SPY)", "currency": "USD"},
