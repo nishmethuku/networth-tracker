@@ -4,9 +4,10 @@ Zone. Scoped to data the caller owns (Holding.user_id) — shared household
 holdings owned by someone else are untouched even if visible to this user.
 
 Deletion here removes financial data only (holdings, transactions,
-valuations, alerts, milestones) via the existing Postgres cascade FKs — it
-does not delete the Supabase auth account itself, which needs the
-service-role Admin API and is out of scope for now.
+valuations, alerts, milestones, net worth snapshots) via the existing
+Postgres cascade FKs — it does not delete the Supabase auth account
+itself, which needs the service-role Admin API and is out of scope for
+now.
 """
 import csv
 import io
@@ -15,6 +16,7 @@ from typing import Dict
 
 from .models import (
     AllocationTarget,
+    BudgetCategory,
     BudgetEntry,
     BudgetLimit,
     Goal,
@@ -23,6 +25,7 @@ from .models import (
     HoldingValuation,
     Liability,
     Milestone,
+    NetWorthSnapshot,
     PriceAlert,
     db,
 )
@@ -43,8 +46,11 @@ def export_user_data(user_id) -> Dict:
         else []
     )
     alerts = PriceAlert.query.filter_by(user_id=user_id).all()
+    milestones = Milestone.query.filter_by(user_id=user_id).all()
+    snapshots = NetWorthSnapshot.query.filter_by(user_id=user_id).all()
     budget_entries = BudgetEntry.query.filter_by(user_id=user_id).all()
     budget_limits = BudgetLimit.query.filter_by(user_id=user_id).all()
+    budget_categories = BudgetCategory.query.filter_by(user_id=user_id).all()
     liabilities = Liability.query.filter_by(user_id=user_id).all()
     goals = Goal.query.filter_by(user_id=user_id).all()
     allocation_targets = AllocationTarget.query.filter_by(user_id=user_id).all()
@@ -54,8 +60,11 @@ def export_user_data(user_id) -> Dict:
         "transactions": [t.to_dict() for t in transactions],
         "valuations": [v.to_dict() for v in valuations],
         "alerts": [a.to_dict() for a in alerts],
+        "milestones": [m.to_dict() for m in milestones],
+        "net_worth_snapshots": [s.to_dict() for s in snapshots],
         "budget_entries": [e.to_dict() for e in budget_entries],
         "budget_limits": [limit.to_dict() for limit in budget_limits],
+        "budget_categories": [c.to_dict() for c in budget_categories],
         "liabilities": [liability.to_dict() for liability in liabilities],
         "goals": [g.to_dict() for g in goals],
         "allocation_targets": [t.to_dict() for t in allocation_targets],
@@ -97,10 +106,10 @@ def delete_all_user_data(user_id) -> Dict:
     """Deletes every holding this user owns (transactions/valuations cascade
     via the DB's own ON DELETE CASCADE foreign keys — see
     supabase/migrations/0002_holdings.sql), plus their alerts, personal
-    milestones, liabilities, goals, allocation targets, budget entries, and
-    budget limits — every table export_user_data() reports, so "delete all
-    my data" actually leaves nothing behind. Returns a count summary for
-    the confirmation UI."""
+    milestones, liabilities, goals, allocation targets, budget entries,
+    budget limits, and budget categories — every table export_user_data()
+    reports, so "delete all my data" actually leaves nothing behind.
+    Returns a count summary for the confirmation UI."""
     holdings = Holding.query.filter_by(user_id=user_id).all()
     holdings_count = len(holdings)
 
@@ -109,11 +118,16 @@ def delete_all_user_data(user_id) -> Dict:
 
     alerts_count = PriceAlert.query.filter_by(user_id=user_id).delete()
     milestones_count = Milestone.query.filter_by(user_id=user_id).delete()
+    # Without this, a fresh holding added after "delete all my data" would
+    # have its net worth history chart mixed with pre-wipe snapshot rows
+    # that were never actually cleared.
+    snapshots_count = NetWorthSnapshot.query.filter_by(user_id=user_id).delete()
     liabilities_count = Liability.query.filter_by(user_id=user_id).delete()
     goals_count = Goal.query.filter_by(user_id=user_id).delete()
     allocation_targets_count = AllocationTarget.query.filter_by(user_id=user_id).delete()
     budget_entries_count = BudgetEntry.query.filter_by(user_id=user_id).delete()
     budget_limits_count = BudgetLimit.query.filter_by(user_id=user_id).delete()
+    budget_categories_count = BudgetCategory.query.filter_by(user_id=user_id).delete()
 
     db.session.commit()
 
@@ -121,9 +135,11 @@ def delete_all_user_data(user_id) -> Dict:
         "holdings_deleted": holdings_count,
         "alerts_deleted": alerts_count,
         "milestones_deleted": milestones_count,
+        "net_worth_snapshots_deleted": snapshots_count,
         "liabilities_deleted": liabilities_count,
         "goals_deleted": goals_count,
         "allocation_targets_deleted": allocation_targets_count,
         "budget_entries_deleted": budget_entries_count,
         "budget_limits_deleted": budget_limits_count,
+        "budget_categories_deleted": budget_categories_count,
     }
