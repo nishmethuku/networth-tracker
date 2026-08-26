@@ -43,7 +43,14 @@ export function formatCurrencyCompact(value: unknown, currency: string = "USD"):
   let formatted: string;
 
   if (absNum >= 1000000) {
-    formatted = `${Math.round(absNum / 1000000)}M`;
+    // One decimal of precision, not whole millions -- rounding to whole
+    // millions overstates/understates by up to $500K, e.g. $1,786,100
+    // ("$1.8M") used to round to "$2M", a ~12% error. Trim a trailing
+    // ".0" so an exact round number (e.g. $2,000,000) still reads "$2M"
+    // rather than "$2.0M", matching this function's own documented
+    // examples ("$2.4M USD") either way.
+    const millions = (absNum / 1000000).toFixed(1);
+    formatted = `${millions.endsWith(".0") ? millions.slice(0, -2) : millions}M`;
   } else if (absNum >= 1000) {
     formatted = `${Math.round(absNum / 1000)}K`;
   } else {
