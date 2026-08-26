@@ -88,10 +88,42 @@ export default function ImportBankStatement() {
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "2rem 1rem" }}>
       <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>Import Bank Statement</h1>
-      <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
+      <p style={{ color: "var(--text-secondary)", marginBottom: "1.25rem" }}>
         Upload a bank or credit card statement (Excel, CSV, or PDF) — AI reads it and categorizes each transaction into your budget; nothing
         is saved until you review and confirm below.
       </p>
+
+      <div
+        style={{
+          marginBottom: "2rem",
+          padding: "1rem 1.25rem",
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius)",
+          fontSize: "0.8125rem",
+          color: "var(--text-secondary)",
+        }}
+      >
+        <strong style={{ color: "var(--text)" }}>Building your own CSV instead of exporting one from your bank?</strong> Any layout works —
+        it doesn't need to match a specific format — but for the most accurate read, include a column for each of:
+        <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.25rem" }}>
+          <li>
+            <strong style={{ color: "var(--text)" }}>Date</strong> — when the transaction happened
+          </li>
+          <li>
+            <strong style={{ color: "var(--text)" }}>Description</strong> — who it was to/from, e.g. "Whole Foods" or "Paycheck"
+          </li>
+          <li>
+            <strong style={{ color: "var(--text)" }}>Amount</strong> — just the number
+          </li>
+          <li>
+            <strong style={{ color: "var(--text)" }}>Debit/Credit (or Income/Expense)</strong> — whether it's money out or money in; if your
+            amounts are already signed (negative for expenses) or split into separate "Debit"/"Credit" columns, that works too
+          </li>
+        </ul>
+        Extra columns (a category you've already assigned, an account name, ...) are fine — anything that doesn't map to one of these just
+        gets ignored.
+      </div>
 
       <Card>
         <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>

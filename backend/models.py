@@ -413,6 +413,41 @@ class BudgetLimit(db.Model):
         }
 
 
+class BudgetCategory(db.Model):
+    """A user-defined income/expense category, alongside the fixed preset
+    list in budget_service.py (INCOME_CATEGORIES/EXPENSE_CATEGORIES) --
+    lets someone add a category that doesn't fit a preset (e.g. "Pet
+    care") instead of bucketing everything into Other. BudgetEntry.category
+    stores the name directly as a plain string either way, so summaries/
+    grouping/limits work on custom categories with no special-casing;
+    the only place this table matters is validating a category exists
+    before an entry can use it, and listing it back in /budget/categories."""
+    __tablename__ = "budget_categories"
+    __table_args__ = (
+        db.Index("budget_categories_user_idx", "user_id"),
+        db.Index("budget_categories_household_idx", "household_id"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
+
+    entry_type = db.Column(db.String(8), nullable=False)  # 'income' | 'expense'
+    name = db.Column(db.String(64), nullable=False)
+
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": str(self.user_id),
+            "household_id": str(self.household_id) if self.household_id else None,
+            "entry_type": self.entry_type,
+            "name": self.name,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class Goal(db.Model):
     """A net worth target — purely an in-app progress indicator (a Dashboard
     card comparing target_amount against the already-fetched current net

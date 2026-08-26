@@ -41,12 +41,14 @@ from .auth import require_auth
 from .bank_import_service import confirm_bank_import, parse_statement
 from .benchmark_service import get_benchmark_comparison
 from .budget_service import (
-    EXPENSE_CATEGORIES,
-    INCOME_CATEGORIES,
+    category_exists,
+    create_category,
+    delete_category,
     delete_limit,
     get_limits,
     get_monthly_summary,
     get_subscriptions,
+    list_categories,
     set_limit,
 )
 from .csv_import_service import SUPPORTED_BROKERS, confirm_import, parse_csv
@@ -79,6 +81,7 @@ from .household_service import (
 from .liability_service import LIABILITY_TYPES, apply_payment, list_liabilities_with_display, total_liabilities_display
 from .milestone_service import list_milestones
 from .models import (
+    BudgetCategory,
     BudgetEntry,
     BudgetLimit,
     Holding,
@@ -1656,7 +1659,33 @@ def create_app():
     @app.route("/budget/categories", methods=["GET"])
     @require_auth
     def budget_categories():
-        return jsonify({"income": INCOME_CATEGORIES, "expense": EXPENSE_CATEGORIES})
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        return jsonify(list_categories(g.user_id if not household_id_param else None, household_id_param))
+
+    @app.route("/budget/categories", methods=["POST"])
+    @require_auth
+    def budget_categories_create():
+        data = request.get_json(force=True)
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        try:
+            category = create_category(g.user_id, entry_type=data.get("entry_type"), name=data.get("name"), household_id=household_id)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify(category), 201
+
+    @app.route("/budget/categories/<int:category_id>", methods=["DELETE"])
+    @require_auth
+    def budget_categories_delete(category_id):
+        category = BudgetCategory.query.get_or_404(category_id)
+        if category.household_id:
+            validate_household_id_for_write(str(category.household_id))
+        elif str(category.user_id) != str(g.user_id):
+            abort(403)
+        delete_category(category_id, g.user_id, str(category.household_id) if category.household_id else None)
+        return jsonify({"message": "Category deleted"}), 200
 
     @app.route("/budget/entries", methods=["GET"])
     @require_auth
@@ -1688,9 +1717,8 @@ def create_app():
         if entry_type not in ("income", "expense"):
             return jsonify({"error": "entry_type must be 'income' or 'expense'"}), 400
         category = data.get("category")
-        valid_categories = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
-        if category not in valid_categories:
-            return jsonify({"error": f"category must be one of {valid_categories}"}), 400
+        if not category_exists(category, entry_type, g.user_id, household_id):
+            return jsonify({"error": f"'{category}' isn't a known {entry_type} category"}), 400
 
         recurring_frequency = data.get("recurring_frequency")
         if recurring_frequency and recurring_frequency not in ("weekly", "monthly", "quarterly", "yearly"):
@@ -1784,9 +1812,8 @@ def create_app():
         if "currency" in data:
             entry.currency = data["currency"]
         if "category" in data:
-            valid_categories = INCOME_CATEGORIES if entry.entry_type == "income" else EXPENSE_CATEGORIES
-            if data["category"] not in valid_categories:
-                return jsonify({"error": f"category must be one of {valid_categories}"}), 400
+            if not category_exists(data["category"], entry.entry_type, g.user_id, str(entry.household_id) if entry.household_id else None):
+                return jsonify({"error": f"'{data['category']}' isn't a known {entry.entry_type} category"}), 400
             entry.category = data["category"]
         if "description" in data:
             entry.description = data["description"]

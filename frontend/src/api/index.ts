@@ -521,8 +521,19 @@ export async function fetchSipProjection(holdingId: number | string, years: numb
 /**
  * Budget (income/expenses) — independent of holdings/net worth.
  */
-export async function fetchBudgetCategories() {
-  return api.get("/budget/categories");
+export async function fetchBudgetCategories({ householdId }: { householdId?: string } = {}) {
+  const params = new URLSearchParams();
+  if (householdId) params.append("household_id", householdId);
+  const endpoint = params.toString() ? `/budget/categories?${params.toString()}` : "/budget/categories";
+  return api.get(endpoint);
+}
+
+export async function createBudgetCategory(payload: { entry_type: string; name: string; household_id?: string | null }) {
+  return api.post("/budget/categories", payload);
+}
+
+export async function deleteBudgetCategory(id: number | string) {
+  await api.delete(`/budget/categories/${id}`);
 }
 
 export interface BudgetEntryFilters {

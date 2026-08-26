@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import text
 
 from . import sip_service
-from .models import BudgetEntry, BudgetLimit, db
+from .models import BudgetCategory, BudgetEntry, BudgetLimit, db
 
 INCOME_CATEGORIES = ["paycheck", "bonus", "interest", "gift", "other_income"]
 EXPENSE_CATEGORIES = [
@@ -179,8 +179,8 @@ def set_limit(user_id, category: str, monthly_limit: float, currency: str, house
     constraint (household_id is nullable, which complicates a partial
     unique index for little benefit here), so this checks for an existing
     row first rather than relying on an ON CONFLICT clause."""
-    if category not in EXPENSE_CATEGORIES:
-        raise ValueError(f"category must be one of {EXPENSE_CATEGORIES}")
+    if not category_exists(category, "expense", user_id, household_id):
+        raise ValueError(f"'{category}' isn't a known expense category")
     if monthly_limit <= 0:
         raise ValueError("monthly_limit must be greater than 0")
 
@@ -206,6 +206,67 @@ def delete_limit(limit_id, user_id=None, household_id=None) -> bool:
     if not limit:
         return False
     db.session.delete(limit)
+    db.session.commit()
+    return True
+
+
+def _custom_categories_query(entry_type, user_id, household_id=None):
+    query = BudgetCategory.query.filter_by(entry_type=entry_type)
+    return query.filter_by(household_id=household_id) if household_id else query.filter_by(user_id=user_id, household_id=None)
+
+
+def list_categories(user_id, household_id=None) -> Dict[str, List[str]]:
+    """The fixed presets plus any custom categories for this scope,
+    in creation order after the presets -- matches how the Category
+    dropdown is built (presets first, then whatever's been added)."""
+    income_custom = [c.name for c in _custom_categories_query("income", user_id, household_id).order_by(BudgetCategory.created_at).all()]
+    expense_custom = [c.name for c in _custom_categories_query("expense", user_id, household_id).order_by(BudgetCategory.created_at).all()]
+    return {"income": INCOME_CATEGORIES + income_custom, "expense": EXPENSE_CATEGORIES + expense_custom}
+
+
+def category_exists(category: str, entry_type: str, user_id, household_id=None) -> bool:
+    """Whether `category` is usable for a new/updated entry -- either one
+    of the fixed presets, or a custom category already created in this
+    scope. Case-sensitive: a custom category's name is stored and matched
+    verbatim, same as any other user-entered string in this app."""
+    presets = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
+    if category in presets:
+        return True
+    return _custom_categories_query(entry_type, user_id, household_id).filter_by(name=category).first() is not None
+
+
+def create_category(user_id, entry_type: str, name: str, household_id=None) -> Dict:
+    if entry_type not in ("income", "expense"):
+        raise ValueError("entry_type must be 'income' or 'expense'")
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("name is required")
+    if len(name) > 64:
+        raise ValueError("name must be 64 characters or fewer")
+
+    presets = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
+    existing_names = {n.lower() for n in presets} | {
+        c.name.lower() for c in _custom_categories_query(entry_type, user_id, household_id).all()
+    }
+    if name.lower() in existing_names:
+        raise ValueError(f"'{name}' already exists")
+
+    category = BudgetCategory(user_id=user_id, household_id=household_id, entry_type=entry_type, name=name)
+    db.session.add(category)
+    db.session.commit()
+    return category.to_dict()
+
+
+def delete_category(category_id, user_id=None, household_id=None) -> bool:
+    """Deleting a category doesn't touch entries already using its name --
+    they keep displaying it, same as deleting a holding doesn't rewrite
+    its historical transactions. It just stops being offered for new ones."""
+    query = BudgetCategory.query.filter_by(id=category_id)
+    query = query.filter_by(household_id=household_id) if household_id else query.filter_by(user_id=user_id, household_id=None)
+    category = query.first()
+    if not category:
+        return False
+    db.session.delete(category)
     db.session.commit()
     return True
 

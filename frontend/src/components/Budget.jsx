@@ -13,6 +13,7 @@ import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
 import {
   fetchBudgetCategories,
+  createBudgetCategory,
   fetchBudgetEntries,
   createBudgetEntry,
   deleteBudgetEntry,
@@ -104,6 +105,9 @@ function CategoryBreakdown({ breakdown, currency }) {
 function AddEntryForm({ categories, currency }) {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { currentHouseholdId } = useHousehold();
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const { register, control, watch, setValue, handleSubmit, reset } = useForm({
     defaultValues: {
       entry_type: "expense",
@@ -120,6 +124,7 @@ function AddEntryForm({ categories, currency }) {
     },
   });
   const entryType = watch("entry_type");
+  const categoryValue = watch("category");
   const isRecurring = watch("is_recurring");
   const categoryOptions = entryType === "income" ? categories?.income || [] : categories?.expense || [];
 
@@ -219,6 +224,18 @@ function AddEntryForm({ categories, currency }) {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add entry"),
   });
 
+  const createCategoryMutation = useMutation({
+    mutationFn: () => createBudgetCategory({ entry_type: entryType, name: newCategoryName.trim(), household_id: currentHouseholdId }),
+    onSuccess: (category) => {
+      queryClient.invalidateQueries({ queryKey: ["budget-categories"] });
+      setValue("category", category.name);
+      setAddingCategory(false);
+      setNewCategoryName("");
+      toast.success(`"${category.name}" category added`);
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add category"),
+  });
+
   return (
     <form onSubmit={handleSubmit((data) => mutation.mutate(data))}>
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
@@ -273,13 +290,81 @@ function AddEntryForm({ categories, currency }) {
           >
             Category
           </label>
-          <select id="budget-category" {...register("category")} style={inputStyle}>
+          <select
+            id="budget-category"
+            {...register("category")}
+            value={addingCategory ? "__new__" : categoryValue}
+            onChange={(e) => {
+              if (e.target.value === "__new__") {
+                setAddingCategory(true);
+                return;
+              }
+              setValue("category", e.target.value);
+            }}
+            style={inputStyle}
+          >
             {categoryOptions.map((c) => (
               <option key={c} value={c}>
                 {getBudgetCategoryLabel(c)}
               </option>
             ))}
+            <option value="__new__">+ New category…</option>
           </select>
+          {addingCategory && (
+            <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.4rem" }}>
+              <input
+                autoFocus
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="e.g., Pet care"
+                aria-label="New category name"
+                style={{ ...inputStyle, flex: 1 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (newCategoryName.trim()) createCategoryMutation.mutate();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => newCategoryName.trim() && createCategoryMutation.mutate()}
+                disabled={createCategoryMutation.isPending || !newCategoryName.trim()}
+                style={{
+                  padding: "0.5rem 0.75rem",
+                  borderRadius: "var(--radius-sm)",
+                  border: "none",
+                  background: "var(--primary)",
+                  color: "var(--text-inverse)",
+                  cursor: "pointer",
+                  fontSize: "0.8125rem",
+                  fontWeight: 600,
+                  opacity: createCategoryMutation.isPending || !newCategoryName.trim() ? 0.6 : 1,
+                }}
+              >
+                {createCategoryMutation.isPending ? "Adding…" : "Add"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddingCategory(false);
+                  setNewCategoryName("");
+                  setValue("category", categoryOptions[0] || "");
+                }}
+                style={{
+                  padding: "0.5rem 0.75rem",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border)",
+                  background: "var(--card)",
+                  color: "var(--text-secondary)",
+                  cursor: "pointer",
+                  fontSize: "0.8125rem",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
         <div>
           <label
@@ -492,7 +577,10 @@ function SpendingLimitsCard({ currency, limitStatus }) {
   const { register, handleSubmit, reset } = useForm({ defaultValues: { category: "", monthly_limit: "" } });
 
   const { currentHouseholdId } = useHousehold();
-  const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
+  const { data: categories } = useQuery({
+    queryKey: ["budget-categories", currentHouseholdId],
+    queryFn: () => fetchBudgetCategories({ householdId: currentHouseholdId }),
+  });
   const { data: limits } = useQuery({
     queryKey: ["budget-limits", currentHouseholdId],
     queryFn: () => fetchBudgetLimits({ householdId: currentHouseholdId }),
@@ -680,7 +768,10 @@ export default function Budget() {
   const toast = useToast();
 
   const { currentHouseholdId } = useHousehold();
-  const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
+  const { data: categories } = useQuery({
+    queryKey: ["budget-categories", currentHouseholdId],
+    queryFn: () => fetchBudgetCategories({ householdId: currentHouseholdId }),
+  });
 
   const {
     data: summary,
