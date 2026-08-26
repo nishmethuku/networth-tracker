@@ -1,0 +1,86 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PortfolioSkeleton > renders without crashing and matches its known layout shape 1`] = `
+<div>
+  <div>
+    <div
+      style="width: 140px; height: 2rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite; margin-bottom: 1.5rem;"
+    />
+    <div
+      style="width: 100px; height: 1.25rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite; margin-bottom: 0.75rem;"
+    />
+    <div
+      style="background: var(--card); border-radius: var(--radius-md); box-shadow: var(--shadow); padding: 1.5rem; min-height: 100px; border: 1px solid var(--border); transition: all 0.2s ease;"
+    >
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0px; border-bottom: 1px solid var(--border-light);"
+      >
+        <div
+          style="display: flex; flex-direction: column; gap: 0.4rem;"
+        >
+          <div
+            style="width: 120px; height: 0.9375rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+          />
+          <div
+            style="width: 80px; height: 0.75rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+          />
+        </div>
+        <div
+          style="width: 90px; height: 0.9375rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+        />
+      </div>
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0px; border-bottom: 1px solid var(--border-light);"
+      >
+        <div
+          style="display: flex; flex-direction: column; gap: 0.4rem;"
+        >
+          <div
+            style="width: 120px; height: 0.9375rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+          />
+          <div
+            style="width: 80px; height: 0.75rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+          />
+        </div>
+        <div
+          style="width: 90px; height: 0.9375rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+        />
+      </div>
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0px; border-bottom: 1px solid var(--border-light);"
+      >
+        <div
+          style="display: flex; flex-direction: column; gap: 0.4rem;"
+        >
+          <div
+            style="width: 120px; height: 0.9375rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+          />
+          <div
+            style="width: 80px; height: 0.75rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+          />
+        </div>
+        <div
+          style="width: 90px; height: 0.9375rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+        />
+      </div>
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0px; border-bottom: medium;"
+      >
+        <div
+          style="display: flex; flex-direction: column; gap: 0.4rem;"
+        >
+          <div
+            style="width: 120px; height: 0.9375rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+          />
+          <div
+            style="width: 80px; height: 0.75rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+          />
+        </div>
+        <div
+          style="width: 90px; height: 0.9375rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-light) 37%, var(--bg-secondary) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;

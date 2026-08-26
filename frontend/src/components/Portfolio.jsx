@@ -54,7 +54,7 @@ const SORT_ACCESSORS = {
   growth: (h) => gainPct(h),
 };
 
-function sortHoldings(holdings, sortKey, dir) {
+export function sortHoldings(holdings, sortKey, dir) {
   if (!sortKey || !SORT_ACCESSORS[sortKey]) return holdings;
   const accessor = SORT_ACCESSORS[sortKey];
   const sign = dir === "asc" ? 1 : -1;
