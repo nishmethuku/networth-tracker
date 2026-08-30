@@ -13,7 +13,7 @@ import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
-import { holdingGrowthPct as gainPct } from "../utils/holdingReturns";
+import { holdingGrowthPct as gainPct, groupBuyValueAndGain } from "../utils/holdingReturns";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
 
@@ -227,6 +227,11 @@ export default function Portfolio() {
   const [aiFilter, setAiFilter] = useState(
     location.state?.aiFilterSpec ? { spec: location.state.aiFilterSpec, query: location.state.aiFilterQuery } : null,
   );
+  // Per-asset-type account filter -- "Stocks" and "Mutual Funds" etc. each
+  // get their own independent dropdown, since the same account name
+  // rarely spans types (a brokerage doesn't also hold your real estate).
+  // Keyed by asset type; an empty/missing value means "All accounts".
+  const [accountFilters, setAccountFilters] = useState({});
   const [searchParams, setSearchParams] = useSearchParams();
   const sortKey = searchParams.get("sort");
   const sortDir = searchParams.get("dir") === "asc" ? "asc" : "desc";
@@ -448,25 +453,107 @@ export default function Portfolio() {
           }
         />
       ) : (
-        orderedTypes.map((type) => (
-          <div key={type} style={{ marginBottom: "2rem" }}>
-            <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.75rem" }}>
-              {getAssetTypeLabel(type)}
-            </h2>
-            <Card>
-              <HoldingsTable
-                holdings={grouped[type]}
-                assetType={type}
-                navigate={navigate}
-                onDelete={setDeleteTarget}
-                currency={currency}
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onSort={handleSort}
-              />
-            </Card>
-          </div>
-        ))
+        orderedTypes.map((type) => {
+          const typeHoldings = grouped[type];
+          const accounts = [...new Set(typeHoldings.map((h) => h.account).filter(Boolean))].sort();
+          const selectedAccount = accountFilters[type] || "";
+          const displayedHoldings = selectedAccount ? typeHoldings.filter((h) => h.account === selectedAccount) : typeHoldings;
+          const { buyValue, gainAmount } = groupBuyValueAndGain(displayedHoldings);
+          const totalValue = displayedHoldings.reduce((sum, h) => sum + (h.displayValue || 0), 0);
+
+          return (
+            <div key={type} style={{ marginBottom: "2rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "0.75rem",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text)" }}>{getAssetTypeLabel(type)}</h2>
+                {accounts.length > 0 && (
+                  <select
+                    value={selectedAccount}
+                    onChange={(e) => setAccountFilters({ ...accountFilters, [type]: e.target.value })}
+                    aria-label={`Filter ${getAssetTypeLabel(type)} by account`}
+                    style={{
+                      padding: "0.4rem 0.75rem",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--border)",
+                      background: "var(--card)",
+                      color: "var(--text)",
+                      fontSize: "0.8125rem",
+                    }}
+                  >
+                    <option value="">All accounts</option>
+                    {accounts.map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {accounts.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "1.5rem",
+                    flexWrap: "wrap",
+                    marginBottom: "0.75rem",
+                    padding: "0.625rem 1rem",
+                    background: "var(--bg-secondary)",
+                    borderRadius: "var(--radius)",
+                    fontSize: "0.8125rem",
+                  }}
+                >
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    Total cost{" "}
+                    <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>
+                      {buyValue != null ? formatCurrencyForDisplay(buyValue, currency, { includeCode: false }) : "—"}
+                    </strong>
+                  </span>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    Current value{" "}
+                    <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>
+                      {formatCurrencyForDisplay(totalValue, currency, { includeCode: false })}
+                    </strong>
+                  </span>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    Profit/Loss{" "}
+                    <strong
+                      style={{
+                        color: gainAmount == null ? "var(--text)" : gainAmount >= 0 ? "var(--success)" : "var(--danger)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {gainAmount != null
+                        ? `${gainAmount >= 0 ? "+" : ""}${formatCurrencyForDisplay(gainAmount, currency, { includeCode: false })}`
+                        : "—"}
+                    </strong>
+                  </span>
+                </div>
+              )}
+
+              <Card>
+                <HoldingsTable
+                  holdings={displayedHoldings}
+                  assetType={type}
+                  navigate={navigate}
+                  onDelete={setDeleteTarget}
+                  currency={currency}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                />
+              </Card>
+            </div>
+          );
+        })
       )}
     </div>
   );
