@@ -52,7 +52,6 @@ from .budget_service import (
     list_categories,
     set_limit,
 )
-from .csv_import_service import SUPPORTED_BROKERS, confirm_import, parse_csv
 from .digest_service import build_weekly_digest
 from .emergency_fund_service import get_emergency_fund_status
 from .goal_service import create_goal, delete_goal, list_goals, update_goal
@@ -95,6 +94,7 @@ from .models import (
     db,
 )
 from .services import rank_symbol_results, safe_float
+from .simple_csv_import_service import parse_simple_csv
 from .sip_service import next_occurrences as next_sip_occurrences
 from .sip_service import project_future_value as project_sip_future_value
 from .smart_import_service import confirm_smart_import, parse_spreadsheet
@@ -778,34 +778,23 @@ def create_app():
         return jsonify({"message": "Alert deleted"}), 200
 
     # ---------------- CSV IMPORT ----------------
+    # The broker-specific importer (Zerodha/Groww/Fidelity/Robinhood) was
+    # removed in favor of one simple deterministic format below -- no
+    # broker picker, and no AI call for the common case.
 
-    @app.route("/import/brokers", methods=["GET"])
+    @app.route("/import/simple-csv-parse", methods=["POST"])
     @require_auth
-    def list_import_brokers():
-        return jsonify(SUPPORTED_BROKERS)
-
-    @app.route("/import/parse", methods=["POST"])
-    @require_auth
-    def import_parse():
-        data = request.get_json(force=True)
-        broker = data.get("broker")
-        csv_text = data.get("csv_text")
-        if not broker or not csv_text:
-            return jsonify({"error": "broker and csv_text are required"}), 400
-        result = parse_csv(broker, csv_text)
+    def import_simple_csv_parse():
+        """Deterministic (no AI) parse of the one agreed CSV format --
+        confirm goes through /import/smart-confirm, since the row shape
+        this produces matches exactly what that route already expects."""
+        file = request.files.get("file")
+        if not file or not file.filename:
+            return jsonify({"error": "file is required"}), 400
+        if not file.filename.lower().endswith(".csv"):
+            return jsonify({"error": "Only .csv files are supported"}), 400
+        result = parse_simple_csv(file.read().decode("utf-8-sig"))
         return jsonify(result)
-
-    @app.route("/import/confirm", methods=["POST"])
-    @require_auth
-    def import_confirm():
-        data = request.get_json(force=True)
-        rows = data.get("rows", [])
-        household_id = data.get("household_id")
-        validate_household_id_for_write(household_id)
-        if not rows:
-            return jsonify({"error": "No rows to import"}), 400
-        result = confirm_import(g.user_id, rows, household_id=household_id)
-        return jsonify(result), 201
 
     @app.route("/import/smart-parse", methods=["POST"])
     @require_auth

@@ -1,9 +1,11 @@
 """
 AI-assisted import of a freeform personal spreadsheet — unlike
-csv_import_service.py, which parses known broker export formats, this
-reads whatever layout someone already uses and asks the AI to map it onto
-this app's schema. Preview-then-confirm, same as broker CSV import:
-nothing is saved until the parsed rows are reviewed and confirmed.
+simple_csv_import_service.py, which expects one fixed column format and
+never calls the AI, this reads whatever layout someone already uses and
+asks the AI to map it onto this app's schema. Preview-then-confirm, same
+as the simple importer: nothing is saved until the parsed rows are
+reviewed and confirmed. Currently unlinked from navigation (kept for
+later — see simple_csv_import_service.py's docstring for why).
 
 Handles two different shapes of input, both through the same endpoint:
   - A snapshot sheet (one row per holding, a current value) -- the
@@ -19,7 +21,7 @@ Handles two different shapes of input, both through the same endpoint:
 """
 import io
 import json
-from datetime import date
+from datetime import date, timedelta
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -263,6 +265,7 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
         return (row["asset_type"], (row["symbol"] or row["name"]).upper(), row["account"], row["currency"])
 
     batch_holdings = {}  # holding_key -> Holding, for rows created earlier in this same import
+    created_cash_holdings = {}  # lowercased source_account name -> Holding, same reasoning
     created = 0
     transactions_added = 0
     warnings = []
@@ -313,24 +316,49 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
             transactions_added += 1
 
             if row["transaction_type"] == "buy" and row["source_account"]:
-                source_holding = Holding.query.filter(
-                    Holding.user_id == user_id, Holding.household_id == household_id,
-                    Holding.asset_type == "cash", db.func.lower(Holding.name) == row["source_account"].lower(),
-                ).first()
+                source_key = row["source_account"].lower()
+                source_holding = created_cash_holdings.get(source_key)
                 if source_holding is None:
-                    warnings.append(
-                        f"'{row['source_account']}' (source account for a {row['symbol'] or row['name']} buy) "
-                        "wasn't found as an existing cash holding -- imported the transaction without deducting a funding source."
+                    source_holding = Holding.query.filter(
+                        Holding.user_id == user_id, Holding.household_id == household_id,
+                        Holding.asset_type == "cash", db.func.lower(Holding.name) == source_key,
+                    ).first()
+                is_newly_created = False
+                if source_holding is None:
+                    # Auto-create the funding account rather than skipping
+                    # the deduction -- a cash holding needs a starting
+                    # balance to deduct from, so it's seeded at 0 the day
+                    # before this buy; the deduction below then correctly
+                    # leaves it negative (an overdraft, in effect) rather
+                    # than raising "no recorded balance yet".
+                    source_holding = Holding(
+                        user_id=user_id, household_id=household_id,
+                        asset_type="cash", symbol=None, name=row["source_account"],
+                        country=row["country"], account="", currency=row["currency"],
                     )
-                else:
-                    source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
-                    total_cost = row["quantity"] * row["price_per_unit"] if row["asset_type"] in QUANTITY_BASED_TYPES else row["value"]
-                    try:
-                        db.session.add(build_funding_valuation(
-                            source_holding, source_valuations, total_cost, row["currency"], row["date"], user_id
-                        ))
-                    except ValueError as e:
-                        warnings.append(f"Couldn't deduct the funding source for a {row['symbol'] or row['name']} buy: {e}")
+                    db.session.add(source_holding)
+                    db.session.flush()
+                    db.session.add(HoldingValuation(
+                        holding_id=source_holding.id, user_id=user_id,
+                        valuation_date=row["date"] - timedelta(days=1), value=0.0, currency=row["currency"],
+                    ))
+                    is_newly_created = True
+                    created += 1
+                created_cash_holdings[source_key] = source_holding
+
+                source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
+                total_cost = row["quantity"] * row["price_per_unit"] if row["asset_type"] in QUANTITY_BASED_TYPES else row["value"]
+                try:
+                    db.session.add(build_funding_valuation(
+                        source_holding, source_valuations, total_cost, row["currency"], row["date"], user_id
+                    ))
+                    if is_newly_created:
+                        warnings.append(
+                            f"'{row['source_account']}' didn't exist as a cash holding -- created it "
+                            f"(starting balance $0, so it may show a negative balance after this import)."
+                        )
+                except ValueError as e:
+                    warnings.append(f"Couldn't deduct the funding source for a {row['symbol'] or row['name']} buy: {e}")
             continue
 
         holding = Holding(

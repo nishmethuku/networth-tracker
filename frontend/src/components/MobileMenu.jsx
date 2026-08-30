@@ -12,8 +12,7 @@ import ThemeToggle from "./ThemeToggle";
 const MENU_LINKS = [
   { to: "/liabilities", labelKey: "nav.liabilities", icon: "🏦" },
   { to: "/insights", labelKey: "nav.insights", icon: "📈" },
-  { to: "/import", label: "Import CSV (Broker)", icon: "📥" },
-  { to: "/import-spreadsheet", label: "Import Spreadsheet (AI)", icon: "✨" },
+  { to: "/import", labelKey: "nav.importCsv", icon: "📥" },
   { to: "/import-bank-statement", label: "Import Bank Statement (AI)", icon: "✨" },
   { to: "/alerts", labelKey: "nav.alerts", icon: "🔔" },
   { to: "/tax-summary", labelKey: "nav.taxSummary", icon: "🧾" },

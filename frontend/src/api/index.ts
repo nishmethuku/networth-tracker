@@ -293,6 +293,17 @@ export async function smartImportConfirm(rows: any[], householdId: string | null
 }
 
 /**
+ * Deterministic (no AI) CSV import for the one agreed transaction-log
+ * format -- confirms through smartImportConfirm above, since the row
+ * shape matches exactly.
+ */
+export async function simpleCsvParse(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return uploadWithColdStartRetry("/import/simple-csv-parse", formData);
+}
+
+/**
  * AI features (copilot chat, allocation advisor, transaction categorizer, NL search).
  * All require owner/editor household role server-side and return a clean
  * 503/{configured:false} shape until GEMINI_API_KEY is set — never a crash.

@@ -22,7 +22,7 @@ const HoldingDetail = lazy(() => import("./components/HoldingDetail"));
 const AddHolding = lazy(() => import("./components/AddHolding"));
 const Transactions = lazy(() => import("./components/Transactions"));
 const Liabilities = lazy(() => import("./components/Liabilities"));
-const ImportTransactions = lazy(() => import("./components/ImportTransactions"));
+const ImportCsv = lazy(() => import("./components/ImportCsv"));
 const Alerts = lazy(() => import("./components/Alerts"));
 const TaxSummary = lazy(() => import("./components/TaxSummary"));
 const AllocationAdvisor = lazy(() => import("./components/ai/AllocationAdvisor"));
@@ -346,7 +346,7 @@ function AppShell() {
               <Route path="budget" element={<Budget />} />
               <Route path="import-spreadsheet" element={<ImportSpreadsheet />} />
               <Route path="import-bank-statement" element={<ImportBankStatement />} />
-              <Route path="import" element={<ImportTransactions />} />
+              <Route path="import" element={<ImportCsv />} />
               <Route path="alerts" element={<Alerts />} />
               <Route path="tax-summary" element={<TaxSummary />} />
               <Route path="insights" element={<Insights />} />
