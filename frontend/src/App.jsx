@@ -33,6 +33,7 @@ const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
 const ImportBankStatement = lazy(() => import("./components/ImportBankStatement"));
 const Insights = lazy(() => import("./components/Insights"));
 const Household = lazy(() => import("./components/Household"));
+const Accounts = lazy(() => import("./components/Accounts"));
 import Login from "./components/Login";
 import ResetPassword from "./components/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -286,6 +287,7 @@ function AppShell() {
               { to: "/allocation-advisor", label: t("nav.allocationAdvisor") },
               { to: "/what-if", label: t("nav.whatIf") },
               { to: "/household", label: t("nav.household") },
+              { to: "/accounts", label: t("nav.accounts") },
             ]}
           />
           <NavLink to="/add-holding" highlight>
@@ -354,6 +356,7 @@ function AppShell() {
               <Route path="what-if" element={<WhatIf />} />
               <Route path="settings" element={<Settings />} />
               <Route path="household" element={<Household />} />
+              <Route path="accounts" element={<Accounts />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

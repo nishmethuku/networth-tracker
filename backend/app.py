@@ -34,6 +34,7 @@ _log_handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 
 from . import ai_service, price_service
+from .account_registry_service import create_account, delete_account, list_accounts
 from .account_service import delete_all_user_data, export_user_data, export_user_data_csv_zip
 from .alert_service import check_all_alerts
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
@@ -81,6 +82,7 @@ from .household_service import (
 from .liability_service import LIABILITY_TYPES, apply_payment, list_liabilities_with_display, total_liabilities_display
 from .milestone_service import list_milestones
 from .models import (
+    Account,
     BudgetCategory,
     BudgetEntry,
     BudgetLimit,
@@ -453,6 +455,44 @@ def create_app():
             years=years,
         )
         return jsonify({"upcoming_dates": upcoming, "years": years, **projection})
+
+    # ---------------- ACCOUNTS (a registry of Holding.account names) ----------------
+
+    @app.route("/accounts", methods=["GET"])
+    @require_auth
+    def accounts_list():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        return jsonify(list_accounts(g.user_id if not household_id_param else None, household_id_param))
+
+    @app.route("/accounts", methods=["POST"])
+    @require_auth
+    def accounts_create():
+        data = request.get_json(force=True)
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        try:
+            account = create_account(g.user_id, name=data.get("name"), household_id=household_id)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify(account), 201
+
+    @app.route("/accounts/<int:account_id>", methods=["DELETE"])
+    @require_auth
+    def accounts_delete(account_id):
+        account = Account.query.get_or_404(account_id)
+        if account.household_id:
+            validate_household_id_for_write(str(account.household_id))
+        elif str(account.user_id) != str(g.user_id):
+            abort(403)
+        try:
+            deleted = delete_account(account_id, g.user_id, str(account.household_id) if account.household_id else None)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        if not deleted:
+            abort(404)
+        return jsonify({"message": "Account deleted"}), 200
 
     # ---------------- TRANSACTIONS (buy/sell ledger) ----------------
 

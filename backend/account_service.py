@@ -15,6 +15,7 @@ import zipfile
 from typing import Dict
 
 from .models import (
+    Account,
     AllocationTarget,
     BudgetCategory,
     BudgetEntry,
@@ -51,6 +52,7 @@ def export_user_data(user_id) -> Dict:
     budget_entries = BudgetEntry.query.filter_by(user_id=user_id).all()
     budget_limits = BudgetLimit.query.filter_by(user_id=user_id).all()
     budget_categories = BudgetCategory.query.filter_by(user_id=user_id).all()
+    accounts = Account.query.filter_by(user_id=user_id).all()
     liabilities = Liability.query.filter_by(user_id=user_id).all()
     goals = Goal.query.filter_by(user_id=user_id).all()
     allocation_targets = AllocationTarget.query.filter_by(user_id=user_id).all()
@@ -62,6 +64,7 @@ def export_user_data(user_id) -> Dict:
         "alerts": [a.to_dict() for a in alerts],
         "milestones": [m.to_dict() for m in milestones],
         "net_worth_snapshots": [s.to_dict() for s in snapshots],
+        "accounts": [a.to_dict() for a in accounts],
         "budget_entries": [e.to_dict() for e in budget_entries],
         "budget_limits": [limit.to_dict() for limit in budget_limits],
         "budget_categories": [c.to_dict() for c in budget_categories],
@@ -128,6 +131,7 @@ def delete_all_user_data(user_id) -> Dict:
     budget_entries_count = BudgetEntry.query.filter_by(user_id=user_id).delete()
     budget_limits_count = BudgetLimit.query.filter_by(user_id=user_id).delete()
     budget_categories_count = BudgetCategory.query.filter_by(user_id=user_id).delete()
+    accounts_count = Account.query.filter_by(user_id=user_id).delete()
 
     db.session.commit()
 
@@ -136,6 +140,7 @@ def delete_all_user_data(user_id) -> Dict:
         "alerts_deleted": alerts_count,
         "milestones_deleted": milestones_count,
         "net_worth_snapshots_deleted": snapshots_count,
+        "accounts_deleted": accounts_count,
         "liabilities_deleted": liabilities_count,
         "goals_deleted": goals_count,
         "allocation_targets_deleted": allocation_targets_count,

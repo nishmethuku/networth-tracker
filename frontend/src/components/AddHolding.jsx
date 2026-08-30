@@ -3,7 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createHolding, createTransaction, createValuation, searchSymbols, searchCrypto, fetchHoldings, ApiError } from "../api";
+import {
+  createHolding,
+  createTransaction,
+  createValuation,
+  searchSymbols,
+  searchCrypto,
+  fetchHoldings,
+  fetchAccounts,
+  ApiError,
+} from "../api";
 import { useToast } from "../contexts/ToastContext";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, CURRENCIES, isQuantityBased } from "../constants/enums";
 import { currencyForCountry } from "../utils/formatters";
@@ -155,15 +164,17 @@ export default function AddHolding() {
   const suggestionsRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
-  // Existing account names, offered as autocomplete on the Account field so
-  // "Chase" typed once and "chase" typed a second time don't silently
-  // become two different accounts in the portfolio's account grouping.
-  const { data: existingHoldings } = useQuery({
-    queryKey: ["holdings", "summary", "USD"],
-    queryFn: () => fetchHoldings({ currency: "USD", summary: true }),
+  // Account names, offered as autocomplete on the Account field so "Chase"
+  // typed once and "chase" typed a second time don't silently become two
+  // different accounts in the portfolio's account grouping. fetchAccounts
+  // already unions accounts registered ahead of time (Accounts page) with
+  // ones only known because a holding uses them.
+  const { data: registeredAccounts } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => fetchAccounts(),
     staleTime: 1000 * 60,
   });
-  const accountSuggestions = [...new Set((existingHoldings || []).map((h) => h.account).filter(Boolean))].sort();
+  const accountSuggestions = (registeredAccounts || []).map((a) => a.name).sort();
 
   // Cash holdings to offer as a funding source for the initial buy -- e.g.
   // buying a stock and paying for it out of a bank account, which should

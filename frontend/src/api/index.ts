@@ -24,6 +24,7 @@ import {
   mapHousehold,
   mapHouseholdMember,
   mapInvite,
+  mapAccount,
 } from "./mappers";
 
 /**
@@ -608,6 +609,26 @@ export async function fetchBudgetLimits({ householdId }: { householdId?: string 
 export async function createBudgetLimit(payload: any) {
   const data = await api.post("/budget/limits", payload);
   return mapBudgetLimit(data);
+}
+
+/**
+ * Account registry -- the account names holdings get grouped under.
+ */
+export async function fetchAccounts({ householdId }: { householdId?: string } = {}) {
+  const params = new URLSearchParams();
+  if (householdId) params.append("household_id", householdId);
+  const endpoint = params.toString() ? `/accounts?${params.toString()}` : "/accounts";
+  const data = await api.get(endpoint);
+  return (data || []).map(mapAccount);
+}
+
+export async function createAccount(payload: { name: string; household_id?: string | null }) {
+  const data = await api.post("/accounts", payload);
+  return mapAccount(data);
+}
+
+export async function deleteAccount(id: number | string) {
+  await api.delete(`/accounts/${id}`);
 }
 
 export async function deleteBudgetLimit(id: number | string) {

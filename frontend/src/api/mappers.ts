@@ -464,6 +464,17 @@ export function mapBudgetLimit(l: any): BudgetLimit | null {
   };
 }
 
+export interface AccountRegistryEntry {
+  id: number | null;
+  name: string;
+  holdingCount: number;
+}
+
+export function mapAccount(a: any): AccountRegistryEntry | null {
+  if (!a) return null;
+  return { id: a.id ?? null, name: a.name, holdingCount: a.holding_count ?? 0 };
+}
+
 export interface MonthlyFlowPoint {
   month: string;
   totalFlow: number;

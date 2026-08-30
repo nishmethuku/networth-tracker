@@ -13,7 +13,9 @@ from backend import household_service, models
 # the unshare loop in household_service.delete_household).
 MEMBERSHIP_MODEL_NAMES = {"HouseholdMember", "HouseholdInvite"}
 
-UNSHARE_MODEL_NAMES = ("Holding", "NetWorthSnapshot", "BudgetEntry", "BudgetLimit", "BudgetCategory", "Liability", "Milestone")
+UNSHARE_MODEL_NAMES = (
+    "Holding", "NetWorthSnapshot", "BudgetEntry", "BudgetLimit", "BudgetCategory", "Account", "Liability", "Milestone",
+)
 
 
 def test_delete_household_unshares_every_household_scoped_model():

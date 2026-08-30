@@ -448,6 +448,43 @@ class BudgetCategory(db.Model):
         }
 
 
+class Account(db.Model):
+    """A user-registered account name (a brokerage, a bank account, a
+    person's name -- whatever label holdings get grouped under), separate
+    from Holding.account actually being used by anything yet. Lets an
+    account be pre-registered (so it shows up in the account picker/filter
+    before any holding uses it) and lets an empty one be deleted cleanly.
+    Holding.account stores the name directly as a plain string either way
+    (same relationship BudgetCategory has to BudgetEntry.category) -- an
+    account that's actually in use by a holding is never deletable, but
+    it's never required to have a row here either; the account-listing
+    endpoint unions this table with whatever names Holding.account already
+    has, so an old CSV-imported or manually-typed account still shows up
+    even if it was never explicitly "added" here."""
+    __tablename__ = "accounts"
+    __table_args__ = (
+        db.Index("accounts_user_idx", "user_id"),
+        db.Index("accounts_household_idx", "household_id"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
+
+    name = db.Column(db.String(64), nullable=False)
+
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": str(self.user_id),
+            "household_id": str(self.household_id) if self.household_id else None,
+            "name": self.name,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class Goal(db.Model):
     """A net worth target — purely an in-app progress indicator (a Dashboard
     card comparing target_amount against the already-fetched current net
