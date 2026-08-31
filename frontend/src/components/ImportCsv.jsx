@@ -135,8 +135,9 @@ export default function ImportCsv() {
             Deposit, PPF, EPF, Retirals, Loan, Credit, or Crypto. Left blank, defaults to Stocks.
           </li>
           <li>
-            <strong style={{ color: "var(--text)" }}>Source</strong> — the account the money came from (a bank/cash account). Leave blank if
-            you don't want to track that; if it's filled in and doesn't already exist as a cash holding, it's created automatically.
+            <strong style={{ color: "var(--text)" }}>Source</strong> — the cash account tied to the transaction (a bank/cash account). For a
+            Buy, the cost is deducted from it; for a Sell, the proceeds are deposited into it. Leave blank if you don't want to track that;
+            if it's filled in and doesn't already exist as a cash holding, it's created automatically.
           </li>
           <li>
             <strong style={{ color: "var(--text)" }}>Holding Account</strong> — where the position lives (a brokerage, a person's name,
@@ -200,7 +201,7 @@ export default function ImportCsv() {
                     <th style={{ padding: "0.5rem" }}>Buy/Sell</th>
                     <th style={{ padding: "0.5rem" }}>Qty</th>
                     <th style={{ padding: "0.5rem" }}>Price</th>
-                    <th style={{ padding: "0.5rem" }}>Funded from</th>
+                    <th style={{ padding: "0.5rem" }}>Cash account</th>
                     <th style={{ padding: "0.5rem" }}>Currency</th>
                   </tr>
                 </thead>
@@ -274,13 +275,17 @@ export default function ImportCsv() {
                         />
                       </td>
                       <td style={{ padding: "0.5rem" }}>
-                        {r.transaction_type === "buy" ? (
+                        {r.transaction_type === "buy" || r.transaction_type === "sell" ? (
                           <input
                             value={r.source_account || ""}
                             onChange={(e) => updateRow(r._key, "source_account", e.target.value)}
                             placeholder="—"
                             style={inputStyle}
-                            title="Matched by name against your existing cash holdings, or created automatically if it doesn't exist yet."
+                            title={
+                              r.transaction_type === "buy"
+                                ? "The cost is deducted from this cash account. Matched by name against your existing cash holdings, or created automatically if it doesn't exist yet."
+                                : "The proceeds are deposited into this cash account. Matched by name against your existing cash holdings, or created automatically if it doesn't exist yet."
+                            }
                           />
                         ) : (
                           <span style={{ color: "var(--text-muted)" }}>—</span>
@@ -306,8 +311,9 @@ export default function ImportCsv() {
             </div>
 
             <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              Rows for the same symbol + account merge into one holding with a transaction per row. A blank "Funded from" just skips the
-              deduction; a filled-in one that doesn't already exist as a cash holding gets created automatically.
+              Rows for the same symbol + account merge into one holding with a transaction per row. A blank "Cash account" just skips the
+              money movement; a filled-in one that doesn't already exist as a cash holding gets created automatically. For a Buy, the cost
+              is deducted from that account; for a Sell, the proceeds are deposited into it.
             </p>
 
             <button

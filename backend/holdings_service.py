@@ -189,16 +189,20 @@ def build_deposit_valuation(
     amount_currency: str,
     on_date: date,
     acting_user_id,
+    notes: str = "Deposited from income",
 ) -> HoldingValuation:
     """
-    Build (uncommitted) the valuation entry that records income being
+    Build (uncommitted) the valuation entry that records money being
     deposited into a cash holding — e.g. logging a paycheck in Budget with
-    a "Deposit into" account. The mirror of build_funding_valuation (money
-    OUT of a cash holding); this is money IN. Same "cash" restriction and
-    same reasoning. Unlike funding, an empty valuation history isn't an
-    error here — you can't spend from a balance that doesn't exist yet,
-    but depositing into a brand-new cash holding is fine; it just starts
-    from 0.
+    a "Deposit into" account, or a stock sale's proceeds landing back in
+    the account that originally funded it (see smart_import_service.py,
+    which passes a different `notes` for that case rather than the
+    default income-flavored one). The mirror of build_funding_valuation
+    (money OUT of a cash holding); this is money IN. Same "cash"
+    restriction and same reasoning. Unlike funding, an empty valuation
+    history isn't an error here — you can't spend from a balance that
+    doesn't exist yet, but depositing into a brand-new cash holding is
+    fine; it just starts from 0.
     """
     if target_holding.asset_type != "cash":
         raise ValueError("Deposit target must be a cash holding")
@@ -212,7 +216,7 @@ def build_deposit_valuation(
         valuation_date=on_date,
         value=starting_value + converted_amount,
         currency=target_holding.currency,
-        notes="Deposited from income",
+        notes=notes,
     )
 
 

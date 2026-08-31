@@ -398,6 +398,26 @@ def test_build_deposit_valuation_starts_from_zero_with_no_history():
     assert val.value == 500.0
 
 
+def test_build_deposit_valuation_defaults_to_income_note():
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    val = build_deposit_valuation(cash, [], amount=500.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
+    assert val.notes == "Deposited from income"
+
+
+def test_build_deposit_valuation_accepts_a_custom_note():
+    # smart_import_service uses this for a sell's proceeds landing back in
+    # the funding account -- "Deposited from income" would be a wrong
+    # description for that case.
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    val = build_deposit_valuation(
+        cash, [], amount=500.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id,
+        notes="Proceeds from selling AAPL",
+    )
+    assert val.notes == "Proceeds from selling AAPL"
+
+
 def test_build_dashboard_sums_display_currency_gains_not_native_currency():
     """A USD holding and an INR holding must have their gains converted to
     the same display currency before being added together — summing the

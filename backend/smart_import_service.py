@@ -27,7 +27,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from . import ai_service
-from .holdings_service import QUANTITY_BASED_TYPES, build_funding_valuation
+from .holdings_service import QUANTITY_BASED_TYPES, build_deposit_valuation, build_funding_valuation
 from .models import Holding, HoldingTransaction, HoldingValuation, db
 
 MAX_ROWS_TO_SEND = 300  # keeps the prompt bounded for unusually large sheets
@@ -315,7 +315,12 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                 ))
             transactions_added += 1
 
-            if row["transaction_type"] == "buy" and row["source_account"]:
+            # source_account works both directions: a buy deducts its cost
+            # from it (money went out to fund the purchase), a sell deposits
+            # its proceeds into it (money came back in) -- the same account
+            # column in the sheet just describes "the other side of this
+            # stock's cash flow" regardless of which way it went.
+            if row["transaction_type"] in ("buy", "sell") and row["source_account"]:
                 source_key = row["source_account"].lower()
                 source_holding = created_cash_holdings.get(source_key)
                 if source_holding is None:
@@ -325,12 +330,14 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                     ).first()
                 is_newly_created = False
                 if source_holding is None:
-                    # Auto-create the funding account rather than skipping
-                    # the deduction -- a cash holding needs a starting
-                    # balance to deduct from, so it's seeded at 0 the day
-                    # before this buy; the deduction below then correctly
-                    # leaves it negative (an overdraft, in effect) rather
-                    # than raising "no recorded balance yet".
+                    # Auto-create the account rather than skipping the
+                    # deduction/deposit -- a cash holding needs a starting
+                    # balance to work from, so it's seeded at 0 the day
+                    # before this transaction; a buy's deduction then
+                    # correctly leaves it negative (an overdraft, in
+                    # effect) rather than raising "no recorded balance yet"
+                    # (a sell's deposit works from an empty history fine
+                    # either way, but seeding it keeps both cases uniform).
                     source_holding = Holding(
                         user_id=user_id, household_id=household_id,
                         asset_type="cash", symbol=None, name=row["source_account"],
@@ -347,18 +354,24 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                 created_cash_holdings[source_key] = source_holding
 
                 source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
-                total_cost = row["quantity"] * row["price_per_unit"] if row["asset_type"] in QUANTITY_BASED_TYPES else row["value"]
+                amount = row["quantity"] * row["price_per_unit"] if row["asset_type"] in QUANTITY_BASED_TYPES else row["value"]
+                verb = "deduct" if row["transaction_type"] == "buy" else "deposit into"
                 try:
-                    db.session.add(build_funding_valuation(
-                        source_holding, source_valuations, total_cost, row["currency"], row["date"], user_id
-                    ))
+                    if row["transaction_type"] == "buy":
+                        valuation = build_funding_valuation(source_holding, source_valuations, amount, row["currency"], row["date"], user_id)
+                    else:
+                        proceeds_note = f"Proceeds from selling {row['symbol'] or row['name']}"
+                        valuation = build_deposit_valuation(
+                            source_holding, source_valuations, amount, row["currency"], row["date"], user_id, notes=proceeds_note
+                        )
+                    db.session.add(valuation)
                     if is_newly_created:
                         warnings.append(
                             f"'{row['source_account']}' didn't exist as a cash holding -- created it "
                             f"(starting balance $0, so it may show a negative balance after this import)."
                         )
                 except ValueError as e:
-                    warnings.append(f"Couldn't deduct the funding source for a {row['symbol'] or row['name']} buy: {e}")
+                    warnings.append(f"Couldn't {verb} '{row['source_account']}' for a {row['symbol'] or row['name']} {row['transaction_type']}: {e}")
             continue
 
         holding = Holding(
