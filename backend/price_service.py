@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from .models import ExchangeRate, PriceHistory, db
 from .utils import (
@@ -46,18 +47,28 @@ def get_current_price(asset_type: str, symbol: str, currency: str = "USD") -> Op
 
 def _cache_price(asset_type: str, symbol: str, price_date: date, price: float, currency: str, source: str):
     existing = PriceHistory.query.filter_by(
-        asset_type=asset_type, symbol=symbol, price_date=price_date
+        asset_type=asset_type, symbol=symbol, price_date=price_date, currency=currency
     ).first()
     if existing:
         existing.price = price
-        existing.currency = currency
         existing.source = source
-    else:
-        db.session.add(PriceHistory(
-            asset_type=asset_type, symbol=symbol, price_date=price_date,
-            price=price, currency=currency, source=source,
-        ))
-    db.session.commit()
+        db.session.commit()
+        return
+
+    db.session.add(PriceHistory(
+        asset_type=asset_type, symbol=symbol, price_date=price_date,
+        price=price, currency=currency, source=source,
+    ))
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Another request (a concurrent user's lookup, or the snapshot cron
+        # racing a live page load) cached the same row between our read and
+        # our insert -- harmless, since it's the same day's price for the
+        # same symbol, but left uncaught this poisons the session for every
+        # later query in the same request (no rollback -> "current
+        # transaction is aborted" on everything after it).
+        db.session.rollback()
 
 
 def _get_mftool_historical_nav(scheme_code: str, target_date: date) -> Optional[float]:
@@ -98,7 +109,7 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
     Returns None if nothing works, and the frontend offers manual entry.
     """
     cached = PriceHistory.query.filter_by(
-        asset_type=asset_type, symbol=symbol, price_date=target_date
+        asset_type=asset_type, symbol=symbol, price_date=target_date, currency=currency
     ).first()
     if cached:
         return cached.price
@@ -149,7 +160,14 @@ def get_rate(from_currency: str, to_currency: str, target_date: Optional[date] =
             base_currency=from_currency, quote_currency=to_currency,
             rate_date=rate_date, rate=rate,
         ))
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Same race as _cache_price: another concurrent request already
+            # cached this exact (base, quote, date) rate -- roll back so the
+            # session isn't left poisoned, and just return the rate we
+            # already fetched (it's the same day's rate either way).
+            db.session.rollback()
     return rate
 
 
