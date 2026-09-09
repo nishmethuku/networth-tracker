@@ -7,8 +7,12 @@ Simplification, stated plainly: only buy transactions are replayed into the
 benchmark leg (sells are excluded from it) — a common, simple approximation
 for "what if you'd bought the index instead." Cash flow dates match your
 real buys exactly; only the price used to compute how much benchmark you'd
-own differs. The real portfolio's XIRR here uses the same buy-only
-simplification so the two numbers are apples-to-apples.
+own differs. The real portfolio's own XIRR, unlike the benchmark leg, DOES
+include sells (via holdings_service.portfolio_xirr) — total_current_value
+is the real, post-sell current value of what's still held, so cash flows
+that only ever contained buys would count money as still invested that
+was actually taken out, understating (or nulling out) returns for any
+position that was partially or fully sold.
 
 Currency handling matters here: holdings can be in different currencies
 (a US stock in USD, an NSE stock in INR) and the benchmark itself trades in
@@ -24,6 +28,7 @@ from typing import Dict, Optional
 from . import price_service
 from .finance import xirr
 from .holdings_service import QUANTITY_BASED_TYPES, list_holdings_with_metrics
+from .holdings_service import portfolio_xirr as _portfolio_xirr
 from .models import Holding, HoldingTransaction
 
 BENCHMARKS = {
@@ -97,14 +102,16 @@ def get_benchmark_comparison(user_id, benchmark_symbol: str = "SPY", household_i
     if not holding_ids:
         return None
 
-    buys = HoldingTransaction.query.filter(
-        HoldingTransaction.holding_id.in_(holding_ids), HoldingTransaction.transaction_type == "buy"
-    ).all()
+    all_transactions = HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(holding_ids)).all()
+    buys = [t for t in all_transactions if t.transaction_type == "buy"]
     if not buys:
         return None
 
+    # Benchmark leg stays buy-only (see replay_buys_into_cash_flows'
+    # docstring) -- there's no sensible way to model "you sold some of the
+    # benchmark too" without tracking proportional benchmark-unit sales,
+    # which nothing here does.
     replay = replay_buys_into_cash_flows(buys, benchmark_symbol, benchmark_currency)
-    portfolio_cash_flows = replay["portfolio_cash_flows"]
     benchmark_cash_flows = replay["benchmark_cash_flows"]
     benchmark_units = replay["benchmark_units"]
     skipped = replay["skipped"]
@@ -119,7 +126,15 @@ def get_benchmark_comparison(user_id, benchmark_symbol: str = "SPY", household_i
 
     holdings_with_metrics = list_holdings_with_metrics(quantity_holdings, display_currency="USD")
     total_current_value = sum(h["display_value"] for h in holdings_with_metrics)
-    portfolio_xirr_value = xirr(portfolio_cash_flows + [(date.today(), total_current_value)])
+    # The portfolio's own XIRR, unlike the benchmark leg, includes sells --
+    # total_current_value here is the *real* current value (already net of
+    # any selling), so cash flows that only ever contained buys would
+    # count money as still invested that was actually taken out, badly
+    # understating returns for any partially or fully sold position (a
+    # real +100% round-trip buy-then-sell was rendering as a null/negative
+    # XIRR before this fix). Reuses holdings_service.portfolio_xirr, which
+    # already handles per-transaction currency conversion.
+    portfolio_xirr_value = _portfolio_xirr(all_transactions, total_current_value, display_currency="USD")
 
     return {
         "benchmark_symbol": benchmark_symbol,
