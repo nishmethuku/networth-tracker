@@ -30,10 +30,16 @@ def _compute_totals(holdings, liabilities):
         if h["asset_type"] == "real_estate":
             total_property_value += current_value
 
+        # display_-prefixed fields, not the bare native-currency ones -- a
+        # snapshot spans every holding regardless of currency, so summing
+        # "total_gain"/"gain" directly would add e.g. USD and INR gains
+        # together as if they were the same unit (same bug class
+        # build_dashboard already guards against for realized/unrealized
+        # gain; this summed the un-converted figures instead).
         if h["asset_type"] in QUANTITY_BASED_TYPES:
-            total_profit_loss += h.get("total_gain", 0.0)
+            total_profit_loss += (h.get("display_realized_gain") or 0.0) + (h.get("display_unrealized_gain") or 0.0)
         else:
-            total_profit_loss += h.get("gain", 0.0)
+            total_profit_loss += current_value - (h.get("display_first_value") or 0.0)
 
         by_asset_type[h["asset_type"]] = by_asset_type.get(h["asset_type"], 0.0) + current_value
 

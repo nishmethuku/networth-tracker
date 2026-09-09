@@ -28,7 +28,13 @@ def _recipients(user_id=None, household_id=None) -> List[Dict]:
             text("select email, raw_user_meta_data ->> 'full_name' as name from auth.users where id = :user_id"),
             {"user_id": str(user_id)},
         ).first()
-        if not row:
+        if not row or not row[0]:
+            # email is nullable in Supabase auth.users (phone/OAuth-only
+            # accounts) -- one such user previously crashed the whole
+            # build_weekly_digest run with an unhandled AttributeError
+            # inside is_unsubscribed's email.lower(), not just skipped
+            # themselves. There's nowhere to send a digest without an
+            # email anyway, so filter them out here rather than downstream.
             return []
         return [{"email": row[0], "name": (row[1] or "").split(" ")[0] or None}]
     rows = db.session.execute(
@@ -42,7 +48,7 @@ def _recipients(user_id=None, household_id=None) -> List[Dict]:
         ),
         {"household_id": str(household_id)},
     ).all()
-    return [{"email": r[0], "name": (r[1] or "").split(" ")[0] or None} for r in rows]
+    return [{"email": r[0], "name": (r[1] or "").split(" ")[0] or None} for r in rows if r[0]]
 
 
 def _recipient_emails(user_id=None, household_id=None) -> List[str]:
@@ -86,9 +92,13 @@ def _build_digest_for_scope(user_id=None, household_id=None) -> Dict:
     )
     change = round(net_worth - past_snapshot.total_net_worth, 2) if past_snapshot else None
 
+    # display_unrealized_gain (converted), not the bare native-currency
+    # unrealized_gain -- otherwise an INR holding's gain ranks and displays
+    # alongside a USD holding's as if they were the same unit (same bug
+    # class as build_dashboard's realized/unrealized gain aggregation).
     movers = sorted(
-        (h for h in holdings_with_metrics if h.get("unrealized_gain") is not None),
-        key=lambda h: h.get("unrealized_gain", 0),
+        (h for h in holdings_with_metrics if h.get("display_unrealized_gain") is not None),
+        key=lambda h: h.get("display_unrealized_gain", 0),
         reverse=True,
     )
 
@@ -104,7 +114,7 @@ def _build_digest_for_scope(user_id=None, household_id=None) -> Dict:
         "net_worth": round(net_worth, 2),
         "change_this_week": change,
         "top_movers": [
-            {"name": m["name"], "unrealized_gain": round(m["unrealized_gain"], 2)} for m in movers[:3]
+            {"name": m["name"], "unrealized_gain": round(m["display_unrealized_gain"], 2)} for m in movers[:3]
         ],
     }
 
