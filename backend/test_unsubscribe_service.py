@@ -36,6 +36,18 @@ def test_malformed_token_rejected():
         assert svc.verify_unsubscribe_token(None) is None
 
 
+def test_empty_secret_denies_everything_instead_of_accepting_forged_tokens():
+    # With no DIGEST_SECRET/SNAPSHOT_SECRET configured, _SECRET is b"" --
+    # HMAC-SHA256 under an empty key is a publicly reproducible function,
+    # so anyone could compute a "valid" signature for any email. A token
+    # generated (and thus signed) under that same empty key must still be
+    # rejected -- this must fail closed, not just happen to reject
+    # attacker-guessed tokens while accepting correctly-forged ones.
+    with patch.object(svc, "_SECRET", b""):
+        token = svc.generate_unsubscribe_token("user@example.com")
+        assert svc.verify_unsubscribe_token(token) is None
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])

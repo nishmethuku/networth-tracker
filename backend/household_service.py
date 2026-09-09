@@ -107,6 +107,21 @@ def list_my_pending_invites(user_email) -> List[HouseholdInvite]:
     ).all()
 
 
+def _household_scoped_models():
+    """Every household-scoped model, for unsharing records without deleting
+    them -- used both for a whole household (delete_household) and for one
+    member's records within it (leave_household/remove_member). A function
+    rather than a module-level tuple so it re-resolves each model name from
+    this module's globals on every call instead of capturing the classes
+    once at import time -- test_delete_household_unshares_every_household_
+    scoped_model patches e.g. household_service.Holding to a MagicMock per
+    test, which a module-level tuple captured at import wouldn't see.
+    Keep in sync with UNSHARE_MODEL_NAMES in test_household_service.py (see
+    test_unshare_model_list_covers_every_household_scoped_model, which
+    checks this list against every household_id-bearing model)."""
+    return (Holding, NetWorthSnapshot, BudgetEntry, BudgetLimit, BudgetCategory, Account, Liability, Milestone)
+
+
 def accept_invite(invite_id, user_id, user_email) -> HouseholdInvite:
     invite = HouseholdInvite.query.get(invite_id)
     if not invite:
@@ -116,8 +131,14 @@ def accept_invite(invite_id, user_id, user_email) -> HouseholdInvite:
     if invite.invited_email.lower() != (user_email or "").lower():
         raise PermissionError("This invite was sent to a different email address")
 
-    member = HouseholdMember(household_id=invite.household_id, user_id=user_id, role=invite.role)
-    db.session.merge(member)
+    # Already a member (e.g. the owner was invited by an editor, maybe by
+    # mistake or maliciously) -- just close out the stale invite rather than
+    # upserting over their existing row, which would silently overwrite
+    # their role (an owner accepting a "viewer" invite would demote
+    # themselves; merge()'s upsert doesn't distinguish new vs. existing).
+    existing = HouseholdMember.query.filter_by(household_id=invite.household_id, user_id=user_id).first()
+    if not existing:
+        db.session.add(HouseholdMember(household_id=invite.household_id, user_id=user_id, role=invite.role))
     invite.status = "accepted"
     db.session.commit()
     return invite
@@ -127,6 +148,8 @@ def leave_household(household_id, user_id):
     household = Household.query.get(household_id)
     if household and str(household.owner_id) == str(user_id):
         raise PermissionError("The owner can't leave their own household — delete it instead")
+    for model in _household_scoped_models():
+        model.query.filter_by(household_id=household_id, user_id=user_id).update({"household_id": None})
     HouseholdMember.query.filter_by(household_id=household_id, user_id=user_id).delete()
     db.session.commit()
 
@@ -144,7 +167,7 @@ def delete_household(household_id, requester_id):
     if str(household.owner_id) != str(requester_id):
         raise PermissionError("Only the household owner can delete the household")
 
-    for model in (Holding, NetWorthSnapshot, BudgetEntry, BudgetLimit, BudgetCategory, Account, Liability, Milestone):
+    for model in _household_scoped_models():
         model.query.filter_by(household_id=household_id).update({"household_id": None})
     HouseholdInvite.query.filter_by(household_id=household_id).delete()
     HouseholdMember.query.filter_by(household_id=household_id).delete()
@@ -158,5 +181,7 @@ def remove_member(household_id, requester_id, target_user_id):
         raise PermissionError("Only the household owner can remove members")
     if str(target_user_id) == str(household.owner_id):
         raise PermissionError("Can't remove the owner")
+    for model in _household_scoped_models():
+        model.query.filter_by(household_id=household_id, user_id=target_user_id).update({"household_id": None})
     HouseholdMember.query.filter_by(household_id=household_id, user_id=target_user_id).delete()
     db.session.commit()

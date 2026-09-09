@@ -7,9 +7,12 @@ to SNAPSHOT_SECRET) rather than a separate key.
 import base64
 import hashlib
 import hmac
+import logging
 import os
 
 from .models import EmailUnsubscribe, db
+
+logger = logging.getLogger(__name__)
 
 _SECRET = (os.environ.get("DIGEST_SECRET") or os.environ.get("SNAPSHOT_SECRET") or "").encode()
 
@@ -22,6 +25,13 @@ def generate_unsubscribe_token(email: str) -> str:
 
 def verify_unsubscribe_token(token: str):
     """Returns the email the token was issued for, or None if invalid/tampered."""
+    if not _SECRET:
+        # HMAC under an empty key is publicly reproducible by anyone --
+        # without a real secret configured, every token would "verify"
+        # successfully for any signature computed the same way, so this
+        # must fail closed rather than silently accept forged tokens.
+        logger.warning("verify_unsubscribe_token called with no DIGEST_SECRET/SNAPSHOT_SECRET configured -- denying")
+        return None
     if not token or "." not in token:
         return None
     email_b64, _, sig = token.partition(".")

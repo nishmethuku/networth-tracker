@@ -16,8 +16,16 @@ def _registered_query(user_id, household_id=None):
 
 
 def _holdings_query(user_id, household_id=None):
+    """Same visibility rule as app.py's scoped_holdings_query: a household
+    scope only ever sees non-private holdings (regardless of whose they
+    are) -- otherwise a viewer could learn another member's private
+    account names/counts from list_accounts, and an editor could hard-
+    delete another member's private holdings via delete_account_and_holdings
+    using a name they were never supposed to see."""
     query = Holding.query
-    return query.filter_by(household_id=household_id) if household_id else query.filter_by(user_id=user_id, household_id=None)
+    if household_id:
+        return query.filter(Holding.household_id == household_id, Holding.is_private == False)  # noqa: E712
+    return query.filter_by(user_id=user_id, household_id=None)
 
 
 def list_accounts(user_id, household_id=None) -> List[Dict]:

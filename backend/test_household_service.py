@@ -78,3 +78,114 @@ def test_unshare_model_list_covers_every_household_scoped_model():
     }
     expected_unshared = household_scoped_models - MEMBERSHIP_MODEL_NAMES
     assert expected_unshared == set(UNSHARE_MODEL_NAMES)
+
+
+def _patched_models(stack):
+    """Same patching approach as the delete_household test above, reused
+    for leave_household/remove_member: patch every household-scoped model
+    name on the service module to a MagicMock and record which ones get
+    an unshare update() call."""
+    updated_model_names = []
+    for name in UNSHARE_MODEL_NAMES:
+        mock_model = MagicMock()
+        mock_model.query.filter_by.return_value.update.side_effect = lambda _v, _n=name: updated_model_names.append(_n)
+        stack.enter_context(patch.object(household_service, name, mock_model))
+    return updated_model_names
+
+
+def test_leave_household_unshares_the_leaving_members_records():
+    """Previously only deleted the HouseholdMember row -- every holding,
+    liability, budget entry, etc. that member had shared into the
+    household kept its household_id, so it stayed visible (and, per the
+    is_private write-path bug, editable/deletable) to everyone left in the
+    household indefinitely, with no way for the person who left to reach
+    it again. Should mirror delete_household's unshare loop, just scoped
+    to one user_id instead of the whole household."""
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(household_service, "db"))
+        updated_model_names = _patched_models(stack)
+
+        mock_household = MagicMock()
+        mock_household.query.get.return_value = MagicMock(owner_id="owner-1")
+        stack.enter_context(patch.object(household_service, "Household", mock_household))
+
+        mock_member = MagicMock()
+        stack.enter_context(patch.object(household_service, "HouseholdMember", mock_member))
+
+        household_service.leave_household("hh-1", user_id="member-2")
+
+    assert set(updated_model_names) == set(UNSHARE_MODEL_NAMES)
+    mock_member.query.filter_by.assert_called_with(household_id="hh-1", user_id="member-2")
+
+
+def test_remove_member_unshares_the_removed_members_records():
+    """Same bug, same fix, for the owner-initiated removal path."""
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(household_service, "db"))
+        updated_model_names = _patched_models(stack)
+
+        mock_household = MagicMock()
+        mock_household.query.get.return_value = MagicMock(owner_id="owner-1")
+        stack.enter_context(patch.object(household_service, "Household", mock_household))
+
+        mock_member = MagicMock()
+        stack.enter_context(patch.object(household_service, "HouseholdMember", mock_member))
+
+        household_service.remove_member("hh-1", requester_id="owner-1", target_user_id="member-2")
+
+    assert set(updated_model_names) == set(UNSHARE_MODEL_NAMES)
+    mock_member.query.filter_by.assert_called_with(household_id="hh-1", user_id="member-2")
+
+
+def test_accept_invite_does_not_overwrite_an_existing_members_role():
+    """A regression for a self-demotion bug: any editor could invite the
+    household owner's own email with role='viewer' (create_invite has no
+    check that the invitee isn't already a member), and accept_invite used
+    db.session.merge() -- an upsert on HouseholdMember's composite PK
+    (household_id, user_id) -- so the owner accepting that invite silently
+    overwrote their own 'owner' role with 'viewer'. Accepting an invite
+    while already a member must close out the invite without touching the
+    existing membership row."""
+    with ExitStack() as stack:
+        mock_db = stack.enter_context(patch.object(household_service, "db"))
+
+        invite = MagicMock(status="pending", invited_email="owner@example.com", household_id="hh-1", role="viewer")
+        mock_invite_model = MagicMock()
+        mock_invite_model.query.get.return_value = invite
+        stack.enter_context(patch.object(household_service, "HouseholdInvite", mock_invite_model))
+
+        existing_member = MagicMock(role="owner")
+        mock_member_model = MagicMock()
+        mock_member_model.query.filter_by.return_value.first.return_value = existing_member
+        stack.enter_context(patch.object(household_service, "HouseholdMember", mock_member_model))
+
+        household_service.accept_invite("invite-1", user_id="owner-1", user_email="owner@example.com")
+
+        # The invite is still marked accepted (closes out the stale invite)...
+        assert invite.status == "accepted"
+        # ...but the existing row is never added OR merged over -- merge()
+        # is exactly the old bug: an upsert on HouseholdMember's composite
+        # PK that would silently overwrite existing_member's role.
+        mock_db.session.add.assert_not_called()
+        mock_db.session.merge.assert_not_called()
+        assert existing_member.role == "owner"
+
+
+def test_accept_invite_adds_a_new_member_when_not_already_one():
+    with ExitStack() as stack:
+        mock_db = stack.enter_context(patch.object(household_service, "db"))
+
+        invite = MagicMock(status="pending", invited_email="new@example.com", household_id="hh-1", role="editor")
+        mock_invite_model = MagicMock()
+        mock_invite_model.query.get.return_value = invite
+        stack.enter_context(patch.object(household_service, "HouseholdInvite", mock_invite_model))
+
+        mock_member_model = MagicMock()
+        mock_member_model.query.filter_by.return_value.first.return_value = None
+        stack.enter_context(patch.object(household_service, "HouseholdMember", mock_member_model))
+
+        household_service.accept_invite("invite-1", user_id="new-1", user_email="new@example.com")
+
+    assert invite.status == "accepted"
+    mock_db.session.add.assert_called_once()
+    mock_member_model.assert_called_once_with(household_id="hh-1", user_id="new-1", role="editor")

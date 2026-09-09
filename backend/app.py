@@ -256,16 +256,19 @@ def create_app():
 
     def get_authorized_holding(holding_id, require_write=False):
         """Fetch a holding the caller may read (owner, or a household member
-        with a non-private holding) or write (owner, or owner/editor role)."""
+        with a non-private holding) or write (owner, or owner/editor role on
+        a non-private holding -- private is enforced on writes too, or an
+        editor could read-via-write: DELETE/PUT-with-is_private-false a
+        holding they were never allowed to see)."""
         holding = Holding.query.get_or_404(holding_id)
         if str(holding.user_id) == str(g.user_id):
             return holding
         if holding.household_id:
             role = get_role(str(holding.household_id), g.user_id)
-            if role:
+            if role and not holding.is_private:
                 if require_write and role in ("owner", "editor"):
                     return holding
-                if not require_write and not holding.is_private:
+                if not require_write:
                     return holding
         abort(403)
 
@@ -286,10 +289,10 @@ def create_app():
             return liability
         if liability.household_id:
             role = get_role(str(liability.household_id), g.user_id)
-            if role:
+            if role and not liability.is_private:
                 if require_write and role in ("owner", "editor"):
                     return liability
-                if not require_write and not liability.is_private:
+                if not require_write:
                     return liability
         abort(403)
 
@@ -298,6 +301,19 @@ def create_app():
             return
         if not can_edit_household(household_id, g.user_id):
             abort(403, description="You need editor access to this household")
+
+    def validate_household_reassignment(record_user_id, new_household_id):
+        """For moving an existing record into a household (not just creating
+        one there): the caller being able to edit the target household isn't
+        enough on its own, or a shared editor could reassign someone else's
+        record into an unrelated household that person never joined --
+        exposing it to people with no relationship to its actual owner.
+        The record's owner must already belong to the target household."""
+        if not new_household_id:
+            return
+        validate_household_id_for_write(new_household_id)
+        if str(new_household_id) not in get_member_household_ids(record_user_id):
+            abort(403, description="That household doesn't include this record's owner")
 
     def require_ai_access(household_id_param):
         """AI features are restricted to owner/editor household roles. A
@@ -404,7 +420,7 @@ def create_app():
         data = request.get_json(force=True)
 
         if "household_id" in data:
-            validate_household_id_for_write(data["household_id"])
+            validate_household_reassignment(holding.user_id, data["household_id"])
             holding.household_id = data["household_id"]
         for field in ("asset_type", "symbol", "name", "country", "account", "institution", "currency", "notes", "tags", "status"):
             if field in data:
@@ -1608,7 +1624,7 @@ def create_app():
         data = request.get_json(force=True)
 
         if "household_id" in data:
-            validate_household_id_for_write(data["household_id"])
+            validate_household_reassignment(liability.user_id, data["household_id"])
             liability.household_id = data["household_id"]
         if "liability_type" in data:
             if data["liability_type"] not in LIABILITY_TYPES:
@@ -1717,10 +1733,10 @@ def create_app():
             return entry
         if entry.household_id:
             role = get_role(str(entry.household_id), g.user_id)
-            if role:
+            if role and not entry.is_private:
                 if require_write and role in ("owner", "editor"):
                     return entry
-                if not require_write and not entry.is_private:
+                if not require_write:
                     return entry
         abort(403)
 
