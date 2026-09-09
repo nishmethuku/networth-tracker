@@ -226,6 +226,26 @@ def test_monthly_net_flow_includes_fees_in_buy_amount():
     assert result[0]["total_flow"] == 1005.0
 
 
+def test_monthly_net_flow_subtracts_fees_from_sell_amount():
+    # Regression: fees were previously always *added* regardless of
+    # direction, so a sell with a fee understated the withdrawal (should
+    # net out to less money leaving the position, i.e. a smaller-magnitude
+    # negative flow) instead of overstating it.
+    holding = _holding(asset_type="stock")
+    holding.id = 1
+    transactions = [_tx("sell", date(2026, 3, 5), 4, 120.0, fees=10.0)]
+    result = get_monthly_net_flow([holding], transactions, [])
+    assert result[0]["total_flow"] == -470.0  # -(4*120 - 10), not -(4*120 + 10)
+
+
+def test_monthly_net_flow_subtracts_fees_from_dividend_amount():
+    holding = _holding(asset_type="stock")
+    holding.id = 1
+    transactions = [_tx("dividend", date(2026, 3, 5), 1, 25.0, fees=2.0)]
+    result = get_monthly_net_flow([holding], transactions, [])
+    assert result[0]["total_flow"] == 23.0  # 25 - 2, not 25 + 2
+
+
 def test_monthly_net_flow_valuation_delta_for_real_estate():
     holding = _holding(asset_type="real_estate")
     holding.id = 2
@@ -308,6 +328,39 @@ def test_build_dashboard_computes_portfolio_xirr_from_transactions():
     assert result["portfolio_xirr"] > 0.9  # doubled in ~1 year -> XIRR near 100%
 
 
+def test_portfolio_xirr_converts_each_transactions_own_currency():
+    """Regression: portfolio_xirr previously combined raw native-currency
+    transaction amounts with a total_current_value that's already in
+    display_currency -- fine for an all-USD portfolio, meaningless once a
+    non-USD holding is involved. Each transaction must be converted using
+    its *own* currency before being combined with the others."""
+    from unittest.mock import patch
+
+    from backend.holdings_service import portfolio_xirr
+
+    usd_tx = _tx("buy", date(2026, 1, 1), 10, 100.0)  # native -1000 USD
+    inr_tx = _tx("buy", date(2026, 1, 1), 100, 8300.0)  # native -830000 INR
+    inr_tx.currency = "INR"
+
+    captured = {}
+
+    def fake_xirr(cash_flows):
+        captured["flows"] = list(cash_flows)
+        return 0.42
+
+    def fake_convert(amount, from_ccy, to_ccy):
+        return amount / 83.0 if from_ccy == "INR" else amount
+
+    with patch("backend.holdings_service.xirr", side_effect=fake_xirr), \
+         patch("backend.holdings_service.price_service.convert", side_effect=fake_convert):
+        result = portfolio_xirr([usd_tx, inr_tx], total_current_value=11000.0, display_currency="USD")
+
+    assert result == 0.42
+    amounts = sorted(amount for (_d, amount) in captured["flows"])
+    # -830000 INR / 83 = -10000 USD (converted), -1000 USD (unconverted, same currency), +11000 ending value.
+    assert amounts == [-10000.0, -1000.0, 11000.0]
+
+
 def test_build_dashboard_ignores_valuation_based_holdings_for_portfolio_xirr():
     holding = _holding(asset_type="real_estate")
     holding.id = 1
@@ -315,6 +368,59 @@ def test_build_dashboard_ignores_valuation_based_holdings_for_portfolio_xirr():
     # No transactions at all for a valuation-based holding (it wouldn't have any) -> no XIRR to compute.
     result = build_dashboard(metrics, {1: holding}, all_transactions=[])
     assert result["portfolio_xirr"] is None
+
+
+def test_build_dashboard_all_negative_movers_land_in_losers_not_gainers():
+    """Regression: top_gainers was previously just movers[:5] regardless of
+    sign, so a portfolio with 5 or fewer movers that were all down still
+    showed them all under "Top Gainers" with "Top Losers" left empty."""
+    from unittest.mock import patch
+
+    holdings_by_id = {}
+    metrics = []
+    for i, (name, current) in enumerate([("A", 90.0), ("B", 80.0), ("C", 70.0)], start=1):
+        h = _holding(asset_type="stock")
+        h.id = i
+        h.symbol = name
+        holdings_by_id[i] = h
+        metrics.append({
+            "id": i, "asset_type": "stock", "country": "United States", "currency": "USD",
+            "display_value": 1000.0, "quantity": 10, "symbol": name, "name": name, "current_price": current,
+        })
+
+    with patch("backend.holdings_service.price_service.get_historical_price", return_value=100.0):
+        result = build_dashboard(metrics, holdings_by_id)
+
+    assert result["top_gainers"] == []
+    assert {m["symbol"] for m in result["top_losers"]} == {"A", "B", "C"}
+
+
+def test_build_dashboard_gainers_and_losers_never_overlap():
+    """Regression: with 6-9 movers, movers[-5:] (the old top_losers slice)
+    could include indices already covered by movers[:5] (top_gainers)."""
+    from unittest.mock import patch
+
+    holdings_by_id = {}
+    metrics = []
+    changes = [("A", 150.0), ("B", 140.0), ("C", 130.0), ("D", 120.0), ("E", 90.0), ("F", 80.0), ("G", 70.0), ("H", 60.0)]
+    for i, (name, current) in enumerate(changes, start=1):
+        h = _holding(asset_type="stock")
+        h.id = i
+        h.symbol = name
+        holdings_by_id[i] = h
+        metrics.append({
+            "id": i, "asset_type": "stock", "country": "United States", "currency": "USD",
+            "display_value": 1000.0, "quantity": 10, "symbol": name, "name": name, "current_price": current,
+        })
+
+    with patch("backend.holdings_service.price_service.get_historical_price", return_value=100.0):
+        result = build_dashboard(metrics, holdings_by_id)
+
+    gainer_symbols = {m["symbol"] for m in result["top_gainers"]}
+    loser_symbols = {m["symbol"] for m in result["top_losers"]}
+    assert gainer_symbols == {"A", "B", "C", "D"}
+    assert loser_symbols == {"E", "F", "G", "H"}
+    assert gainer_symbols.isdisjoint(loser_symbols)
 
 
 def test_build_funding_valuation_deducts_cost_from_latest_cash_balance():
@@ -525,6 +631,42 @@ def test_list_holdings_with_metrics_batches_transactions_and_valuations_in_one_q
 
     assert mock_tx_query.filter.call_count == 1
     assert mock_val_query.filter.call_count == 1
+
+
+def test_list_holdings_with_metrics_keeps_prices_separate_by_currency():
+    """Regression: the live-price cache was keyed on (asset_type, symbol)
+    only, dropping currency -- two holdings of the same symbol priced in
+    different currencies (e.g. one BTC holding in USD, one in INR)
+    collapsed onto whichever currency's fetch landed last in the cache
+    dict, silently pricing one of them off by the exchange rate."""
+    from unittest.mock import patch
+
+    btc_usd = _holding(asset_type="crypto")
+    btc_usd.id = 1
+    btc_usd.symbol = "bitcoin"
+    btc_usd.currency = "USD"
+
+    btc_inr = _holding(asset_type="crypto")
+    btc_inr.id = 2
+    btc_inr.symbol = "bitcoin"
+    btc_inr.currency = "INR"
+
+    def fake_get_current_price(asset_type, symbol, currency):
+        return 60000.0 if currency == "USD" else 5000000.0
+
+    with patch("backend.holdings_service.HoldingTransaction") as mock_tx_model, \
+         patch("backend.holdings_service.HoldingValuation") as mock_val_model, \
+         patch("backend.holdings_service.price_service") as mock_price_service:
+        mock_tx_model.query.filter.return_value.all.return_value = []
+        mock_val_model.query.filter.return_value.all.return_value = []
+        mock_price_service.get_current_price.side_effect = fake_get_current_price
+        mock_price_service.convert.side_effect = lambda amount, *_: amount
+
+        results = list_holdings_with_metrics([btc_usd, btc_inr], display_currency="USD")
+
+    by_id = {r["id"]: r for r in results}
+    assert by_id[1]["current_price"] == 60000.0
+    assert by_id[2]["current_price"] == 5000000.0
 
 
 def test_list_holdings_with_metrics_computes_display_x_fields_via_real_conversion():

@@ -232,14 +232,30 @@ def get_holding_metrics(
     return calculate_valuation_metrics(holding, valuations or [])
 
 
-def portfolio_xirr(all_transactions: List[HoldingTransaction], total_current_value: float) -> Optional[float]:
+def portfolio_xirr(
+    all_transactions: List[HoldingTransaction], total_current_value: float, display_currency: str = "USD"
+) -> Optional[float]:
     """
     Portfolio-wide XIRR across every buy/sell transaction for all quantity-based
     holdings, treating the sum of their current values as one final cash flow
     today. Scoped to tradeable holdings — XIRR isn't a meaningful metric for
     cash balances or loans, which don't have purchase/sale cash flows.
+
+    total_current_value is already converted to display_currency by the
+    caller (it's the sum of display_value across holdings); each
+    transaction's own cash flow is converted here too, using its own
+    currency, before being combined with that ending value -- transactions
+    can span holdings in different currencies, and without this, a
+    portfolio mixing e.g. USD and INR holdings would combine unconverted
+    native-currency buy/sell amounts with a converted ending value, which
+    produces a meaningless XIRR (a real 20% gain rendering as -98%, in one
+    observed case with a single INR holding on a USD dashboard).
     """
-    cash_flows = _transaction_cash_flows(all_transactions)
+    raw_flows = _transaction_cash_flows(all_transactions)
+    cash_flows = [
+        (flow_date, price_service.convert(amount, tx.currency, display_currency))
+        for (flow_date, amount), tx in zip(raw_flows, all_transactions)
+    ]
     if total_current_value > 0:
         cash_flows.append((date.today(), total_current_value))
     return xirr(cash_flows)
@@ -274,7 +290,13 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
     if quantity_keys:
         with ThreadPoolExecutor(max_workers=min(8, len(quantity_keys))) as pool:
             fetched = pool.map(lambda k: price_service.get_current_price(k[0], k[1], k[2]), quantity_keys)
-        price_cache = dict(zip(((k[0], k[1]) for k in quantity_keys), fetched))
+        # Keyed on the full (asset_type, symbol, currency) triple, not just
+        # (asset_type, symbol) -- get_current_price returns crypto/commodity
+        # prices *in the requested currency*, so a 2-tuple key collapsed two
+        # holdings of the same symbol in different currencies (e.g. one BTC
+        # holding in USD, another in INR) onto one arbitrary price, off by
+        # the exchange rate (~85x for USD/INR).
+        price_cache = dict(zip(quantity_keys, fetched))
 
     quantity_holding_ids = [h.id for h in holdings if h.asset_type in QUANTITY_BASED_TYPES]
     valuation_holding_ids = [h.id for h in holdings if h.asset_type not in QUANTITY_BASED_TYPES]
@@ -293,7 +315,9 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
     for h in holdings:
         if h.asset_type in QUANTITY_BASED_TYPES:
             transactions = transactions_by_holding.get(h.id, [])
-            metrics = calculate_holding_metrics(h, transactions, current_price=price_cache.get((h.asset_type, h.symbol)))
+            metrics = calculate_holding_metrics(
+                h, transactions, current_price=price_cache.get((h.asset_type, h.symbol, h.currency))
+            )
         else:
             valuations = valuations_by_holding.get(h.id, [])
             metrics = calculate_valuation_metrics(h, valuations)
@@ -414,13 +438,21 @@ def build_dashboard(
             })
 
     movers.sort(key=lambda m: m["change_pct"], reverse=True)
+    # Split by sign before taking top-5s: previously top_gainers was just
+    # movers[:5] regardless of sign, so a portfolio with 5 or fewer movers
+    # that were all *down* still showed them all under "Top Gainers" with
+    # "Top Losers" empty, and portfolios with 6-9 movers had overlapping
+    # entries in both lists (movers[-5:] can include indices already in
+    # movers[:5]).
+    gainers = [m for m in movers if m["change_pct"] > 0]
+    losers = [m for m in movers if m["change_pct"] < 0]
 
     overall_xirr = None
     if all_transactions:
         tradeable_value = sum(
             h["display_value"] for h in holdings_with_metrics if h["asset_type"] in QUANTITY_BASED_TYPES
         )
-        overall_xirr = portfolio_xirr(all_transactions, tradeable_value)
+        overall_xirr = portfolio_xirr(all_transactions, tradeable_value, display_currency=display_currency)
 
     return {
         "total_net_worth": round(total_net_worth, 2),
@@ -431,8 +463,8 @@ def build_dashboard(
         "allocation_by_type": [{"label": k, "value": round(v, 2)} for k, v in allocation_by_type.items()],
         "allocation_by_country": [{"label": k, "value": round(v, 2)} for k, v in allocation_by_country.items()],
         "allocation_by_currency": [{"label": k, "value": round(v, 2)} for k, v in allocation_by_currency.items()],
-        "top_gainers": movers[:5],
-        "top_losers": list(reversed(movers[-5:])) if len(movers) > 5 else [],
+        "top_gainers": gainers[:5],
+        "top_losers": list(reversed(losers[-5:])),
         "realized_gain": round(total_realized, 2),
         "unrealized_gain": round(total_unrealized, 2),
         "income_received": round(total_income_received, 2),
@@ -475,13 +507,22 @@ def get_monthly_net_flow(
         holding = holdings_by_id.get(tx.holding_id)
         if not holding:
             continue
-        amount = tx.quantity * tx.price_per_unit + (tx.fees or 0.0)
-        amount = price_service.convert(amount, tx.currency, display_currency)
-        # A sell withdraws from the position (negative); a buy contributes
-        # to it, and so does dividend/interest income — both are money
-        # landing in this asset type, not leaving it.
-        signed = -amount if tx.transaction_type == "sell" else amount
-        add(tx.transaction_date.strftime("%Y-%m"), holding.asset_type, signed)
+        base = tx.quantity * tx.price_per_unit
+        fees = tx.fees or 0.0
+        # Same fee handling as _transaction_cash_flows/compute_position: a
+        # fee makes a buy cost more (contribution = base + fees) and makes a
+        # sell/dividend/interest net out to less (proceeds/income = base -
+        # fees) -- previously fees were always added regardless of
+        # direction, so a sell or dividend with a fee understated the
+        # withdrawal/overstated the income by 2x the fee.
+        if tx.transaction_type == "buy":
+            native_signed = base + fees
+        elif tx.transaction_type == "sell":
+            native_signed = -(base - fees)
+        else:  # dividend/interest -- money landing in this asset type, not leaving it
+            native_signed = base - fees
+        amount = price_service.convert(native_signed, tx.currency, display_currency)
+        add(tx.transaction_date.strftime("%Y-%m"), holding.asset_type, amount)
 
     valuations_by_holding: Dict[int, List[HoldingValuation]] = {}
     for v in valuations:
