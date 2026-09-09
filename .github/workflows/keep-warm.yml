@@ -1,0 +1,25 @@
+name: Keep Backend Warm
+
+# Render's free tier spins the backend down after 15 min idle, and the
+# first request after that takes up to ~100s to wake it back up (see
+# frontend/src/api/client.ts's cold-start retry handling, and
+# daily-snapshot.yml's own comment on the same thing). That's the "every
+# time we switch tabs it hangs for a minute or two" complaint -- normal
+# usage has gaps longer than 15 minutes between requests, so it's cold far
+# more often than not. Pinging it well inside that 15-minute window keeps
+# it warm continuously instead, at zero cost on a public repo (unlimited
+# free Actions minutes).
+#
+# Requires the same BACKEND_URL repo secret the other workflows already use.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every 10 minutes, well inside Render's 15-min idle window
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend
+        run: curl -s -o /dev/null --max-time 120 "${{ secrets.BACKEND_URL }}/" || true
