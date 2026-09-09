@@ -833,7 +833,20 @@ def create_app():
             return jsonify({"error": "file is required"}), 400
         if not file.filename.lower().endswith(".csv"):
             return jsonify({"error": "Only .csv files are supported"}), 400
-        result = parse_simple_csv(file.read().decode("utf-8-sig"))
+        raw = file.read()
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            try:
+                # Windows' plain "CSV (Comma delimited)" export (as opposed
+                # to "CSV UTF-8") uses the system codepage, not UTF-8 --
+                # cp1252 covers the common case without failing outright.
+                text = raw.decode("cp1252")
+            except UnicodeDecodeError:
+                return jsonify({
+                    "error": "Couldn't read this file as text. Try re-saving it as \"CSV UTF-8\" from Excel/Sheets and uploading again."
+                }), 400
+        result = parse_simple_csv(text)
         return jsonify(result)
 
     @app.route("/import/smart-parse", methods=["POST"])

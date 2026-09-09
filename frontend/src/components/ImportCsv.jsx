@@ -144,6 +144,10 @@ export default function ImportCsv() {
             whatever you use). Created automatically if it doesn't already exist.
           </li>
           <li>Dates are read day-first (7/8/2020 = 7 Aug 2020).</li>
+          <li>
+            For Real Estate, Fixed Deposit, PPF, EPF, Retirals, Cash, Loan, or Credit — things you don't buy/sell in units — leave
+            Transaction and Transaction Units blank and just put the current total value in Transaction price.
+          </li>
         </ul>
       </div>
 

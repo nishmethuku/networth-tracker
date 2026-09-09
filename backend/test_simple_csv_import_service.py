@@ -120,6 +120,51 @@ def test_column_aliases_are_accepted():
     assert result["rows"][0]["symbol"] == "AAPL"
 
 
+def test_valuation_only_asset_type_needs_no_units_or_buy_sell():
+    # A non-technical user filling this in by hand for a flat/FD/PPF has no
+    # reason to think "Units" or "Buy/Sell" apply -- they shouldn't have to.
+    csv_text = HEADER + "Real Estate,XYZ,,Sobha1,,1/1/2024,,10000000,INR,India\n"
+    result = parse_simple_csv(csv_text)
+    assert result["errors"] == []
+    row = result["rows"][0]
+    assert row["asset_type"] == "real_estate"
+    assert row["transaction_type"] is None
+    assert row["quantity"] == 1.0
+    assert row["value"] == 10000000.0
+
+
+def test_valuation_only_asset_type_still_requires_a_value():
+    csv_text = HEADER + "Fixed Deposit,XYZ,,SBI FD,,1/1/2024,,,INR,India\n"
+    result = parse_simple_csv(csv_text)
+    assert result["rows"] == []
+    assert "value" in result["errors"][0]
+
+
+def test_quantity_based_asset_type_still_requires_buy_or_sell():
+    csv_text = HEADER + "Stocks,Amma,,AAPL,,1/1/2024,10,150,USD,United States\n"
+    result = parse_simple_csv(csv_text)
+    assert result["rows"] == []
+    assert "must be 'Buy' or 'Sell'" in result["errors"][0]
+
+
+def test_common_currency_variants_are_recognized_not_defaulted():
+    csv_text = HEADER + (
+        "Stocks,Amma,,AAPL,Buy,1/1/2024,10,150,Rs,India\n"
+        "Stocks,Amma,,AAPL,Buy,1/1/2024,10,150,US$,United States\n"
+    )
+    result = parse_simple_csv(csv_text)
+    assert result["errors"] == []
+    assert result["rows"][0]["currency"] == "INR"
+    assert result["rows"][1]["currency"] == "USD"
+
+
+def test_excel_style_dd_mon_yyyy_date_parses():
+    csv_text = HEADER + "Stocks,Amma,,AAPL,Buy,7-Aug-2020,10,150,USD,United States\n"
+    result = parse_simple_csv(csv_text)
+    assert result["errors"] == []
+    assert result["rows"][0]["date"] == "2020-08-07"
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])

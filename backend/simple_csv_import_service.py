@@ -17,11 +17,20 @@ currency, country), so parsing and writing stay two separate steps, same
 as the AI path -- this module only replaces "how rows get produced",
 never touches the DB itself. confirm_smart_import already auto-creates a
 missing funding/source account rather than skipping it.
+
+Holding Type governs how the row is read: for the four quantity-based
+types (Stocks, Mutual Fund, Crypto, Commodity) Transaction must be Buy or
+Sell and both Units and Transaction price are required. For everything
+else -- Real Estate, Fixed Deposit, PPF, EPF, Retirals, Cash, Loan,
+Credit -- Buy/Sell and Units are optional (units defaults to 1); just put
+the current total value in "Transaction price".
 """
 import csv
 import io
 from datetime import date, datetime
 from typing import Dict, Optional
+
+from .holdings_service import QUANTITY_BASED_TYPES
 
 VALID_ASSET_TYPES = (
     "stock", "mutual_fund", "crypto", "commodity",
@@ -29,6 +38,20 @@ VALID_ASSET_TYPES = (
 )
 VALID_COUNTRIES = ("United States", "India", "Australia")
 VALID_CURRENCIES = ("USD", "INR", "AUD")
+
+# Common real-world variants for a family filling this in by hand or
+# pasting out of a bank/broker statement -- mapped to the strict
+# VALID_CURRENCIES value before the exact-match check below, so these
+# don't silently fall through to the USD default (see
+# test_invalid_currency_and_country_default_rather_than_error for why an
+# unrecognized currency defaults instead of erroring: the review table
+# lets the user fix it before confirming, but recognizing common variants
+# up front means they usually don't have to).
+CURRENCY_ALIASES = {
+    "RS": "INR", "RS.": "INR", "RUPEE": "INR", "RUPEES": "INR", "INR.": "INR", "₹": "INR",
+    "US$": "USD", "USD$": "USD", "$": "USD", "DOLLAR": "USD", "DOLLARS": "USD",
+    "A$": "AUD", "AUD$": "AUD", "AU$": "AUD",
+}
 
 ASSET_TYPE_ALIASES = {
     "stock": "stock", "stocks": "stock", "equity": "stock", "equities": "stock", "share": "stock", "shares": "stock",
@@ -50,8 +73,15 @@ ASSET_TYPE_ALIASES = {
 # built for an Indian-context user base where 7/8/2020 means 7 Aug, not
 # Jul 8. An unambiguous date (day > 12) parses correctly regardless of
 # order; only the truly ambiguous case (both day and month <= 12) is
-# affected by this ordering.
-DATE_FORMATS = ["%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%d-%m-%y", "%d/%m/%y", "%m/%d/%Y", "%m/%d/%y"]
+# affected by this ordering. The %d-%b-* / %d %b * forms cover the format
+# Excel/Sheets often auto-renders a typed date column as (e.g. "7-Aug-2020")
+# even after "Save as CSV" -- a real source of "the import doesn't work"
+# reports, since none of the purely-numeric formats above match that text.
+DATE_FORMATS = [
+    "%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%d-%m-%y", "%d/%m/%y", "%m/%d/%Y", "%m/%d/%y",
+    "%d.%m.%Y", "%d.%m.%y",
+    "%d-%b-%Y", "%d-%b-%y", "%d %b %Y", "%d %b %y", "%d-%B-%Y", "%d %B %Y",
+]
 
 COLUMN_ALIASES = {
     "asset_type": ("holding type", "asset type", "type"),
@@ -139,10 +169,17 @@ def parse_simple_csv(csv_text: str) -> Dict:
                 errors.append(f"Row {i}: unrecognized holding type '{get('asset_type')}'")
                 continue
 
-            transaction_type = get("transaction_type").lower()
-            if transaction_type not in ("buy", "sell"):
+            is_quantity_based = asset_type in QUANTITY_BASED_TYPES
+
+            transaction_type_raw = get("transaction_type").lower()
+            if is_quantity_based and transaction_type_raw not in ("buy", "sell"):
                 errors.append(f"Row {i}: transaction must be 'Buy' or 'Sell', got '{get('transaction_type')}'")
                 continue
+            # Real estate / FD / PPF / EPF / retirals / cash / loan / credit
+            # aren't bought and sold in units -- Buy/Sell is meaningless for
+            # them, so it's optional; anything else there is just ignored
+            # rather than rejecting the row.
+            transaction_type = transaction_type_raw if transaction_type_raw in ("buy", "sell") else None
 
             transaction_date = _parse_date(get("date"))
             if not transaction_date:
@@ -156,11 +193,27 @@ def parse_simple_csv(csv_text: str) -> Dict:
 
             quantity = _parse_number(get("quantity"))
             price = _parse_number(get("price_per_unit"))
-            if quantity is None or price is None or quantity <= 0 or price <= 0:
-                errors.append(f"Row {i}: quantity and price must both be positive numbers")
-                continue
+            if is_quantity_based:
+                if quantity is None or price is None or quantity <= 0 or price <= 0:
+                    errors.append(f"Row {i}: quantity and price must both be positive numbers")
+                    continue
+            else:
+                # Not bought in units -- the "Transaction price" column just
+                # holds the total value (e.g. the flat's current worth, the
+                # FD's balance). Units defaults to 1 so quantity * price
+                # still equals that value below; leaving Units blank (the
+                # natural thing to do for these rows) must not be an error.
+                if quantity is None:
+                    quantity = 1.0
+                if price is None or price <= 0:
+                    errors.append(f"Row {i}: needs a value in 'Transaction price' greater than 0")
+                    continue
+                if quantity <= 0:
+                    errors.append(f"Row {i}: quantity must be greater than 0")
+                    continue
 
-            currency = get("currency").upper() or "USD"
+            currency_raw = get("currency").upper()
+            currency = CURRENCY_ALIASES.get(currency_raw, currency_raw) or "USD"
             if currency not in VALID_CURRENCIES:
                 currency = "USD"
             country = get("country") or "United States"
