@@ -76,3 +76,29 @@ def delete_account(account_id, user_id=None, household_id=None) -> bool:
     db.session.delete(account)
     db.session.commit()
     return True
+
+
+def delete_account_and_holdings(user_id, name: str, household_id=None) -> int:
+    """Deletes every holding filed under this account name (transactions,
+    valuations, and price alerts cascade at the DB level -- see
+    holding_transactions/holding_valuations/price_alerts' ON DELETE
+    CASCADE), plus the registered Account row if one exists. Works by
+    name rather than Account.id since most account names a user wants to
+    wipe out were never formally registered (CSV-imported or typed
+    directly into a holding) -- see list_accounts' docstring. Returns the
+    number of holdings deleted; 0 with no error if the name didn't exist
+    or had nothing under it."""
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("name is required")
+
+    holdings = _holdings_query(user_id, household_id).filter_by(account=name).all()
+    for holding in holdings:
+        db.session.delete(holding)
+
+    registered = _registered_query(user_id, household_id).filter_by(name=name).first()
+    if registered:
+        db.session.delete(registered)
+
+    db.session.commit()
+    return len(holdings)

@@ -34,7 +34,7 @@ _log_handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 
 from . import ai_service, price_service
-from .account_registry_service import create_account, delete_account, list_accounts
+from .account_registry_service import create_account, delete_account, delete_account_and_holdings, list_accounts
 from .account_service import delete_all_user_data, export_user_data, export_user_data_csv_zip
 from .alert_service import check_all_alerts
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
@@ -493,6 +493,27 @@ def create_app():
         if not deleted:
             abort(404)
         return jsonify({"message": "Account deleted"}), 200
+
+    @app.route("/accounts/delete-with-holdings", methods=["POST"])
+    @require_auth
+    def accounts_delete_with_holdings():
+        """Deletes an account name and every holding filed under it in one
+        step -- unlike DELETE /accounts/<id>, this works whether or not the
+        account was ever formally registered (Account.id is None for
+        CSV-imported/typed-in names), since it targets by name. A POST
+        (not DELETE) because it needs a body and this isn't idempotent in
+        the DELETE sense -- it's a bulk mutation, not a resource removal."""
+        data = request.get_json(force=True)
+        name = (data.get("name") or "").strip()
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        if not name:
+            return jsonify({"error": "name is required"}), 400
+        try:
+            deleted_count = delete_account_and_holdings(g.user_id, name, household_id)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify({"message": f"Deleted '{name}' and {deleted_count} holding(s)", "holdings_deleted": deleted_count}), 200
 
     # ---------------- TRANSACTIONS (buy/sell ledger) ----------------
 

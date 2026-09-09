@@ -5,7 +5,7 @@ import EmptyState from "./EmptyState";
 import LoadingState from "./LoadingState";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { fetchAccounts, createAccount, deleteAccount, ApiError } from "../api";
+import { fetchAccounts, createAccount, deleteAccount, deleteAccountAndHoldings, ApiError } from "../api";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -46,6 +46,23 @@ export default function Accounts() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete account"),
   });
 
+  const deleteWithHoldingsMutation = useMutation({
+    mutationFn: (name) => deleteAccountAndHoldings(name, currentHouseholdId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["holdings"] });
+      queryClient.invalidateQueries({ queryKey: ["net-worth-history"] });
+      toast.success(result?.message || "Account and its holdings deleted");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete account"),
+  });
+
+  function handleDeleteWithHoldings(account) {
+    const noun = account.holdingCount === 1 ? "holding" : "holdings";
+    const confirmed = window.confirm(`Delete "${account.name}" and all ${account.holdingCount} ${noun} in it? This can't be undone.`);
+    if (confirmed) deleteWithHoldingsMutation.mutate(account.name);
+  }
+
   if (isLoading) return <LoadingState message="Loading accounts..." />;
 
   return (
@@ -53,7 +70,8 @@ export default function Accounts() {
       <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>Accounts</h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         The account names your holdings are grouped under (a brokerage, a bank account, a person's name). Add one ahead of time — before
-        importing or adding a holding to it — or remove one that's no longer used.
+        importing or adding a holding to it — remove an empty one that's no longer used, or delete an account and every holding in it at
+        once.
       </p>
 
       <Card>
@@ -68,31 +86,47 @@ export default function Accounts() {
                   <span style={{ color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
                     {a.holdingCount} holding{a.holdingCount === 1 ? "" : "s"}
                   </span>
-                  {a.id != null && a.holdingCount === 0 ? (
+                  {a.holdingCount === 0 ? (
+                    a.id != null ? (
+                      <button
+                        onClick={() => deleteMutation.mutate(a.id)}
+                        disabled={deleteMutation.isPending}
+                        style={{
+                          padding: "0.3rem 0.7rem",
+                          borderRadius: "var(--radius-sm)",
+                          border: "1px solid var(--border)",
+                          background: "transparent",
+                          color: "var(--danger)",
+                          cursor: "pointer",
+                          fontSize: "0.75rem",
+                        }}
+                      >
+                        Delete
+                      </button>
+                    ) : (
+                      <span
+                        style={{ fontSize: "0.75rem", color: "var(--text-muted)", width: "3.5rem", textAlign: "right" }}
+                        title="Only accounts added here can be deleted"
+                      />
+                    )
+                  ) : (
                     <button
-                      onClick={() => deleteMutation.mutate(a.id)}
-                      disabled={deleteMutation.isPending}
+                      onClick={() => handleDeleteWithHoldings(a)}
+                      disabled={deleteWithHoldingsMutation.isPending}
+                      title="Deletes this account and every holding filed under it"
                       style={{
                         padding: "0.3rem 0.7rem",
                         borderRadius: "var(--radius-sm)",
-                        border: "1px solid var(--border)",
+                        border: "1px solid var(--danger)",
                         background: "transparent",
                         color: "var(--danger)",
                         cursor: "pointer",
                         fontSize: "0.75rem",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      Delete
+                      Delete account &amp; holdings
                     </button>
-                  ) : (
-                    <span
-                      style={{ fontSize: "0.75rem", color: "var(--text-muted)", width: "3.5rem", textAlign: "right" }}
-                      title={
-                        a.id == null ? "Only accounts with no holdings and added here can be deleted" : "Move or delete its holdings first"
-                      }
-                    >
-                      {a.id == null ? "" : "in use"}
-                    </span>
                   )}
                 </span>
               </div>
