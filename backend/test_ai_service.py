@@ -116,6 +116,22 @@ def test_suggest_transaction_tags_returns_none_without_client():
     assert result is None
 
 
+def test_suggest_transaction_tags_returns_none_on_valid_json_wrong_shape():
+    # Regression: _extract_json only guarantees valid JSON, not the
+    # {"tags": [...], "note": "..."} object shape asked for. A JSON array
+    # (or any non-dict) previously reached parsed.get("tags", []) and
+    # raised an uncaught AttributeError instead of degrading quietly like
+    # every other malformed-response case.
+    with patch.object(ai_service, "get_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = _fake_text_response('["core-holding", "dip-buy"]')
+        mock_get_client.return_value = mock_client
+
+        result = ai_service.suggest_transaction_tags("Apple", "stock", "buy", 10, 150.0, "USD")
+
+    assert result is None
+
+
 def test_parse_search_query_strips_code_fences():
     with patch.object(ai_service, "get_client") as mock_get_client:
         mock_client = MagicMock()

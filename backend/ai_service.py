@@ -306,6 +306,14 @@ def suggest_transaction_tags(holding_name: str, asset_type: str, transaction_typ
         return None
     try:
         parsed = _extract_json(raw)
+        if not isinstance(parsed, dict):
+            # _extract_json only guarantees valid JSON, not the {"tags":
+            # [...], "note": "..."} shape asked for -- a JSON array or
+            # scalar response previously raised an uncaught AttributeError
+            # on .get() below, violating this function's own "always
+            # degrades quietly" contract (its docstring, and the reason
+            # callers never wrap it defensively).
+            raise ValueError(f"expected a JSON object, got {type(parsed).__name__}")
         tags = [str(t).lower().strip() for t in parsed.get("tags", [])][:3]
         note = str(parsed.get("note", "")).strip()[:200]
         return {"tags": tags, "note": note}
