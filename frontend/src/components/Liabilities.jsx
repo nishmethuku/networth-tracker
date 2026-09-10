@@ -45,7 +45,7 @@ const emptyForm = {
   notes: "",
 };
 
-function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
+export function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
   const [form, setForm] = useState(initial ?? emptyForm);
 
   function handleSubmit(e) {
@@ -458,6 +458,7 @@ export default function Liabilities() {
         <div style={{ marginBottom: "1.5rem" }}>
           <Card title={editing ? "Edit Liability" : "New Liability"}>
             <LiabilityForm
+              key={editing ? editing.id : "new"}
               initial={
                 editing
                   ? {
