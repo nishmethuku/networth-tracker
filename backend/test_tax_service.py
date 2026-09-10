@@ -47,6 +47,19 @@ def test_us_uses_calendar_year():
     assert financial_year_label(date(2024, 12, 31), "United States") == "2024"
 
 
+def test_australia_fy_before_july_belongs_to_previous_fy():
+    # Regression: Australia fell through to the calendar-year branch
+    # despite TAX_RATES carrying its own Australia rates -- the ATO's
+    # financial year is Jul 1 - Jun 30, not the calendar year.
+    # Mar 2025 is in FY2024-25 (Jul 2024 - Jun 2025)
+    assert financial_year_label(date(2025, 3, 1), "Australia") == "FY2024-25"
+
+
+def test_australia_fy_on_or_after_july_belongs_to_new_fy():
+    assert financial_year_label(date(2024, 7, 1), "Australia") == "FY2024-25"
+    assert financial_year_label(date(2025, 6, 30), "Australia") == "FY2024-25"
+
+
 def test_one_year_later_leap_day_lands_on_feb_28():
     assert _one_year_later(date(2024, 2, 29)) == date(2025, 2, 28)
 

@@ -1,6 +1,7 @@
 """
 Realized gains grouped by financial year, for tax-season reference.
-India uses Apr 1–Mar 31; everything else uses the calendar year.
+India uses Apr 1–Mar 31, Australia uses Jul 1–Jun 30; everything else
+uses the calendar year.
 
 Also estimates short-term vs long-term classification and a rough tax
 liability. Both are approximations, not tax advice: holding-period
@@ -49,6 +50,15 @@ def financial_year_label(d: date, country: str) -> str:
     if country == "India":
         # e.g. Nov 2024 -> "FY2024-25", Feb 2025 -> "FY2024-25"
         start_year = d.year if d.month >= 4 else d.year - 1
+        return f"FY{start_year}-{str(start_year + 1)[-2:]}"
+    if country == "Australia":
+        # ATO financial year: Jul 1 - Jun 30, e.g. Nov 2024 -> "FY2024-25",
+        # Feb 2025 -> "FY2024-25" -- previously fell through to the
+        # calendar-year branch below despite TAX_RATES carrying its own
+        # Australia entry, so e.g. a gain realized 2026-08-01 (AU FY2026-27)
+        # and one from 2026-03-01 (AU FY2025-26) were wrongly bucketed
+        # into the same "2026" group.
+        start_year = d.year if d.month >= 7 else d.year - 1
         return f"FY{start_year}-{str(start_year + 1)[-2:]}"
     return str(d.year)
 
