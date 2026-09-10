@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import Card from "./Card";
 import { useAuth } from "../contexts/AuthContext";
@@ -51,6 +51,7 @@ export default function Settings() {
   const { t, i18n } = useTranslation();
   const [currency, setCurrency] = useDisplayCurrencyPreference();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [confirmText, setConfirmText] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
@@ -78,6 +79,13 @@ export default function Settings() {
   const deleteMutation = useMutation({
     mutationFn: deleteAllAccountData,
     onSuccess: (result) => {
+      // Every other destructive mutation in the app invalidates its own
+      // query keys; a full account wipe touches everything at once, so
+      // clear() the whole cache rather than an incomplete or brittle list
+      // -- without this, navigating to Dashboard/Portfolio right after
+      // still showed every holding, transaction, and net worth figure as
+      // if nothing had been deleted, until the 5-minute staleTime lapsed.
+      queryClient.clear();
       toast.success(`Deleted ${result.holdings_deleted} holdings and related data`);
       setConfirmText("");
     },

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
+import { queryClient } from "../queryClient.js";
 
 interface AuthContextValue {
   session: Session | null;
@@ -66,6 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    // Query keys carry no user identity (e.g. ["dashboard", currency,
+    // householdId]), and AuthProvider sits above QueryClientProvider in
+    // main.jsx's tree so it can't use useQueryClient() -- imports the same
+    // singleton directly instead. Without this, on a shared device, user A
+    // signing out and user B signing in within the 5-minute staleTime
+    // window would render A's cached net worth/holdings/history to B with
+    // no refetch at all, since React Query would find the old entries
+    // still fresh.
+    queryClient.clear();
   }
 
   async function sendPasswordReset(email: string) {
