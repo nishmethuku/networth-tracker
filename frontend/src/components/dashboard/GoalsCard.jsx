@@ -58,7 +58,7 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, onDelete }) {
             <div
               style={{
                 height: "100%",
-                width: `${pct}%`,
+                width: `${pct ?? 0}%`,
                 background: pct >= 100 ? "var(--success)" : "var(--primary)",
                 borderRadius: 4,
                 transition: "width 0.3s ease",
@@ -75,7 +75,10 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, onDelete }) {
             }}
           >
             <span>
-              {pct.toFixed(0)}% there
+              {/* pct is null when targetAmount is 0 (or less) -- the add-goal
+                  form blocks that, but a goal created another way (or a
+                  stale row) isn't guaranteed to have a positive target. */}
+              {(pct ?? 0).toFixed(0)}% there
               {remaining > 0 ? ` — ${formatCurrencyForDisplay(remaining, goal.currency, { includeCode: false })} to go` : " 🎉"}
             </span>
             {days != null && <span>{days > 0 ? `${days} days left` : "Target date passed"}</span>}
