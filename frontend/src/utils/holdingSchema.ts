@@ -14,6 +14,22 @@ function isNonNegativeNumberString(value: string | undefined): boolean {
   return value !== "" && value != null && !Number.isNaN(n) && n >= 0;
 }
 
+/** Today's date as YYYY-MM-DD in the *local* timezone -- matching what an
+ * <input type="date"> actually stores and what `data.date` here holds.
+ * `new Date().toISOString()` gives the UTC date instead, which is a
+ * different calendar day from local for part of every day in any
+ * non-UTC-0 timezone: e.g. for a UTC+5:30 (India) user, local time is
+ * already "tomorrow" once it's past 6:30pm UTC (midnight IST), so
+ * comparing against the UTC date rejected today's own date as "in the
+ * future" for roughly a third of the day. */
+export function todayLocalDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export const holdingSchema = z
   .object({
     assetType: z.string().min(1),
@@ -57,7 +73,7 @@ export const holdingSchema = z
       ctx.addIssue({ path: ["value"], code: z.ZodIssueCode.custom, message: "Value must be 0 or greater" });
     }
 
-    if (data.date && data.date > new Date().toISOString().split("T")[0]) {
+    if (data.date && data.date > todayLocalDateString()) {
       ctx.addIssue({ path: ["date"], code: z.ZodIssueCode.custom, message: "Date can't be in the future" });
     }
   });

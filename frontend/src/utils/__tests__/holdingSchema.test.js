@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { holdingSchema } from "../holdingSchema";
 
 const base = {
@@ -75,6 +75,67 @@ describe("holdingSchema", () => {
     });
     expect(result.success).toBe(false);
     expect(result.error.issues.some((i) => i.path[0] === "date")).toBe(true);
+  });
+
+  describe("today's date for a UTC+ timezone user", () => {
+    // A Date subclass with independently-controlled local vs. UTC
+    // representations -- more portable across CI/dev machines than
+    // relying on process.env.TZ, which some Node/V8 builds only read
+    // once at startup rather than per-call. Simulates the moment it's
+    // already "tomorrow" locally (e.g. just after midnight IST) while
+    // still "today" in UTC: local getFullYear/getMonth/getDate report
+    // 2026-06-16, but toISOString (used by the pre-fix code) reports
+    // 2026-06-15.
+    class LocalAheadOfUtcDate extends Date {
+      constructor(...args) {
+        if (args.length === 0) {
+          super(2026, 5, 16, 1, 30, 0); // local components: 2026-06-16
+          return;
+        }
+        super(...args);
+      }
+      toISOString() {
+        return "2026-06-15T20:00:00.000Z"; // UTC components: 2026-06-15
+      }
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("does not reject today's own date as being in the future", () => {
+      // Regression: the schema compared against new Date().toISOString()
+      // (the UTC date) instead of the local date an <input type="date">
+      // actually holds -- a user picking their own local "today" was
+      // rejected whenever local time is ahead of UTC time on the
+      // calendar (any UTC+ timezone, for part of every day).
+      vi.stubGlobal("Date", LocalAheadOfUtcDate);
+
+      const result = holdingSchema.safeParse({
+        ...base,
+        symbol: "AAPL",
+        quantity: "1",
+        price_per_unit: "1",
+        date: "2026-06-16", // local "today"
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("still rejects a date that's genuinely in the future", () => {
+      vi.stubGlobal("Date", LocalAheadOfUtcDate);
+
+      const result = holdingSchema.safeParse({
+        ...base,
+        symbol: "AAPL",
+        quantity: "1",
+        price_per_unit: "1",
+        date: "2026-06-17",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error.issues.some((i) => i.path[0] === "date")).toBe(true);
+    });
   });
 
   it("requires country", () => {
