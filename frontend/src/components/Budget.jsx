@@ -180,8 +180,9 @@ function AddEntryForm({ categories, currency }) {
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-subscriptions"] });
       if (entry.fundingSource) {
-        queryClient.invalidateQueries({ queryKey: ["holding", entry.fundingSource.holdingId] });
-        queryClient.invalidateQueries({ queryKey: ["holding-valuations", entry.fundingSource.holdingId] });
+        // String(...): matches HoldingDetail's useParams()-keyed (string) cache.
+        queryClient.invalidateQueries({ queryKey: ["holding", String(entry.fundingSource.holdingId)] });
+        queryClient.invalidateQueries({ queryKey: ["holding-valuations", String(entry.fundingSource.holdingId)] });
         queryClient.invalidateQueries({ queryKey: ["holdings"] });
         toast.success(
           `Expense added — account balance updated to ${formatCurrencyForDisplay(entry.fundingSource.newBalance, entry.fundingSource.currency, { includeCode: false })}`,
@@ -192,8 +193,8 @@ function AddEntryForm({ categories, currency }) {
           `Expense added — liability balance updated to ${formatCurrencyForDisplay(entry.linkedLiability.newBalance, entry.linkedLiability.currency, { includeCode: false })}`,
         );
       } else if (entry.depositTarget) {
-        queryClient.invalidateQueries({ queryKey: ["holding", entry.depositTarget.holdingId] });
-        queryClient.invalidateQueries({ queryKey: ["holding-valuations", entry.depositTarget.holdingId] });
+        queryClient.invalidateQueries({ queryKey: ["holding", String(entry.depositTarget.holdingId)] });
+        queryClient.invalidateQueries({ queryKey: ["holding-valuations", String(entry.depositTarget.holdingId)] });
         queryClient.invalidateQueries({ queryKey: ["holdings"] });
         toast.success(
           `Income added — account balance updated to ${formatCurrencyForDisplay(entry.depositTarget.newBalance, entry.depositTarget.currency, { includeCode: false })}`,

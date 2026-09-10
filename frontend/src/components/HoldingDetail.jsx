@@ -62,12 +62,17 @@ function AddTransactionForm({ holding, onDone }) {
   const mutation = useMutation({
     mutationFn: (payload) => createTransaction(holding.id, payload),
     onSuccess: (tx) => {
-      queryClient.invalidateQueries({ queryKey: ["holding", holding.id] });
-      queryClient.invalidateQueries({ queryKey: ["holding-transactions", holding.id] });
+      // String(...) here matters: the page's own query is keyed by useParams()'s
+      // id (always a string), but holding.id/fundingSource.holdingId come back
+      // from the API as numbers -- invalidateQueries does key equality, so
+      // ["holding", 5] previously never matched ["holding", "5"] and nothing
+      // actually refetched (same fix SipCard.jsx already applies).
+      queryClient.invalidateQueries({ queryKey: ["holding", String(holding.id)] });
+      queryClient.invalidateQueries({ queryKey: ["holding-transactions", String(holding.id)] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       if (tx.fundingSource) {
-        queryClient.invalidateQueries({ queryKey: ["holding", tx.fundingSource.holdingId] });
-        queryClient.invalidateQueries({ queryKey: ["holding-valuations", tx.fundingSource.holdingId] });
+        queryClient.invalidateQueries({ queryKey: ["holding", String(tx.fundingSource.holdingId)] });
+        queryClient.invalidateQueries({ queryKey: ["holding-valuations", String(tx.fundingSource.holdingId)] });
       }
       setCreatedTx(tx);
     },
@@ -292,8 +297,8 @@ function AddValuationForm({ holding, onDone }) {
   const mutation = useMutation({
     mutationFn: (payload) => createValuation(holding.id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["holding", holding.id] });
-      queryClient.invalidateQueries({ queryKey: ["holding-valuations", holding.id] });
+      queryClient.invalidateQueries({ queryKey: ["holding", String(holding.id)] });
+      queryClient.invalidateQueries({ queryKey: ["holding-valuations", String(holding.id)] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       onDone();
     },

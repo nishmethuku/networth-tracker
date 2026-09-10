@@ -229,8 +229,11 @@ export default function AddHolding() {
           ...(form.funding_source_holding_id ? { funding_source_holding_id: Number(form.funding_source_holding_id) } : {}),
         });
         if (tx.fundingSource) {
-          queryClient.invalidateQueries({ queryKey: ["holding", tx.fundingSource.holdingId] });
-          queryClient.invalidateQueries({ queryKey: ["holding-valuations", tx.fundingSource.holdingId] });
+          // String(...): the funding-source holding's own detail page (if
+          // cached) is keyed by useParams()'s id, always a string --
+          // fundingSource.holdingId comes back from the API as a number.
+          queryClient.invalidateQueries({ queryKey: ["holding", String(tx.fundingSource.holdingId)] });
+          queryClient.invalidateQueries({ queryKey: ["holding-valuations", String(tx.fundingSource.holdingId)] });
         }
       } else {
         await createValuation(holding.id, {

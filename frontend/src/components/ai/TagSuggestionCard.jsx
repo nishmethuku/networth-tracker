@@ -34,7 +34,9 @@ export default function TagSuggestionCard({ transactionId, holdingId, onDismiss 
     mutationFn: () => updateTransaction(transactionId, { tags: suggestion.tags, notes: suggestion.note || undefined }),
     onSuccess: () => {
       setAccepted(true);
-      queryClient.invalidateQueries({ queryKey: ["holding-transactions", holdingId] });
+      // String(...): matches HoldingDetail's useParams()-keyed (string) cache
+      // -- holdingId is passed in as holding.id, a number.
+      queryClient.invalidateQueries({ queryKey: ["holding-transactions", String(holdingId)] });
     },
   });
 
