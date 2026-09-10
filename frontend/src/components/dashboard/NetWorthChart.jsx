@@ -109,7 +109,16 @@ export default function NetWorthChart({ history, currency }) {
     const base = rows[0]?.netWorth ?? 0;
     // assets isn't stored directly, but netWorth = assets - liabilities, so
     // it's always derivable without another round trip to the backend.
-    return rows.map((r) => ({ ...r, delta: r.netWorth - base, assets: r.netWorth + (r.liabilities ?? 0) }));
+    return rows.map((r) => ({
+      ...r,
+      delta: r.netWorth - base,
+      // Math.abs(base) in the denominator, not base itself -- a base
+      // that's negative (a user starting out mostly in debt) would
+      // otherwise flip the sign of a genuine improvement into a
+      // misleading negative percentage.
+      deltaPct: base !== 0 ? ((r.netWorth - base) / Math.abs(base)) * 100 : null,
+      assets: r.netWorth + (r.liabilities ?? 0),
+    }));
   }, [history, rangeIdx]);
 
   if (!history || history.length === 0) {

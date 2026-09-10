@@ -12,6 +12,19 @@ function formatMonthLabel(dateStr) {
   return MONTH_LABEL.format(new Date(y, m - 1, d));
 }
 
+export function ordinalSuffix(day) {
+  // Regression: the previous inline check only ever compared day === 1,
+  // but was also gated on day > 5 at the call site -- so "1st" could
+  // never actually render, and 2nd/3rd/21st/22nd/23rd/31st all fell
+  // through to a bare "th" (e.g. "22th"). 11/12/13 are the exceptions
+  // (11th/12th/13th, not 11st/12nd/13rd).
+  if (day % 100 >= 11 && day % 100 <= 13) return "th";
+  if (day % 10 === 1) return "st";
+  if (day % 10 === 2) return "nd";
+  if (day % 10 === 3) return "rd";
+  return "th";
+}
+
 /**
  * One row per month — net worth on the snapshot closest to the 1st of that
  * month, expandable to the same by_asset_type breakdown already stored on
@@ -73,7 +86,7 @@ export default function MonthlySnapshots({ history, currency }) {
                 {m.day > 5 && (
                   <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
                     (as of the {m.day}
-                    {m.day === 1 ? "st" : "th"})
+                    {ordinalSuffix(m.day)})
                   </span>
                 )}
               </span>

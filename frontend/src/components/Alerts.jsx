@@ -176,7 +176,8 @@ export default function Alerts() {
               <Card key={a.id}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>
-                    <strong>{a.symbol || "Net Worth"}</strong> {a.alertType.replace("_", " ")} {a.threshold.toLocaleString()} {a.currency}
+                    <strong>{a.symbol || "Net Worth"}</strong> {a.alertType.replaceAll("_", " ")} {a.threshold.toLocaleString()}{" "}
+                    {a.currency}
                   </span>
                   <button
                     onClick={() => deleteMutation.mutate(a.id)}
@@ -199,7 +200,8 @@ export default function Alerts() {
               <Card key={a.id}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", opacity: 0.7 }}>
                   <span>
-                    <strong>{a.symbol || "Net Worth"}</strong> {a.alertType.replace("_", " ")} {a.threshold.toLocaleString()} {a.currency}
+                    <strong>{a.symbol || "Net Worth"}</strong> {a.alertType.replaceAll("_", " ")} {a.threshold.toLocaleString()}{" "}
+                    {a.currency}
                   </span>
                   <button
                     onClick={() => deleteMutation.mutate(a.id)}
