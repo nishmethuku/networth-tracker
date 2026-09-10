@@ -29,6 +29,14 @@ function SipSetupForm({ holding, onDone }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holding", String(holding.id)] });
+      // Regression: the projection query below (keyed ["sip-projection",
+      // holding.id, years]) was never invalidated by this mutation, so
+      // after changing e.g. the monthly amount from ₹5,000 to ₹20,000 the
+      // card kept showing the old projected value and contributions --
+      // numbers computed server-side from the amount that's no longer
+      // current. A partial key (no `years`) invalidates it regardless of
+      // which year-range is currently selected.
+      queryClient.invalidateQueries({ queryKey: ["sip-projection", holding.id] });
       toast.success("SIP settings saved");
       onDone();
     },

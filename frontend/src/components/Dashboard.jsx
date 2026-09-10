@@ -142,6 +142,13 @@ export default function Dashboard() {
   if (!dashboard) return <EmptyState message="No data yet" />;
 
   const hasHoldings = dashboard.allocationByType.length > 0;
+  // Regression: this used to gate the *entire* dashboard -- including the
+  // Total Net Worth and Total Liabilities cards -- behind having at least
+  // one holding. allocation_by_type is asset-only, so a user who'd only
+  // entered a liability (a mortgage, say) with no holdings yet saw "No
+  // holdings yet" instead of their real (negative) net worth and debt
+  // total, which were sitting right there in the response, unrendered.
+  const hasAnyData = hasHoldings || dashboard.totalLiabilities > 0;
 
   return (
     <div ref={containerRef}>
@@ -206,7 +213,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {!hasHoldings ? (
+      {!hasAnyData ? (
         <EmptyState message="No holdings yet. Add your first one from the Portfolio page." />
       ) : (
         <>
