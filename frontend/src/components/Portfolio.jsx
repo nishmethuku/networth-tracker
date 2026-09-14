@@ -50,7 +50,7 @@ const SORT_ACCESSORS = {
   costBasis: (h) => h.costBasis,
   currentPrice: (h) => h.currentPrice,
   value: (h) => h.displayValue,
-  gain: (h) => (isQuantityBased(h.assetType) ? h.totalGain : h.gain),
+  gain: (h) => (isQuantityBased(h.assetType) ? h.displayTotalGain : h.displayGain),
   xirr: (h) => h.xirr,
   growth: (h) => gainPct(h),
 };
@@ -141,7 +141,7 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
         </thead>
         <tbody>
           {sorted.map((h) => {
-            const gain = quantityBased ? h.totalGain : h.gain;
+            const gain = quantityBased ? h.displayTotalGain : h.displayGain;
             const positive = safeNumber(gain) >= 0;
             return (
               <tr
@@ -181,7 +181,10 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
                   {formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}
                 </td>
                 <td style={{ padding: "0.75rem 0.5rem", color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
-                  {gain != null ? `${positive ? "+" : ""}${formatCurrencyForDisplay(gain, h.currency, { includeCode: false })}` : "—"}
+                  {/* display currency, matching the Value cell right above -- gain used to render in
+                      the holding's own currency, mismatching the Value cell next to it and sorting
+                      wrong across a mixed-currency portfolio (an INR gain would outrank a USD one). */}
+                  {gain != null ? `${positive ? "+" : ""}${formatCurrencyForDisplay(gain, currency, { includeCode: false })}` : "—"}
                 </td>
                 {quantityBased && (
                   <td style={{ padding: "0.75rem 0.5rem", color: h.xirr != null && h.xirr >= 0 ? "var(--success)" : "var(--danger)" }}>

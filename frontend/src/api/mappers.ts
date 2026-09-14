@@ -40,6 +40,7 @@ export interface Holding {
   realizedGain: number | null;
   unrealizedGain: number | null;
   totalGain: number | null;
+  displayTotalGain: number | null;
   xirr: number | null;
   incomeReceived: number | null;
   displayIncomeReceived: number | null;
@@ -48,6 +49,7 @@ export interface Holding {
   firstValue: number | null;
   displayFirstValue: number | null;
   gain: number | null;
+  displayGain: number | null;
   history: unknown;
 
   // Common
@@ -94,6 +96,7 @@ export function mapHolding(h: any): Holding | null {
     realizedGain: h.realized_gain != null ? safeNumber(h.realized_gain) : null,
     unrealizedGain: h.unrealized_gain != null ? safeNumber(h.unrealized_gain) : null,
     totalGain: h.total_gain != null ? safeNumber(h.total_gain) : null,
+    displayTotalGain: h.display_total_gain != null ? safeNumber(h.display_total_gain) : null,
     xirr: h.xirr != null ? safeNumber(h.xirr) : null,
     incomeReceived: h.income_received != null ? safeNumber(h.income_received) : null,
     displayIncomeReceived: h.display_income_received != null ? safeNumber(h.display_income_received) : null,
@@ -101,6 +104,7 @@ export function mapHolding(h: any): Holding | null {
     firstValue: h.first_value != null ? safeNumber(h.first_value) : null,
     displayFirstValue: h.display_first_value != null ? safeNumber(h.display_first_value) : null,
     gain: h.gain != null ? safeNumber(h.gain) : null,
+    displayGain: h.display_gain != null ? safeNumber(h.display_gain) : null,
     history: h.history || null,
 
     currentValue: safeNumber(h.current_value),

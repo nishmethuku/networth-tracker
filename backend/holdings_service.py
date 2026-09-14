@@ -345,6 +345,16 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
             metrics["display_cost_basis"] = price_service.convert(metrics["cost_basis"], h.currency, display_currency)
         if metrics.get("first_value") is not None:
             metrics["display_first_value"] = price_service.convert(metrics["first_value"], h.currency, display_currency)
+        # display_total_gain/display_gain: a converted twin of total_gain
+        # (quantity-based) / gain (valuation-based), the same reasoning as
+        # display_realized_gain etc. above -- built from the already-
+        # converted parts rather than a separate convert() call, since
+        # that's mathematically identical (conversion is linear) and
+        # avoids a redundant lookup.
+        if metrics.get("total_gain") is not None:
+            metrics["display_total_gain"] = metrics.get("display_realized_gain", 0.0) + metrics.get("display_unrealized_gain", 0.0)
+        if metrics.get("gain") is not None:
+            metrics["display_gain"] = metrics["display_value"] - metrics.get("display_first_value", 0.0)
         results.append({**h.to_dict(), **metrics})
 
     return results
@@ -358,8 +368,8 @@ SUMMARY_FIELDS = (
     "id", "household_id", "asset_type", "symbol", "name", "country", "account", "currency",
     "quantity", "avg_cost", "current_price", "current_value", "display_value",
     "realized_gain", "unrealized_gain", "display_realized_gain", "display_unrealized_gain",
-    "total_gain", "xirr", "income_received", "display_income_received",
-    "first_value", "gain", "cost_basis", "display_cost_basis", "display_first_value",
+    "total_gain", "display_total_gain", "xirr", "income_received", "display_income_received",
+    "first_value", "gain", "display_gain", "cost_basis", "display_cost_basis", "display_first_value",
 )
 
 

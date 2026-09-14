@@ -705,6 +705,63 @@ def test_list_holdings_with_metrics_computes_display_x_fields_via_real_conversio
     assert result["display_value"] == 1000.0  # converted to display currency
 
 
+def test_list_holdings_with_metrics_exposes_display_total_gain_for_quantity_based():
+    """Regression: total_gain/gain were the only gain figures ever exposed
+    for sorting/display, and both stay in the holding's own currency --
+    Portfolio's Gain column and sort previously used these directly,
+    showing/ranking an INR holding's raw rupee gain next to a USD
+    holding's dollar gain as if they were the same unit. display_value
+    proves this same class of bug was already guarded against for the
+    headline figure; total_gain/gain never got the same treatment."""
+    from unittest.mock import patch
+
+    inr_stock = _holding(asset_type="stock")
+    inr_stock.id = 1
+    inr_stock.currency = "INR"
+    txs = [_tx("buy", date.today() - timedelta(days=365), 10, 8300.0)]
+    for t in txs:
+        t.currency = "INR"
+
+    with patch("backend.holdings_service.HoldingTransaction") as mock_tx_model, \
+         patch("backend.holdings_service.HoldingValuation") as mock_val_model, \
+         patch("backend.holdings_service.price_service") as mock_price_service:
+        mock_tx_model.query.filter.return_value.all.return_value = txs
+        mock_val_model.query.filter.return_value.all.return_value = []
+        mock_price_service.get_current_price.return_value = 9130.0  # +10% in INR
+        mock_price_service.convert.side_effect = lambda amount, from_ccy, to_ccy: amount / 83.0 if from_ccy == "INR" else amount
+
+        results = list_holdings_with_metrics([inr_stock], display_currency="USD")
+
+    result = results[0]
+    assert result["total_gain"] == 8300.0  # native INR: (9130-8300)*10
+    assert abs(result["display_total_gain"] - 8300.0 / 83.0) < 1e-9  # converted to USD
+
+
+def test_list_holdings_with_metrics_exposes_display_gain_for_valuation_based():
+    from unittest.mock import patch
+
+    inr_real_estate = _holding(asset_type="real_estate")
+    inr_real_estate.id = 1
+    inr_real_estate.currency = "INR"
+    valuations = [
+        HoldingValuation(holding_id=1, user_id=inr_real_estate.user_id, valuation_date=date(2024, 1, 1), value=8300000.0, currency="INR"),
+        HoldingValuation(holding_id=1, user_id=inr_real_estate.user_id, valuation_date=date(2026, 1, 1), value=9130000.0, currency="INR"),
+    ]
+
+    with patch("backend.holdings_service.HoldingTransaction") as mock_tx_model, \
+         patch("backend.holdings_service.HoldingValuation") as mock_val_model, \
+         patch("backend.holdings_service.price_service") as mock_price_service:
+        mock_tx_model.query.filter.return_value.all.return_value = []
+        mock_val_model.query.filter.return_value.all.return_value = valuations
+        mock_price_service.convert.side_effect = lambda amount, from_ccy, to_ccy: amount / 83.0 if from_ccy == "INR" else amount
+
+        results = list_holdings_with_metrics([inr_real_estate], display_currency="USD")
+
+    result = results[0]
+    assert result["gain"] == 830000.0  # native INR
+    assert abs(result["display_gain"] - 830000.0 / 83.0) < 1e-9  # converted to USD
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])

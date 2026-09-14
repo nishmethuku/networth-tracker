@@ -12,7 +12,7 @@ const SWIPE_THRESHOLD = -80;
  */
 export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) {
   const quantityBased = isQuantityBased(h.assetType);
-  const gain = quantityBased ? h.totalGain : h.gain;
+  const gain = quantityBased ? h.displayTotalGain : h.displayGain;
   const positive = safeNumber(gain) >= 0;
   // XIRR is annualized; this is the plain total return since purchase (e.g.
   // 100 -> 120 over 6 months is +20% growth, but a much higher XIRR since
@@ -68,7 +68,7 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
             {gain != null && (
               <div style={{ fontSize: "0.75rem", color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
                 {positive ? "+" : ""}
-                {formatCurrencyForDisplay(gain, h.currency, { includeCode: false })}
+                {formatCurrencyForDisplay(gain, currency, { includeCode: false })}
               </div>
             )}
           </div>

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { sortHoldings } from "../Portfolio";
 
 function h(overrides) {
-  return { assetType: "stock", symbol: "AAA", name: "AAA Inc", displayValue: 0, totalGain: 0, gain: null, ...overrides };
+  return { assetType: "stock", symbol: "AAA", name: "AAA Inc", displayValue: 0, displayTotalGain: 0, displayGain: null, ...overrides };
 }
 
 describe("sortHoldings", () => {
@@ -26,7 +26,11 @@ describe("sortHoldings", () => {
   });
 
   it("puts null values last regardless of direction", () => {
-    const holdings = [h({ symbol: "A", totalGain: 50 }), h({ symbol: "B", totalGain: null }), h({ symbol: "C", totalGain: -10 })];
+    const holdings = [
+      h({ symbol: "A", displayTotalGain: 50 }),
+      h({ symbol: "B", displayTotalGain: null }),
+      h({ symbol: "C", displayTotalGain: -10 }),
+    ];
     const ascending = sortHoldings(holdings, "gain", "asc");
     expect(ascending.map((x) => x.symbol)).toEqual(["C", "A", "B"]);
     const descending = sortHoldings(holdings, "gain", "desc");
@@ -45,10 +49,10 @@ describe("sortHoldings", () => {
     expect(holdings).toEqual(original);
   });
 
-  it("uses totalGain for quantity-based holdings and gain for valuation-based ones", () => {
+  it("uses displayTotalGain for quantity-based holdings and displayGain for valuation-based ones", () => {
     const holdings = [
-      h({ symbol: "STOCK", assetType: "stock", totalGain: 100, gain: null }),
-      h({ symbol: "CASH", assetType: "cash", totalGain: null, gain: 50 }),
+      h({ symbol: "STOCK", assetType: "stock", displayTotalGain: 100, displayGain: null }),
+      h({ symbol: "CASH", assetType: "cash", displayTotalGain: null, displayGain: 50 }),
     ];
     const sorted = sortHoldings(holdings, "gain", "desc");
     expect(sorted.map((x) => x.symbol)).toEqual(["STOCK", "CASH"]);
