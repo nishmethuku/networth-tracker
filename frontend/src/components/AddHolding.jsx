@@ -163,6 +163,7 @@ export default function AddHolding() {
   const symbolInputRef = useRef(null);
   const suggestionsRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const latestSymbolQueryRef = useRef("");
 
   // Account names, offered as autocomplete on the Account field so "Chase"
   // typed once and "chase" typed a second time don't silently become two
@@ -256,6 +257,7 @@ export default function AddHolding() {
   });
 
   async function handleSymbolSearch(query) {
+    latestSymbolQueryRef.current = query;
     if (!query || query.length < 1) {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -263,10 +265,17 @@ export default function AddHolding() {
     }
     try {
       const results = assetType === "crypto" ? await searchCrypto(query) : await searchSymbols(query, country, assetType);
+      // A slower earlier request (e.g. "AA") can resolve after a faster
+      // later one (e.g. "AAPL") if the network responses arrive out of
+      // order -- the 300ms debounce only spaces out when requests are
+      // *sent*, not when they complete. Stale results would otherwise
+      // silently overwrite whatever's currently showing for what the
+      // user has since typed.
+      if (latestSymbolQueryRef.current !== query) return;
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
     } catch {
-      setSuggestions([]);
+      if (latestSymbolQueryRef.current === query) setSuggestions([]);
     }
   }
 

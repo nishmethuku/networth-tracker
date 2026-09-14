@@ -104,18 +104,22 @@ export default function Transactions() {
         )}
       </div>
 
+      {/* isMobile checked before the virtualize threshold: VirtualTransactionList
+          renders a fixed 6-column desktop grid with no mobile layout at all, so a
+          mobile user with a long history must still get TransactionCard's stacked
+          layout, not the virtualized list, regardless of transaction count. */}
       {!transactions || transactions.length === 0 ? (
         <EmptyState message="No transactions found." />
-      ) : transactions.length > VIRTUALIZE_THRESHOLD ? (
-        <Card>
-          <VirtualTransactionList transactions={transactions} />
-        </Card>
       ) : isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
           {transactions.map((t) => (
             <TransactionCard key={t.id} t={t} />
           ))}
         </div>
+      ) : transactions.length > VIRTUALIZE_THRESHOLD ? (
+        <Card>
+          <VirtualTransactionList transactions={transactions} />
+        </Card>
       ) : (
         <Card>
           <div style={{ overflowX: "auto" }}>

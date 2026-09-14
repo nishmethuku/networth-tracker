@@ -248,7 +248,13 @@ export default function Dashboard() {
                 value={formatCurrencyCompact(buyValueSummary.buyValue, currency)}
                 subtitle={
                   buyValueSummary.gainAmount != null
-                    ? `${buyValueSummary.gainAmount >= 0 ? "+" : ""}${formatCurrencyCompact(buyValueSummary.gainAmount, currency)} (${buyValueSummary.gainAmount >= 0 ? "+" : ""}${((buyValueSummary.gainAmount / buyValueSummary.buyValue) * 100).toFixed(1)}%) overall`
+                    ? `${buyValueSummary.gainAmount >= 0 ? "+" : ""}${formatCurrencyCompact(buyValueSummary.gainAmount, currency)}${
+                        // A $0 buy value (e.g. a gifted position with no cost basis)
+                        // would otherwise divide by zero into "+Infinity%"/"NaN%".
+                        buyValueSummary.buyValue > 0
+                          ? ` (${buyValueSummary.gainAmount >= 0 ? "+" : ""}${((buyValueSummary.gainAmount / buyValueSummary.buyValue) * 100).toFixed(1)}%)`
+                          : ""
+                      } overall`
                     : "What you originally paid for what you still hold"
                 }
               />

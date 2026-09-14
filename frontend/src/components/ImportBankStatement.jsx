@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "./Card";
@@ -29,6 +29,29 @@ export default function ImportBankStatement() {
   const [notConfigured, setNotConfigured] = useState(false);
 
   const { data: categories } = useQuery({ queryKey: ["budget-categories"], queryFn: fetchBudgetCategories, staleTime: Infinity });
+
+  // Regression: a row's AI-suggested category isn't guaranteed to match
+  // its direction (e.g. "housing" suggested for a row later marked
+  // direction: "credit"/income, or categories simply not loaded yet when
+  // rows were first parsed) -- the Category <select> is controlled by
+  // r.category, so an option that isn't in the current direction's list
+  // silently fell back to displaying some other category while still
+  // submitting the original, mismatched one underneath. Corrects any row
+  // out of sync with its own direction whenever rows or categories change.
+  useEffect(() => {
+    if (!rows || !categories) return;
+    setRows((prev) => {
+      let changed = false;
+      const next = prev.map((r) => {
+        const entryType = r.direction === "credit" ? "income" : "expense";
+        const options = entryType === "income" ? categories.income || [] : categories.expense || [];
+        if (options.includes(r.category)) return r;
+        changed = true;
+        return { ...r, category: options[0] || "" };
+      });
+      return changed ? next : prev;
+    });
+  }, [rows, categories]);
 
   const parseMutation = useMutation({
     mutationFn: (file) => bankStatementParse(file, null),
