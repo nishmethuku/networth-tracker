@@ -169,14 +169,27 @@ def build_funding_valuation(
     if not existing_valuations:
         raise ValueError("This cash holding has no recorded balance yet")
 
-    latest = max(existing_valuations, key=lambda v: v.valuation_date)
+    # The balance as of just before on_date, not simply the latest
+    # valuation overall -- those aren't the same thing when on_date is
+    # backdated relative to already-recorded history (e.g. a CSV import
+    # whose rows aren't in chronological order, or a re-import that adds
+    # an older transaction after newer ones already exist for this
+    # account). Using the globally-latest balance as the baseline for an
+    # earlier transaction produces a nonsensical historical value -- the
+    # deduction gets computed from a balance that, chronologically,
+    # didn't exist yet. Falls back to 0 when every recorded valuation is
+    # *later* than on_date (nothing known yet at that point), matching
+    # the same "seed a new account at 0" convention used when the account
+    # itself doesn't exist yet (see smart_import_service.py).
+    prior = [v for v in existing_valuations if v.valuation_date <= on_date]
+    baseline = max(prior, key=lambda v: v.valuation_date).value if prior else 0.0
     converted_amount = price_service.convert(amount, amount_currency, source_holding.currency)
 
     return HoldingValuation(
         holding_id=source_holding.id,
         user_id=acting_user_id,
         valuation_date=on_date,
-        value=latest.value - converted_amount,
+        value=baseline - converted_amount,
         currency=source_holding.currency,
         notes="Used to fund a purchase",
     )
@@ -207,7 +220,10 @@ def build_deposit_valuation(
     if target_holding.asset_type != "cash":
         raise ValueError("Deposit target must be a cash holding")
 
-    starting_value = max(existing_valuations, key=lambda v: v.valuation_date).value if existing_valuations else 0.0
+    # Same "balance as of on_date, not the latest overall" reasoning as
+    # build_funding_valuation above.
+    prior = [v for v in existing_valuations if v.valuation_date <= on_date]
+    starting_value = max(prior, key=lambda v: v.valuation_date).value if prior else 0.0
     converted_amount = price_service.convert(amount, amount_currency, target_holding.currency)
 
     return HoldingValuation(

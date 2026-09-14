@@ -463,6 +463,34 @@ def test_build_funding_valuation_rejects_cash_with_no_history():
         build_funding_valuation(cash, [], amount=100.0, amount_currency="USD", on_date=date(2026, 2, 1), acting_user_id=cash.user_id)
 
 
+def test_build_funding_valuation_uses_balance_as_of_date_not_latest_overall():
+    """Regression: a backdated transaction (e.g. a CSV import row processed
+    out of chronological order, or an older transaction added after newer
+    data already exists) used to deduct from the globally-latest balance
+    regardless of on_date -- so a 2020 transaction could be computed
+    against a 2026 balance that, chronologically, didn't exist yet at the
+    time. Must use the balance as of just before on_date instead."""
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    valuations = [
+        HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2020, 1, 1), value=1000.0, currency="USD"),
+        HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2026, 1, 1), value=5000.0, currency="USD"),
+    ]
+    # A backdated 2021 transaction should deduct from the 2020 balance
+    # (1000), not the later 2026 one (5000).
+    val = build_funding_valuation(cash, valuations, amount=200.0, amount_currency="USD", on_date=date(2021, 6, 1), acting_user_id=cash.user_id)
+    assert val.value == 800.0
+
+
+def test_build_funding_valuation_falls_back_to_zero_when_nothing_recorded_before_the_date():
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    valuations = [HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2026, 1, 1), value=5000.0, currency="USD")]
+    # on_date is earlier than every recorded valuation -- nothing known yet at that point, so the baseline is 0.
+    val = build_funding_valuation(cash, valuations, amount=200.0, amount_currency="USD", on_date=date(2020, 1, 1), acting_user_id=cash.user_id)
+    assert val.value == -200.0
+
+
 def test_build_deposit_valuation_adds_income_to_latest_cash_balance():
     cash = _holding(asset_type="cash")
     cash.id = 9
@@ -471,6 +499,20 @@ def test_build_deposit_valuation_adds_income_to_latest_cash_balance():
     assert val.value == 8000.0
     assert val.currency == "USD"
     assert val.holding_id == 9
+
+
+def test_build_deposit_valuation_uses_balance_as_of_date_not_latest_overall():
+    # Same regression as build_funding_valuation: a backdated deposit
+    # (e.g. sell proceeds from an out-of-order CSV import row) must add
+    # onto the balance as of that date, not a later one.
+    cash = _holding(asset_type="cash")
+    cash.id = 9
+    valuations = [
+        HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2020, 1, 1), value=1000.0, currency="USD"),
+        HoldingValuation(holding_id=9, user_id=cash.user_id, valuation_date=date(2026, 1, 1), value=5000.0, currency="USD"),
+    ]
+    val = build_deposit_valuation(cash, valuations, amount=200.0, amount_currency="USD", on_date=date(2021, 6, 1), acting_user_id=cash.user_id)
+    assert val.value == 1200.0
 
 
 def test_build_deposit_valuation_converts_currency():
