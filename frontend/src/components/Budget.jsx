@@ -598,7 +598,7 @@ function SpendingLimitsCard({ currency, limitStatus }) {
     queryKey: ["budget-categories", currentHouseholdId],
     queryFn: () => fetchBudgetCategories({ householdId: currentHouseholdId }),
   });
-  const { data: limits } = useQuery({
+  const { data: limits, isLoading: limitsLoading } = useQuery({
     queryKey: ["budget-limits", currentHouseholdId],
     queryFn: () => fetchBudgetLimits({ householdId: currentHouseholdId }),
   });
@@ -633,7 +633,13 @@ function SpendingLimitsCard({ currency, limitStatus }) {
 
   return (
     <Card title="Spending Limits">
-      {!limits || limits.length === 0 ? (
+      {limitsLoading ? null : !limits || limits.length === 0 ? (
+        // Found live while QA-testing an unrelated fix: this card's own
+        // budget-limits query can resolve slower than the page's summary
+        // query, and while it's still in flight `limits` is undefined --
+        // indistinguishable from "confirmed empty" before this check,
+        // so real limits could flash an incorrect "No spending limits
+        // set yet" for a moment before the data arrived.
         <EmptyState message="No spending limits set yet." />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
