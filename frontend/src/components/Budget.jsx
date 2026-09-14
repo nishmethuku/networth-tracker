@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import useIsMobile from "../hooks/useIsMobile";
 import { useForm } from "react-hook-form";
@@ -126,7 +126,23 @@ function AddEntryForm({ categories, currency }) {
   const entryType = watch("entry_type");
   const categoryValue = watch("category");
   const isRecurring = watch("is_recurring");
-  const categoryOptions = entryType === "income" ? categories?.income || [] : categories?.expense || [];
+  const categoryOptions = useMemo(
+    () => (entryType === "income" ? categories?.income || [] : categories?.expense || []),
+    [entryType, categories],
+  );
+
+  // Regression: defaultValues.category was captured once at mount
+  // (categories?.expense?.[0]) -- if the categories query hadn't
+  // resolved yet, that was "", and it stayed "" forever once the query
+  // did resolve (a useForm default isn't reactive), leaving the select
+  // matching no option and an entry submitted with a blank category.
+  // Also covers switching the Income/Expense tab, which swaps
+  // categoryOptions out from under whatever was previously selected.
+  useEffect(() => {
+    if (categoryOptions.length > 0 && !categoryOptions.includes(categoryValue)) {
+      setValue("category", categoryOptions[0]);
+    }
+  }, [categoryOptions, categoryValue, setValue]);
 
   // Cash accounts to pay an expense out of — picking one adjusts that
   // account's balance automatically instead of updating it by hand later.
@@ -622,6 +638,15 @@ function SpendingLimitsCard({ currency, limitStatus }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
           {limits.map((limit) => {
+            // The backend's limit_status skips any limit whose currency
+            // doesn't match the page's selected currency (it can't compare
+            // spend in one currency against a cap in another), so status
+            // is undefined here for those -- previously that fell through
+            // to a "0%, under budget" progress bar formatted in the wrong
+            // currency (a $500 USD limit rendered as "₹0 / ₹500" after
+            // switching the page to INR) instead of explaining why there's
+            // nothing to show.
+            const mismatched = limit.currency !== currency;
             const status = statusByCategory[limit.category];
             const percent = status?.percent ?? 0;
             const barColor = percent >= 100 ? "var(--danger)" : percent >= 80 ? "var(--warning)" : "var(--success)";
@@ -630,10 +655,16 @@ function SpendingLimitsCard({ currency, limitStatus }) {
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem" }}>
                   <span style={{ color: "var(--text)" }}>{getBudgetCategoryLabel(limit.category)}</span>
                   <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                    <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                      {formatCurrencyForDisplay(status?.spent ?? 0, currency)} / {formatCurrencyForDisplay(limit.monthlyLimit, currency)}{" "}
-                      <span style={{ color: barColor }}>({Math.round(percent)}%)</span>
-                    </span>
+                    {mismatched ? (
+                      <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                        {formatCurrencyForDisplay(limit.monthlyLimit, limit.currency)} — switch to {limit.currency} to see progress
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                        {formatCurrencyForDisplay(status?.spent ?? 0, currency)} / {formatCurrencyForDisplay(limit.monthlyLimit, currency)}{" "}
+                        <span style={{ color: barColor }}>({Math.round(percent)}%)</span>
+                      </span>
+                    )}
                     <button
                       onClick={() => deleteMutation.mutate(limit.id)}
                       style={{
@@ -650,9 +681,11 @@ function SpendingLimitsCard({ currency, limitStatus }) {
                     </button>
                   </span>
                 </div>
-                <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${Math.min(percent, 100)}%`, background: barColor, borderRadius: 3 }} />
-                </div>
+                {!mismatched && (
+                  <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.min(percent, 100)}%`, background: barColor, borderRadius: 3 }} />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -802,7 +835,21 @@ export default function Budget() {
   if (isLoading) return <LoadingState message="Loading your budget..." />;
   if (isError) return <ErrorState error={error instanceof ApiError ? error.message : "Failed to load budget"} onRetry={refetch} />;
 
+  // "latest" is the most recent month that actually has entries, which
+  // isn't necessarily the real current month -- if nothing's been logged
+  // yet this month, it's last month's data. Showing that under a "This
+  // Month's ..." label read as current when it wasn't, so the top cards
+  // fall back to 0 (an accurate "nothing logged yet") instead, and the
+  // category/limit cards below relabel themselves with the actual month
+  // whenever they're not showing the real current month.
   const latest = summary?.months?.[summary.months.length - 1];
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const isCurrentMonth = latest?.month === currentMonthKey;
+  const thisMonth = isCurrentMonth ? latest : null;
+  const monthLabel = latest ? new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(`${latest.month}-01T00:00:00`)) : null;
+  const categoryBreakdownTitle =
+    isCurrentMonth || !monthLabel ? "This Month's Spending by Category" : `${monthLabel}'s Spending by Category`;
 
   return (
     <div>
@@ -839,12 +886,14 @@ export default function Budget() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
-        <Card title="This Month's Income" value={formatCurrencyCompact(latest?.income || 0, currency)} />
-        <Card title="This Month's Expenses" value={formatCurrencyCompact(latest?.expenses || 0, currency)} />
+        <Card title="This Month's Income" value={formatCurrencyCompact(thisMonth?.income || 0, currency)} />
+        <Card title="This Month's Expenses" value={formatCurrencyCompact(thisMonth?.expenses || 0, currency)} />
         <Card
           title="Net"
-          value={formatCurrencyCompact(latest?.net || 0, currency)}
-          subtitle={latest && latest.net >= 0 ? "You're ahead this month" : "Spending more than you're earning"}
+          value={formatCurrencyCompact(thisMonth?.net || 0, currency)}
+          subtitle={
+            thisMonth && thisMonth.net >= 0 ? "You're ahead this month" : thisMonth ? "Spending more than you're earning" : undefined
+          }
         />
       </div>
 
@@ -863,7 +912,7 @@ export default function Budget() {
             <MonthlyTrendChart months={summary.months} currency={currency} />
           )}
         </Card>
-        <Card title="This Month's Spending by Category">
+        <Card title={categoryBreakdownTitle}>
           <CategoryBreakdown breakdown={summary.category_breakdown} currency={currency} />
         </Card>
       </div>
@@ -883,7 +932,10 @@ export default function Budget() {
 
       <div style={{ marginBottom: "1.5rem" }}>
         <Card title="Add an entry">
-          <AddEntryForm categories={categories} currency={currency} />
+          {/* key={currency}: useForm's defaultValues is only read once at mount, so without a
+              remount here, switching the page's currency selector left the form silently
+              submitting new entries in whatever currency was selected when it first mounted. */}
+          <AddEntryForm key={currency} categories={categories} currency={currency} />
           <p style={{ marginTop: "1rem", fontSize: "0.8125rem" }}>
             <Link to="/import-bank-statement" style={{ color: "var(--primary)" }}>
               Import a bank or credit card statement instead →
