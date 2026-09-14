@@ -3,6 +3,7 @@ Daily net worth snapshot computation. Called by the /internal/snapshot
 endpoint, which a scheduled job (GitHub Actions cron) hits once a day.
 Upserts so a manual re-run for the same day is safe.
 """
+import logging
 from datetime import date
 from typing import Optional
 
@@ -10,6 +11,8 @@ from .holdings_service import QUANTITY_BASED_TYPES, list_holdings_with_metrics
 from .liability_service import total_liabilities_display
 from .milestone_service import detect_and_record_milestones
 from .models import Holding, Liability, NetWorthSnapshot, db
+
+logger = logging.getLogger(__name__)
 
 
 def _compute_totals(holdings, liabilities):
@@ -85,18 +88,38 @@ def _upsert_snapshot(user_id, household_id, snapshot_date, totals):
 
 def snapshot_all_users(snapshot_date: Optional[date] = None):
     """Compute and store one snapshot row per user with holdings, and one per
-    household with shared holdings, for the given date (default: today)."""
+    household with shared holdings, for the given date (default: today).
+
+    Each user/household is committed independently and a failure is caught,
+    logged, and skipped rather than left to propagate -- previously one bad
+    row anywhere (e.g. a Liability/BudgetEntry left behind by a deleted auth
+    user, which cascades to nothing since these tables have no DB-level FK
+    cascade -- see account_service.py's export/delete-all-data path, which
+    exists partly to avoid exactly this) aborted the single shared
+    transaction this ran in, silently failing the *entire* day's snapshot
+    for every real user, not just the one with bad data. Caught live: five
+    straight days of scheduled runs failing on one orphaned test Liability
+    row with no matching auth.users entry."""
     snapshot_date = snapshot_date or date.today()
 
     user_ids = {row[0] for row in db.session.query(Holding.user_id).distinct()}
     user_ids |= {row[0] for row in db.session.query(Liability.user_id).distinct()}
+    users_snapshotted = 0
+    failed_scopes = []
     for user_id in user_ids:
-        holdings = Holding.query.filter_by(user_id=user_id).all()
-        liabilities = Liability.query.filter_by(user_id=user_id).all()
-        totals = _compute_totals(holdings, liabilities)
-        previous_net_worth = _previous_net_worth(user_id, None, snapshot_date)
-        _upsert_snapshot(user_id=user_id, household_id=None, snapshot_date=snapshot_date, totals=totals)
-        detect_and_record_milestones(user_id, None, previous_net_worth, totals["total_net_worth"], snapshot_date)
+        try:
+            holdings = Holding.query.filter_by(user_id=user_id).all()
+            liabilities = Liability.query.filter_by(user_id=user_id).all()
+            totals = _compute_totals(holdings, liabilities)
+            previous_net_worth = _previous_net_worth(user_id, None, snapshot_date)
+            _upsert_snapshot(user_id=user_id, household_id=None, snapshot_date=snapshot_date, totals=totals)
+            detect_and_record_milestones(user_id, None, previous_net_worth, totals["total_net_worth"], snapshot_date)
+            db.session.commit()
+            users_snapshotted += 1
+        except Exception:
+            db.session.rollback()
+            logger.exception("Daily snapshot failed for user %s", user_id)
+            failed_scopes.append(f"user:{user_id}")
 
     household_ids = {
         row[0] for row in
@@ -106,13 +129,20 @@ def snapshot_all_users(snapshot_date: Optional[date] = None):
         row[0] for row in
         db.session.query(Liability.household_id).filter(Liability.household_id.isnot(None)).distinct()
     }
+    households_snapshotted = 0
     for household_id in household_ids:
-        holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
-        liabilities = Liability.query.filter_by(household_id=household_id, is_private=False).all()
-        totals = _compute_totals(holdings, liabilities)
-        previous_net_worth = _previous_net_worth(None, household_id, snapshot_date)
-        _upsert_snapshot(user_id=None, household_id=household_id, snapshot_date=snapshot_date, totals=totals)
-        detect_and_record_milestones(None, household_id, previous_net_worth, totals["total_net_worth"], snapshot_date)
+        try:
+            holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
+            liabilities = Liability.query.filter_by(household_id=household_id, is_private=False).all()
+            totals = _compute_totals(holdings, liabilities)
+            previous_net_worth = _previous_net_worth(None, household_id, snapshot_date)
+            _upsert_snapshot(user_id=None, household_id=household_id, snapshot_date=snapshot_date, totals=totals)
+            detect_and_record_milestones(None, household_id, previous_net_worth, totals["total_net_worth"], snapshot_date)
+            db.session.commit()
+            households_snapshotted += 1
+        except Exception:
+            db.session.rollback()
+            logger.exception("Daily snapshot failed for household %s", household_id)
+            failed_scopes.append(f"household:{household_id}")
 
-    db.session.commit()
-    return {"users_snapshotted": len(user_ids), "households_snapshotted": len(household_ids)}
+    return {"users_snapshotted": users_snapshotted, "households_snapshotted": households_snapshotted, "failed": failed_scopes}
