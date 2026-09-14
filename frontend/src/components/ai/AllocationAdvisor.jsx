@@ -97,9 +97,30 @@ export default function AllocationAdvisor() {
   }
 
   function useCurrentAsTarget() {
+    if (currentAllocation.length === 0 || totalNetWorth <= 0) {
+      const zeroed = {};
+      currentAllocation.forEach((a) => {
+        zeroed[a.label] = 0;
+      });
+      setTargets(zeroed);
+      return;
+    }
+    // Regression: rounding each slice independently could sum to 99 or
+    // 101 (e.g. three slices at ~33.3% each round to 33/33/33 = 99),
+    // which immediately failed this form's own "Total: 100%" validation
+    // right after clicking the button whose entire purpose is to seed a
+    // valid target -- unlike setSplitEvenly just above, which already
+    // accounts for its own remainder. Any rounding leftover here goes
+    // onto the largest slice, where a 1-point nudge is least noticeable.
+    const rounded = currentAllocation.map((a) => ({ label: a.label, value: Math.round((a.value / totalNetWorth) * 100) }));
+    const remainder = 100 - rounded.reduce((sum, r) => sum + r.value, 0);
+    if (remainder !== 0) {
+      const largest = rounded.reduce((max, r) => (r.value > max.value ? r : max), rounded[0]);
+      largest.value += remainder;
+    }
     const next = {};
-    currentAllocation.forEach((a) => {
-      next[a.label] = totalNetWorth > 0 ? Math.round((a.value / totalNetWorth) * 100) : 0;
+    rounded.forEach((r) => {
+      next[r.label] = r.value;
     });
     setTargets(next);
   }

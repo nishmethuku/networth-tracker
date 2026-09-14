@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computePeriodReturn, RETURN_RANGES } from "../periodReturn";
+import { computePeriodReturn, parseLocalDate, RETURN_RANGES } from "../periodReturn";
 
 const NOW = new Date("2026-06-15");
 const rangeIndexOf = (label) => RETURN_RANGES.findIndex((r) => r.label === label);
@@ -74,5 +74,23 @@ describe("computePeriodReturn", () => {
     ];
     const result = computePeriodReturn(series, rangeIndexOf("1M"), NOW);
     expect(result.pct).toBeNull();
+  });
+});
+
+describe("parseLocalDate", () => {
+  it("parses a YYYY-MM-DD series date as local midnight, not UTC midnight", () => {
+    // Regression: computePeriodReturn used to compare `new Date(r.date)`
+    // (UTC midnight, per the ISO date-string parsing spec) directly
+    // against `cutoff`/`jan1` (local-time Date objects) -- off by up to a
+    // day depending on the viewer's timezone offset from UTC. This
+    // asserts the fix's building block round-trips to the exact
+    // calendar date given, in whatever timezone the test happens to run
+    // in (unlike comparing timestamps directly, this holds regardless
+    // of the runner's own UTC offset).
+    const parsed = parseLocalDate("2026-06-08");
+    expect(parsed.getFullYear()).toBe(2026);
+    expect(parsed.getMonth()).toBe(5); // June, 0-indexed
+    expect(parsed.getDate()).toBe(8);
+    expect(parsed.getHours()).toBe(0);
   });
 });
