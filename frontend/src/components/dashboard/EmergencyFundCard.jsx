@@ -3,10 +3,10 @@ import Card from "../Card";
 import { fetchEmergencyFund } from "../../api";
 import { formatCurrencyCompact } from "../../utils/formatters";
 
-export default function EmergencyFundCard({ currency }) {
+export default function EmergencyFundCard({ currency, householdId }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["emergency-fund", currency],
-    queryFn: () => fetchEmergencyFund({ currency }),
+    queryKey: ["emergency-fund", currency, householdId],
+    queryFn: () => fetchEmergencyFund({ currency, householdId }),
   });
 
   // No Budget expense history yet -> nothing meaningful to show; stays

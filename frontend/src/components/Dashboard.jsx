@@ -312,7 +312,7 @@ export default function Dashboard() {
             </ErrorBoundary>
 
             <ErrorBoundary mode="section" fallbackMessage="Couldn't load emergency fund status.">
-              <EmergencyFundCard currency={currency} />
+              <EmergencyFundCard currency={currency} householdId={currentHouseholdId} />
             </ErrorBoundary>
           </div>
 

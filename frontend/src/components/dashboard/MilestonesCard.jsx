@@ -8,8 +8,11 @@ function formatAchievedDate(iso) {
   return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
-export default function MilestonesCard() {
-  const { data: milestones, isLoading } = useQuery({ queryKey: ["milestones"], queryFn: () => fetchMilestones() });
+export default function MilestonesCard({ householdId } = {}) {
+  const { data: milestones, isLoading } = useQuery({
+    queryKey: ["milestones", householdId],
+    queryFn: () => fetchMilestones({ householdId }),
+  });
 
   if (isLoading) return null;
 

@@ -7,6 +7,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import MonthlySnapshots from "./dashboard/MonthlySnapshots";
 import MonthlyNetFlow from "./dashboard/MonthlyNetFlow";
 import MilestonesCard from "./dashboard/MilestonesCard";
+import { useHousehold } from "../contexts/HouseholdContext";
 import { fetchNetWorthHistory, ApiError } from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -22,6 +23,7 @@ const inputStyle = {
 
 export default function Insights() {
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
+  const { currentHouseholdId } = useHousehold();
 
   const {
     data: history,
@@ -30,8 +32,11 @@ export default function Insights() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["net-worth-history", currency],
-    queryFn: () => fetchNetWorthHistory(null, currency),
+    // Regression: this hardcoded a null household, so a member viewing a
+    // shared household's Insights page (snapshots, net flow, milestones)
+    // saw their own personal numbers instead of the household's.
+    queryKey: ["net-worth-history", currency, currentHouseholdId],
+    queryFn: () => fetchNetWorthHistory(currentHouseholdId, currency),
   });
 
   if (isLoading) return <LoadingState message="Loading insights..." />;
@@ -64,7 +69,7 @@ export default function Insights() {
 
       <div style={{ marginBottom: "1.5rem" }}>
         <ErrorBoundary mode="section" fallbackMessage="Couldn't load milestones.">
-          <MilestonesCard />
+          <MilestonesCard householdId={currentHouseholdId} />
         </ErrorBoundary>
       </div>
 
@@ -79,7 +84,7 @@ export default function Insights() {
       <div style={{ marginBottom: "1.5rem" }}>
         <Card title="Monthly Net Flow" subtitle="Money in and out of each holding type, per month">
           <ErrorBoundary mode="section" fallbackMessage="Couldn't load monthly net flow.">
-            <MonthlyNetFlow currency={currency} />
+            <MonthlyNetFlow currency={currency} householdId={currentHouseholdId} />
           </ErrorBoundary>
         </Card>
       </div>

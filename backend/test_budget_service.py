@@ -53,6 +53,21 @@ def test_limits_to_the_trailing_n_months():
     assert [m["month"] for m in result["months"]] == ["2026-04", "2026-05", "2026-06"]
 
 
+def test_months_zero_returns_no_months_not_every_month():
+    # Regression: sorted(...)[-months:] with months=0 slices to [0:] --
+    # every month, not none. months is client-controlled (?months= on
+    # /budget/summary, unvalidated), so 0 is reachable.
+    entries = [_entry("income", date(2026, m, 1), 100, "paycheck") for m in range(1, 7)]
+    result = summarize_entries(entries, months=0)
+    assert result["months"] == []
+
+
+def test_negative_months_returns_no_months_not_a_front_dropped_slice():
+    entries = [_entry("income", date(2026, m, 1), 100, "paycheck") for m in range(1, 7)]
+    result = summarize_entries(entries, months=-1)
+    assert result["months"] == []
+
+
 def test_separates_entries_in_a_different_currency():
     entries = [
         _entry("income", date(2026, 3, 1), 1000, "paycheck", currency="USD"),

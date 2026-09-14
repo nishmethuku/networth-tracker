@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import Card from "./Card";
+import { useHousehold } from "../contexts/HouseholdContext";
 import { fetchDashboard } from "../api";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent } from "../utils/formatters";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -22,16 +23,24 @@ const labelStyle = { fontSize: "0.8125rem", color: "var(--text-secondary)", disp
 export default function WhatIf() {
   const currency = getDefaultDisplayCurrency();
   const isMobile = useIsMobile();
+  const { currentHouseholdId } = useHousehold();
+  // Same query key Dashboard.jsx uses (currency + household both
+  // included) -- shares its cache entry instead of a separate
+  // "-for-whatif" one that never varied by currency or household, so
+  // switching either here previously kept showing the first household/
+  // currency's figures: a member viewing a shared household's What-If
+  // page got seeded with their own personal net worth and XIRR instead
+  // of the household's.
   const { data: dashboard } = useQuery({
-    queryKey: ["dashboard-for-whatif"],
-    queryFn: () => fetchDashboard({ currency }),
+    queryKey: ["dashboard", currency, currentHouseholdId],
+    queryFn: () => fetchDashboard({ currency, householdId: currentHouseholdId }),
   });
 
   const suggestedRate = dashboard?.portfolioXirr != null ? Math.max(0, Math.round(dashboard.portfolioXirr * 1000) / 10) : 8;
 
   const [startingAmount, setStartingAmount] = useState(null);
   const [monthlyContribution, setMonthlyContribution] = useState(500);
-  const [annualRatePct, setAnnualRatePct] = useState(suggestedRate);
+  const [annualRatePct, setAnnualRatePct] = useState(null);
   const [years, setYears] = useState(20);
   const [showFire, setShowFire] = useState(false);
   const [annualExpenses, setAnnualExpenses] = useState(40000);
@@ -41,16 +50,24 @@ export default function WhatIf() {
   // only until the user actually edits the field — never silently
   // overwrites something they've already typed.
   const effectiveStarting = startingAmount ?? dashboard?.totalNetWorth ?? 0;
+  // Same pattern for the growth rate: suggestedRate is 8 (the fallback)
+  // on the very first render, before the dashboard query resolves --
+  // useState(suggestedRate) would freeze that 8 forever, since a
+  // useState initial value is only read on mount, not on every
+  // recompute. Deriving it live (null until the user actually edits the
+  // field) means it picks up the real XIRR-based figure once it loads.
+  const effectiveRate = annualRatePct ?? suggestedRate;
+  const clampedYears = Math.max(1, Math.min(60, Number(years) || 1));
 
   const points = useMemo(
     () =>
       projectNetWorth({
         startingAmount: effectiveStarting,
         monthlyContribution: Number(monthlyContribution) || 0,
-        annualRatePct: Number(annualRatePct) || 0,
-        years: Math.max(1, Math.min(60, Number(years) || 1)),
+        annualRatePct: Number(effectiveRate) || 0,
+        years: clampedYears,
       }),
-    [effectiveStarting, monthlyContribution, annualRatePct, years],
+    [effectiveStarting, monthlyContribution, effectiveRate, clampedYears],
   );
 
   const final = points[points.length - 1];
@@ -131,7 +148,7 @@ export default function WhatIf() {
                   type="number"
                   step="any"
                   style={inputStyle}
-                  value={annualRatePct}
+                  value={effectiveRate}
                   onChange={(e) => setAnnualRatePct(e.target.value)}
                 />
                 {dashboard?.portfolioXirr != null && (
@@ -213,7 +230,10 @@ export default function WhatIf() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1.25rem" }}>
-            <Card title={`Projected in ${years} yr${years == 1 ? "" : "s"}`} value={formatCurrencyCompact(final.value, currency)} />
+            <Card
+              title={`Projected in ${clampedYears} yr${clampedYears === 1 ? "" : "s"}`}
+              value={formatCurrencyCompact(final.value, currency)}
+            />
             <Card title="Total contributed" value={formatCurrencyCompact(final.contributed, currency)} />
             <Card
               title="Growth from returns"
@@ -224,7 +244,7 @@ export default function WhatIf() {
               <Card
                 title="FIRE number"
                 value={formatCurrencyCompact(fireTarget, currency)}
-                subtitle={fireYear != null ? `Reached in year ${fireYear}` : `Not reached within ${years} years`}
+                subtitle={fireYear != null ? `Reached in year ${fireYear}` : `Not reached within ${clampedYears} years`}
               />
             )}
           </div>

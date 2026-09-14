@@ -60,7 +60,12 @@ def summarize_entries(entries: List[BudgetEntry], months: int = 6, currency: str
         else:
             bucket["expenses"] += e.amount
 
-    ordered_months = sorted(by_month.keys())[-months:]
+    # A plain [-months:] slice misbehaves for non-positive months: with 0
+    # it's [0:] (every month, not none), and with a negative value it
+    # drops that many months off the *front* instead of returning fewer
+    # from the back. months is client-controlled (?months= on
+    # /budget/summary, unvalidated), so 0 or negative is reachable.
+    ordered_months = sorted(by_month.keys())[-months:] if months > 0 else []
     month_rows = []
     for key in ordered_months:
         bucket = by_month[key]
