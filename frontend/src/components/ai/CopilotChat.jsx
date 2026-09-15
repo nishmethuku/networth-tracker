@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { streamAiChat } from "../../api";
+import { useHousehold } from "../../contexts/HouseholdContext";
+import { getDefaultDisplayCurrency } from "../../hooks/useDisplayCurrencyPreference";
 
 const SUGGESTIONS = [
   "What's my net worth right now?",
@@ -56,6 +58,8 @@ export default function CopilotChat() {
   const [notConfigured, setNotConfigured] = useState(false);
   const abortRef = useRef(null);
   const scrollRef = useRef(null);
+  const { currentHouseholdId } = useHousehold();
+  const currency = getDefaultDisplayCurrency();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -91,7 +95,7 @@ export default function CopilotChat() {
 
     try {
       let assistantText = "";
-      for await (const chunk of streamAiChat({ messages: nextMessages }, controller.signal)) {
+      for await (const chunk of streamAiChat({ messages: nextMessages, householdId: currentHouseholdId, currency }, controller.signal)) {
         assistantText += chunk;
         setMessages((prev) => {
           const copy = [...prev];

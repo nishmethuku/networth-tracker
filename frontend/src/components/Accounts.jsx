@@ -52,6 +52,7 @@ export default function Accounts() {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       queryClient.invalidateQueries({ queryKey: ["net-worth-history"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success(result?.message || "Account and its holdings deleted");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete account"),
