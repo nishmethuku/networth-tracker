@@ -101,6 +101,22 @@ def render_digest_email(digest: dict, narrative: str = None, unsubscribe_token: 
         else ""
     )
 
+    # A gentle nudge, not a guilt trip -- only shown to someone who's used
+    # Budget before but has gone quiet for a while (see digest_service.py's
+    # NUDGE_AFTER_DAYS), folded into the digest they're already reading
+    # rather than a separate email/unsubscribe list of its own.
+    nudge_html = ""
+    if digest.get("needs_budget_nudge"):
+        days = digest.get("days_since_budget_entry")
+        days_text = f"in {days} days" if days is not None else "in a while"
+        nudge_html = (
+            f'<p style="margin-top:16px;padding:12px 16px;background:#fffbeb;border-radius:8px;'
+            f'border:1px solid #fde68a;font-size:13px;color:#92400e;">'
+            f"💡 You haven't logged any income or expenses {days_text} — a couple of minutes on the "
+            f"Budget page keeps this picture current."
+            f"</p>"
+        )
+
     return f"""
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
       <h2 style="color:#0f172a;">Your Weekly Net Worth Digest</h2>
@@ -111,6 +127,7 @@ def render_digest_email(digest: dict, narrative: str = None, unsubscribe_token: 
       </div>
       {f'<h3 style="color:#0f172a;">Top Movers</h3><ul>{movers_html}</ul>' if movers_html else ""}
       {backup_html}
+      {nudge_html}
       {unsubscribe_html}
     </div>
     """

@@ -49,6 +49,29 @@ def test_render_digest_email_mentions_backup_only_when_attached():
     assert "backup" not in without_backup.lower()
 
 
+def test_render_digest_email_shows_nudge_when_flagged():
+    digest = {
+        "net_worth": 1000.0, "change_this_week": None, "top_movers": [],
+        "needs_budget_nudge": True, "days_since_budget_entry": 12,
+    }
+    html = email_service.render_digest_email(digest)
+    assert "haven't logged any income or expenses" in html
+    assert "in 12 days" in html
+
+
+def test_render_digest_email_omits_nudge_when_not_flagged():
+    digest = {"net_worth": 1000.0, "change_this_week": None, "top_movers": [], "needs_budget_nudge": False}
+    html = email_service.render_digest_email(digest)
+    assert "haven't logged" not in html
+
+
+def test_render_digest_email_omits_nudge_by_default_without_the_field():
+    # digest dicts built before this feature existed (or any caller that
+    # doesn't pass it) must not crash or show a stray nudge.
+    html = email_service.render_digest_email({"net_worth": 1000.0, "change_this_week": None, "top_movers": []})
+    assert "haven't logged" not in html
+
+
 def test_render_digest_email_escapes_a_holding_name_in_top_movers():
     # Regression: a holding's name is freeform user-entered (or CSV/AI-
     # imported) text, not a fixed enum -- for a household digest it can be

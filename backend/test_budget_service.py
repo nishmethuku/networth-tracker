@@ -1,10 +1,12 @@
 import os
 import sys
 from datetime import date
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.budget_service import summarize_entries, summarize_subscriptions
+from backend import budget_service
+from backend.budget_service import most_recent_entry_date, summarize_entries, summarize_subscriptions
 from backend.models import BudgetEntry
 
 
@@ -165,6 +167,31 @@ def test_summarize_subscriptions_still_merges_same_description_across_months():
     result = summarize_subscriptions(entries)
     assert len(result["items"]) == 1
     assert result["items"][0]["amount"] == 2100.0
+
+
+def test_most_recent_entry_date_returns_the_latest_entry_date():
+    latest_entry = MagicMock(entry_date=date(2026, 8, 20))
+    mock_query = MagicMock()
+    mock_query.filter_by.return_value.order_by.return_value.first.return_value = latest_entry
+
+    with patch.object(budget_service, "BudgetEntry") as mock_model:
+        mock_model.query = mock_query
+        mock_model.entry_date.desc = MagicMock(return_value="desc")
+        result = most_recent_entry_date(user_id="u1")
+
+    assert result == date(2026, 8, 20)
+    mock_query.filter_by.assert_called_once_with(user_id="u1")
+
+
+def test_most_recent_entry_date_returns_none_when_nothing_logged():
+    mock_query = MagicMock()
+    mock_query.filter_by.return_value.order_by.return_value.first.return_value = None
+
+    with patch.object(budget_service, "BudgetEntry") as mock_model:
+        mock_model.query = mock_query
+        result = most_recent_entry_date(user_id="u1")
+
+    assert result is None
 
 
 if __name__ == "__main__":

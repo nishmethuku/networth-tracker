@@ -28,6 +28,17 @@ def _scoped_query(user_id=None, household_id=None):
     return BudgetEntry.query.filter_by(user_id=user_id)
 
 
+def most_recent_entry_date(user_id=None, household_id=None):
+    """The entry_date of the most recently logged entry in this scope
+    (any currency), or None if nothing's ever been logged. Used to nudge
+    a user who's used Budget before but has gone quiet -- deliberately
+    not scoped by currency the way summarize_entries is, since "have they
+    logged anything at all recently" shouldn't depend on which currency
+    the page happens to be viewing."""
+    latest = _scoped_query(user_id, household_id).order_by(BudgetEntry.entry_date.desc()).first()
+    return latest.entry_date if latest else None
+
+
 def get_monthly_summary(user_id=None, household_id=None, months: int = 6, currency: str = "USD") -> Dict:
     """Income/expense/net per month for the trailing `months`, plus a
     category breakdown for the most recent month with any activity.

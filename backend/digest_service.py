@@ -11,11 +11,19 @@ from sqlalchemy import text
 
 from . import ai_service
 from .account_service import export_user_data_csv_zip
+from .budget_service import most_recent_entry_date
 from .email_service import render_digest_email, send
 from .holdings_service import list_holdings_with_metrics
 from .liability_service import total_liabilities_display
 from .models import Holding, Household, Liability, NetWorthSnapshot, db
 from .unsubscribe_service import generate_unsubscribe_token, is_unsubscribed
+
+# A user who's logged a Budget entry before but gone quiet for at least
+# this many days gets a nudge folded into their digest -- manual-entry
+# finance data is the first thing to go stale, and a gentle reminder at a
+# moment they're already reading an email about their finances is cheaper
+# than a whole new email type/cron/unsubscribe list for it.
+NUDGE_AFTER_DAYS = 7
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +115,14 @@ def _build_digest_for_scope(user_id=None, household_id=None) -> Dict:
         household = Household.query.get(household_id)
         household_name = household.name if household else None
 
+    # Only nudge someone who's used Budget before but gone quiet -- never
+    # having logged anything at all is a discovery/onboarding question,
+    # not a lapsed-habit one, and nagging someone who's simply chosen not
+    # to use the feature would be presumptuous.
+    last_entry_date = most_recent_entry_date(user_id=user_id, household_id=household_id)
+    days_since_budget_entry = (date.today() - last_entry_date).days if last_entry_date else None
+    needs_budget_nudge = days_since_budget_entry is not None and days_since_budget_entry >= NUDGE_AFTER_DAYS
+
     return {
         "user_id": str(user_id) if user_id else None,
         "household_id": str(household_id) if household_id else None,
@@ -116,6 +132,8 @@ def _build_digest_for_scope(user_id=None, household_id=None) -> Dict:
         "top_movers": [
             {"name": m["name"], "unrealized_gain": round(m["display_unrealized_gain"], 2)} for m in movers[:3]
         ],
+        "needs_budget_nudge": needs_budget_nudge,
+        "days_since_budget_entry": days_since_budget_entry,
     }
 
 
@@ -139,25 +157,33 @@ def build_weekly_digest(send_emails: bool = True) -> List[Dict]:
     user_ids = {row[0] for row in db.session.query(Holding.user_id).distinct()}
     user_ids |= {row[0] for row in db.session.query(Liability.user_id).distinct()}
     for user_id in user_ids:
-        digest = _build_digest_for_scope(user_id=user_id)
-        digests.append(digest)
-        if send_emails:
-            recipients = [r for r in _recipients(user_id=user_id) if not is_unsubscribed(r["email"])]
-            narrative = _narrative_for_digest(digest, recipients[0]["name"]) if recipients else None
-            backup_zip = None
-            if recipients:
-                try:
-                    backup_zip = export_user_data_csv_zip(user_id)
-                except Exception as e:
-                    logger.error("Backup export failed for user %s: %s", user_id, e)
-            for r in recipients:
-                unsubscribe_token = generate_unsubscribe_token(r["email"])
-                send(
-                    r["email"],
-                    "Your Weekly Net Worth Digest",
-                    render_digest_email(digest, narrative=narrative, unsubscribe_token=unsubscribe_token, backup_attached=bool(backup_zip)),
-                    attachments=[("networth-tracker-backup.zip", backup_zip)] if backup_zip else None,
-                )
+        # One user's bad data/exception must not silently take down
+        # everyone else's digest for the week -- the exact bug class just
+        # fixed in snapshot_service.py's equivalent loop (a single
+        # unhandled failure aborted the whole shared-transaction batch).
+        try:
+            digest = _build_digest_for_scope(user_id=user_id)
+            digests.append(digest)
+            if send_emails:
+                recipients = [r for r in _recipients(user_id=user_id) if not is_unsubscribed(r["email"])]
+                narrative = _narrative_for_digest(digest, recipients[0]["name"]) if recipients else None
+                backup_zip = None
+                if recipients:
+                    try:
+                        backup_zip = export_user_data_csv_zip(user_id)
+                    except Exception as e:
+                        logger.error("Backup export failed for user %s: %s", user_id, e)
+                for r in recipients:
+                    unsubscribe_token = generate_unsubscribe_token(r["email"])
+                    send(
+                        r["email"],
+                        "Your Weekly Net Worth Digest",
+                        render_digest_email(digest, narrative=narrative, unsubscribe_token=unsubscribe_token, backup_attached=bool(backup_zip)),
+                        attachments=[("networth-tracker-backup.zip", backup_zip)] if backup_zip else None,
+                    )
+        except Exception:
+            db.session.rollback()
+            logger.exception("Weekly digest failed for user %s", user_id)
 
     household_ids = {
         row[0] for row in
@@ -168,17 +194,21 @@ def build_weekly_digest(send_emails: bool = True) -> List[Dict]:
         db.session.query(Liability.household_id).filter(Liability.household_id.isnot(None)).distinct()
     }
     for household_id in household_ids:
-        digest = _build_digest_for_scope(household_id=household_id)
-        digests.append(digest)
-        if send_emails:
-            recipients = [r for r in _recipients(household_id=household_id) if not is_unsubscribed(r["email"])]
-            narrative = _narrative_for_digest(digest, digest.get("household_name")) if recipients else None
-            for r in recipients:
-                unsubscribe_token = generate_unsubscribe_token(r["email"])
-                send(
-                    r["email"],
-                    "Your Weekly Household Net Worth Digest",
-                    render_digest_email(digest, narrative=narrative, unsubscribe_token=unsubscribe_token),
-                )
+        try:
+            digest = _build_digest_for_scope(household_id=household_id)
+            digests.append(digest)
+            if send_emails:
+                recipients = [r for r in _recipients(household_id=household_id) if not is_unsubscribed(r["email"])]
+                narrative = _narrative_for_digest(digest, digest.get("household_name")) if recipients else None
+                for r in recipients:
+                    unsubscribe_token = generate_unsubscribe_token(r["email"])
+                    send(
+                        r["email"],
+                        "Your Weekly Household Net Worth Digest",
+                        render_digest_email(digest, narrative=narrative, unsubscribe_token=unsubscribe_token),
+                    )
+        except Exception:
+            db.session.rollback()
+            logger.exception("Weekly digest failed for household %s", household_id)
 
     return digests
