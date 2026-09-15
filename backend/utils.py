@@ -431,10 +431,14 @@ def get_current_stock_price(ticker: str, asset_type: str = None):
     # Fetch fresh price
     price = _fetch_price_with_fallbacks(ticker, asset_type)
     
-    # Cache the result (even if None, to avoid repeated failed lookups)
-    if price is not None:
-        _PRICE_CACHE[cache_key] = (price, current_time)
-    
+    # Cache the result, including a failed (None) lookup -- a ticker with
+    # no resolvable price (delisted, wrong scheme code, every provider
+    # rate-limited) would otherwise re-run the entire multi-provider
+    # fallback chain on every single call within the TTL window instead
+    # of being cached as "unavailable" after the first attempt, which is
+    # exactly the rate-limit-abuse scenario this cache exists to prevent.
+    _PRICE_CACHE[cache_key] = (price, current_time)
+
     return price
 
 
