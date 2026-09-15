@@ -266,6 +266,20 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
 
     batch_holdings = {}  # holding_key -> Holding, for rows created earlier in this same import
     created_cash_holdings = {}  # lowercased source_account name -> Holding, same reasoning
+    # source_holding.id -> its valuations, fetched at most once per cash
+    # account per import rather than once per *row* referencing it. A
+    # 168-row CSV where most rows share a couple of funding accounts
+    # previously re-ran HoldingValuation.query...all() on every single
+    # one of those rows -- an O(rows) growing query, the dominant cost in
+    # a real import that measured at 17s locally (already over the
+    # frontend's 15s default timeout) and presumably longer against
+    # Render's actual network latency to Supabase. New valuations built
+    # during the loop are appended here directly instead of re-querying,
+    # which also preserves build_funding_valuation/build_deposit_
+    # valuation's need to see every prior valuation in this same batch
+    # (including out-of-order backdated rows) when computing the balance
+    # as of a given date.
+    valuations_cache: Dict[int, List[HoldingValuation]] = {}
     created = 0
     transactions_added = 0
     warnings = []
@@ -345,15 +359,19 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                     )
                     db.session.add(source_holding)
                     db.session.flush()
-                    db.session.add(HoldingValuation(
+                    seed_valuation = HoldingValuation(
                         holding_id=source_holding.id, user_id=user_id,
                         valuation_date=row["date"] - timedelta(days=1), value=0.0, currency=row["currency"],
-                    ))
+                    )
+                    db.session.add(seed_valuation)
+                    valuations_cache[source_holding.id] = [seed_valuation]
                     is_newly_created = True
                     created += 1
                 created_cash_holdings[source_key] = source_holding
 
-                source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
+                if source_holding.id not in valuations_cache:
+                    valuations_cache[source_holding.id] = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
+                source_valuations = valuations_cache[source_holding.id]
                 amount = row["quantity"] * row["price_per_unit"] if row["asset_type"] in QUANTITY_BASED_TYPES else row["value"]
                 verb = "deduct" if row["transaction_type"] == "buy" else "deposit into"
                 try:
@@ -365,6 +383,7 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                             source_holding, source_valuations, amount, row["currency"], row["date"], user_id, notes=proceeds_note
                         )
                     db.session.add(valuation)
+                    source_valuations.append(valuation)
                     if is_newly_created:
                         warnings.append(
                             f"'{row['source_account']}' didn't exist as a cash holding -- created it "

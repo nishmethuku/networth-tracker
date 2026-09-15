@@ -21,6 +21,16 @@ const COLD_START_TIMEOUT = 100000;
 // timeout rather than sharing the 15s default meant for ordinary DB-backed
 // requests (which was previously causing AI features to fail outright).
 export const AI_TIMEOUT = 60000;
+// Confirming a CSV import writes every row's holdings/transactions/
+// valuations in one request — legitimately slower than an ordinary GET/
+// write as the row count grows (a 168-row import measured at ~7s against
+// the real DB even after fixing an N+1 query in the funding/deposit-
+// account path; a much larger import, or a slower moment for the DB,
+// could still exceed the 15s default and either fail outright or trigger
+// the cold-start-retry heuristic on a backend that was never actually
+// cold, which shows a confusing "waking up the server" message for what
+// is really just a big write in progress).
+export const BULK_IMPORT_TIMEOUT = 60000;
 
 class ApiError extends Error {
   status: number;

@@ -2,7 +2,7 @@
  * Main API module - exports all API functions with data mapping
  */
 
-import api, { uploadWithColdStartRetry, AI_TIMEOUT, ApiError } from "./client";
+import api, { uploadWithColdStartRetry, AI_TIMEOUT, BULK_IMPORT_TIMEOUT, ApiError } from "./client";
 import { supabase } from "../lib/supabaseClient";
 import {
   mapHolding,
@@ -290,7 +290,7 @@ export async function smartImportParse(file: File, householdId: string | null = 
 }
 
 export async function smartImportConfirm(rows: any[], householdId: string | null = null) {
-  return api.post("/import/smart-confirm", { rows, household_id: householdId });
+  return api.post("/import/smart-confirm", { rows, household_id: householdId }, BULK_IMPORT_TIMEOUT);
 }
 
 /**
