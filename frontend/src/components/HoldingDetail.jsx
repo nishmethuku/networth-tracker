@@ -22,7 +22,7 @@ import {
   priceLookup,
   ApiError,
 } from "../api";
-import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatPercent, safeNumber, formatDateISO } from "../utils/formatters";
 import { getAssetTypeLabel, isQuantityBased, TRANSACTION_TYPES, isIncomeTransactionType } from "../constants/enums";
 import { computeTransactionTimeline } from "../utils/transactionTimeline";
 import { RETURN_RANGES, computePeriodReturn } from "../utils/periodReturn";
@@ -655,7 +655,7 @@ export default function HoldingDetail() {
                         const running = timeline[t.id];
                         return (
                           <tr key={t.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                            <td style={{ padding: "0.6rem" }}>{new Date(t.transactionDate).toLocaleDateString()}</td>
+                            <td style={{ padding: "0.6rem" }}>{formatDateISO(t.transactionDate)}</td>
                             <td
                               style={{
                                 padding: "0.6rem",
@@ -719,7 +719,7 @@ export default function HoldingDetail() {
                   <tbody>
                     {valuations.map((v) => (
                       <tr key={v.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                        <td style={{ padding: "0.6rem" }}>{new Date(v.valuationDate).toLocaleDateString()}</td>
+                        <td style={{ padding: "0.6rem" }}>{formatDateISO(v.valuationDate)}</td>
                         <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                           {formatCurrencyForDisplay(v.value, v.currency)}
                         </td>

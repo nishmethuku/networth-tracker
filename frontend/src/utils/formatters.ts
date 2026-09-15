@@ -12,6 +12,26 @@ export function safeNumber(value: unknown): number {
   return isNaN(num) ? 0 : num;
 }
 
+/** Formats a date as YYYY-MM-DD (ISO 8601) -- the one unambiguous
+ * international standard, used everywhere a full date is shown so
+ * nothing here depends on a browser's locale defaulting to day-first or
+ * month-first. Accepts either the API's own "YYYY-MM-DD" (optionally
+ * with a time component) date strings, in which case this just takes the
+ * date portion directly rather than round-tripping through a Date object
+ * (avoiding the UTC-vs-local parsing pitfall that a real Date object
+ * would introduce for a plain date string), or an actual Date object for
+ * the rare case one's already in hand client-side. */
+export function formatDateISO(value: string | Date | null | undefined): string {
+  if (value == null) return "";
+  if (typeof value === "string") {
+    return value.slice(0, 10);
+  }
+  const y = value.getFullYear();
+  const m = String(value.getMonth() + 1).padStart(2, "0");
+  const d = String(value.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
   AUD: "$",

@@ -5,7 +5,7 @@ import NumericInput from "./NumericInput";
 import { useForm } from "react-hook-form";
 import { useToast } from "../contexts/ToastContext";
 import { fetchSipProjection, updateHolding, ApiError } from "../api";
-import { formatCurrencyForDisplay } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 
 const YEAR_OPTIONS = [5, 10, 15, 20, 25];
 
@@ -205,7 +205,7 @@ export default function SipCard({ holding }) {
                   color: "var(--text)",
                 }}
               >
-                {new Date(d).toLocaleDateString()}
+                {formatDateISO(d)}
               </span>
             ))}
           </div>

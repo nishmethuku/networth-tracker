@@ -45,6 +45,24 @@ def test_unambiguous_date_still_parses_correctly():
     assert result["rows"][0]["date"] == "2020-08-13"
 
 
+def test_iso_yyyy_mm_dd_date_parses_correctly_even_though_ambiguous_formats_are_tried_too():
+    # yyyy-mm-dd is the documented/recommended format -- must parse as
+    # itself, not get misread as day-first, even though day-first formats
+    # are also in DATE_FORMATS. A 4-digit leading year can never actually
+    # satisfy a day-first pattern (%d caps at 2 digits/31 max), so this is
+    # safe regardless of DATE_FORMATS ordering, but this test pins the
+    # behavior dad specifically asked for.
+    csv_text = HEADER + "Stocks,Amma,,AJANTPHARM,Buy,2020-08-07,45,948.89,INR,India\n"
+    result = parse_simple_csv(csv_text)
+    assert result["rows"][0]["date"] == "2020-08-07"
+
+
+def test_iso_slash_yyyy_mm_dd_date_parses_correctly():
+    csv_text = HEADER + "Stocks,Amma,,AJANTPHARM,Buy,2020/08/07,45,948.89,INR,India\n"
+    result = parse_simple_csv(csv_text)
+    assert result["rows"][0]["date"] == "2020-08-07"
+
+
 def test_holding_type_aliases_map_to_valid_asset_types():
     csv_text = HEADER + (
         "Precious Metals,ABC,,Gold,Buy,1/1/2024,2,100000,INR,India\n"

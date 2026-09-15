@@ -69,16 +69,23 @@ ASSET_TYPE_ALIASES = {
     "credit": "credit", "credit given": "credit", "lent": "credit",
 }
 
-# Formats tried in order -- day-first before month-first, since this is
-# built for an Indian-context user base where 7/8/2020 means 7 Aug, not
-# Jul 8. An unambiguous date (day > 12) parses correctly regardless of
-# order; only the truly ambiguous case (both day and month <= 12) is
-# affected by this ordering. The %d-%b-* / %d %b * forms cover the format
-# Excel/Sheets often auto-renders a typed date column as (e.g. "7-Aug-2020")
-# even after "Save as CSV" -- a real source of "the import doesn't work"
-# reports, since none of the purely-numeric formats above match that text.
+# yyyy-mm-dd (ISO 8601) is the documented, recommended format -- tried
+# first, and it's always safe to try first since it's inherently
+# unambiguous: %d's own match pattern caps at 2 digits/31 max, so a
+# 4-digit leading year can never accidentally satisfy a day-first format
+# instead. Everything after it is a fallback for files that don't follow
+# the documented format -- day-first before month-first, since this was
+# originally built for an Indian-context user base where 7/8/2020 means
+# 7 Aug, not Jul 8. An unambiguous date (day > 12) parses correctly
+# regardless of that ordering; only the truly ambiguous case (both day
+# and month <= 12) is affected by it. The %d-%b-* / %d %b * forms cover
+# the format Excel/Sheets often auto-renders a typed date column as (e.g.
+# "7-Aug-2020") even after "Save as CSV" -- a real source of "the import
+# doesn't work" reports, since none of the purely-numeric formats above
+# match that text.
 DATE_FORMATS = [
-    "%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%d-%m-%y", "%d/%m/%y", "%m/%d/%Y", "%m/%d/%y",
+    "%Y-%m-%d", "%Y/%m/%d",
+    "%d-%m-%Y", "%d/%m/%Y", "%d-%m-%y", "%d/%m/%y", "%m/%d/%Y", "%m/%d/%y",
     "%d.%m.%Y", "%d.%m.%y",
     "%d-%b-%Y", "%d-%b-%y", "%d %b %Y", "%d %b %y", "%d-%B-%Y", "%d %B %Y",
 ]

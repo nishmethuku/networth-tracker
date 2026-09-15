@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { formatCurrencyForDisplay } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { getAssetTypeLabel, isIncomeTransactionType } from "../constants/enums";
 
 export default function TransactionCard({ t }) {
@@ -12,7 +12,7 @@ export default function TransactionCard({ t }) {
             {t.holdingSymbol || t.holdingName}
           </Link>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            {getAssetTypeLabel(t.assetType)} • {new Date(t.transactionDate).toLocaleDateString()}
+            {getAssetTypeLabel(t.assetType)} • {formatDateISO(t.transactionDate)}
           </div>
         </div>
         <span

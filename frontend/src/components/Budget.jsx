@@ -29,7 +29,7 @@ import {
 } from "../api";
 import { getBudgetCategoryLabel, getAssetTypeLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
-import { formatCurrencyForDisplay, formatCurrencyCompact } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatCurrencyCompact, formatDateISO } from "../utils/formatters";
 
 const RECURRING_FREQUENCIES = [
   { value: "weekly", label: "Weekly" },
@@ -574,7 +574,7 @@ function SubscriptionsCard({ currency }) {
                   {item.description || getBudgetCategoryLabel(item.category)}
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  {item.frequency} · next due {item.next_due ? new Date(item.next_due).toLocaleDateString() : "—"}
+                  {item.frequency} · next due {item.next_due ? formatDateISO(item.next_due) : "—"}
                 </div>
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)" }}>
@@ -973,7 +973,7 @@ export default function Budget() {
                       {getBudgetCategoryLabel(e.category)}
                       {e.description ? ` — ${e.description}` : ""}
                     </div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{new Date(e.entryDate).toLocaleDateString()}</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{formatDateISO(e.entryDate)}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                     <span

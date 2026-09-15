@@ -10,7 +10,7 @@ import VirtualTransactionList from "./VirtualTransactionList";
 import TransactionCard from "./TransactionCard";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { formatCurrencyForDisplay } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, getAssetTypeLabel } from "../constants/enums";
 
 const VIRTUALIZE_THRESHOLD = 50;
@@ -137,7 +137,7 @@ export default function Transactions() {
               <tbody>
                 {transactions.map((t) => (
                   <tr key={t.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                    <td style={{ padding: "0.75rem 0.5rem" }}>{new Date(t.transactionDate).toLocaleDateString()}</td>
+                    <td style={{ padding: "0.75rem 0.5rem" }}>{formatDateISO(t.transactionDate)}</td>
                     <td style={{ padding: "0.75rem 0.5rem" }}>
                       <Link to={`/portfolio/${t.holdingId}`} style={{ fontWeight: 600 }}>
                         {t.holdingSymbol || t.holdingName}

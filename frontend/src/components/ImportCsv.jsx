@@ -120,7 +120,7 @@ export default function ImportCsv() {
             </thead>
             <tbody>
               <tr>
-                {["Stocks", "Amma", "Amma-Bank1", "AJANTPHARM", "Buy", "7/8/2020", "45", "948.89", "INR", "India"].map((v, i) => (
+                {["Stocks", "Amma", "Amma-Bank1", "AJANTPHARM", "Buy", "2020-08-07", "45", "948.89", "INR", "India"].map((v, i) => (
                   <td key={i} style={{ padding: "0.25rem 0.6rem" }}>
                     {v}
                   </td>
@@ -143,7 +143,9 @@ export default function ImportCsv() {
             <strong style={{ color: "var(--text)" }}>Holding Account</strong> — where the position lives (a brokerage, a person's name,
             whatever you use). Created automatically if it doesn't already exist.
           </li>
-          <li>Dates are read day-first (7/8/2020 = 7 Aug 2020).</li>
+          <li>
+            Dates should be yyyy-mm-dd (2020-08-07 = 7 Aug 2020) — other common formats like dd/mm/yyyy are also accepted, read day-first.
+          </li>
           <li>
             For Real Estate, Fixed Deposit, PPF, EPF, Retirals, Cash, Loan, or Credit — things you don't buy/sell in units — leave
             Transaction and Transaction Units blank and just put the current total value in Transaction price.

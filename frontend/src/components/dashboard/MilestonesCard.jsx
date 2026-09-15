@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import Card from "../Card";
 import EmptyState from "../EmptyState";
 import { fetchMilestones } from "../../api";
-import { formatCurrencyCompact } from "../../utils/formatters";
+import { formatCurrencyCompact, formatDateISO } from "../../utils/formatters";
 
 function formatAchievedDate(iso) {
-  return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return formatDateISO(iso);
 }
 
 export default function MilestonesCard({ householdId } = {}) {

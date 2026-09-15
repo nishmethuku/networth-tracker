@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { formatCurrencyForDisplay } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { getAssetTypeLabel } from "../constants/enums";
 
 const ROW_HEIGHT = 56;
@@ -66,7 +66,7 @@ export default function VirtualTransactionList({ transactions }) {
                   borderBottom: "1px solid var(--border-light)",
                 }}
               >
-                <div>{new Date(t.transactionDate).toLocaleDateString()}</div>
+                <div>{formatDateISO(t.transactionDate)}</div>
                 <div>
                   <Link to={`/portfolio/${t.holdingId}`} style={{ fontWeight: 600 }}>
                     {t.holdingSymbol || t.holdingName}

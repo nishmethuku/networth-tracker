@@ -7,6 +7,7 @@ import {
   formatPercent,
   formatNumber,
   formatCompactNumber,
+  formatDateISO,
 } from "../formatters";
 
 describe("safeNumber", () => {
@@ -20,6 +21,22 @@ describe("safeNumber", () => {
     expect(safeNumber(null)).toBe(0);
     expect(safeNumber(undefined)).toBe(0);
     expect(safeNumber("not a number")).toBe(0);
+  });
+});
+
+describe("formatDateISO", () => {
+  it("takes the date portion of an API date string as-is", () => {
+    expect(formatDateISO("2026-08-25")).toBe("2026-08-25");
+  });
+  it("truncates a date string that has a time component", () => {
+    expect(formatDateISO("2026-08-25T00:00:00Z")).toBe("2026-08-25");
+  });
+  it("formats a Date object using its local component values", () => {
+    expect(formatDateISO(new Date(2026, 7, 5))).toBe("2026-08-05");
+  });
+  it("returns an empty string for null/undefined", () => {
+    expect(formatDateISO(null)).toBe("");
+    expect(formatDateISO(undefined)).toBe("");
   });
 });
 
