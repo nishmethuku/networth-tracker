@@ -25,7 +25,15 @@ export default function AnimatedNumber({ value, format, duration = 0.6 }) {
     const start = performance.now();
     function tick(now) {
       const elapsed = (now - start) / 1000;
-      const t = Math.min(elapsed / duration, 1);
+      // Clamp both ends, not just the upper one -- requestAnimationFrame's
+      // `now` timestamp and performance.now() are guaranteed to share the
+      // same monotonic clock in a real browser, so elapsed is normally
+      // never negative, but jsdom's rAF polyfill (notably under CI, where
+      // this was observed producing wildly wrong displayed values like
+      // -1836) doesn't always honor that. An unclamped negative t sends
+      // the cubic ease-out (1 - (1-t)^3) to a huge negative number instead
+      // of gracefully starting from 0.
+      const t = Math.max(0, Math.min(elapsed / duration, 1));
       const eased = 1 - Math.pow(1 - t, 3);
       setDisplay(from + (to - from) * eased);
       if (t < 1) {
