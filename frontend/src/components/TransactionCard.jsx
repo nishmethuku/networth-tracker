@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { getAssetTypeLabel, isIncomeTransactionType } from "../constants/enums";
 
-export default function TransactionCard({ t }) {
+export default function TransactionCard({ t, onEdit, onDelete }) {
   const isIncome = isIncomeTransactionType(t.transactionType);
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "0.875rem 1rem" }}>
@@ -44,6 +44,33 @@ export default function TransactionCard({ t }) {
         )}
         <span style={{ fontWeight: 700, color: "var(--text)" }}>{formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}</span>
       </div>
+      {(onEdit || onDelete) && (
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              style={{
+                flex: 1,
+                fontSize: "0.8125rem",
+                background: "transparent",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+                padding: "0.4rem 0",
+              }}
+            >
+              Edit
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              style={{ flex: 1, fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.4rem 0" }}
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

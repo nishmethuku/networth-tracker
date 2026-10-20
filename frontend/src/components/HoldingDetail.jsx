@@ -10,6 +10,8 @@ import { useToast } from "../contexts/ToastContext";
 import SipCard from "./SipCard";
 import AddTransactionForm from "./AddTransactionForm";
 import EditHoldingForm from "./EditHoldingForm";
+import EditTransactionModal from "./EditTransactionModal";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import {
   fetchHolding,
   fetchHoldingTransactions,
@@ -186,6 +188,8 @@ export default function HoldingDetail() {
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [editingTx, setEditingTx] = useState(null);
+  const [deletingTx, setDeletingTx] = useState(null);
   const toast = useToast();
 
   const {
@@ -241,8 +245,12 @@ export default function HoldingDetail() {
       queryClient.invalidateQueries({ queryKey: ["holding-transactions", id] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       toast.success("Transaction deleted");
+      setDeletingTx(null);
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete transaction"),
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete transaction");
+      setDeletingTx(null);
+    },
   });
 
   const deleteValMutation = useMutation({
@@ -457,9 +465,22 @@ export default function HoldingDetail() {
                                 ? `${running.cumulativeRealizedGain >= 0 ? "+" : ""}${formatCurrencyForDisplay(running.cumulativeRealizedGain, t.currency)}`
                                 : "—"}
                             </td>
-                            <td style={{ padding: "0.6rem" }}>
+                            <td style={{ padding: "0.6rem", whiteSpace: "nowrap" }}>
                               <button
-                                onClick={() => deleteTxMutation.mutate(t.id)}
+                                onClick={() => setEditingTx(t)}
+                                style={{
+                                  fontSize: "0.75rem",
+                                  background: "transparent",
+                                  border: "1px solid var(--border)",
+                                  color: "var(--text)",
+                                  padding: "0.3rem 0.6rem",
+                                  marginRight: "0.35rem",
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => setDeletingTx(t)}
                                 style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}
                               >
                                 Delete
@@ -510,6 +531,15 @@ export default function HoldingDetail() {
           )}
         </div>
       </div>
+
+      {editingTx && <EditTransactionModal transaction={editingTx} onClose={() => setEditingTx(null)} />}
+      <ConfirmDeleteModal
+        isOpen={!!deletingTx}
+        title="Delete Transaction?"
+        assetName={deletingTx ? `this ${deletingTx.transactionType}` : ""}
+        onConfirm={() => deleteTxMutation.mutate(deletingTx.id)}
+        onCancel={() => setDeletingTx(null)}
+      />
     </div>
   );
 }

@@ -46,9 +46,9 @@ function matchesFilterSpec(h, spec) {
 const SORT_ACCESSORS = {
   name: (h) => (h.symbol || h.name || "").toLowerCase(),
   quantity: (h) => h.quantity,
-  avgCost: (h) => h.avgCost,
-  costBasis: (h) => h.costBasis,
-  currentPrice: (h) => h.currentPrice,
+  avgCost: (h) => (h.quantity && h.displayCostBasis != null ? h.displayCostBasis / h.quantity : null),
+  costBasis: (h) => h.displayCostBasis,
+  currentPrice: (h) => (h.quantity && h.displayValue != null ? h.displayValue / h.quantity : null),
   value: (h) => h.displayValue,
   gain: (h) => (isQuantityBased(h.assetType) ? h.displayTotalGain : h.displayGain),
   xirr: (h) => h.xirr,
@@ -162,19 +162,28 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
                     {h.quantity != null ? h.quantity.toFixed(4) : "—"}
                   </td>
                 )}
+                {/* Avg Cost, Cost Basis, and Current Price all render in the
+                    selected display currency, matching Value/Gain in the same
+                    row -- showing a holding's own native currency here while
+                    Value/Gain used the display currency mixed ₹ and $ in the
+                    same row for an NSE stock being viewed in USD. */}
                 {quantityBased && (
                   <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
-                    {h.avgCost != null ? formatCurrencyForDisplay(h.avgCost, h.currency, { includeCode: false }) : "—"}
+                    {h.quantity && h.displayCostBasis != null
+                      ? formatCurrencyForDisplay(h.displayCostBasis / h.quantity, currency, { includeCode: false })
+                      : "—"}
                   </td>
                 )}
                 {quantityBased && (
                   <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
-                    {h.costBasis != null ? formatCurrencyForDisplay(h.costBasis, h.currency, { includeCode: false }) : "—"}
+                    {h.displayCostBasis != null ? formatCurrencyForDisplay(h.displayCostBasis, currency, { includeCode: false }) : "—"}
                   </td>
                 )}
                 {quantityBased && (
                   <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 500 }}>
-                    {h.currentPrice != null ? formatCurrencyForDisplay(h.currentPrice, h.currency, { includeCode: false }) : "—"}
+                    {h.quantity && h.displayValue != null
+                      ? formatCurrencyForDisplay(h.displayValue / h.quantity, currency, { includeCode: false })
+                      : "—"}
                   </td>
                 )}
                 <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>

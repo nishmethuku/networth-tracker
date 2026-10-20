@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import { isQuantityBased } from "../constants/enums";
+import { holdingGrowthPct } from "../utils/holdingReturns";
 
 const SWIPE_THRESHOLD = -80;
 
@@ -16,8 +17,10 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
   const positive = safeNumber(gain) >= 0;
   // XIRR is annualized; this is the plain total return since purchase (e.g.
   // 100 -> 120 over 6 months is +20% growth, but a much higher XIRR since
-  // XIRR extrapolates that pace out to a full year).
-  const growthPct = quantityBased && h.costBasis ? (h.totalGain / h.costBasis) * 100 : null;
+  // XIRR extrapolates that pace out to a full year). Shared with the
+  // desktop table so a near-zero cost basis shows "n/a" here too, instead
+  // of a meaningless six-figure percentage.
+  const growthPct = holdingGrowthPct(h);
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: "var(--radius)" }}>

@@ -5,7 +5,7 @@ import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { getAssetTypeLabel } from "../constants/enums";
 
 const ROW_HEIGHT = 56;
-const COLUMNS = "1fr 1.6fr 0.9fr 1fr 1.2fr 1.2fr";
+const COLUMNS = "1fr 1.6fr 0.9fr 1fr 1.2fr 1.2fr 1.3fr";
 
 /**
  * Virtualized replacement for a plain <table> once the transaction log gets
@@ -13,7 +13,7 @@ const COLUMNS = "1fr 1.6fr 0.9fr 1fr 1.2fr 1.2fr";
  * viewport are ever mounted, so the list stays fast at any length instead
  * of degrading linearly with row count.
  */
-export default function VirtualTransactionList({ transactions }) {
+export default function VirtualTransactionList({ transactions, onEdit, onDelete }) {
   const parentRef = useRef(null);
 
   const virtualizer = useVirtualizer({
@@ -43,6 +43,7 @@ export default function VirtualTransactionList({ transactions }) {
         <div>Quantity</div>
         <div>Price</div>
         <div>Total</div>
+        <div>Actions</div>
       </div>
       <div ref={parentRef} style={{ height: "min(70vh, 640px)", overflow: "auto" }}>
         <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -86,6 +87,26 @@ export default function VirtualTransactionList({ transactions }) {
                 <div style={{ fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                   {formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
+                </div>
+                <div style={{ display: "flex", gap: "0.4rem" }}>
+                  <button
+                    onClick={() => onEdit?.(t)}
+                    style={{
+                      fontSize: "0.75rem",
+                      background: "transparent",
+                      border: "1px solid var(--border)",
+                      color: "var(--text)",
+                      padding: "0.3rem 0.6rem",
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => onDelete?.(t)}
+                    style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             );

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { fetchAllTransactions, fetchHoldings, ApiError } from "../api";
+import { fetchAllTransactions, fetchHoldings, deleteTransaction, ApiError } from "../api";
 import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
@@ -9,6 +9,9 @@ import EmptyState from "./EmptyState";
 import VirtualTransactionList from "./VirtualTransactionList";
 import TransactionCard from "./TransactionCard";
 import AddTransactionForm from "./AddTransactionForm";
+import EditTransactionModal from "./EditTransactionModal";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import { useToast } from "../contexts/ToastContext";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
@@ -32,8 +35,28 @@ export default function Transactions() {
   const [page, setPage] = useState(1);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedHoldingId, setSelectedHoldingId] = useState("");
+  const [editingTx, setEditingTx] = useState(null);
+  const [deletingTx, setDeletingTx] = useState(null);
   const isMobile = useIsMobile();
   const { currentHouseholdId } = useHousehold();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: (tx) => deleteTransaction(tx.id),
+    onSuccess: (_, tx) => {
+      queryClient.invalidateQueries({ queryKey: ["holding", String(tx.holdingId)] });
+      queryClient.invalidateQueries({ queryKey: ["holding-transactions", String(tx.holdingId)] });
+      queryClient.invalidateQueries({ queryKey: ["holdings"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      toast.success("Transaction deleted");
+      setDeletingTx(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't delete that transaction");
+      setDeletingTx(null);
+    },
+  });
 
   const {
     data: result,
@@ -207,12 +230,12 @@ export default function Transactions() {
       ) : isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
           {transactions.map((t) => (
-            <TransactionCard key={t.id} t={t} />
+            <TransactionCard key={t.id} t={t} onEdit={() => setEditingTx(t)} onDelete={() => setDeletingTx(t)} />
           ))}
         </div>
       ) : transactions.length > VIRTUALIZE_THRESHOLD ? (
         <Card>
-          <VirtualTransactionList transactions={transactions} />
+          <VirtualTransactionList transactions={transactions} onEdit={setEditingTx} onDelete={setDeletingTx} />
         </Card>
       ) : (
         <Card>
@@ -226,6 +249,7 @@ export default function Transactions() {
                   <th style={{ padding: "0.75rem 0.5rem" }}>Quantity</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>Price</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>Total</th>
+                  <th style={{ padding: "0.75rem 0.5rem" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,6 +279,27 @@ export default function Transactions() {
                     <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                       {formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
                     </td>
+                    <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }}>
+                      <button
+                        onClick={() => setEditingTx(t)}
+                        style={{
+                          fontSize: "0.8125rem",
+                          background: "transparent",
+                          border: "1px solid var(--border)",
+                          color: "var(--text)",
+                          padding: "0.35rem 0.75rem",
+                          marginRight: "0.4rem",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeletingTx(t)}
+                        style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.35rem 0.75rem" }}
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -262,6 +307,15 @@ export default function Transactions() {
           </div>
         </Card>
       )}
+
+      {editingTx && <EditTransactionModal transaction={editingTx} onClose={() => setEditingTx(null)} />}
+      <ConfirmDeleteModal
+        isOpen={!!deletingTx}
+        title="Delete Transaction?"
+        assetName={deletingTx ? `this ${deletingTx.transactionType} of ${deletingTx.holdingSymbol || deletingTx.holdingName}` : ""}
+        onConfirm={() => deleteMutation.mutate(deletingTx)}
+        onCancel={() => setDeletingTx(null)}
+      />
 
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1rem", marginTop: "1.25rem" }}>
