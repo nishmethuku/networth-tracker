@@ -103,6 +103,8 @@ from .sip_service import project_future_value as project_sip_future_value
 from .smart_import_service import confirm_smart_import, parse_spreadsheet
 from .snapshot_service import snapshot_all_users
 from .tax_service import COST_BASIS_METHODS, TAX_DISCLAIMER, get_tax_summary
+from .unsubscribe_service import is_unsubscribed
+from .unsubscribe_service import resubscribe as resubscribe_email
 from .unsubscribe_service import unsubscribe as unsubscribe_email
 from .unsubscribe_service import verify_unsubscribe_token
 from .utils import FINNHUB_API_KEY
@@ -1847,6 +1849,25 @@ def create_app():
             return jsonify({"error": "Type DELETE to confirm this action"}), 400
         result = delete_all_user_data(g.user_id)
         return jsonify(result)
+
+    @app.route("/account/digest-subscription", methods=["GET"])
+    @require_auth
+    def get_digest_subscription():
+        """Backs the Settings-page toggle — reads the same email_unsubscribes
+        row the one-click link in the digest email itself writes to."""
+        if not g.user_email:
+            return jsonify({"subscribed": False}), 200
+        return jsonify({"subscribed": not is_unsubscribed(g.user_email)}), 200
+
+    @app.route("/account/digest-subscription", methods=["PUT"])
+    @require_auth
+    def set_digest_subscription():
+        if not g.user_email:
+            return jsonify({"error": "This account has no email on file"}), 400
+        data = request.get_json(force=True)
+        subscribed = bool(data.get("subscribed"))
+        (resubscribe_email if subscribed else unsubscribe_email)(g.user_email)
+        return jsonify({"subscribed": subscribed}), 200
 
     # ---------------- BUDGET (income / expenses — independent of net worth) ----------------
 

@@ -587,6 +587,14 @@ export async function deleteAllAccountData() {
   return api.delete("/account/data", { confirm: "DELETE" });
 }
 
+export async function fetchDigestSubscription(): Promise<{ subscribed: boolean }> {
+  return api.get("/account/digest-subscription");
+}
+
+export async function setDigestSubscription(subscribed: boolean): Promise<{ subscribed: boolean }> {
+  return api.put("/account/digest-subscription", { subscribed });
+}
+
 /**
  * SIP (recurring investment) projection.
  */

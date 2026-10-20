@@ -1,14 +1,23 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import Card from "./Card";
 import TwoFactorCard from "./TwoFactorCard";
+import ChangePasswordCard from "./ChangePasswordCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
-import { fetchAccountExport, fetchAccountExportCsvZip, restoreAccountData, deleteAllAccountData, ApiError } from "../api";
+import {
+  fetchAccountExport,
+  fetchAccountExportCsvZip,
+  restoreAccountData,
+  deleteAllAccountData,
+  fetchDigestSubscription,
+  setDigestSubscription,
+  ApiError,
+} from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { SUPPORTED_LANGUAGES, setLanguage } from "../i18n";
 
@@ -76,6 +85,20 @@ export default function Settings() {
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Export failed"),
     onSettled: () => setExportingCsv(false),
+  });
+
+  const { data: digestSubscription } = useQuery({
+    queryKey: ["digest-subscription"],
+    queryFn: fetchDigestSubscription,
+  });
+
+  const digestMutation = useMutation({
+    mutationFn: setDigestSubscription,
+    onSuccess: (result) => {
+      queryClient.setQueryData(["digest-subscription"], result);
+      toast.success(result.subscribed ? "Weekly digest emails turned on" : "Weekly digest emails turned off");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Couldn't update that setting"),
   });
 
   const restoreMutation = useMutation({
@@ -161,6 +184,10 @@ export default function Settings() {
       </div>
 
       <div style={sectionStyle}>
+        <ChangePasswordCard />
+      </div>
+
+      <div style={sectionStyle}>
         <TwoFactorCard />
       </div>
 
@@ -220,11 +247,22 @@ export default function Settings() {
       <div style={sectionStyle}>
         <Card title="Notifications">
           <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem", marginBottom: "0.75rem" }}>
-            Price and net worth alerts are managed on the Alerts page. Weekly digest emails include an unsubscribe link at the bottom.
+            Price and net worth alerts are managed on the Alerts page.
           </p>
           <Link to="/alerts" style={buttonStyle}>
             Go to Alerts →
           </Link>
+
+          <div style={{ ...rowStyle, marginTop: "1.25rem" }}>
+            <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Weekly digest emails</span>
+            <button
+              onClick={() => digestMutation.mutate(!digestSubscription?.subscribed)}
+              disabled={digestMutation.isPending || !digestSubscription}
+              style={{ ...buttonStyle, opacity: digestMutation.isPending || !digestSubscription ? 0.6 : 1 }}
+            >
+              {digestSubscription?.subscribed ? "On" : "Off"}
+            </button>
+          </div>
         </Card>
       </div>
 

@@ -54,3 +54,11 @@ def unsubscribe(email: str):
     if not is_unsubscribed(email):
         db.session.add(EmailUnsubscribe(email=email))
         db.session.commit()
+
+
+def resubscribe(email: str):
+    email = email.lower().strip()
+    row = db.session.get(EmailUnsubscribe, email)
+    if row is not None:
+        db.session.delete(row)
+        db.session.commit()

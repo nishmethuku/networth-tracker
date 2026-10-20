@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchDashboard,
+  fetchHoldings,
   fetchAllocationAdvice,
   fetchAllocationTargets,
   saveAllocationTargets,
@@ -44,6 +45,26 @@ export default function AllocationAdvisor() {
     queryKey: ["allocation-drift"],
     queryFn: () => fetchAllocationDrift("USD"),
   });
+
+  // Per-holding, not per-asset-type: a portfolio can look fine broken down
+  // by type ("90% stocks" isn't alarming on its own) while one single
+  // position actually carries almost all of the risk -- asset-type
+  // allocation alone can't surface that.
+  const { data: holdings } = useQuery({
+    queryKey: ["holdings", "summary", "USD", ""],
+    queryFn: () => fetchHoldings({ currency: "USD", summary: true }),
+    staleTime: 1000 * 60,
+  });
+
+  const CONCENTRATION_WARNING_THRESHOLD_PCT = 20; // a single-position guideline cited widely in diversification advice
+  const concentratedHoldings = useMemo(() => {
+    const totalValue = (holdings || []).reduce((sum, h) => sum + (h.displayValue || 0), 0);
+    if (totalValue <= 0) return [];
+    return (holdings || [])
+      .map((h) => ({ ...h, pctOfTotal: (h.displayValue / totalValue) * 100 }))
+      .filter((h) => h.pctOfTotal >= CONCENTRATION_WARNING_THRESHOLD_PCT)
+      .sort((a, b) => b.pctOfTotal - a.pctOfTotal);
+  }, [holdings]);
 
   // Prefill the form with the saved target once, on first load — a visit
   // to this page should show what you last committed to, not a blank form,
@@ -145,6 +166,40 @@ export default function AllocationAdvisor() {
       <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
         Set a target allocation by asset type and see exactly what to buy or sell to get there — informational only, not financial advice.
       </p>
+
+      {concentratedHoldings.length > 0 && (
+        <div
+          style={{
+            padding: "0.875rem 1.25rem",
+            borderRadius: "var(--radius)",
+            background: "var(--danger-light)",
+            border: "1px solid var(--danger)",
+            marginBottom: "1.5rem",
+            fontSize: "0.875rem",
+            color: "var(--text)",
+          }}
+        >
+          ⚠️{" "}
+          {concentratedHoldings.length === 1 ? (
+            <>
+              <strong>{concentratedHoldings[0].symbol || concentratedHoldings[0].name}</strong> is{" "}
+              {formatPercent(concentratedHoldings[0].pctOfTotal)} of your net worth
+            </>
+          ) : (
+            <>
+              {concentratedHoldings.map((h, i) => (
+                <span key={h.id}>
+                  {i > 0 && (i === concentratedHoldings.length - 1 ? " and " : ", ")}
+                  <strong>{h.symbol || h.name}</strong> ({formatPercent(h.pctOfTotal)})
+                </span>
+              ))}{" "}
+              together make up most of your net worth
+            </>
+          )}{" "}
+          — an asset-type target won't catch this kind of concentration in a single position. A sharp move in just that holding would move
+          your whole net worth with it.
+        </div>
+      )}
 
       {drift?.has_target && drift.is_drifted && (
         <div
