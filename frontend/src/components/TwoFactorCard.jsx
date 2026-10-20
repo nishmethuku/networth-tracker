@@ -151,9 +151,42 @@ export default function TwoFactorCard() {
             </div>
           )}
           {enrolling.secret && (
-            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "1rem", fontFamily: "var(--font-mono)" }}>
-              Manual entry code: {enrolling.secret}
-            </p>
+            <div
+              style={{
+                padding: "0.75rem",
+                borderRadius: "var(--radius)",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border)",
+                marginBottom: "1rem",
+              }}
+            >
+              <p style={{ fontSize: "0.8125rem", color: "var(--text)", marginBottom: "0.5rem" }}>
+                ⚠️ Save this code somewhere safe (a password manager, written down) before continuing — it's the only way back into your
+                account if you lose this device. It also lets you re-add the same authenticator entry on a new phone.
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <code
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--text-muted)",
+                    fontFamily: "var(--font-mono)",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {enrolling.secret}
+                </code>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(enrolling.secret);
+                    toast.success("Copied");
+                  }}
+                  style={{ ...buttonStyle, padding: "0.25rem 0.625rem", fontSize: "0.75rem", flexShrink: 0 }}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
           )}
           <div style={{ marginBottom: "1rem" }}>
             <label htmlFor="totp-code" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.875rem", color: "var(--text)" }}>
