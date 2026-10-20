@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { fetchAllTransactions, ApiError } from "../api";
+import { fetchAllTransactions, fetchHoldings, ApiError } from "../api";
 import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
 import VirtualTransactionList from "./VirtualTransactionList";
 import TransactionCard from "./TransactionCard";
+import AddTransactionForm from "./AddTransactionForm";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
-import { ASSET_TYPE_OPTIONS, COUNTRIES, getAssetTypeLabel } from "../constants/enums";
+import { ASSET_TYPE_OPTIONS, COUNTRIES, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 
 const VIRTUALIZE_THRESHOLD = 50;
 
@@ -29,6 +30,8 @@ const PER_PAGE = 50;
 export default function Transactions() {
   const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "" });
   const [page, setPage] = useState(1);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedHoldingId, setSelectedHoldingId] = useState("");
   const isMobile = useIsMobile();
   const { currentHouseholdId } = useHousehold();
 
@@ -47,6 +50,17 @@ export default function Transactions() {
   const totalPages = result?.totalPages || 1;
   const total = result?.total || 0;
 
+  // Buy/Sell/Dividend/Interest only makes sense against something you hold
+  // units of -- real estate/cash/etc. are valued directly (see HoldingDetail's
+  // "Add Valuation" instead), so the picker only offers quantity-based holdings.
+  const { data: tradeableHoldings } = useQuery({
+    queryKey: ["holdings", "summary", "USD", currentHouseholdId],
+    queryFn: () => fetchHoldings({ summary: true, householdId: currentHouseholdId }),
+    enabled: showAddForm,
+    select: (holdings) => holdings.filter((h) => isQuantityBased(h.assetType)),
+  });
+  const selectedHolding = tradeableHoldings?.find((h) => String(h.id) === selectedHoldingId);
+
   if (isLoading) return <LoadingState message="Loading transactions..." />;
   if (isError) {
     return <ErrorState error={error instanceof ApiError ? error.message : "Failed to load transactions"} onRetry={refetch} />;
@@ -61,7 +75,76 @@ export default function Transactions() {
 
   return (
     <div>
-      <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", marginBottom: "1.5rem" }}>Transactions</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem" }}>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Transactions</h1>
+        {!showAddForm && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            style={{
+              padding: "0.625rem 1.25rem",
+              borderRadius: "var(--radius)",
+              border: "none",
+              background: "var(--primary)",
+              color: "var(--text-inverse)",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              whiteSpace: "nowrap",
+            }}
+          >
+            + Add Transaction
+          </button>
+        )}
+      </div>
+
+      {showAddForm && (
+        <div style={{ marginBottom: "1.5rem" }}>
+          <Card>
+            <div style={{ marginBottom: selectedHolding ? "1rem" : 0 }}>
+              <label
+                htmlFor="tx-holding-picker"
+                style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.35rem" }}
+              >
+                Holding
+              </label>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <select
+                  id="tx-holding-picker"
+                  value={selectedHoldingId}
+                  onChange={(e) => setSelectedHoldingId(e.target.value)}
+                  style={{ ...inputStyle, flex: 1, maxWidth: 360 }}
+                >
+                  <option value="">Select a holding…</option>
+                  {(tradeableHoldings || []).map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.symbol || h.name}
+                      {h.account ? ` — ${h.account}` : ""} ({h.currency})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setSelectedHoldingId("");
+                  }}
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+            {selectedHolding && (
+              <AddTransactionForm
+                holding={selectedHolding}
+                onDone={() => {
+                  setShowAddForm(false);
+                  setSelectedHoldingId("");
+                }}
+              />
+            )}
+          </Card>
+        </div>
+      )}
 
       <div
         style={{
