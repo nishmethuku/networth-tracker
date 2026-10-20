@@ -331,7 +331,20 @@ export default function Portfolio() {
   const orderedTypes = ASSET_TYPE_OPTIONS.map((o) => o.value).filter((t) => grouped[t]?.length);
 
   function exportToCsv() {
-    const cols = ["Name", "Symbol", "Type", "Country", "Account", "Currency", "Quantity", `Avg Cost (${currency})`, `Cost Basis (${currency})`, `Current Price (${currency})`, `Value (${currency})`, "Gain %"];
+    const cols = [
+      "Name",
+      "Symbol",
+      "Type",
+      "Country",
+      "Account",
+      "Currency",
+      "Quantity",
+      `Avg Cost (${currency})`,
+      `Cost Basis (${currency})`,
+      `Current Price (${currency})`,
+      `Value (${currency})`,
+      "Gain %",
+    ];
     const rows = filteredHoldings.map((h) => {
       const pct = gainPct(h);
       const avgCost = h.quantity > 0 ? h.displayCostBasis / h.quantity : "";
@@ -349,7 +362,9 @@ export default function Portfolio() {
         curPrice !== "" ? curPrice.toFixed(4) : "",
         h.displayValue?.toFixed(2) ?? "",
         pct != null ? pct.toFixed(2) + "%" : "n/a",
-      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(",");
     });
     const csv = [cols.map((c) => `"${c}"`).join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });

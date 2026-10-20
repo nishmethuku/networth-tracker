@@ -101,7 +101,14 @@ export default function Transactions() {
   function handleSearchChange(val) {
     setSearchDraft(val);
     clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => setFilters((f) => { setPage(1); return { ...f, search: val }; }), 350);
+    searchTimeout.current = setTimeout(
+      () =>
+        setFilters((f) => {
+          setPage(1);
+          return { ...f, search: val };
+        }),
+      350,
+    );
   }
 
   return (
