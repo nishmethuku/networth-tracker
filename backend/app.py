@@ -103,10 +103,9 @@ from .sip_service import project_future_value as project_sip_future_value
 from .smart_import_service import confirm_smart_import, parse_spreadsheet
 from .snapshot_service import snapshot_all_users
 from .tax_service import COST_BASIS_METHODS, TAX_DISCLAIMER, get_tax_summary
-from .unsubscribe_service import is_unsubscribed
+from .unsubscribe_service import is_unsubscribed, verify_unsubscribe_token
 from .unsubscribe_service import resubscribe as resubscribe_email
 from .unsubscribe_service import unsubscribe as unsubscribe_email
-from .unsubscribe_service import verify_unsubscribe_token
 from .utils import FINNHUB_API_KEY
 
 # Import mf instance if available
