@@ -922,6 +922,25 @@ def create_app():
         db.session.commit()
         return jsonify({"message": "Unsubscribed"}), 200
 
+    @app.route("/push/test", methods=["POST"])
+    @require_auth
+    @limiter.limit("5 per minute")
+    def push_test():
+        """Lets a user confirm push actually reaches *this* device right
+        after enabling it, rather than finding out only whenever their
+        next real alert happens to trigger. Scoped to the one subscription
+        the frontend is currently looking at (not every device this user
+        has ever enabled push on), so clicking "test" on a laptop doesn't
+        also buzz a phone the user isn't holding."""
+        data = request.get_json(force=True)
+        endpoint = data.get("endpoint")
+        if not endpoint:
+            return jsonify({"error": "endpoint is required"}), 400
+        sent = push_service.send_to_endpoint(g.user_id, endpoint, "Test notification", "Push notifications are working on this device.")
+        if not sent:
+            return jsonify({"error": "Couldn't send — try enabling push again."}), 400
+        return jsonify({"message": "Sent"}), 200
+
     # ---------------- CSV IMPORT ----------------
     # The broker-specific importer (Zerodha/Groww/Fidelity/Robinhood) was
     # removed in favor of one simple deterministic format below -- no

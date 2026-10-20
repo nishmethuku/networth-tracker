@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Card from "./Card";
 import { useToast } from "../contexts/ToastContext";
-import { fetchPushVapidPublicKey, subscribeToPush, unsubscribeFromPush, ApiError } from "../api";
+import { fetchPushVapidPublicKey, subscribeToPush, unsubscribeFromPush, sendTestPush, ApiError } from "../api";
 
 const buttonStyle = {
   padding: "0.5rem 1rem",
@@ -88,6 +88,24 @@ export default function PushNotificationCard() {
     }
   }
 
+  async function sendTest() {
+    setBusy(true);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        toast.error("Not subscribed on this device");
+        return;
+      }
+      await sendTestPush(subscription.endpoint);
+      toast.success("Sent — should arrive any second");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't send a test notification");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function disable() {
     setBusy(true);
     try {
@@ -117,13 +135,20 @@ export default function PushNotificationCard() {
             ? "This browser will get a notification the moment an alert triggers, in addition to email."
             : "Get notified in this browser the moment an alert triggers, in addition to email."}
         </div>
-        <button
-          onClick={subscribed ? disable : enable}
-          disabled={busy}
-          style={{ ...(subscribed ? buttonStyle : primaryButtonStyle), opacity: busy ? 0.6 : 1, whiteSpace: "nowrap" }}
-        >
-          {busy ? "…" : subscribed ? "Disable" : "Enable"}
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+          {subscribed && (
+            <button onClick={sendTest} disabled={busy} style={{ ...buttonStyle, opacity: busy ? 0.6 : 1, whiteSpace: "nowrap" }}>
+              Send test
+            </button>
+          )}
+          <button
+            onClick={subscribed ? disable : enable}
+            disabled={busy}
+            style={{ ...(subscribed ? buttonStyle : primaryButtonStyle), opacity: busy ? 0.6 : 1, whiteSpace: "nowrap" }}
+          >
+            {busy ? "…" : subscribed ? "Disable" : "Enable"}
+          </button>
+        </div>
       </div>
     </Card>
   );

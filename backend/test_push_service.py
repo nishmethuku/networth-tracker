@@ -78,6 +78,43 @@ def test_send_to_user_keeps_subscription_on_a_non_expiry_error():
     mock_db.session.delete.assert_not_called()
 
 
+def test_send_to_endpoint_sends_only_to_the_matching_subscription():
+    sub = MagicMock(id=1, endpoint="https://push.example.com/this-device", p256dh="p1", auth="a1")
+    mock_query = MagicMock()
+    mock_query.filter_by.return_value.first.return_value = sub
+    mock_model = MagicMock(query=mock_query)
+
+    with _configured(), patch.object(push_service, "PushSubscription", mock_model), patch("backend.push_service.webpush") as mock_webpush:
+        result = push_service.send_to_endpoint("u1", "https://push.example.com/this-device", "Test", "Body")
+
+    assert result is True
+    mock_query.filter_by.assert_called_once_with(endpoint="https://push.example.com/this-device", user_id="u1")
+    mock_webpush.assert_called_once()
+
+
+def test_send_to_endpoint_scoped_to_the_calling_user_not_just_any_endpoint():
+    """A user can't test/probe another user's subscription by guessing or
+    reusing an endpoint -- the lookup is filtered by user_id too, so a
+    mismatched owner returns nothing to send to, same as if the
+    subscription didn't exist at all."""
+    mock_query = MagicMock()
+    mock_query.filter_by.return_value.first.return_value = None
+    mock_model = MagicMock(query=mock_query)
+
+    with _configured(), patch.object(push_service, "PushSubscription", mock_model), patch("backend.push_service.webpush") as mock_webpush:
+        result = push_service.send_to_endpoint("attacker", "https://push.example.com/someone-elses", "Test", "Body")
+
+    assert result is False
+    mock_webpush.assert_not_called()
+
+
+def test_send_to_endpoint_logs_instead_of_sending_when_not_configured():
+    with patch.object(push_service, "VAPID_PRIVATE_KEY", None), patch("backend.push_service.webpush") as mock_webpush:
+        result = push_service.send_to_endpoint("u1", "https://push.example.com/x", "Test", "Body")
+    assert result is False
+    mock_webpush.assert_not_called()
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
