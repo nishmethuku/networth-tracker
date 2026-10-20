@@ -45,6 +45,21 @@ def get_current_price(asset_type: str, symbol: str, currency: str = "USD") -> Op
     return None
 
 
+def price_home_currency(asset_type: str, symbol: str) -> Optional[str]:
+    """The currency get_current_price's return value is actually
+    denominated in for stock/mutual_fund, where that's fixed by the asset
+    itself rather than by whatever currency was requested (see
+    get_current_price's own docstring). None for crypto/commodity, where
+    the price already comes back in the requested currency -- callers
+    should treat None as "nothing to convert", not "unknown"."""
+    if asset_type == "mutual_fund":
+        return "INR"
+    if asset_type == "stock":
+        s = (symbol or "").strip().upper()
+        return "INR" if s.endswith(".NS") or s.endswith(".NSE") else "USD"
+    return None
+
+
 def _cache_price(asset_type: str, symbol: str, price_date: date, price: float, currency: str, source: str):
     existing = PriceHistory.query.filter_by(
         asset_type=asset_type, symbol=symbol, price_date=price_date, currency=currency

@@ -50,16 +50,20 @@ def check_all_alerts() -> Dict:
             # get_current_price ignores the currency argument for
             # stock/mutual_fund (it always returns the home-exchange
             # price -- USD for US tickers, INR for .NS/AMFI), so a price
-            # alert whose currency doesn't match its holding's actual
-            # currency would otherwise compare an unconverted price
-            # against alert.threshold. The app's own alert-creation UI
-            # always sets currency from the holding, so this is a
-            # defensive conversion for any alert where that's drifted or
-            # wasn't set that way (a direct API call, old data, etc.).
-            if current_value is not None and alert.holding_id:
-                holding = Holding.query.get(alert.holding_id)
-                if holding and holding.currency != alert.currency:
-                    current_value = price_service.convert(current_value, holding.currency, alert.currency)
+            # alert whose currency doesn't match that home currency would
+            # otherwise compare an unconverted price against
+            # alert.threshold. Derived from asset_type/symbol directly
+            # (not alert.holding_id's linked Holding) so this applies
+            # whether or not the alert was created against a holding --
+            # the app's own creation UI always sets currency to match,
+            # but a direct API call doesn't have to set holding_id at
+            # all, and this must not silently skip conversion when it's
+            # absent. It also avoids trusting a client-supplied
+            # holding_id as a lookup key for another user's data.
+            if current_value is not None:
+                home_currency = price_service.price_home_currency(alert.asset_type, alert.symbol)
+                if home_currency and home_currency != alert.currency:
+                    current_value = price_service.convert(current_value, home_currency, alert.currency)
         else:
             current_value = _current_net_worth(alert.user_id, alert.currency)
 
