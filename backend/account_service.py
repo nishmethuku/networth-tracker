@@ -28,6 +28,7 @@ from .models import (
     Milestone,
     NetWorthSnapshot,
     PriceAlert,
+    PushSubscription,
     db,
 )
 
@@ -56,6 +57,7 @@ def export_user_data(user_id) -> Dict:
     liabilities = Liability.query.filter_by(user_id=user_id).all()
     goals = Goal.query.filter_by(user_id=user_id).all()
     allocation_targets = AllocationTarget.query.filter_by(user_id=user_id).all()
+    push_subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
 
     return {
         "holdings": [h.to_dict() for h in holdings],
@@ -71,6 +73,7 @@ def export_user_data(user_id) -> Dict:
         "liabilities": [liability.to_dict() for liability in liabilities],
         "goals": [g.to_dict() for g in goals],
         "allocation_targets": [t.to_dict() for t in allocation_targets],
+        "push_subscriptions": [p.to_dict() for p in push_subscriptions],
     }
 
 
@@ -110,9 +113,9 @@ def delete_all_user_data(user_id) -> Dict:
     via the DB's own ON DELETE CASCADE foreign keys — see
     supabase/migrations/0002_holdings.sql), plus their alerts, personal
     milestones, liabilities, goals, allocation targets, budget entries,
-    budget limits, and budget categories — every table export_user_data()
-    reports, so "delete all my data" actually leaves nothing behind.
-    Returns a count summary for the confirmation UI."""
+    budget limits, budget categories, and push subscriptions — every table
+    export_user_data() reports, so "delete all my data" actually leaves
+    nothing behind. Returns a count summary for the confirmation UI."""
     holdings = Holding.query.filter_by(user_id=user_id).all()
     holdings_count = len(holdings)
 
@@ -132,6 +135,11 @@ def delete_all_user_data(user_id) -> Dict:
     budget_limits_count = BudgetLimit.query.filter_by(user_id=user_id).delete()
     budget_categories_count = BudgetCategory.query.filter_by(user_id=user_id).delete()
     accounts_count = Account.query.filter_by(user_id=user_id).delete()
+    # No DB-level FK to anything that cascades here (push_subscriptions
+    # only has a bare user_id, same as alerts/milestones above) -- without
+    # this, deleting the account would leave a device still subscribed to
+    # push notifications for a user that no longer exists.
+    push_subscriptions_count = PushSubscription.query.filter_by(user_id=user_id).delete()
 
     db.session.commit()
 
@@ -147,4 +155,5 @@ def delete_all_user_data(user_id) -> Dict:
         "budget_entries_deleted": budget_entries_count,
         "budget_limits_deleted": budget_limits_count,
         "budget_categories_deleted": budget_categories_count,
+        "push_subscriptions_deleted": push_subscriptions_count,
     }

@@ -7,7 +7,7 @@ from typing import Dict
 
 from sqlalchemy import text
 
-from . import price_service
+from . import price_service, push_service
 from .email_service import render_alert_email, send
 from .holdings_service import list_holdings_with_metrics
 from .liability_service import total_liabilities_display
@@ -83,6 +83,18 @@ def check_all_alerts() -> Dict:
             email = _user_email(alert.user_id)
             if email:
                 send(email, "Price Alert Triggered", render_alert_email(alert.to_dict(), current_value))
+            # Push is a complement to email, not a replacement -- sent
+            # regardless of whether the email above actually went out
+            # (e.g. RESEND_API_KEY unset), so a user who's configured
+            # push still gets notified even if email isn't set up.
+            label = alert.symbol or "Net Worth"
+            verb = alert.alert_type.replace("_", " ")
+            push_service.send_to_user(
+                alert.user_id,
+                "Price Alert Triggered",
+                f"{label} {verb} your threshold of {alert.threshold:,.2f} {alert.currency} "
+                f"(now {current_value:,.2f} {alert.currency})",
+            )
 
     db.session.commit()
     return {"alerts_checked": len(alerts), "alerts_triggered": triggered}

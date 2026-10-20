@@ -2,26 +2,21 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-// GET-only, read-scoped API paths safe to serve stale-while-revalidate when
-// offline. Never includes /internal/*, and writes (POST/PUT/DELETE) are
-// never cached by the runtimeCaching method filter below regardless.
-const CACHEABLE_API_PATH_PREFIXES = [
-  "/holdings",
-  "/dashboard",
-  "/net-worth-history",
-  "/transactions",
-  "/exchange-rates",
-  "/price-cache-status",
-  "/tax-summary",
-  "/alerts",
-  "/milestones",
-];
-
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // injectManifest (a hand-written src/sw.js, bundled and given its
+      // precache manifest at build time) instead of the default
+      // generateSW -- the only reason for a custom service worker at all
+      // is its push/notificationclick handlers, which generateSW has no
+      // hook for. The app-shell precaching and API GET stale-while-
+      // revalidate caching that generateSW used to set up here now live
+      // directly in src/sw.js, unchanged in behavior.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.js",
       registerType: "autoUpdate",
       includeAssets: ["apple-touch-icon.png"],
       manifest: {
@@ -38,22 +33,16 @@ export default defineConfig({
           { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
-      workbox: {
-        // App shell (JS/CSS/HTML) is precached for offline load automatically.
-        // API GET responses for the read-scoped paths above get a
-        // stale-while-revalidate cache so the last-seen data still renders
-        // offline — everything else (writes, /internal/*) is left alone.
-        runtimeCaching: [
-          {
-            urlPattern: ({ url, request }) =>
-              request.method === "GET" && CACHEABLE_API_PATH_PREFIXES.some((p) => url.pathname.startsWith(p)),
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "api-read-cache",
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 30 },
-            },
-          },
-        ],
+      injectManifest: {
+        // vite-plugin-pwa's own dev-mode service worker intercepts too
+        // much (including non-GET requests) in a way that breaks normal
+        // API calls during `npm run dev`; the production build is
+        // unaffected, same as this project's prior generateSW setup,
+        // which only ever ran for real in a production/preview build.
+        globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+      },
+      devOptions: {
+        enabled: false,
       },
     }),
   ],

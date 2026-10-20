@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAlerts, createAlert, deleteAlert, fetchHoldings, ApiError } from "../api";
 import Card from "./Card";
+import PushNotificationCard from "./PushNotificationCard";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
@@ -82,6 +83,10 @@ export default function Alerts() {
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         Get notified by email when a holding hits a price, or your net worth crosses a threshold.
       </p>
+
+      <div style={{ marginBottom: "1.5rem" }}>
+        <PushNotificationCard />
+      </div>
 
       <Card>
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>

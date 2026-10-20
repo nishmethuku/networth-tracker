@@ -33,7 +33,7 @@ _log_handler = logging.StreamHandler()
 _log_handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 
-from . import ai_service, price_service
+from . import ai_service, price_service, push_service
 from .account_registry_service import create_account, delete_account, delete_account_and_holdings, list_accounts
 from .account_service import delete_all_user_data, export_user_data, export_user_data_csv_zip
 from .alert_service import check_all_alerts
@@ -93,6 +93,7 @@ from .models import (
     Milestone,
     PriceAlert,
     PriceHistory,
+    PushSubscription,
     db,
 )
 from .services import rank_symbol_results, safe_float
@@ -877,6 +878,49 @@ def create_app():
         db.session.delete(alert)
         db.session.commit()
         return jsonify({"message": "Alert deleted"}), 200
+
+    # ---------------- WEB PUSH (browser notifications for triggered alerts) ----------------
+
+    @app.route("/push/vapid-public-key", methods=["GET"])
+    @require_auth
+    def push_vapid_public_key():
+        if not push_service.is_configured():
+            return jsonify({"configured": False, "public_key": None})
+        return jsonify({"configured": True, "public_key": push_service.VAPID_PUBLIC_KEY})
+
+    @app.route("/push/subscribe", methods=["POST"])
+    @require_auth
+    def push_subscribe():
+        data = request.get_json(force=True)
+        endpoint = data.get("endpoint")
+        keys = data.get("keys") or {}
+        if not endpoint or not keys.get("p256dh") or not keys.get("auth"):
+            return jsonify({"error": "endpoint and keys.p256dh/keys.auth are required"}), 400
+
+        # Upsert by endpoint -- the same browser/device re-subscribing (e.g.
+        # after the page reloads) must update the existing row rather than
+        # violate the unique constraint or create a duplicate that'd send
+        # the same alert twice.
+        existing = PushSubscription.query.filter_by(endpoint=endpoint).first()
+        if existing:
+            existing.user_id = g.user_id
+            existing.p256dh = keys["p256dh"]
+            existing.auth = keys["auth"]
+        else:
+            db.session.add(PushSubscription(user_id=g.user_id, endpoint=endpoint, p256dh=keys["p256dh"], auth=keys["auth"]))
+        db.session.commit()
+        return jsonify({"message": "Subscribed"}), 201
+
+    @app.route("/push/subscribe", methods=["DELETE"])
+    @require_auth
+    def push_unsubscribe():
+        data = request.get_json(force=True)
+        endpoint = data.get("endpoint")
+        if not endpoint:
+            return jsonify({"error": "endpoint is required"}), 400
+        PushSubscription.query.filter_by(endpoint=endpoint, user_id=g.user_id).delete()
+        db.session.commit()
+        return jsonify({"message": "Unsubscribed"}), 200
 
     # ---------------- CSV IMPORT ----------------
     # The broker-specific importer (Zerodha/Groww/Fidelity/Robinhood) was

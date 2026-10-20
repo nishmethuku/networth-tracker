@@ -28,3 +28,9 @@ services:
         sync: false # optional, free — error tracking (sentry.io). Unset = no-op, nothing breaks.
       - key: REDIS_URL
         sync: false # optional — shared rate-limit storage across gunicorn's 2 worker processes. Unset = falls back to in-memory (approximate across workers).
+      - key: VAPID_PUBLIC_KEY
+        sync: false # optional, free — enables push notifications for alerts. Generate per backend/.env.example; must match the frontend's VITE_VAPID_PUBLIC_KEY exactly (not a secret). Unset = push unavailable, alerts still email.
+      - key: VAPID_PRIVATE_KEY
+        sync: false # pairs with VAPID_PUBLIC_KEY above — this one IS a secret.
+      - key: VAPID_SUBJECT
+        sync: false # a mailto: or https: URL identifying who's sending the push, per the Web Push spec — e.g. mailto:you@example.com

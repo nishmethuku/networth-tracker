@@ -299,6 +299,31 @@ class PriceAlert(db.Model):
         }
 
 
+class PushSubscription(db.Model):
+    """A browser's Web Push subscription (one row per device/browser a user
+    has enabled notifications on, not per user -- someone can have the app
+    open on a phone and a laptop). endpoint is the push service URL the
+    browser gave us; p256dh/auth are the per-subscription encryption keys
+    required to encrypt a push payload for that endpoint. All three come
+    straight from PushSubscription.toJSON() on the frontend."""
+
+    __tablename__ = "push_subscriptions"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    endpoint = db.Column(db.Text, nullable=False, unique=True)
+    p256dh = db.Column(db.Text, nullable=False)
+    auth = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "endpoint": self.endpoint,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class EmailUnsubscribe(db.Model):
     __tablename__ = "email_unsubscribes"
 

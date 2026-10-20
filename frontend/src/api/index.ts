@@ -240,6 +240,21 @@ export async function deleteAlert(id: number | string) {
 }
 
 /**
+ * Web Push (browser notifications for triggered alerts)
+ */
+export async function fetchPushVapidPublicKey(): Promise<{ configured: boolean; public_key: string | null }> {
+  return api.get("/push/vapid-public-key");
+}
+
+export async function subscribeToPush(subscription: PushSubscriptionJSON) {
+  return api.post("/push/subscribe", subscription);
+}
+
+export async function unsubscribeFromPush(endpoint: string) {
+  return api.delete("/push/subscribe", { endpoint });
+}
+
+/**
  * Tax summary
  */
 export async function fetchTaxSummary(householdId: string | null = null, costBasisMethod: string = "average") {
