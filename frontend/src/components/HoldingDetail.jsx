@@ -9,6 +9,7 @@ import EmptyState from "./EmptyState";
 import { useToast } from "../contexts/ToastContext";
 import SipCard from "./SipCard";
 import AddTransactionForm from "./AddTransactionForm";
+import EditHoldingForm from "./EditHoldingForm";
 import {
   fetchHolding,
   fetchHoldingTransactions,
@@ -184,6 +185,7 @@ export default function HoldingDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editing, setEditing] = useState(false);
   const toast = useToast();
 
   const {
@@ -269,11 +271,36 @@ export default function HoldingDetail() {
       </Link>
 
       <div style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)" }}>{holding.symbol || holding.name}</h1>
-        <p style={{ color: "var(--text-secondary)" }}>
-          {getAssetTypeLabel(holding.assetType)} • {holding.country}
-          {holding.account ? ` • ${holding.account}` : ""}
-        </p>
+        {editing ? (
+          <Card>
+            <EditHoldingForm holding={holding} onDone={() => setEditing(false)} />
+          </Card>
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
+            <div>
+              <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text)" }}>{holding.symbol || holding.name}</h1>
+              <p style={{ color: "var(--text-secondary)" }}>
+                {getAssetTypeLabel(holding.assetType)} • {holding.country}
+                {holding.account ? ` • ${holding.account}` : ""}
+              </p>
+            </div>
+            <button
+              onClick={() => setEditing(true)}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "var(--radius)",
+                border: "1px solid var(--border)",
+                background: "var(--card)",
+                color: "var(--text)",
+                cursor: "pointer",
+                fontSize: "0.8125rem",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Edit
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.25rem", marginBottom: "1.5rem" }}>

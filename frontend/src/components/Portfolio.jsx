@@ -198,7 +198,21 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
                     {gainPct(h) != null ? formatPercent(gainPct(h)) : "—"}
                   </td>
                 )}
-                <td style={{ padding: "0.75rem 0.5rem" }} onClick={(e) => e.stopPropagation()}>
+                <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="portfolio-row-action"
+                    onClick={() => navigate(`/portfolio/${h.id}`)}
+                    style={{
+                      fontSize: "0.8125rem",
+                      background: "transparent",
+                      border: "1px solid var(--border)",
+                      color: "var(--text)",
+                      padding: "0.35rem 0.75rem",
+                      marginRight: "0.4rem",
+                    }}
+                  >
+                    Edit
+                  </button>
                   <button
                     className="portfolio-row-action"
                     onClick={() => onDelete(h)}
