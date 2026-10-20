@@ -97,17 +97,52 @@ export interface TransactionFilters {
   householdId?: string;
   dateFrom?: string;
   dateTo?: string;
+  page?: number;
+  perPage?: number;
 }
 
-export async function fetchAllTransactions(filters: TransactionFilters = {}) {
+export interface PaginatedTransactions {
+  items: ReturnType<typeof mapTransaction>[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+}
+
+/**
+ * Omitting page/perPage returns every matching transaction as a plain
+ * array (unchanged legacy shape) -- passing either turns on the backend's
+ * existing opt-in pagination (?page=&per_page=), returning
+ * {items, total, page, per_page, total_pages} instead. Two different
+ * return shapes from one function is a bit unusual, but it mirrors the
+ * backend route's own "opt-in by presence of ?page=" design exactly
+ * rather than inventing a second function that duplicates all the other
+ * filter handling.
+ */
+export async function fetchAllTransactions(
+  filters: TransactionFilters = {},
+): Promise<ReturnType<typeof mapTransaction>[] | PaginatedTransactions> {
   const params = new URLSearchParams();
   if (filters.assetType) params.append("asset_type", filters.assetType);
   if (filters.country) params.append("country", filters.country);
   if (filters.householdId) params.append("household_id", filters.householdId);
   if (filters.dateFrom) params.append("date_from", filters.dateFrom);
   if (filters.dateTo) params.append("date_to", filters.dateTo);
+  if (filters.page) {
+    params.append("page", String(filters.page));
+    params.append("per_page", String(filters.perPage || 50));
+  }
   const endpoint = params.toString() ? `/transactions?${params.toString()}` : "/transactions";
   const data = await api.get(endpoint);
+  if (filters.page) {
+    return {
+      items: (data?.items || []).map(mapTransaction),
+      total: data?.total ?? 0,
+      page: data?.page ?? filters.page,
+      perPage: data?.per_page ?? filters.perPage ?? 50,
+      totalPages: data?.total_pages ?? 0,
+    };
+  }
   return (data || []).map(mapTransaction);
 }
 

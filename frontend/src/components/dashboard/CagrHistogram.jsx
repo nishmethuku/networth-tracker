@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, LabelList, ResponsiveContai
 import EmptyState from "../EmptyState";
 import { formatPercent } from "../../utils/formatters";
 import { holdingReturn } from "../../utils/holdingReturns";
+import { capOutliersForChart } from "../../utils/chartScale";
 
 /**
  * Per-holding CAGR (XIRR where meaningful, plain growth % otherwise — see
@@ -12,7 +13,7 @@ import { holdingReturn } from "../../utils/holdingReturns";
  * the per-holding bars for a single at-a-glance comparison.
  */
 export default function CagrHistogram({ holdings, portfolioXirr }) {
-  const data = useMemo(() => {
+  const { data, domainCap } = useMemo(() => {
     const rows = (holdings || [])
       .map((h) => {
         const { pct, isXirr } = holdingReturn(h);
@@ -25,7 +26,8 @@ export default function CagrHistogram({ holdings, portfolioXirr }) {
     if (portfolioXirr != null) {
       rows.push({ key: "total", label: "Total", returnPct: portfolioXirr * 100, isXirr: true, isTotal: true });
     }
-    return rows;
+    const { rows: capped, domainCap: cap } = capOutliersForChart(rows);
+    return { data: capped.map(({ row, chartPct, clipped }) => ({ ...row, chartPct, clipped })), domainCap: cap };
   }, [holdings, portfolioXirr]);
 
   if (data.length === 0) {
@@ -37,7 +39,12 @@ export default function CagrHistogram({ holdings, portfolioXirr }) {
       <ResponsiveContainer>
         <BarChart data={data} layout="vertical" margin={{ left: 8, right: 32 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" horizontal={false} />
-          <XAxis type="number" tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+          <XAxis
+            type="number"
+            domain={[-domainCap, domainCap]}
+            tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+            tickFormatter={(v) => `${v.toFixed(0)}%`}
+          />
           <YAxis
             type="category"
             dataKey="label"
@@ -53,10 +60,10 @@ export default function CagrHistogram({ holdings, portfolioXirr }) {
           />
           <ReferenceLine x={0} stroke="var(--border-dark)" />
           <Tooltip
-            formatter={(v, _name, props) => [formatPercent(v), props.payload.isXirr ? "XIRR" : "Growth"]}
+            formatter={(_v, _name, props) => [formatPercent(props.payload.returnPct), props.payload.isXirr ? "XIRR" : "Growth"]}
             contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
           />
-          <Bar dataKey="returnPct" radius={[0, 4, 4, 0]} isAnimationActive={true}>
+          <Bar dataKey="chartPct" radius={[0, 4, 4, 0]} isAnimationActive={true}>
             {data.map((entry) => (
               <Cell key={entry.key} fill={entry.isTotal ? "var(--primary)" : entry.returnPct >= 0 ? "var(--success)" : "var(--danger)"} />
             ))}

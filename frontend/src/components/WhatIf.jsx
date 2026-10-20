@@ -36,7 +36,20 @@ export default function WhatIf() {
     queryFn: () => fetchDashboard({ currency, householdId: currentHouseholdId }),
   });
 
-  const suggestedRate = dashboard?.portfolioXirr != null ? Math.max(0, Math.round(dashboard.portfolioXirr * 1000) / 10) : 8;
+  // A portfolio's own XIRR can be wildly unrepresentative of a realistic
+  // long-run assumption -- a single holding bought at a near-zero cost
+  // basis (a stock split, a typo'd purchase price, a few-day-old
+  // position that's already up 10x) can push XIRR into the hundreds of
+  // percent. Suggesting that as a 20+ year compounding rate produces
+  // nonsense net worth figures, so it's only used as the suggestion when
+  // it's itself in a plausible range; otherwise this falls back to a
+  // long-run market-average-ish default instead.
+  const DEFAULT_RATE_PCT = 7;
+  const MAX_RATE_PCT = 50;
+  const suggestedRate =
+    dashboard?.portfolioXirr != null && dashboard.portfolioXirr * 100 <= MAX_RATE_PCT
+      ? Math.max(0, Math.round(dashboard.portfolioXirr * 1000) / 10)
+      : DEFAULT_RATE_PCT;
 
   const [startingAmount, setStartingAmount] = useState(null);
   const [monthlyContribution, setMonthlyContribution] = useState(500);
@@ -57,6 +70,11 @@ export default function WhatIf() {
   // recompute. Deriving it live (null until the user actually edits the
   // field) means it picks up the real XIRR-based figure once it loads.
   const effectiveRate = annualRatePct ?? suggestedRate;
+  // Also clamps a rate the user types in directly (not just the
+  // suggestion above) -- someone can still explore an aggressive
+  // scenario up to MAX_RATE_PCT, just not one that compounds into
+  // physically meaningless numbers over a multi-decade projection.
+  const clampedRate = Math.max(-50, Math.min(MAX_RATE_PCT, Number(effectiveRate) || 0));
   const clampedYears = Math.max(1, Math.min(60, Number(years) || 1));
 
   const points = useMemo(
@@ -64,10 +82,10 @@ export default function WhatIf() {
       projectNetWorth({
         startingAmount: effectiveStarting,
         monthlyContribution: Number(monthlyContribution) || 0,
-        annualRatePct: Number(effectiveRate) || 0,
+        annualRatePct: clampedRate,
         years: clampedYears,
       }),
-    [effectiveStarting, monthlyContribution, effectiveRate, clampedYears],
+    [effectiveStarting, monthlyContribution, clampedRate, clampedYears],
   );
 
   const final = points[points.length - 1];
@@ -147,6 +165,8 @@ export default function WhatIf() {
                   id="whatif-annual-rate"
                   type="number"
                   step="any"
+                  min={-50}
+                  max={MAX_RATE_PCT}
                   style={inputStyle}
                   value={effectiveRate}
                   onChange={(e) => setAnnualRatePct(e.target.value)}
@@ -154,6 +174,12 @@ export default function WhatIf() {
                 {dashboard?.portfolioXirr != null && (
                   <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                     Your portfolio's own annualized return: {formatPercent(dashboard.portfolioXirr * 100)}
+                    {dashboard.portfolioXirr * 100 > MAX_RATE_PCT && " (too far from a sustainable long-run rate to use as a default)"}
+                  </div>
+                )}
+                {Number(effectiveRate) !== clampedRate && (
+                  <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    Projection uses {clampedRate}% — rates beyond ±{MAX_RATE_PCT}% aren't realistic to compound over multiple decades.
                   </div>
                 )}
               </div>

@@ -32,6 +32,21 @@ export interface BuyValueAndGain {
   gainAmount: number | null;
 }
 
+// A near-zero cost basis (a $1 real estate valuation entered as a
+// placeholder, a typo'd purchase price) makes the resulting percentage
+// mathematically correct but practically meaningless -- e.g. $1 growing
+// to $10,000 is a genuine "999,900% return" by the math, but conveys
+// nothing useful and wrecks the scale of any chart it's plotted on.
+// Below this floor, in the holding's own currency (every currency this
+// app supports is roughly comparable in magnitude -- no JPY-style
+// 100x-smaller-unit case to worry about), a return is treated as not
+// computable rather than displayed.
+const MIN_MEANINGFUL_COST_BASIS = 100;
+
+function hasMeaningfulCostBasis(basis: number | null | undefined): boolean {
+  return basis != null && Math.abs(basis) >= MIN_MEANINGFUL_COST_BASIS;
+}
+
 /**
  * Plain total-return % since purchase/first entry — distinct from XIRR
  * (annualized), which only exists for quantity-based holdings with a
@@ -41,8 +56,12 @@ export interface BuyValueAndGain {
  * grow" matters more than the annualized rate.
  */
 export function holdingGrowthPct(h: HoldingLike): number | null {
-  if (isQuantityBased(h.assetType) && h.costBasis) return ((h.totalGain ?? 0) / h.costBasis) * 100;
-  if (h.firstValue) return ((h.gain ?? 0) / Math.abs(h.firstValue)) * 100;
+  if (isQuantityBased(h.assetType) && h.costBasis) {
+    return hasMeaningfulCostBasis(h.costBasis) ? ((h.totalGain ?? 0) / h.costBasis) * 100 : null;
+  }
+  if (h.firstValue) {
+    return hasMeaningfulCostBasis(h.firstValue) ? ((h.gain ?? 0) / Math.abs(h.firstValue)) * 100 : null;
+  }
   return null;
 }
 
@@ -84,7 +103,12 @@ export function groupBuyValueAndGain(holdings: HoldingLike[]): BuyValueAndGain {
  */
 export function holdingReturn(h: HoldingLike): HoldingReturnResult {
   if (isQuantityBased(h.assetType) && h.xirr != null) {
-    return { pct: h.xirr * 100, isXirr: true };
+    // XIRR solves over actual cash flows, so a near-zero cost basis
+    // doesn't divide anything directly the way the growth-% path does --
+    // but the same tiny-outflow-then-large-value shape still produces an
+    // annualized rate that's technically correct and practically
+    // meaningless, so the same floor applies.
+    return hasMeaningfulCostBasis(h.costBasis) ? { pct: h.xirr * 100, isXirr: true } : { pct: null, isXirr: false };
   }
   return { pct: holdingGrowthPct(h), isXirr: false };
 }
@@ -107,11 +131,11 @@ export function computeGroupedReturn(holdings: HoldingLike[]): GroupedReturnResu
   let sawGrowth = false;
 
   for (const h of holdings) {
-    if (isQuantityBased(h.assetType) && h.xirr != null && h.displayValue > 0) {
+    if (isQuantityBased(h.assetType) && h.xirr != null && h.displayValue > 0 && hasMeaningfulCostBasis(h.costBasis)) {
       weightedSum += h.xirr * 100 * h.displayValue;
       weight += h.displayValue;
       sawXirr = true;
-    } else if (!isQuantityBased(h.assetType) && h.firstValue) {
+    } else if (!isQuantityBased(h.assetType) && h.firstValue && hasMeaningfulCostBasis(h.firstValue)) {
       const pct = ((h.gain ?? 0) / Math.abs(h.firstValue)) * 100;
       weightedSum += pct * h.displayValue;
       weight += h.displayValue;

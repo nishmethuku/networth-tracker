@@ -24,22 +24,28 @@ const inputStyle = {
   fontSize: "0.875rem",
 };
 
+const PER_PAGE = 50;
+
 export default function Transactions() {
   const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "" });
+  const [page, setPage] = useState(1);
   const isMobile = useIsMobile();
   const { currentHouseholdId } = useHousehold();
 
   const {
-    data: transactions,
+    data: result,
     isLoading,
     isError,
     error,
     refetch,
   } = useQuery({
-    queryKey: ["transactions", filters, currentHouseholdId],
-    queryFn: () => fetchAllTransactions({ ...filters, householdId: currentHouseholdId }),
+    queryKey: ["transactions", filters, currentHouseholdId, page],
+    queryFn: () => fetchAllTransactions({ ...filters, householdId: currentHouseholdId, page, perPage: PER_PAGE }),
     staleTime: 1000 * 30,
   });
+  const transactions = result?.items;
+  const totalPages = result?.totalPages || 1;
+  const total = result?.total || 0;
 
   if (isLoading) return <LoadingState message="Loading transactions..." />;
   if (isError) {
@@ -47,6 +53,11 @@ export default function Transactions() {
   }
 
   const hasActiveFilters = Object.values(filters).some(Boolean);
+
+  function updateFilters(next) {
+    setFilters(next);
+    setPage(1); // a filter change invalidates whatever page we were on
+  }
 
   return (
     <div>
@@ -64,7 +75,7 @@ export default function Transactions() {
           border: "1px solid var(--border)",
         }}
       >
-        <select value={filters.assetType} onChange={(e) => setFilters({ ...filters, assetType: e.target.value })} style={inputStyle}>
+        <select value={filters.assetType} onChange={(e) => updateFilters({ ...filters, assetType: e.target.value })} style={inputStyle}>
           <option value="">All Types</option>
           {ASSET_TYPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -72,7 +83,7 @@ export default function Transactions() {
             </option>
           ))}
         </select>
-        <select value={filters.country} onChange={(e) => setFilters({ ...filters, country: e.target.value })} style={inputStyle}>
+        <select value={filters.country} onChange={(e) => updateFilters({ ...filters, country: e.target.value })} style={inputStyle}>
           <option value="">All Countries</option>
           {COUNTRIES.map((c) => (
             <option key={c} value={c}>
@@ -83,20 +94,20 @@ export default function Transactions() {
         <input
           type="date"
           value={filters.dateFrom}
-          onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+          onChange={(e) => updateFilters({ ...filters, dateFrom: e.target.value })}
           style={inputStyle}
           placeholder="From"
         />
         <input
           type="date"
           value={filters.dateTo}
-          onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+          onChange={(e) => updateFilters({ ...filters, dateTo: e.target.value })}
           style={inputStyle}
           placeholder="To"
         />
         {hasActiveFilters && (
           <button
-            onClick={() => setFilters({ assetType: "", country: "", dateFrom: "", dateTo: "" })}
+            onClick={() => updateFilters({ assetType: "", country: "", dateFrom: "", dateTo: "" })}
             style={{ ...inputStyle, cursor: "pointer" }}
           >
             Clear
@@ -167,6 +178,28 @@ export default function Transactions() {
             </table>
           </div>
         </Card>
+      )}
+
+      {totalPages > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1rem", marginTop: "1.25rem" }}>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            style={{ ...inputStyle, cursor: page <= 1 ? "not-allowed" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}
+          >
+            ← Previous
+          </button>
+          <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+            Page {page} of {totalPages} ({total} total)
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            style={{ ...inputStyle, cursor: page >= totalPages ? "not-allowed" : "pointer", opacity: page >= totalPages ? 0.5 : 1 }}
+          >
+            Next →
+          </button>
+        </div>
       )}
     </div>
   );
