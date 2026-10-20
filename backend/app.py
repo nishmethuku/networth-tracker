@@ -34,7 +34,7 @@ _log_handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 
 from . import ai_service, price_service, push_service
-from .account_registry_service import create_account, delete_account, delete_account_and_holdings, list_accounts
+from .account_registry_service import create_account, delete_account, delete_account_and_holdings, list_accounts, rename_account
 from .account_service import delete_all_user_data, export_user_data, export_user_data_csv_zip, restore_user_data
 from .alert_service import check_all_alerts
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
@@ -539,6 +539,27 @@ def create_app():
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         return jsonify({"message": f"Deleted '{name}' and {deleted_count} holding(s)", "holdings_deleted": deleted_count}), 200
+
+    @app.route("/accounts/rename", methods=["POST"])
+    @require_auth
+    def accounts_rename():
+        """Renames an account name across every holding filed under it --
+        by name, like delete-with-holdings above, for the same reason
+        (most account names were never formally registered)."""
+        data = request.get_json(force=True)
+        old_name = (data.get("old_name") or "").strip()
+        new_name = (data.get("new_name") or "").strip()
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        if not old_name:
+            return jsonify({"error": "old_name is required"}), 400
+        if not new_name:
+            return jsonify({"error": "new_name is required"}), 400
+        try:
+            updated_count = rename_account(g.user_id, old_name, new_name, household_id)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify({"message": f"Renamed to '{new_name}'", "holdings_updated": updated_count}), 200
 
     # ---------------- TRANSACTIONS (buy/sell ledger) ----------------
 

@@ -699,6 +699,10 @@ export async function deleteAccountAndHoldings(name: string, householdId?: strin
   return api.post("/accounts/delete-with-holdings", { name, household_id: householdId ?? null });
 }
 
+export async function renameAccount(oldName: string, newName: string, householdId?: string | null) {
+  return api.post("/accounts/rename", { old_name: oldName, new_name: newName, household_id: householdId ?? null });
+}
+
 export async function deleteBudgetLimit(id: number | string) {
   await api.delete(`/budget/limits/${id}`);
 }

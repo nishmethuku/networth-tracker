@@ -86,6 +86,41 @@ def delete_account(account_id, user_id=None, household_id=None) -> bool:
     return True
 
 
+def rename_account(user_id, old_name: str, new_name: str, household_id=None) -> int:
+    """Renames an account -- updates every holding filed under old_name to
+    new_name (Holding.account is a plain string, not a foreign key, so
+    this is a bulk string update rather than editing one row) and, if a
+    registered Account row exists for old_name, renames that row too.
+    Returns the number of holdings updated. Works by name for the same
+    reason delete_account_and_holdings does: most account names were
+    never formally registered."""
+    old_name = (old_name or "").strip()
+    new_name = (new_name or "").strip()
+    if not old_name:
+        raise ValueError("old_name is required")
+    if not new_name:
+        raise ValueError("new_name is required")
+    if len(new_name) > 64:
+        raise ValueError("new_name must be 64 characters or fewer")
+    if old_name == new_name:
+        return 0
+
+    existing_names = {a["name"].lower() for a in list_accounts(user_id, household_id) if a["name"].lower() != old_name.lower()}
+    if new_name.lower() in existing_names:
+        raise ValueError(f"'{new_name}' already exists")
+
+    holdings = _holdings_query(user_id, household_id).filter_by(account=old_name).all()
+    for holding in holdings:
+        holding.account = new_name
+
+    registered = _registered_query(user_id, household_id).filter_by(name=old_name).first()
+    if registered:
+        registered.name = new_name
+
+    db.session.commit()
+    return len(holdings)
+
+
 def delete_account_and_holdings(user_id, name: str, household_id=None) -> int:
     """Deletes every holding filed under this account name (transactions,
     valuations, and price alerts cascade at the DB level -- see

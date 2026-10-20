@@ -125,6 +125,7 @@ export default function Alerts() {
               {quantityHoldings.map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.symbol || h.name}
+                  {h.account ? ` — ${h.account}` : ""} ({h.currency})
                 </option>
               ))}
             </select>
@@ -136,7 +137,7 @@ export default function Alerts() {
             </select>
           )}
 
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <select value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })} style={inputStyle}>
               <option value="above">Notify when above</option>
               <option value="below">Notify when below</option>
@@ -151,6 +152,11 @@ export default function Alerts() {
               style={{ ...inputStyle, flex: 1 }}
               required
             />
+            {form.kind === "price" && form.holdingId && (
+              <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                {quantityHoldings.find((h) => String(h.id) === form.holdingId)?.currency}
+              </span>
+            )}
           </div>
 
           <button

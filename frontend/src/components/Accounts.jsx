@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
 import LoadingState from "./LoadingState";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { fetchAccounts, createAccount, deleteAccount, deleteAccountAndHoldings, ApiError } from "../api";
+import { fetchAccounts, createAccount, deleteAccount, deleteAccountAndHoldings, renameAccount, ApiError } from "../api";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -21,6 +22,9 @@ export default function Accounts() {
   const toast = useToast();
   const { currentHouseholdId } = useHousehold();
   const [name, setName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [renamingAccount, setRenamingAccount] = useState(null); // the account object currently being renamed, or null
+  const [renameValue, setRenameValue] = useState("");
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["accounts", currentHouseholdId],
@@ -46,6 +50,32 @@ export default function Accounts() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete account"),
   });
 
+  const renameMutation = useMutation({
+    mutationFn: ({ oldName, newName }) => renameAccount(oldName, newName, currentHouseholdId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["holdings"] });
+      toast.success(result?.message || "Renamed");
+      setRenamingAccount(null);
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to rename account"),
+  });
+
+  function startRename(account) {
+    setRenamingAccount(account);
+    setRenameValue(account.name);
+  }
+
+  function submitRename(e) {
+    e.preventDefault();
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === renamingAccount.name) {
+      setRenamingAccount(null);
+      return;
+    }
+    renameMutation.mutate({ oldName: renamingAccount.name, newName: trimmed });
+  }
+
   const deleteWithHoldingsMutation = useMutation({
     mutationFn: (name) => deleteAccountAndHoldings(name, currentHouseholdId),
     onSuccess: (result) => {
@@ -54,15 +84,13 @@ export default function Accounts() {
       queryClient.invalidateQueries({ queryKey: ["net-worth-history"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success(result?.message || "Account and its holdings deleted");
+      setDeleteTarget(null);
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to delete account"),
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete account");
+      setDeleteTarget(null);
+    },
   });
-
-  function handleDeleteWithHoldings(account) {
-    const noun = account.holdingCount === 1 ? "holding" : "holdings";
-    const confirmed = window.confirm(`Delete "${account.name}" and all ${account.holdingCount} ${noun} in it? This can't be undone.`);
-    if (confirmed) deleteWithHoldingsMutation.mutate(account.name);
-  }
 
   if (isLoading) return <LoadingState message="Loading accounts..." />;
 
@@ -80,58 +108,113 @@ export default function Accounts() {
           <EmptyState message="No accounts yet." />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-            {accounts.map((a) => (
-              <div key={a.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9375rem" }}>
-                <span style={{ color: "var(--text)" }}>{a.name}</span>
-                <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <span style={{ color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
-                    {a.holdingCount} holding{a.holdingCount === 1 ? "" : "s"}
-                  </span>
-                  {a.holdingCount === 0 ? (
-                    a.id != null ? (
+            {accounts.map((a) =>
+              renamingAccount?.name === a.name ? (
+                <form key={a.name} onSubmit={submitRename} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    style={{ ...inputStyle, flex: 1, padding: "0.4rem 0.7rem", fontSize: "0.875rem" }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={renameMutation.isPending}
+                    style={{
+                      padding: "0.3rem 0.7rem",
+                      borderRadius: "var(--radius-sm)",
+                      border: "none",
+                      background: "var(--primary)",
+                      color: "var(--text-inverse)",
+                      cursor: "pointer",
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRenamingAccount(null)}
+                    style={{
+                      padding: "0.3rem 0.7rem",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--border)",
+                      background: "transparent",
+                      color: "var(--text)",
+                      cursor: "pointer",
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <div key={a.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9375rem" }}>
+                  <span style={{ color: "var(--text)" }}>{a.name}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
+                      {a.holdingCount} holding{a.holdingCount === 1 ? "" : "s"}
+                    </span>
+                    <button
+                      onClick={() => startRename(a)}
+                      style={{
+                        padding: "0.3rem 0.7rem",
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border)",
+                        background: "transparent",
+                        color: "var(--text)",
+                        cursor: "pointer",
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      Rename
+                    </button>
+                    {a.holdingCount === 0 ? (
+                      a.id != null ? (
+                        <button
+                          onClick={() => deleteMutation.mutate(a.id)}
+                          disabled={deleteMutation.isPending}
+                          style={{
+                            padding: "0.3rem 0.7rem",
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border)",
+                            background: "transparent",
+                            color: "var(--danger)",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                          }}
+                        >
+                          Delete
+                        </button>
+                      ) : (
+                        <span
+                          style={{ fontSize: "0.75rem", color: "var(--text-muted)", width: "3.5rem", textAlign: "right" }}
+                          title="Only accounts added here can be deleted"
+                        />
+                      )
+                    ) : (
                       <button
-                        onClick={() => deleteMutation.mutate(a.id)}
-                        disabled={deleteMutation.isPending}
+                        onClick={() => setDeleteTarget(a)}
+                        disabled={deleteWithHoldingsMutation.isPending}
+                        title="Deletes this account and every holding filed under it"
                         style={{
                           padding: "0.3rem 0.7rem",
                           borderRadius: "var(--radius-sm)",
-                          border: "1px solid var(--border)",
+                          border: "1px solid var(--danger)",
                           background: "transparent",
                           color: "var(--danger)",
                           cursor: "pointer",
                           fontSize: "0.75rem",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        Delete
+                        Delete account &amp; holdings
                       </button>
-                    ) : (
-                      <span
-                        style={{ fontSize: "0.75rem", color: "var(--text-muted)", width: "3.5rem", textAlign: "right" }}
-                        title="Only accounts added here can be deleted"
-                      />
-                    )
-                  ) : (
-                    <button
-                      onClick={() => handleDeleteWithHoldings(a)}
-                      disabled={deleteWithHoldingsMutation.isPending}
-                      title="Deletes this account and every holding filed under it"
-                      style={{
-                        padding: "0.3rem 0.7rem",
-                        borderRadius: "var(--radius-sm)",
-                        border: "1px solid var(--danger)",
-                        background: "transparent",
-                        color: "var(--danger)",
-                        cursor: "pointer",
-                        fontSize: "0.75rem",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Delete account &amp; holdings
-                    </button>
-                  )}
-                </span>
-              </div>
-            ))}
+                    )}
+                  </span>
+                </div>
+              ),
+            )}
           </div>
         )}
 
@@ -166,6 +249,18 @@ export default function Accounts() {
           </button>
         </form>
       </Card>
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        onConfirm={() => deleteWithHoldingsMutation.mutate(deleteTarget.name)}
+        onCancel={() => setDeleteTarget(null)}
+        assetName={deleteTarget?.name}
+        title={
+          deleteTarget
+            ? `Delete this account and ${deleteTarget.holdingCount} holding${deleteTarget.holdingCount === 1 ? "" : "s"}?`
+            : "Delete account?"
+        }
+      />
     </div>
   );
 }
