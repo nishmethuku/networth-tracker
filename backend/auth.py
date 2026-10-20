@@ -23,10 +23,26 @@ import certifi
 import jwt
 from flask import g, jsonify, request
 from jwt import PyJWKClient
+from sqlalchemy import text
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 
 _jwks_client = None
+
+
+def _has_verified_mfa_factor(user_id: str) -> bool:
+    """Whether this user has ever completed TOTP enrollment -- imported
+    here (not at module level) to avoid auth.py, a standalone JWT-
+    verification module by design, depending on the ORM/DB layer except
+    for this one check. Supabase manages auth.mfa_factors itself; this
+    app only reads it."""
+    from .models import db
+
+    row = db.session.execute(
+        text("select 1 from auth.mfa_factors where user_id = :user_id and status = 'verified' limit 1"),
+        {"user_id": user_id},
+    ).first()
+    return row is not None
 
 
 def _get_jwks_client():
@@ -78,6 +94,17 @@ def require_auth(fn):
             return jsonify({"error": "Token expired"}), 401
         except jwt.PyJWTError:
             return jsonify({"error": "Invalid token"}), 401
+
+        # A user who has enrolled TOTP must actually have completed that
+        # second factor for *this* session (aal2), not just have a valid
+        # password-only (aal1) token -- otherwise 2FA only gates the
+        # login UI while a stolen/leaked access token still has full API
+        # access regardless. Users who never enrolled are unaffected:
+        # their tokens are aal1 by design and this check is skipped for
+        # aal2 tokens (already stepped up) to avoid a DB round-trip on
+        # every single authenticated request.
+        if payload.get("aal") == "aal1" and _has_verified_mfa_factor(payload["sub"]):
+            return jsonify({"error": "Two-factor verification required", "code": "mfa_required"}), 401
 
         g.user_id = payload["sub"]
         g.user_email = payload.get("email")

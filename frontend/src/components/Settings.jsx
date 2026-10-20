@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import Card from "./Card";
+import TwoFactorCard from "./TwoFactorCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
@@ -109,6 +110,10 @@ export default function Settings() {
             </button>
           </div>
         </Card>
+      </div>
+
+      <div style={sectionStyle}>
+        <TwoFactorCard />
       </div>
 
       <div style={sectionStyle}>

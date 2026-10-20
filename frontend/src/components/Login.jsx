@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, sendPasswordReset, user } = useAuth();
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, sendPasswordReset, signOut, user, mfa } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState("signin"); // "signin" | "signup" | "reset"
   const [email, setEmail] = useState("");
@@ -11,16 +11,68 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Set once a password sign-in succeeds but the account has two-factor
+  // enabled and this session hasn't completed that second step yet --
+  // {factorId} while showing the code-entry form.
+  const [mfaFactorId, setMfaFactorId] = useState(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaVerifying, setMfaVerifying] = useState(false);
 
-  // Once authenticated (password sign-in success, or landing back here after
-  // a Google OAuth redirect), leave the login page. Nothing else does this —
-  // /login isn't wrapped in ProtectedRoute, so the router has no other way
-  // to know a session just appeared.
+  // Once authenticated AND (if the account has 2FA) stepped up to aal2,
+  // leave the login page. Nothing else does this — /login isn't wrapped
+  // in ProtectedRoute, so the router has no other way to know a session
+  // just appeared. A password-only sign-in on a 2FA-enabled account
+  // *does* produce a (aal1) session/user here — Supabase's own sign-in
+  // call succeeds regardless of AAL — so this must check the assurance
+  // level before redirecting, not just whether `user` is truthy, or the
+  // code-entry step below would never get a chance to render.
   useEffect(() => {
-    if (user) {
-      navigate("/", { replace: true });
+    if (!user) {
+      setMfaFactorId(null);
+      return;
     }
-  }, [user, navigate]);
+    let cancelled = false;
+    mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
+      if (cancelled) return;
+      if (data && data.nextLevel === "aal2" && data.currentLevel !== data.nextLevel) {
+        mfa.listFactors().then(({ data: factorsData }) => {
+          if (cancelled) return;
+          const totp = factorsData?.totp?.[0];
+          if (totp) setMfaFactorId(totp.id);
+        });
+      } else {
+        navigate("/", { replace: true });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, navigate, mfa]);
+
+  async function handleMfaSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setMfaVerifying(true);
+    try {
+      const { data: challenge, error: challengeError } = await mfa.challenge({ factorId: mfaFactorId });
+      if (challengeError) throw challengeError;
+      const { error: verifyError } = await mfa.verify({ factorId: mfaFactorId, challengeId: challenge.id, code: mfaCode.trim() });
+      if (verifyError) throw verifyError;
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(err.message || "That code didn't work. Please try again.");
+      setMfaCode("");
+    } finally {
+      setMfaVerifying(false);
+    }
+  }
+
+  async function handleMfaCancel() {
+    setMfaFactorId(null);
+    setMfaCode("");
+    setError(null);
+    await signOut();
+  }
 
   const inputStyle = {
     width: "100%",
@@ -132,82 +184,80 @@ export default function Login() {
             background: "linear-gradient(90deg, var(--primary), var(--accent))",
           }}
         />
-        <h1
-          style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 600, color: "var(--text)", marginBottom: "0.4rem" }}
-        >
-          {mode === "signup" ? "Create your account" : mode === "reset" ? "Reset your password" : "Welcome back"}
-        </h1>
-        <p style={{ color: "var(--text-secondary)", marginBottom: "2rem", fontSize: "0.9375rem" }}>
-          {mode === "signup"
-            ? "Start tracking your family's net worth"
-            : mode === "reset"
-              ? "Enter your email and we'll send you a reset link"
-              : "Sign in to your account"}
-        </p>
-
-        {mode !== "reset" && (
+        {mfaFactorId ? (
           <>
-            <button
-              type="button"
-              onClick={handleGoogle}
+            <h1
               style={{
-                width: "100%",
-                padding: "0.875rem 1rem",
-                borderRadius: "var(--radius)",
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
+                fontFamily: "var(--font-display)",
+                fontSize: "1.5rem",
+                fontWeight: 600,
                 color: "var(--text)",
-                cursor: "pointer",
-                fontWeight: 500,
-                fontSize: "0.9375rem",
-                marginBottom: "1.5rem",
+                marginBottom: "0.4rem",
               }}
             >
-              Continue with Google
-            </button>
+              Enter your code
+            </h1>
+            <p style={{ color: "var(--text-secondary)", marginBottom: "2rem", fontSize: "0.9375rem" }}>
+              Open your authenticator app and enter the 6-digit code for this account.
+            </p>
+            <form onSubmit={handleMfaSubmit}>
+              <div style={{ marginBottom: "1.25rem" }}>
+                <label htmlFor="mfa-code" style={labelStyle}>
+                  Authentication code
+                </label>
+                <input
+                  id="mfa-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                  maxLength={6}
+                  style={{ ...inputStyle, letterSpacing: "0.3em", textAlign: "center", fontSize: "1.25rem" }}
+                />
+              </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
-              <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>OR</span>
-              <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-            </div>
-          </>
-        )}
+              {error && (
+                <div
+                  style={{
+                    padding: "0.75rem 1rem",
+                    background: "var(--danger-light)",
+                    border: "1px solid var(--danger)",
+                    borderRadius: "var(--radius)",
+                    color: "var(--danger)",
+                    marginBottom: "1.25rem",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {error}
+                </div>
+              )}
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: mode === "reset" ? "1.5rem" : "1.25rem" }}>
-            <label htmlFor="email" style={labelStyle}>
-              Email
-            </label>
-            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
-          </div>
-
-          {mode !== "reset" && (
-            <div style={{ marginBottom: "0.625rem" }}>
-              <label htmlFor="password" style={labelStyle}>
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                style={inputStyle}
-              />
-            </div>
-          )}
-
-          {mode === "signin" && (
-            <p style={{ textAlign: "right", marginBottom: "1.5rem" }}>
+              <button
+                type="submit"
+                disabled={mfaVerifying || mfaCode.length !== 6}
+                style={{
+                  width: "100%",
+                  padding: "0.875rem 1rem",
+                  borderRadius: "var(--radius)",
+                  border: "none",
+                  background: "var(--primary)",
+                  color: "var(--text-inverse)",
+                  cursor: mfaVerifying || mfaCode.length !== 6 ? "not-allowed" : "pointer",
+                  fontWeight: 600,
+                  fontSize: "0.9375rem",
+                  opacity: mfaVerifying || mfaCode.length !== 6 ? 0.6 : 1,
+                }}
+              >
+                {mfaVerifying ? "Verifying..." : "Verify"}
+              </button>
+            </form>
+            <p style={{ marginTop: "1.5rem", textAlign: "center", fontSize: "0.875rem" }}>
               <button
                 type="button"
-                onClick={() => {
-                  setMode("reset");
-                  setError(null);
-                  setInfo(null);
-                }}
+                onClick={handleMfaCancel}
                 style={{
                   background: "none",
                   border: "none",
@@ -217,109 +267,208 @@ export default function Login() {
                   padding: 0,
                 }}
               >
-                Forgot password?
+                ← Use a different account
               </button>
             </p>
-          )}
-
-          {error && (
-            <div
+          </>
+        ) : (
+          <>
+            <h1
               style={{
-                padding: "0.75rem 1rem",
-                background: "var(--danger-light)",
-                border: "1px solid var(--danger)",
-                borderRadius: "var(--radius)",
-                color: "var(--danger)",
-                marginBottom: "1.25rem",
-                fontSize: "0.875rem",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {info && (
-            <div
-              style={{
-                padding: "0.75rem 1rem",
-                background: "var(--success-light)",
-                border: "1px solid var(--success)",
-                borderRadius: "var(--radius)",
-                color: "var(--success)",
-                marginBottom: "1.25rem",
-                fontSize: "0.875rem",
-              }}
-            >
-              {info}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "0.875rem 1rem",
-              borderRadius: "var(--radius)",
-              border: "none",
-              background: "var(--primary)",
-              color: "var(--text-inverse)",
-              cursor: loading ? "not-allowed" : "pointer",
-              fontWeight: 600,
-              fontSize: "0.9375rem",
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            {loading ? "Please wait..." : mode === "signup" ? "Sign Up" : mode === "reset" ? "Send Reset Link" : "Sign In"}
-          </button>
-        </form>
-
-        <p style={{ marginTop: "1.5rem", textAlign: "center", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-          {mode === "reset" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signin");
-                setError(null);
-                setInfo(null);
-              }}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--primary)",
-                cursor: "pointer",
+                fontFamily: "var(--font-display)",
+                fontSize: "1.5rem",
                 fontWeight: 600,
-                fontSize: "0.875rem",
-                padding: 0,
+                color: "var(--text)",
+                marginBottom: "0.4rem",
               }}
             >
-              ← Back to sign in
-            </button>
-          ) : (
-            <>
-              {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
+              {mode === "signup" ? "Create your account" : mode === "reset" ? "Reset your password" : "Welcome back"}
+            </h1>
+            <p style={{ color: "var(--text-secondary)", marginBottom: "2rem", fontSize: "0.9375rem" }}>
+              {mode === "signup"
+                ? "Start tracking your family's net worth"
+                : mode === "reset"
+                  ? "Enter your email and we'll send you a reset link"
+                  : "Sign in to your account"}
+            </p>
+
+            {mode !== "reset" && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleGoogle}
+                  style={{
+                    width: "100%",
+                    padding: "0.875rem 1rem",
+                    borderRadius: "var(--radius)",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg)",
+                    color: "var(--text)",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                    fontSize: "0.9375rem",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  Continue with Google
+                </button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
+                  <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>OR</span>
+                  <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+                </div>
+              </>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: mode === "reset" ? "1.5rem" : "1.25rem" }}>
+                <label htmlFor="email" style={labelStyle}>
+                  Email
+                </label>
+                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
+              </div>
+
+              {mode !== "reset" && (
+                <div style={{ marginBottom: "0.625rem" }}>
+                  <label htmlFor="password" style={labelStyle}>
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+
+              {mode === "signin" && (
+                <p style={{ textAlign: "right", marginBottom: "1.5rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("reset");
+                      setError(null);
+                      setInfo(null);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--text-secondary)",
+                      cursor: "pointer",
+                      fontSize: "0.8125rem",
+                      padding: 0,
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                </p>
+              )}
+
+              {error && (
+                <div
+                  style={{
+                    padding: "0.75rem 1rem",
+                    background: "var(--danger-light)",
+                    border: "1px solid var(--danger)",
+                    borderRadius: "var(--radius)",
+                    color: "var(--danger)",
+                    marginBottom: "1.25rem",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              {info && (
+                <div
+                  style={{
+                    padding: "0.75rem 1rem",
+                    background: "var(--success-light)",
+                    border: "1px solid var(--success)",
+                    borderRadius: "var(--radius)",
+                    color: "var(--success)",
+                    marginBottom: "1.25rem",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {info}
+                </div>
+              )}
+
               <button
-                type="button"
-                onClick={() => {
-                  setMode(mode === "signup" ? "signin" : "signup");
-                  setError(null);
-                  setInfo(null);
-                }}
+                type="submit"
+                disabled={loading}
                 style={{
-                  background: "none",
+                  width: "100%",
+                  padding: "0.875rem 1rem",
+                  borderRadius: "var(--radius)",
                   border: "none",
-                  color: "var(--primary)",
-                  cursor: "pointer",
+                  background: "var(--primary)",
+                  color: "var(--text-inverse)",
+                  cursor: loading ? "not-allowed" : "pointer",
                   fontWeight: 600,
-                  fontSize: "0.875rem",
-                  padding: 0,
+                  fontSize: "0.9375rem",
+                  opacity: loading ? 0.6 : 1,
                 }}
               >
-                {mode === "signup" ? "Sign In" : "Sign Up"}
+                {loading ? "Please wait..." : mode === "signup" ? "Sign Up" : mode === "reset" ? "Send Reset Link" : "Sign In"}
               </button>
-            </>
-          )}
-        </p>
+            </form>
+
+            <p style={{ marginTop: "1.5rem", textAlign: "center", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+              {mode === "reset" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("signin");
+                    setError(null);
+                    setInfo(null);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--primary)",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: "0.875rem",
+                    padding: 0,
+                  }}
+                >
+                  ← Back to sign in
+                </button>
+              ) : (
+                <>
+                  {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === "signup" ? "signin" : "signup");
+                      setError(null);
+                      setInfo(null);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--primary)",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: "0.875rem",
+                      padding: 0,
+                    }}
+                  >
+                    {mode === "signup" ? "Sign In" : "Sign Up"}
+                  </button>
+                </>
+              )}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

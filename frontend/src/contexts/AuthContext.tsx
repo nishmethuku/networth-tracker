@@ -14,6 +14,14 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  // Two-factor (TOTP) management -- the raw Supabase SDK sub-object,
+  // exposed here rather than wrapped method-by-method since its own API
+  // (enroll/challenge/verify/unenroll/listFactors/
+  // getAuthenticatorAssuranceLevel) is already well-shaped. Every other
+  // auth operation in this app goes through this context rather than
+  // components importing the supabase client directly; this keeps that
+  // boundary intact without reinventing a wrapper for every method.
+  mfa: typeof supabase.auth.mfa;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -112,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     sendPasswordReset,
     updatePassword,
+    mfa: supabase.auth.mfa,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
