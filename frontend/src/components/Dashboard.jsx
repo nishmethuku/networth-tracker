@@ -34,7 +34,11 @@ const BENCHMARKS = [
 function BenchmarkCard() {
   const { currentHouseholdId } = useHousehold();
   const [symbol, setSymbol] = useState("SPY");
-  const { data: benchmark, isLoading } = useQuery({
+  const {
+    data: benchmark,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["benchmark", symbol, currentHouseholdId],
     queryFn: () => fetchBenchmark(symbol, currentHouseholdId),
     retry: false,
@@ -64,6 +68,8 @@ function BenchmarkCard() {
       </div>
       {isLoading ? (
         <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>Loading...</p>
+      ) : isError ? (
+        <EmptyState message="Benchmark data temporarily unavailable — try again later." />
       ) : !benchmark || benchmark.portfolioXirr == null || benchmark.benchmarkXirr == null ? (
         <EmptyState message="Not enough buy history with available prices to compare yet." />
       ) : (

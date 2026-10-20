@@ -125,16 +125,22 @@ def get_benchmark_comparison(user_id, benchmark_symbol: str = "SPY", household_i
     benchmark_xirr = xirr(benchmark_cash_flows + [(date.today(), benchmark_value_usd)])
 
     holdings_with_metrics = list_holdings_with_metrics(quantity_holdings, display_currency="USD")
-    total_current_value = sum(h["display_value"] for h in holdings_with_metrics)
-    # The portfolio's own XIRR, unlike the benchmark leg, includes sells --
-    # total_current_value here is the *real* current value (already net of
-    # any selling), so cash flows that only ever contained buys would
-    # count money as still invested that was actually taken out, badly
-    # understating returns for any partially or fully sold position (a
-    # real +100% round-trip buy-then-sell was rendering as a null/negative
-    # XIRR before this fix). Reuses holdings_service.portfolio_xirr, which
-    # already handles per-transaction currency conversion.
-    portfolio_xirr_value = _portfolio_xirr(all_transactions, total_current_value, display_currency="USD")
+    # Exclude near-zero cost basis holdings from the portfolio XIRR leg —
+    # a single test-share at ₹20 inflates the XIRR to levels that make the
+    # benchmark comparison meaningless. Computed from buy transactions in
+    # native currency (same MIN_MEANINGFUL_COST_BASIS=100 threshold the
+    # frontend uses), so it works even when holdings_with_metrics is empty.
+    from collections import defaultdict
+    _cost_by_holding: dict = defaultdict(float)
+    for t in all_transactions:
+        if t.transaction_type == "buy":
+            _cost_by_holding[t.holding_id] += t.quantity * t.price_per_unit
+    meaningful_ids = {hid for hid, cb in _cost_by_holding.items() if cb >= 100}
+    meaningful_txns = [t for t in all_transactions if t.holding_id in meaningful_ids]
+    total_current_value = sum(
+        h["display_value"] for h in holdings_with_metrics if h["id"] in meaningful_ids
+    )
+    portfolio_xirr_value = _portfolio_xirr(meaningful_txns, total_current_value, display_currency="USD") if meaningful_txns else None
 
     return {
         "benchmark_symbol": benchmark_symbol,

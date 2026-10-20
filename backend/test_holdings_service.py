@@ -321,7 +321,7 @@ def test_build_dashboard_computes_portfolio_xirr_from_transactions():
     holding.id = 1
     # quantity omitted (defaults to 0 via .get in build_dashboard) so the "this month mover"
     # lookup — which needs a live historical-price call — is skipped; irrelevant to this test.
-    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 2000.0}]
+    metrics = [{"id": 1, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 2000.0, "cost_basis": 1000.0}]
     transactions = [_tx("buy", date.today() - timedelta(days=365), 10, 100.0)]  # bought for 1000, worth 2000 a year later
     result = build_dashboard(metrics, {1: holding}, all_transactions=transactions)
     assert result["portfolio_xirr"] is not None

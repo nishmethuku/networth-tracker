@@ -475,10 +475,22 @@ def build_dashboard(
 
     overall_xirr = None
     if all_transactions:
+        # Exclude near-zero cost basis holdings (< 100 in native currency) —
+        # a single test-share bought for ₹20 has an astronomical unrealised
+        # return that drowns out the real portfolio XIRR. Mirrors the
+        # frontend's MIN_MEANINGFUL_COST_BASIS = 100 threshold.
+        meaningful_ids = {
+            h["id"] for h in holdings_with_metrics
+            if h["asset_type"] in QUANTITY_BASED_TYPES
+            and (h.get("cost_basis") or 0) >= 100
+        }
+        meaningful_txns = [t for t in all_transactions if t.holding_id in meaningful_ids]
         tradeable_value = sum(
-            h["display_value"] for h in holdings_with_metrics if h["asset_type"] in QUANTITY_BASED_TYPES
+            h["display_value"] for h in holdings_with_metrics
+            if h["asset_type"] in QUANTITY_BASED_TYPES and h["id"] in meaningful_ids
         )
-        overall_xirr = portfolio_xirr(all_transactions, tradeable_value, display_currency=display_currency)
+        if meaningful_txns:
+            overall_xirr = portfolio_xirr(meaningful_txns, tradeable_value, display_currency=display_currency)
 
     return {
         "total_net_worth": round(total_net_worth, 2),
