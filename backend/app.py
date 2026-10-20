@@ -35,7 +35,7 @@ logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 
 from . import ai_service, price_service, push_service
 from .account_registry_service import create_account, delete_account, delete_account_and_holdings, list_accounts
-from .account_service import delete_all_user_data, export_user_data, export_user_data_csv_zip
+from .account_service import delete_all_user_data, export_user_data, export_user_data_csv_zip, restore_user_data
 from .alert_service import check_all_alerts
 from .allocation_service import compute_rebalance_plan, validate_target_allocation
 from .allocation_target_service import clear_target_allocation, get_target_allocation, save_target_allocation
@@ -1800,6 +1800,22 @@ def create_app():
             mimetype="application/zip",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    @app.route("/account/restore", methods=["POST"])
+    @require_auth
+    @limiter.limit("5 per hour")
+    def account_restore():
+        """Restores from a /account/export-shaped JSON backup -- not the
+        .zip (that's CSVs for opening in a spreadsheet, not a structured
+        format this reads back). Additive: existing data is untouched,
+        everything in the file is inserted as new personal data (never a
+        household's), so restoring the same file twice duplicates it --
+        same as re-running a CSV import twice would."""
+        data = request.get_json(force=True)
+        if not isinstance(data, dict):
+            return jsonify({"error": "Expected a JSON object (the file from Settings → Download as JSON)"}), 400
+        result = restore_user_data(g.user_id, data)
+        return jsonify(result), 200
 
     @app.route("/account/data", methods=["DELETE"])
     @require_auth

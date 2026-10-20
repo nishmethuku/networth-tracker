@@ -8,7 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
-import { fetchAccountExport, fetchAccountExportCsvZip, deleteAllAccountData, ApiError } from "../api";
+import { fetchAccountExport, fetchAccountExportCsvZip, restoreAccountData, deleteAllAccountData, ApiError } from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { SUPPORTED_LANGUAGES, setLanguage } from "../i18n";
 
@@ -56,6 +56,7 @@ export default function Settings() {
   const [confirmText, setConfirmText] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   const exportMutation = useMutation({
     mutationFn: fetchAccountExport,
@@ -76,6 +77,53 @@ export default function Settings() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Export failed"),
     onSettled: () => setExportingCsv(false),
   });
+
+  const restoreMutation = useMutation({
+    mutationFn: restoreAccountData,
+    onSuccess: (result) => {
+      queryClient.clear(); // same reasoning as deleteMutation below -- a bulk write touches everything at once
+      const restoredCount = Object.entries(result)
+        .filter(([key, value]) => key.endsWith("_restored") && value > 0)
+        .reduce((sum, [, value]) => sum + value, 0);
+      const skippedCount = Object.values(result.skipped || {}).reduce((sum, n) => sum + n, 0);
+      toast.success(
+        restoredCount > 0
+          ? `Restored ${restoredCount} item${restoredCount === 1 ? "" : "s"}${skippedCount ? ` (${skippedCount} skipped — missing required fields)` : ""}`
+          : "Nothing to restore — that file didn't contain any recognizable data",
+      );
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Restore failed"),
+    onSettled: () => setRestoring(false),
+  });
+
+  function handleRestoreFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file name later
+    if (!file) return;
+    if (
+      !window.confirm(
+        "Restore from this backup? This adds the file's holdings, transactions, liabilities, and other data as new records -- it won't overwrite or remove anything you already have.",
+      )
+    ) {
+      return;
+    }
+    setRestoring(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        restoreMutation.mutate(data);
+      } catch {
+        toast.error("That doesn't look like a valid backup file (couldn't parse JSON)");
+        setRestoring(false);
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Couldn't read that file");
+      setRestoring(false);
+    };
+    reader.readAsText(file);
+  }
 
   const deleteMutation = useMutation({
     mutationFn: deleteAllAccountData,
@@ -207,6 +255,15 @@ export default function Settings() {
               {exporting ? "Exporting…" : "Download as JSON"}
             </button>
           </div>
+
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "1.25rem", marginBottom: "0.75rem" }}>
+            Restore from a JSON backup (the "Download as JSON" file above) — adds its data as new records without touching what you already
+            have.
+          </p>
+          <label style={{ ...buttonStyle, opacity: restoring ? 0.6 : 1, display: "inline-block" }}>
+            {restoring ? "Restoring…" : "Restore from JSON backup"}
+            <input type="file" accept=".json,application/json" onChange={handleRestoreFile} disabled={restoring} hidden />
+          </label>
         </Card>
       </div>
 

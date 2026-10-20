@@ -12,6 +12,7 @@ now.
 import csv
 import io
 import zipfile
+from datetime import date
 from typing import Dict
 
 from .models import (
@@ -31,6 +32,7 @@ from .models import (
     PushSubscription,
     db,
 )
+from .services import safe_float
 
 
 def export_user_data(user_id) -> Dict:
@@ -156,4 +158,282 @@ def delete_all_user_data(user_id) -> Dict:
         "budget_limits_deleted": budget_limits_count,
         "budget_categories_deleted": budget_categories_count,
         "push_subscriptions_deleted": push_subscriptions_count,
+    }
+
+
+def _parse_date(value):
+    return date.fromisoformat(value) if value else None
+
+
+def restore_user_data(user_id, data: Dict) -> Dict:
+    """Re-creates rows from an export_user_data()-shaped dict (the JSON
+    backup from Settings) into this user's own personal data -- the
+    reverse of export_user_data, for recovering from an accidental
+    delete or moving data into a fresh account.
+
+    Every row lands as *personal* data for `user_id`, regardless of
+    whatever user_id/household_id is in the uploaded file: trusting an
+    uploaded file's own user_id would let someone "restore" data as if
+    it were their own, and re-associating with a household this user may
+    not even belong to (or that no longer exists) isn't safe to infer
+    from a file. Re-share into a household afterward the normal way if
+    that's wanted.
+
+    IDs in the file are the *old* database's row ids, which may already
+    be in use by other data created since the export -- every row is
+    inserted fresh (a new auto-generated id) rather than reusing the
+    exported one, and holdings/liabilities are restored first so their
+    new ids can be substituted into whatever referenced the old ones
+    (transactions/valuations/alerts' holding_id, budget entries' linked_
+    liability_id/deposit_target_holding_id). A row missing a field its
+    model requires is skipped (counted, not raised) rather than failing
+    the whole restore over one bad row. push_subscriptions is
+    deliberately never restored -- a device's push subscription belongs
+    to that device/browser, not to "the data," and is re-created by
+    enabling push again if wanted.
+
+    Commits once at the end; the caller's session is left mid-transaction
+    on any unexpected error (same as every other write route here, which
+    relies on Flask's error handler / the next request's own rollback)."""
+    skipped: Dict[str, int] = {}
+
+    def _skip(table):
+        skipped[table] = skipped.get(table, 0) + 1
+
+    holding_id_map: Dict[int, int] = {}
+    holdings_restored = 0
+    for row in data.get("holdings", []):
+        if not all(row.get(f) for f in ("asset_type", "name", "country", "account", "currency")):
+            _skip("holdings")
+            continue
+        holding = Holding(
+            user_id=user_id,
+            household_id=None,
+            asset_type=row["asset_type"],
+            symbol=row.get("symbol"),
+            name=row["name"],
+            country=row["country"],
+            account=row["account"],
+            institution=row.get("institution"),
+            currency=row["currency"],
+            interest_rate=row.get("interest_rate"),
+            maturity_date=_parse_date(row.get("maturity_date")),
+            sip_amount=row.get("sip_amount"),
+            sip_frequency=row.get("sip_frequency"),
+            sip_start_date=_parse_date(row.get("sip_start_date")),
+            is_private=bool(row.get("is_private", False)),
+            notes=row.get("notes"),
+            tags=row.get("tags"),
+            status=row.get("status", "active"),
+        )
+        db.session.add(holding)
+        db.session.flush()  # assigns holding.id, needed by transactions/valuations below
+        if row.get("id") is not None:
+            holding_id_map[row["id"]] = holding.id
+        holdings_restored += 1
+
+    transactions_restored = 0
+    for row in data.get("transactions", []):
+        new_holding_id = holding_id_map.get(row.get("holding_id"))
+        if not new_holding_id or not row.get("transaction_date") or row.get("quantity") is None or row.get("price_per_unit") is None:
+            _skip("transactions")
+            continue
+        db.session.add(HoldingTransaction(
+            holding_id=new_holding_id,
+            user_id=user_id,
+            transaction_type=row.get("transaction_type", "buy"),
+            transaction_date=_parse_date(row["transaction_date"]),
+            quantity=safe_float(row["quantity"]),
+            price_per_unit=safe_float(row["price_per_unit"]),
+            currency=row.get("currency", "USD"),
+            fees=safe_float(row.get("fees", 0)),
+            notes=row.get("notes"),
+            tags=row.get("tags") or [],
+        ))
+        transactions_restored += 1
+
+    valuations_restored = 0
+    for row in data.get("valuations", []):
+        new_holding_id = holding_id_map.get(row.get("holding_id"))
+        if not new_holding_id or not row.get("valuation_date") or row.get("value") is None:
+            _skip("valuations")
+            continue
+        db.session.add(HoldingValuation(
+            holding_id=new_holding_id,
+            user_id=user_id,
+            valuation_date=_parse_date(row["valuation_date"]),
+            value=safe_float(row["value"]),
+            currency=row.get("currency", "USD"),
+            notes=row.get("notes"),
+        ))
+        valuations_restored += 1
+
+    liability_id_map: Dict[int, int] = {}
+    liabilities_restored = 0
+    for row in data.get("liabilities", []):
+        if not row.get("name") or not row.get("liability_type") or row.get("current_balance") is None:
+            _skip("liabilities")
+            continue
+        liability = Liability(
+            user_id=user_id,
+            household_id=None,
+            name=row["name"],
+            liability_type=row["liability_type"],
+            currency=row.get("currency", "USD"),
+            current_balance=safe_float(row["current_balance"]),
+            original_amount=safe_float(row["original_amount"]) if row.get("original_amount") is not None else None,
+            interest_rate=safe_float(row["interest_rate"]) if row.get("interest_rate") is not None else None,
+            notes=row.get("notes"),
+            is_private=bool(row.get("is_private", False)),
+        )
+        db.session.add(liability)
+        db.session.flush()
+        if row.get("id") is not None:
+            liability_id_map[row["id"]] = liability.id
+        liabilities_restored += 1
+
+    alerts_restored = 0
+    for row in data.get("alerts", []):
+        if not row.get("alert_type") or row.get("threshold") is None:
+            _skip("alerts")
+            continue
+        db.session.add(PriceAlert(
+            user_id=user_id,
+            holding_id=holding_id_map.get(row.get("holding_id")) if row.get("holding_id") else None,
+            symbol=row.get("symbol"),
+            asset_type=row.get("asset_type"),
+            alert_type=row["alert_type"],
+            threshold=safe_float(row["threshold"]),
+            currency=row.get("currency", "USD"),
+            status="active",  # never restore as already-"triggered" -- a restored alert should evaluate fresh
+        ))
+        alerts_restored += 1
+
+    milestones_restored = 0
+    for row in data.get("milestones", []):
+        if row.get("threshold") is None or not row.get("achieved_date"):
+            _skip("milestones")
+            continue
+        db.session.add(Milestone(
+            user_id=user_id,
+            household_id=None,
+            threshold=safe_float(row["threshold"]),
+            currency=row.get("currency", "USD"),
+            achieved_date=_parse_date(row["achieved_date"]),
+            acknowledged=bool(row.get("acknowledged", False)),
+        ))
+        milestones_restored += 1
+
+    snapshots_restored = 0
+    for row in data.get("net_worth_snapshots", []):
+        if row.get("total_net_worth") is None or not row.get("snapshot_date"):
+            _skip("net_worth_snapshots")
+            continue
+        db.session.add(NetWorthSnapshot(
+            user_id=user_id,
+            household_id=None,
+            snapshot_date=_parse_date(row["snapshot_date"]),
+            total_net_worth=safe_float(row["total_net_worth"]),
+            total_stock_value=safe_float(row.get("total_stock_value", 0)),
+            total_property_value=safe_float(row.get("total_property_value", 0)),
+            total_profit_loss=safe_float(row.get("total_profit_loss", 0)),
+            total_liabilities=safe_float(row.get("total_liabilities", 0)),
+            by_asset_type=row.get("by_asset_type"),
+            currency=row.get("currency", "USD"),
+        ))
+        snapshots_restored += 1
+
+    accounts_restored = 0
+    for row in data.get("accounts", []):
+        if not row.get("name"):
+            _skip("accounts")
+            continue
+        db.session.add(Account(user_id=user_id, household_id=None, name=row["name"]))
+        accounts_restored += 1
+
+    goals_restored = 0
+    for row in data.get("goals", []):
+        if not row.get("name") or row.get("target_amount") is None:
+            _skip("goals")
+            continue
+        db.session.add(Goal(
+            user_id=user_id,
+            name=row["name"],
+            target_amount=safe_float(row["target_amount"]),
+            currency=row.get("currency", "USD"),
+            target_date=_parse_date(row.get("target_date")),
+        ))
+        goals_restored += 1
+
+    allocation_targets_restored = 0
+    for row in data.get("allocation_targets", []):
+        if not row.get("asset_type") or row.get("target_pct") is None:
+            _skip("allocation_targets")
+            continue
+        db.session.add(AllocationTarget(user_id=user_id, asset_type=row["asset_type"], target_pct=safe_float(row["target_pct"])))
+        allocation_targets_restored += 1
+
+    budget_categories_restored = 0
+    for row in data.get("budget_categories", []):
+        if not row.get("entry_type") or not row.get("name"):
+            _skip("budget_categories")
+            continue
+        db.session.add(BudgetCategory(user_id=user_id, household_id=None, entry_type=row["entry_type"], name=row["name"]))
+        budget_categories_restored += 1
+
+    budget_limits_restored = 0
+    for row in data.get("budget_limits", []):
+        if not row.get("category") or row.get("monthly_limit") is None:
+            _skip("budget_limits")
+            continue
+        db.session.add(BudgetLimit(
+            user_id=user_id,
+            household_id=None,
+            category=row["category"],
+            monthly_limit=safe_float(row["monthly_limit"]),
+            currency=row.get("currency", "USD"),
+        ))
+        budget_limits_restored += 1
+
+    budget_entries_restored = 0
+    for row in data.get("budget_entries", []):
+        if not row.get("entry_type") or not row.get("entry_date") or row.get("amount") is None or not row.get("category"):
+            _skip("budget_entries")
+            continue
+        db.session.add(BudgetEntry(
+            user_id=user_id,
+            household_id=None,
+            entry_type=row["entry_type"],
+            entry_date=_parse_date(row["entry_date"]),
+            amount=safe_float(row["amount"]),
+            currency=row.get("currency", "USD"),
+            category=row["category"],
+            description=row.get("description"),
+            is_private=bool(row.get("is_private", False)),
+            is_recurring=bool(row.get("is_recurring", False)),
+            recurring_frequency=row.get("recurring_frequency"),
+            linked_liability_id=liability_id_map.get(row.get("linked_liability_id")) if row.get("linked_liability_id") else None,
+            deposit_target_holding_id=holding_id_map.get(row.get("deposit_target_holding_id"))
+            if row.get("deposit_target_holding_id")
+            else None,
+        ))
+        budget_entries_restored += 1
+
+    db.session.commit()
+
+    return {
+        "holdings_restored": holdings_restored,
+        "transactions_restored": transactions_restored,
+        "valuations_restored": valuations_restored,
+        "liabilities_restored": liabilities_restored,
+        "alerts_restored": alerts_restored,
+        "milestones_restored": milestones_restored,
+        "net_worth_snapshots_restored": snapshots_restored,
+        "accounts_restored": accounts_restored,
+        "goals_restored": goals_restored,
+        "allocation_targets_restored": allocation_targets_restored,
+        "budget_categories_restored": budget_categories_restored,
+        "budget_limits_restored": budget_limits_restored,
+        "budget_entries_restored": budget_entries_restored,
+        "skipped": skipped,
     }

@@ -538,6 +538,16 @@ export async function fetchAccountExportCsvZip(): Promise<Blob> {
   return response.blob();
 }
 
+/**
+ * Restores from a fetchAccountExport()-shaped JSON backup. Additive --
+ * see the backend route's own docstring for why (never overwrites/
+ * replaces existing data, and never trusts the file's own user_id/
+ * household_id).
+ */
+export async function restoreAccountData(data: Record<string, unknown>) {
+  return api.post("/account/restore", data, BULK_IMPORT_TIMEOUT);
+}
+
 export async function deleteAllAccountData() {
   return api.delete("/account/data", { confirm: "DELETE" });
 }
