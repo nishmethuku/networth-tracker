@@ -164,7 +164,9 @@ async function mockBackend(page: Page, opts: MockOptions = {}) {
     return route.continue();
   });
   await page.route(`${API_BASE}/net-worth-history**`, (route) => json(route, []));
-  await page.route(`${API_BASE}/transactions**`, (route) => json(route, []));
+  // Transactions.jsx always requests pagination (?page=&per_page=), so the
+  // real backend always returns this shape for it, not a bare array.
+  await page.route(`${API_BASE}/transactions**`, (route) => json(route, { items: [], total: 0, page: 1, per_page: 50, total_pages: 0 }));
   await page.route(`${API_BASE}/liabilities**`, (route) => json(route, []));
   await page.route(`${API_BASE}/goals**`, (route) => json(route, []));
   await page.route(`${API_BASE}/allocation-targets**`, (route) => json(route, {}));

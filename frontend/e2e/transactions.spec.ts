@@ -32,7 +32,13 @@ test("a dividend transaction renders in the success color, not danger, on the Tr
 
   await page.route(`${API_BASE}/transactions**`, (route) => {
     if (route.request().method() === "GET")
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([dividendTx]) });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        // Transactions.jsx always requests pagination now (?page=&per_page=),
+        // so the real backend always returns this shape for it, not a bare array.
+        body: JSON.stringify({ items: [dividendTx], total: 1, page: 1, per_page: 50, total_pages: 1 }),
+      });
     return route.continue();
   });
 
