@@ -17,6 +17,7 @@ which otherwise surfaces as an opaque SSL certificate verification failure.
 """
 import os
 import ssl
+import time
 from functools import wraps
 
 import certifi
@@ -29,6 +30,18 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 
 _jwks_client = None
 
+# {user_id: (has_factor, timestamp)} -- same in-memory TTL cache pattern as
+# utils.py's _PRICE_CACHE. Without this, _has_verified_mfa_factor ran a DB
+# query on every single authenticated request from every user who has
+# *not* enrolled 2FA (the common case, since it's opt-in and off by
+# default) -- caught live when a transient Supabase connection timeout on
+# this exact query 500'd an otherwise-unrelated request. A 2FA enrollment
+# change takes up to the TTL to be picked up by an already-issued aal1
+# token's next request in the worst case, which is an acceptable tradeoff
+# for cutting a mandatory DB round-trip out of the common path entirely.
+_MFA_FACTOR_CACHE = {}
+_MFA_FACTOR_CACHE_TTL = 300  # 5 minutes in seconds
+
 
 def _has_verified_mfa_factor(user_id: str) -> bool:
     """Whether this user has ever completed TOTP enrollment -- imported
@@ -36,13 +49,20 @@ def _has_verified_mfa_factor(user_id: str) -> bool:
     verification module by design, depending on the ORM/DB layer except
     for this one check. Supabase manages auth.mfa_factors itself; this
     app only reads it."""
+    now = time.time()
+    cached = _MFA_FACTOR_CACHE.get(user_id)
+    if cached is not None and now - cached[1] < _MFA_FACTOR_CACHE_TTL:
+        return cached[0]
+
     from .models import db
 
     row = db.session.execute(
         text("select 1 from auth.mfa_factors where user_id = :user_id and status = 'verified' limit 1"),
         {"user_id": user_id},
     ).first()
-    return row is not None
+    has_factor = row is not None
+    _MFA_FACTOR_CACHE[user_id] = (has_factor, now)
+    return has_factor
 
 
 def _get_jwks_client():

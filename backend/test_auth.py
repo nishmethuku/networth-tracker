@@ -76,6 +76,55 @@ def test_missing_authorization_header_returns_401():
     assert response.status_code == 401
 
 
+def _mock_db_session(row_present):
+    mock_result = MagicMock()
+    mock_result.first.return_value = (1,) if row_present else None
+    mock_session = MagicMock()
+    mock_session.execute.return_value = mock_result
+    return mock_session
+
+
+def test_has_verified_mfa_factor_caches_the_db_result():
+    """Regression: this used to query auth.mfa_factors on every single
+    authenticated request from every user, including the common case
+    (no 2FA enrolled) -- caught live when a transient Supabase connection
+    timeout on exactly this query 500'd an otherwise-unrelated request.
+    A second call within the TTL must not hit the DB again."""
+    auth._MFA_FACTOR_CACHE.clear()
+    mock_session = _mock_db_session(row_present=True)
+    with patch("backend.models.db", session=mock_session):
+        first = auth._has_verified_mfa_factor("u1")
+        second = auth._has_verified_mfa_factor("u1")
+
+    assert first is True
+    assert second is True
+    mock_session.execute.assert_called_once()
+
+
+def test_has_verified_mfa_factor_cache_is_per_user():
+    auth._MFA_FACTOR_CACHE.clear()
+    mock_session = _mock_db_session(row_present=False)
+    with patch("backend.models.db", session=mock_session):
+        auth._has_verified_mfa_factor("u1")
+        auth._has_verified_mfa_factor("u2")
+
+    assert mock_session.execute.call_count == 2
+
+
+def test_has_verified_mfa_factor_requeries_after_ttl_expires():
+    auth._MFA_FACTOR_CACHE.clear()
+    mock_session = _mock_db_session(row_present=False)
+    with patch("backend.models.db", session=mock_session):
+        auth._has_verified_mfa_factor("u1")
+        # Simulate the cached entry having aged past the TTL rather than
+        # sleeping in the test.
+        has_factor, _ = auth._MFA_FACTOR_CACHE["u1"]
+        auth._MFA_FACTOR_CACHE["u1"] = (has_factor, 0)
+        auth._has_verified_mfa_factor("u1")
+
+    assert mock_session.execute.call_count == 2
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
