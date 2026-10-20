@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { fetchAllTransactions, fetchHoldings, deleteTransaction, ApiError } from "../api";
@@ -31,12 +31,14 @@ const inputStyle = {
 const PER_PAGE = 50;
 
 export default function Transactions() {
-  const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "" });
+  const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "", search: "" });
   const [page, setPage] = useState(1);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedHoldingId, setSelectedHoldingId] = useState("");
   const [editingTx, setEditingTx] = useState(null);
   const [deletingTx, setDeletingTx] = useState(null);
+  const [searchDraft, setSearchDraft] = useState("");
+  const searchTimeout = useRef(null);
   const isMobile = useIsMobile();
   const { currentHouseholdId } = useHousehold();
   const queryClient = useQueryClient();
@@ -93,7 +95,13 @@ export default function Transactions() {
 
   function updateFilters(next) {
     setFilters(next);
-    setPage(1); // a filter change invalidates whatever page we were on
+    setPage(1);
+  }
+
+  function handleSearchChange(val) {
+    setSearchDraft(val);
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setFilters((f) => { setPage(1); return { ...f, search: val }; }), 350);
   }
 
   return (
@@ -181,6 +189,13 @@ export default function Transactions() {
           border: "1px solid var(--border)",
         }}
       >
+        <input
+          type="search"
+          placeholder="Search by symbol or name…"
+          value={searchDraft}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          style={{ ...inputStyle, minWidth: 200 }}
+        />
         <select value={filters.assetType} onChange={(e) => updateFilters({ ...filters, assetType: e.target.value })} style={inputStyle}>
           <option value="">All Types</option>
           {ASSET_TYPE_OPTIONS.map((o) => (
@@ -213,7 +228,10 @@ export default function Transactions() {
         />
         {hasActiveFilters && (
           <button
-            onClick={() => updateFilters({ assetType: "", country: "", dateFrom: "", dateTo: "" })}
+            onClick={() => {
+              setSearchDraft("");
+              updateFilters({ assetType: "", country: "", dateFrom: "", dateTo: "", search: "" });
+            }}
             style={{ ...inputStyle, cursor: "pointer" }}
           >
             Clear

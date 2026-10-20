@@ -658,10 +658,12 @@ def create_app():
 
         asset_type = request.args.get("asset_type")
         country = request.args.get("country")
+        search = (request.args.get("search") or "").strip().lower()
         matching_ids = [
             h.id for h in holdings
             if (not asset_type or h.asset_type == asset_type)
             and (not country or h.country == country)
+            and (not search or search in (h.symbol or "").lower() or search in h.name.lower())
         ]
 
         query = HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(matching_ids))

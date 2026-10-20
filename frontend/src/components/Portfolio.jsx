@@ -330,6 +330,37 @@ export default function Portfolio() {
 
   const orderedTypes = ASSET_TYPE_OPTIONS.map((o) => o.value).filter((t) => grouped[t]?.length);
 
+  function exportToCsv() {
+    const cols = ["Name", "Symbol", "Type", "Country", "Account", "Currency", "Quantity", `Avg Cost (${currency})`, `Cost Basis (${currency})`, `Current Price (${currency})`, `Value (${currency})`, "Gain %"];
+    const rows = filteredHoldings.map((h) => {
+      const pct = gainPct(h);
+      const avgCost = h.quantity > 0 ? h.displayCostBasis / h.quantity : "";
+      const curPrice = h.quantity > 0 ? h.displayValue / h.quantity : "";
+      return [
+        h.name,
+        h.symbol || "",
+        getAssetTypeLabel(h.assetType),
+        h.country || "",
+        h.account || "",
+        h.currency,
+        isQuantityBased(h.assetType) ? h.quantity : "",
+        avgCost !== "" ? avgCost.toFixed(4) : "",
+        h.displayCostBasis?.toFixed(2) ?? "",
+        curPrice !== "" ? curPrice.toFixed(4) : "",
+        h.displayValue?.toFixed(2) ?? "",
+        pct != null ? pct.toFixed(2) + "%" : "n/a",
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = [cols.map((c) => `"${c}"`).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div>
       <div
@@ -374,22 +405,41 @@ export default function Portfolio() {
             ))}
           </div>
         </div>
-        <button
-          onClick={() => navigate("/add-holding")}
-          style={{
-            padding: "0.75rem 1.5rem",
-            borderRadius: "var(--radius)",
-            border: "none",
-            background: "var(--primary)",
-            color: "var(--text-inverse)",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: "0.9375rem",
-            boxShadow: "var(--shadow)",
-          }}
-        >
-          + Add Holding
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            onClick={exportToCsv}
+            disabled={!filteredHoldings.length}
+            style={{
+              padding: "0.75rem 1.25rem",
+              borderRadius: "var(--radius)",
+              border: "1px solid var(--border)",
+              background: "var(--card)",
+              color: "var(--text)",
+              cursor: filteredHoldings.length ? "pointer" : "not-allowed",
+              fontWeight: 500,
+              fontSize: "0.9375rem",
+              opacity: filteredHoldings.length ? 1 : 0.5,
+            }}
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={() => navigate("/add-holding")}
+            style={{
+              padding: "0.75rem 1.5rem",
+              borderRadius: "var(--radius)",
+              border: "none",
+              background: "var(--primary)",
+              color: "var(--text-inverse)",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.9375rem",
+              boxShadow: "var(--shadow)",
+            }}
+          >
+            + Add Holding
+          </button>
+        </div>
       </div>
 
       <ConfirmDeleteModal

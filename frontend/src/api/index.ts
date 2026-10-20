@@ -97,6 +97,7 @@ export interface TransactionFilters {
   householdId?: string;
   dateFrom?: string;
   dateTo?: string;
+  search?: string;
   page?: number;
   perPage?: number;
 }
@@ -128,6 +129,7 @@ export async function fetchAllTransactions(
   if (filters.householdId) params.append("household_id", filters.householdId);
   if (filters.dateFrom) params.append("date_from", filters.dateFrom);
   if (filters.dateTo) params.append("date_to", filters.dateTo);
+  if (filters.search) params.append("search", filters.search);
   if (filters.page) {
     params.append("page", String(filters.page));
     params.append("per_page", String(filters.perPage || 50));
