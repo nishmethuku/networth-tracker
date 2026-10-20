@@ -76,6 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // no refetch at all, since React Query would find the old entries
     // still fresh.
     queryClient.clear();
+    // Same shared-device concern for the two bits of UI preference that
+    // live in localStorage rather than React Query's cache: which
+    // household is selected, and the preferred display currency. Clearing
+    // the keys here handles components that remount fresh after
+    // sign-out; HouseholdContext (mounted for the app's whole lifetime,
+    // never remounting on sign-out/sign-in) additionally resets its own
+    // in-memory state on this same transition -- see its user-change
+    // effect -- since clearing localStorage alone wouldn't reach a
+    // useState initializer that already ran once at mount.
+    localStorage.removeItem("current_household_id");
+    localStorage.removeItem("default_display_currency");
   }
 
   async function sendPasswordReset(email: string) {

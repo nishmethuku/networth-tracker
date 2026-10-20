@@ -5,7 +5,7 @@
  * switcher, so picking a household in one place (the nav) changes what
  * every page shows.
  */
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchHouseholds } from "../api";
 import { useAuth } from "./AuthContext";
@@ -26,6 +26,29 @@ const HouseholdContext = createContext<HouseholdContextValue | undefined>(undefi
 export function HouseholdProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [currentHouseholdId, setCurrentHouseholdIdState] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY) || null);
+
+  // This provider is mounted for the app's entire lifetime (it sits above
+  // the router in main.jsx) and never remounts across a sign-out/sign-in,
+  // so the useState initializer above only ever reads localStorage once.
+  // AuthContext's signOut() already clears the STORAGE_KEY itself, but
+  // that alone can't reach this already-initialized state -- without
+  // this effect, user A selecting a shared household then signing out
+  // would leave user B (signing in right after, on the same device/tab)
+  // looking at A's previously-selected household the instant they log
+  // in, before they ever chose one themselves. Only resets on a real
+  // sign-out transition (user present -> absent), never on the initial
+  // unauthenticated render before session restore resolves, or normal
+  // reloads would wipe a legitimately-persisted selection every time.
+  const hadUserRef = useRef(false);
+  useEffect(() => {
+    if (user) {
+      hadUserRef.current = true;
+    } else if (hadUserRef.current) {
+      hadUserRef.current = false;
+      setCurrentHouseholdIdState(null);
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [user]);
 
   const { data: households, isLoading } = useQuery<(Household | null)[]>({
     queryKey: ["households"],
