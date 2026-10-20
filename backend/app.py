@@ -339,6 +339,14 @@ def create_app():
         household_id = data.get("household_id")
         validate_household_id_for_write(household_id)
 
+        required = ("asset_type", "name", "country", "account", "currency")
+        missing = [f for f in required if not data.get(f)]
+        if missing:
+            return jsonify({"error": f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} required"}), 400
+        sip_frequency = data.get("sip_frequency")
+        if sip_frequency and sip_frequency not in ("weekly", "monthly", "quarterly"):
+            return jsonify({"error": "sip_frequency must be weekly, monthly, or quarterly"}), 400
+
         holding = Holding(
             user_id=g.user_id,
             household_id=household_id,
@@ -352,7 +360,7 @@ def create_app():
             interest_rate=data.get("interest_rate"),
             maturity_date=date.fromisoformat(data["maturity_date"]) if data.get("maturity_date") else None,
             sip_amount=data.get("sip_amount"),
-            sip_frequency=data.get("sip_frequency"),
+            sip_frequency=sip_frequency,
             sip_start_date=date.fromisoformat(data["sip_start_date"]) if data.get("sip_start_date") else None,
             is_private=bool(data.get("is_private", False)),
             notes=data.get("notes"),
@@ -551,6 +559,9 @@ def create_app():
         data = request.get_json(force=True)
         if data.get("transaction_type") not in TRANSACTION_TYPES:
             return jsonify({"error": f"transaction_type must be one of {list(TRANSACTION_TYPES)}"}), 400
+        missing = [f for f in ("transaction_date", "quantity", "price_per_unit") if data.get(f) in (None, "")]
+        if missing:
+            return jsonify({"error": f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} required"}), 400
         tx = HoldingTransaction(
             holding_id=holding_id,
             user_id=g.user_id,
@@ -695,6 +706,9 @@ def create_app():
     def create_holding_valuation(holding_id):
         holding = get_authorized_holding(holding_id, require_write=True)
         data = request.get_json(force=True)
+        missing = [f for f in ("valuation_date", "value") if data.get(f) in (None, "")]
+        if missing:
+            return jsonify({"error": f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} required"}), 400
         val = HoldingValuation(
             holding_id=holding_id,
             user_id=g.user_id,
@@ -831,9 +845,19 @@ def create_app():
         alert_type = data.get("alert_type")
         if alert_type not in ("price_above", "price_below", "net_worth_above", "net_worth_below"):
             return jsonify({"error": "Invalid alert_type"}), 400
+
+        # Authorize the linked holding (if any) before constructing/adding
+        # the alert, same autoflush-safe ordering as linked_liability_id in
+        # create_budget_entry above — a bad/foreign id 404s cleanly here
+        # instead of letting check_all_alerts later use another user's
+        # holding id unchecked.
+        holding_id = data.get("holding_id")
+        if holding_id:
+            get_authorized_holding(holding_id)
+
         alert = PriceAlert(
             user_id=g.user_id,
-            holding_id=data.get("holding_id"),
+            holding_id=holding_id,
             symbol=data.get("symbol"),
             asset_type=data.get("asset_type"),
             alert_type=alert_type,
@@ -1391,7 +1415,16 @@ def create_app():
                 yield "data: [DONE]\n\n"
             except Exception as e:
                 logger.warning("AI chat stream failed: %s: %s", type(e).__name__, e)
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                # Once streaming has started, Flask's @app.errorhandler(Exception)
+                # never runs for this response -- it only handles exceptions
+                # raised before the response begins -- so this is the only
+                # place sanitizing happens for this route. chat_stream already
+                # wraps Gemini API errors in a user-safe message, but anything
+                # else (a genuine bug here, a network-level error) must not
+                # reach the client as raw str(e) the way every other route's
+                # errorhandler already prevents.
+                safe_message = str(e) if isinstance(e, RuntimeError) else "Something went wrong. Please try again."
+                yield f"data: {json.dumps({'error': safe_message})}\n\n"
 
         return Response(
             generate(),
@@ -1803,6 +1836,9 @@ def create_app():
         category = data.get("category")
         if not category_exists(category, entry_type, g.user_id, household_id):
             return jsonify({"error": f"'{category}' isn't a known {entry_type} category"}), 400
+        missing = [f for f in ("entry_date", "amount") if data.get(f) in (None, "")]
+        if missing:
+            return jsonify({"error": f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} required"}), 400
 
         recurring_frequency = data.get("recurring_frequency")
         if recurring_frequency and recurring_frequency not in ("weekly", "monthly", "quarterly", "yearly"):
