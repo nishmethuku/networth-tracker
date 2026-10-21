@@ -7,7 +7,7 @@ const STORAGE_KEY = "language";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "hi", label: "हिन्दी (Hindi)" },
+  { code: "hi", label: "हिन्दी (Hindi, partial)" },
 ];
 
 i18n.use(initReactI18next).init({

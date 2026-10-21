@@ -268,7 +268,7 @@ Render's free tier spins the backend down after ~15 minutes of inactivity; the f
 2. Click **+ Add New Monitor**.
 3. Monitor type: **HTTP(s)**.
 4. Friendly name: `networth-tracker-backend`.
-5. URL: `https://networth-tracker-backend.onrender.com/health`
+5. URL: your backend's address plus `/health`, e.g. `https://networth-tracker-backend-xxxx.onrender.com/health` (copy the exact address from your Render service page; Render often adds a random suffix when the plain name is taken)
 6. Monitoring interval: **5 minutes**.
 7. Save. UptimeRobot starts pinging immediately and keeps the dyno warm.
 
@@ -276,7 +276,7 @@ Render's free tier spins the backend down after ~15 minutes of inactivity; the f
 
 1. Sign up at https://cron-job.org (free plan, no credit card).
 2. Create a new cron job:
-   - URL: `https://networth-tracker-backend.onrender.com/health`
+   - URL: your backend's address plus `/health` (same exact address as above)
    - Schedule: every 10 minutes (or more often).
 3. Save. The service pings the endpoint on schedule.
 

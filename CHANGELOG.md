@@ -1,3 +1,19 @@
+# Changelog
+
+## Site review upgrade (branch `upgrade/site-review`)
+
+- Small amounts keep cents (no more "$0" for $0.12); chart labels no longer clipped.
+- Clearer wording: theme toggle, "Annualized (XIRR)" and "Total return" column hints.
+- What-If: scenario range (low/base/high), inflation-adjusted view, "use my own rate" button.
+- New Dashboard stress test card and Tax page tax-loss candidates card.
+- Net worth history backfill script (dry run by default, never overwrites snapshots).
+- `/health` now reports the deployed commit; warning logged if `FRONTEND_URL` is unset in production.
+- New `post-deploy-check` GitHub workflow confirms each deploy is live.
+- Wrong Render URL in docs and workflow comments replaced with copy-from-Render guidance.
+- Accessibility labels added to icon-only buttons; partial Hindi language option.
+
+---
+
 # Changelog - Product Hardening Phase
 
 ## Summary

@@ -3,7 +3,7 @@ name: Daily Net Worth Snapshot
 # Runs once a day and hits the backend's /internal/snapshot endpoint, which
 # computes and stores that day's net worth for every user and household.
 # Requires two repo secrets (Settings -> Secrets and variables -> Actions):
-#   BACKEND_URL      e.g. https://networth-tracker.onrender.com
+#   BACKEND_URL      your exact Render address, e.g. https://networth-tracker-backend-xxxx.onrender.com (no trailing slash)
 #   SNAPSHOT_SECRET   must match the backend's SNAPSHOT_SECRET env var
 
 on:

@@ -70,12 +70,13 @@ export function sortHoldings(holdings, sortKey, dir) {
   });
 }
 
-function SortableHeader({ label, sortKey, currentSort, currentDir, onSort }) {
+function SortableHeader({ label, sortKey, currentSort, currentDir, onSort, hint }) {
   const active = currentSort === sortKey;
   return (
     <th style={{ padding: 0 }}>
       <button
         onClick={() => onSort(sortKey)}
+        title={hint}
         style={{
           all: "unset",
           cursor: "pointer",
@@ -133,9 +134,25 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
             <SortableHeader label="Value" sortKey="value" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
             <SortableHeader label="Gain" sortKey="gain" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
             {quantityBased && (
-              <SortableHeader label="Return (XIRR)" sortKey="xirr" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />
+              <SortableHeader
+                label="Annualized (XIRR)"
+                sortKey="xirr"
+                currentSort={sortKey}
+                currentDir={sortDir}
+                onSort={onSort}
+                hint="Yearly rate of return that accounts for when each purchase was made."
+              />
             )}
-            {quantityBased && <SortableHeader label="Growth" sortKey="growth" currentSort={sortKey} currentDir={sortDir} onSort={onSort} />}
+            {quantityBased && (
+              <SortableHeader
+                label="Total return"
+                sortKey="growth"
+                currentSort={sortKey}
+                currentDir={sortDir}
+                onSort={onSort}
+                hint="Total gain since purchase as a percentage of what you paid. Not annualized."
+              />
+            )}
             <th style={{ padding: "0.75rem 0.5rem" }}>Actions</th>
           </tr>
         </thead>

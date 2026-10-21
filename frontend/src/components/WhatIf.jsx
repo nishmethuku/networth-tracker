@@ -7,7 +7,7 @@ import { fetchDashboard } from "../api";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent } from "../utils/formatters";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import useIsMobile from "../hooks/useIsMobile";
-import { projectNetWorth, fireNumber, yearsToTarget } from "../utils/whatIfProjection";
+import { projectNetWorth, fireNumber, yearsToTarget, toTodaysDollars, scenarioRates } from "../utils/whatIfProjection";
 
 const inputStyle = {
   width: "100%",
@@ -19,6 +19,13 @@ const inputStyle = {
   fontSize: "0.9375rem",
 };
 const labelStyle = { fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.35rem" };
+
+const SERIES_LABELS = {
+  value: "Expected",
+  high: "Optimistic",
+  low: "Cautious",
+  contributed: "Total contributed",
+};
 
 export default function WhatIf() {
   const currency = getDefaultDisplayCurrency();
@@ -36,26 +43,28 @@ export default function WhatIf() {
     queryFn: () => fetchDashboard({ currency, householdId: currentHouseholdId }),
   });
 
-  // A portfolio's own XIRR can be wildly unrepresentative of a realistic
-  // long-run assumption -- a single holding bought at a near-zero cost
-  // basis (a stock split, a typo'd purchase price, a few-day-old
-  // position that's already up 10x) can push XIRR into the hundreds of
-  // percent. Suggesting that as a 20+ year compounding rate produces
-  // nonsense net worth figures, so it's only used as the suggestion when
-  // it's itself in a plausible range; otherwise this falls back to a
-  // long-run market-average-ish default instead.
+  // The default growth rate is a long-run market-average-ish figure, NOT
+  // the portfolio's own XIRR. A short track record (here, about a year)
+  // can show 18% or more, and compounding that for 20 years projects
+  // millions -- a misleading headline for a scratch calculator. The
+  // portfolio's own return is still shown below the field, with a one-click
+  // way to use it if the person wants that scenario.
   const DEFAULT_RATE_PCT = 7;
   const MAX_RATE_PCT = 50;
-  const suggestedRate =
+  const SCENARIO_SPREAD_PTS = 3;
+  const DEFAULT_INFLATION_PCT = 2.5;
+  const ownRatePct =
     dashboard?.portfolioXirr != null && dashboard.portfolioXirr * 100 <= MAX_RATE_PCT
       ? Math.max(0, Math.round(dashboard.portfolioXirr * 1000) / 10)
-      : DEFAULT_RATE_PCT;
+      : null;
 
   const [startingAmount, setStartingAmount] = useState(null);
   const [monthlyContribution, setMonthlyContribution] = useState(500);
   const [annualRatePct, setAnnualRatePct] = useState(null);
   const [years, setYears] = useState(20);
   const [showFire, setShowFire] = useState(false);
+  const [realTerms, setRealTerms] = useState(false);
+  const [inflationPct, setInflationPct] = useState(DEFAULT_INFLATION_PCT);
   const [annualExpenses, setAnnualExpenses] = useState(40000);
   const [withdrawalRatePct, setWithdrawalRatePct] = useState(4);
 
@@ -63,13 +72,9 @@ export default function WhatIf() {
   // only until the user actually edits the field — never silently
   // overwrites something they've already typed.
   const effectiveStarting = startingAmount ?? dashboard?.totalNetWorth ?? 0;
-  // Same pattern for the growth rate: suggestedRate is 7 (the fallback)
-  // on the very first render, before the dashboard query resolves --
-  // useState(suggestedRate) would freeze that 7 forever, since a
-  // useState initial value is only read on mount, not on every
-  // recompute. Deriving it live (null until the user actually edits the
-  // field) means it picks up the real XIRR-based figure once it loads.
-  const effectiveRate = annualRatePct ?? suggestedRate;
+  // Stays null until the person actually edits the field, so it never
+  // overwrites something they typed.
+  const effectiveRate = annualRatePct ?? DEFAULT_RATE_PCT;
   // Also clamps a rate the user types in directly (not just the
   // suggestion above) -- someone can still explore an aggressive
   // scenario up to MAX_RATE_PCT, just not one that compounds into
@@ -77,16 +82,27 @@ export default function WhatIf() {
   const clampedRate = Math.max(-50, Math.min(MAX_RATE_PCT, Number(effectiveRate) || 0));
   const clampedYears = Math.max(1, Math.min(60, Number(years) || 1));
 
-  const points = useMemo(
-    () =>
-      projectNetWorth({
+  const { allSeries, points, lowPoints, highPoints } = useMemo(() => {
+    const rates = scenarioRates(clampedRate, SCENARIO_SPREAD_PTS);
+    const run = (annualRatePct) => {
+      const raw = projectNetWorth({
         startingAmount: effectiveStarting,
         monthlyContribution: Number(monthlyContribution) || 0,
-        annualRatePct: clampedRate,
+        annualRatePct,
         years: clampedYears,
-      }),
-    [effectiveStarting, monthlyContribution, clampedRate, clampedYears],
-  );
+      });
+      return realTerms ? toTodaysDollars(raw, Number(inflationPct) || 0) : raw;
+    };
+    const base = run(rates.base);
+    const low = run(rates.low);
+    const high = run(rates.high);
+    return {
+      points: base,
+      lowPoints: low,
+      highPoints: high,
+      allSeries: base.map((p, i) => ({ ...p, low: low[i].value, high: high[i].value })),
+    };
+  }, [effectiveStarting, monthlyContribution, clampedRate, clampedYears, realTerms, inflationPct]);
 
   const final = points[points.length - 1];
 
@@ -171,12 +187,36 @@ export default function WhatIf() {
                   value={effectiveRate}
                   onChange={(e) => setAnnualRatePct(e.target.value)}
                 />
-                {dashboard?.portfolioXirr != null && (
-                  <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    Your portfolio's own annualized return: {formatPercent(dashboard.portfolioXirr * 100)}
-                    {dashboard.portfolioXirr * 100 > MAX_RATE_PCT && " (too far from a sustainable long-run rate to use as a default)"}
-                  </div>
-                )}
+                <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Default is a long-run market-style {DEFAULT_RATE_PCT}%.
+                  {dashboard?.portfolioXirr != null && (
+                    <>
+                      {" "}
+                      Your portfolio's own annualized return is {formatPercent(dashboard.portfolioXirr * 100)}, measured over a short
+                      history
+                      {ownRatePct == null && " (too far from a sustainable long-run rate to use here)"}.
+                    </>
+                  )}
+                  {ownRatePct != null && Number(effectiveRate) !== ownRatePct && (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        onClick={() => setAnnualRatePct(ownRatePct)}
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--primary)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        Use {ownRatePct}% instead
+                      </button>
+                    </>
+                  )}
+                </div>
                 {Number(effectiveRate) !== clampedRate && (
                   <div style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                     Projection uses {clampedRate}% — rates beyond ±{MAX_RATE_PCT}% aren't realistic to compound over multiple decades.
@@ -197,6 +237,29 @@ export default function WhatIf() {
                   value={years}
                   onChange={(e) => setYears(e.target.value)}
                 />
+              </div>
+              <div>
+                <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginBottom: 0 }}>
+                  <input type="checkbox" checked={realTerms} onChange={(e) => setRealTerms(e.target.checked)} />
+                  Show in today's dollars (adjust for inflation)
+                </label>
+                {realTerms && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <label htmlFor="whatif-inflation" style={labelStyle}>
+                      Expected inflation (% per year)
+                    </label>
+                    <input
+                      id="whatif-inflation"
+                      type="number"
+                      step="any"
+                      min="0"
+                      max="50"
+                      style={inputStyle}
+                      value={inflationPct}
+                      onChange={(e) => setInflationPct(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </Card>
@@ -257,8 +320,9 @@ export default function WhatIf() {
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "1.25rem" }}>
             <Card
-              title={`Projected in ${clampedYears} yr${clampedYears === 1 ? "" : "s"}`}
+              title={`Projected in ${clampedYears} yr${clampedYears === 1 ? "" : "s"}${realTerms ? " (today's $)" : ""}`}
               value={formatCurrencyCompact(final.value, currency)}
+              subtitle={`Range ${formatCurrencyCompact(lowPoints[lowPoints.length - 1].value, currency)} to ${formatCurrencyCompact(highPoints[highPoints.length - 1].value, currency)} at ±${SCENARIO_SPREAD_PTS} pts`}
             />
             <Card title="Total contributed" value={formatCurrencyCompact(final.contributed, currency)} />
             <Card
@@ -278,7 +342,7 @@ export default function WhatIf() {
           <Card title="Projected net worth over time">
             <div style={{ width: "100%", height: 300, marginTop: "0.5rem" }}>
               <ResponsiveContainer>
-                <LineChart data={points}>
+                <LineChart data={allSeries}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
                   <XAxis dataKey="year" tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(y) => `Yr ${y}`} />
                   <YAxis
@@ -287,18 +351,14 @@ export default function WhatIf() {
                     width={64}
                   />
                   <Tooltip
-                    formatter={(v, name) => [
-                      formatCurrencyForDisplay(v, currency),
-                      name === "value" ? "Projected value" : "Total contributed",
-                    ]}
+                    formatter={(v, name) => [formatCurrencyForDisplay(v, currency), SERIES_LABELS[name] || name]}
                     labelFormatter={(y) => `Year ${y}`}
                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
                   />
-                  <Legend
-                    formatter={(v) => (v === "value" ? "Projected value" : "Total contributed")}
-                    wrapperStyle={{ fontSize: "0.75rem" }}
-                  />
+                  <Legend formatter={(v) => SERIES_LABELS[v] || v} wrapperStyle={{ fontSize: "0.75rem" }} />
+                  <Line type="monotone" dataKey="high" stroke="var(--success)" strokeWidth={1.25} strokeOpacity={0.7} dot={false} />
                   <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="low" stroke="var(--danger)" strokeWidth={1.25} strokeOpacity={0.7} dot={false} />
                   <Line
                     type="monotone"
                     dataKey="contributed"
@@ -320,7 +380,8 @@ export default function WhatIf() {
             </div>
           </Card>
           <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            Assumes a constant annual rate compounded monthly — real returns vary year to year. Informational only, not financial advice.
+            Assumes a constant annual rate compounded monthly, with a cautious and an optimistic line a few points either side — real
+            returns vary year to year. Informational only, not financial advice.
           </p>
         </div>
       </div>

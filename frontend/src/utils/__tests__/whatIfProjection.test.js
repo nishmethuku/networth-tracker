@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { projectNetWorth, fireNumber, yearsToTarget } from "../whatIfProjection";
+import { projectNetWorth, fireNumber, yearsToTarget, toTodaysDollars, scenarioRates } from "../whatIfProjection";
 
 describe("projectNetWorth", () => {
   it("returns one point per year from 0 to the requested horizon", () => {
@@ -68,5 +68,29 @@ describe("yearsToTarget", () => {
   it("returns null for a non-positive target", () => {
     const points = projectNetWorth({ startingAmount: 1000, monthlyContribution: 0, annualRatePct: 5, years: 1 });
     expect(yearsToTarget(points, 0)).toBeNull();
+  });
+});
+
+describe("toTodaysDollars", () => {
+  it("leaves year 0 unchanged and shrinks later years by the inflation factor", () => {
+    const pts = projectNetWorth({ startingAmount: 1000, monthlyContribution: 0, annualRatePct: 0, years: 2 });
+    const real = toTodaysDollars(pts, 10);
+    expect(real[0].value).toBeCloseTo(1000, 6);
+    expect(real[2].value).toBeCloseTo(1000 / 1.21, 6);
+    expect(real[2].growth).toBeCloseTo(real[2].value - real[2].contributed, 6);
+  });
+  it("is a no-op at zero inflation", () => {
+    const pts = projectNetWorth({ startingAmount: 500, monthlyContribution: 50, annualRatePct: 5, years: 3 });
+    expect(toTodaysDollars(pts, 0)).toEqual(pts);
+  });
+});
+
+describe("scenarioRates", () => {
+  it("returns cautious, base and optimistic rates around the base", () => {
+    expect(scenarioRates(7)).toEqual({ low: 4, base: 7, high: 10 });
+  });
+  it("clamps to the calculator's allowed range", () => {
+    expect(scenarioRates(49, 3).high).toBe(50);
+    expect(scenarioRates(-49, 3).low).toBe(-50);
   });
 });

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Card from "../Card";
 import EmptyState from "../EmptyState";
@@ -37,6 +38,7 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, onDelete }) {
             {formatCurrencyForDisplay(goal.targetAmount, goal.currency, { includeCode: false })}
           </span>
           <button
+            aria-label="Delete goal"
             onClick={() => onDelete(goal.id)}
             style={{
               fontSize: "0.7rem",
@@ -227,6 +229,13 @@ export default function GoalsCard({ currentNetWorth, displayCurrency }) {
           ))}
         </div>
       )}
+      <p style={{ marginTop: "0.75rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+        Not sure what to aim for? Try the{" "}
+        <Link to="/what-if" style={{ color: "var(--primary)" }}>
+          What-If calculator
+        </Link>{" "}
+        to see where you could be in 10 or 20 years and when you could reach financial independence.
+      </p>
       {showForm ? (
         <AddGoalForm defaultCurrency={displayCurrency} onDone={() => setShowForm(false)} />
       ) : (

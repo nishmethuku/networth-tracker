@@ -173,6 +173,14 @@ def create_app():
     Migrate(app, db)
 
     if os.environ.get("FLASK_ENV") == "production":
+        if not os.environ.get("FRONTEND_URL"):
+            # Falling back to "*" lets any website call this API from a
+            # visitor's browser. Auth still protects the data, but the
+            # setting is almost certainly an oversight, so say so loudly.
+            logger.warning(
+                "FRONTEND_URL is not set in production: CORS is open to every origin. "
+                "Set FRONTEND_URL to your frontend's address (e.g. https://your-app.vercel.app)."
+            )
         CORS(app, origins=[os.environ.get("FRONTEND_URL", "*")], expose_headers=["X-Request-ID"])
     else:
         CORS(app, expose_headers=["X-Request-ID"])
@@ -200,11 +208,15 @@ def create_app():
 
     @app.route("/health", methods=["GET"])
     def health():
+        # "commit" lets a post-deploy check confirm the NEW version (not the
+        # one it replaced) is the one answering. Render sets
+        # RENDER_GIT_COMMIT at runtime; it is simply absent elsewhere.
+        commit = (os.environ.get("RENDER_GIT_COMMIT") or "")[:12] or None
         try:
             db.session.execute(db.text("SELECT 1"))
-            return jsonify({"status": "ok"}), 200
+            return jsonify({"status": "ok", "commit": commit}), 200
         except Exception:
-            return jsonify({"status": "degraded"}), 503
+            return jsonify({"status": "degraded", "commit": commit}), 503
 
     # ---------------- REQUEST ID + STANDARDIZED ERRORS ----------------
 

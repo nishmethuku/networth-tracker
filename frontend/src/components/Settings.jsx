@@ -196,7 +196,7 @@ export default function Settings() {
           <div style={rowStyle}>
             <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{t("settings.theme")}</span>
             <button onClick={toggleTheme} style={buttonStyle}>
-              {theme === "dark" ? "🌙 Dark" : "☀️ Light"}
+              {theme === "dark" ? "☀️ Switch to light" : "🌙 Switch to dark"}
             </button>
           </div>
           <div style={rowStyle}>

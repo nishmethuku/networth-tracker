@@ -42,6 +42,7 @@ function ToastItem({ toast, onDismiss }) {
     >
       <span style={{ flex: 1 }}>{toast.message}</span>
       <button
+        aria-label="Dismiss notification"
         onClick={() => onDismiss(toast.id)}
         style={{
           background: "transparent",
