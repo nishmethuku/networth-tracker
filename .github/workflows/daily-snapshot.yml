@@ -7,10 +7,8 @@ name: Daily Net Worth Snapshot
 #   SNAPSHOT_SECRET   must match the backend's SNAPSHOT_SECRET env var
 
 on:
-  # PAUSED 2026-10-21: schedule disabled while investigating accidental holding deletion.
-  # To re-enable: uncomment the schedule block below and push.
-  # schedule:
-  #   - cron: "0 6 * * *" # 06:00 UTC daily
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
   workflow_dispatch: {} # allows manually triggering a run from the Actions tab
 
 jobs:
