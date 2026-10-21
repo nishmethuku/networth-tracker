@@ -54,20 +54,36 @@ except ImportError:
     NSEPYTHON_AVAILABLE = False
     nsefetch = None
 
-# Optional mftool import for Indian mutual funds
+# Optional mftool import for Indian mutual funds.
+# Do NOT call Mftool() here — its __init__ calls get_scheme_codes(), which
+# fetches the full AMFI scheme list over HTTP.  Running that at module import
+# time blocks gunicorn's master process before any workers can spawn (with or
+# without --preload, since workers also import the module).  Use
+# get_mf_instance() below instead, which defers the HTTP call to first use.
+_Mftool = None
 try:
-    from mftool import Mftool
+    from mftool import Mftool as _Mftool
     MFTOOL_AVAILABLE = True
-    mf = Mftool()  # Initialize mftool instance
-    logger.info("mftool initialized successfully, mf instance: %s", mf is not None)
+    logger.info("mftool package available; instance will be created on first use")
 except ImportError as e:
     MFTOOL_AVAILABLE = False
-    mf = None
     logger.warning("mftool import failed: %s", e)
-except Exception as e:
-    MFTOOL_AVAILABLE = False
-    mf = None
-    logger.warning("mftool initialization failed: %s", e, exc_info=True)
+
+mf = None  # kept for backward compat — always None now; use get_mf_instance()
+_mf_singleton = None
+
+
+def get_mf_instance():
+    """Lazy mftool singleton.  Mftool.__init__ fetches the AMFI scheme list
+    over HTTP, so initialization is deferred until the first search request."""
+    global _mf_singleton
+    if _mf_singleton is None and _Mftool is not None:
+        try:
+            _mf_singleton = _with_timeout(_Mftool, 15)
+            logger.info("mftool initialized on first use")
+        except Exception as e:
+            logger.warning("mftool initialization failed on first use: %s", e)
+    return _mf_singleton
 
 FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY")
 

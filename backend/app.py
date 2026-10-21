@@ -108,12 +108,14 @@ from .unsubscribe_service import resubscribe as resubscribe_email
 from .unsubscribe_service import unsubscribe as unsubscribe_email
 from .utils import FINNHUB_API_KEY
 
-# Import mf instance if available
+# Import lazy mftool getter — mf itself is always None now (see utils.py)
 try:
-    from .utils import MFTOOL_AVAILABLE, mf
+    from .utils import MFTOOL_AVAILABLE, get_mf_instance
 except (ImportError, AttributeError):
-    mf = None
     MFTOOL_AVAILABLE = False
+
+    def get_mf_instance():
+        return None
 
 SNAPSHOT_SECRET = os.environ.get("SNAPSHOT_SECRET")
 DIGEST_SECRET = os.environ.get("DIGEST_SECRET") or SNAPSHOT_SECRET
@@ -1450,23 +1452,9 @@ def create_app():
         return results[:10]
 
     def _search_mutual_fund_symbols(query):
-        if not MFTOOL_AVAILABLE:
-            try:
-                from mftool import Mftool
-                mf_instance = Mftool()
-            except ImportError as e:
-                logger.error("mftool import failed: %s", e)
-                return []
-        else:
-            try:
-                if mf is not None:
-                    mf_instance = mf
-                else:
-                    from mftool import Mftool
-                    mf_instance = Mftool()
-            except Exception as e:
-                logger.error("Failed to get mftool instance: %s", e)
-                return []
+        mf_instance = get_mf_instance()
+        if mf_instance is None:
+            return []
 
         try:
             all_schemes = mf_instance.get_scheme_codes()
