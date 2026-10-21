@@ -73,13 +73,13 @@ jobs:
             > /etc/apt/sources.list.d/pgdg.list'
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
-          pg_dump --version
+          /usr/lib/postgresql/17/bin/pg_dump --version
 
       - name: Run pg_dump
         env:
           PG_BACKUP_URL: ${{ secrets.PG_BACKUP_URL }}
         run: |
-          pg_dump "$PG_BACKUP_URL" \
+          /usr/lib/postgresql/17/bin/pg_dump "$PG_BACKUP_URL" \
             --no-password \
             --format=plain \
             --no-owner \
