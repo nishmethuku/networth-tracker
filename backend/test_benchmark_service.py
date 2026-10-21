@@ -103,7 +103,8 @@ def test_get_benchmark_comparison_accounts_for_sold_positions():
     )
 
     mock_holding_query = MagicMock()
-    mock_holding_query.filter_by.return_value.all.return_value = [holding]
+    # filter_by().filter().all() after soft-delete guard was added
+    mock_holding_query.filter_by.return_value.filter.return_value.all.return_value = [holding]
     mock_tx_query = MagicMock()
     mock_tx_query.filter.return_value.all.return_value = [buy, sell]
 
