@@ -63,9 +63,9 @@ export default function WhatIf() {
   // only until the user actually edits the field — never silently
   // overwrites something they've already typed.
   const effectiveStarting = startingAmount ?? dashboard?.totalNetWorth ?? 0;
-  // Same pattern for the growth rate: suggestedRate is 8 (the fallback)
+  // Same pattern for the growth rate: suggestedRate is 7 (the fallback)
   // on the very first render, before the dashboard query resolves --
-  // useState(suggestedRate) would freeze that 8 forever, since a
+  // useState(suggestedRate) would freeze that 7 forever, since a
   // useState initial value is only read on mount, not on every
   // recompute. Deriving it live (null until the user actually edits the
   // field) means it picks up the real XIRR-based figure once it loads.

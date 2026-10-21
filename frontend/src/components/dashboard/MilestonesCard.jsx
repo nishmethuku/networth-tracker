@@ -39,8 +39,8 @@ export default function MilestonesCard({ householdId } = {}) {
               <span style={{ fontWeight: 700, color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: "0.9375rem" }}>
                 {formatCurrencyCompact(m.threshold, m.currency)}
               </span>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginLeft: "auto" }}>
-                {formatAchievedDate(m.achievedDate)}
+              <span style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginLeft: "auto", fontStyle: m.acknowledged ? "italic" : "normal" }}>
+                {m.acknowledged ? "Before tracking began" : formatAchievedDate(m.achievedDate)}
               </span>
             </div>
           ))}

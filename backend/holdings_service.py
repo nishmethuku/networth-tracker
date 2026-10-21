@@ -105,6 +105,11 @@ def calculate_holding_metrics(
     if quantity > 0:
         cash_flows.append((date.today(), current_value))
 
+    # Skip XIRR for positions held less than 30 days — annualizing a 1%
+    # two-day gain into ~1800% is technically correct but misleading.
+    holding_period_days = (date.today() - cash_flows[0][0]).days if cash_flows else 0
+    holding_xirr = xirr(cash_flows) if holding_period_days >= 30 else None
+
     return {
         "quantity": quantity,
         "avg_cost": avg_cost,
@@ -115,7 +120,7 @@ def calculate_holding_metrics(
         "unrealized_gain": unrealized_gain,
         "total_gain": position["realized_gain"] + unrealized_gain,
         "income_received": position["income_received"],
-        "xirr": xirr(cash_flows),
+        "xirr": holding_xirr,
     }
 
 

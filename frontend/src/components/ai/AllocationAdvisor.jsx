@@ -16,6 +16,8 @@ import ErrorState from "../ErrorState";
 import { useToast } from "../../contexts/ToastContext";
 import { formatCurrencyForDisplay, formatPercent } from "../../utils/formatters";
 import useIsMobile from "../../hooks/useIsMobile";
+import { useHousehold } from "../../contexts/HouseholdContext";
+import { getDefaultDisplayCurrency } from "../../hooks/useDisplayCurrencyPreference";
 
 export default function AllocationAdvisor() {
   const isMobile = useIsMobile();
@@ -24,6 +26,8 @@ export default function AllocationAdvisor() {
   const [prefilled, setPrefilled] = useState(false);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { currentHouseholdId } = useHousehold();
+  const currency = getDefaultDisplayCurrency();
 
   const {
     data: dashboard,
@@ -32,8 +36,8 @@ export default function AllocationAdvisor() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["dashboard-for-advisor"],
-    queryFn: () => fetchDashboard({ currency: "USD" }),
+    queryKey: ["dashboard", currency, currentHouseholdId],
+    queryFn: () => fetchDashboard({ currency, householdId: currentHouseholdId }),
   });
 
   const { data: savedTarget } = useQuery({
@@ -42,8 +46,8 @@ export default function AllocationAdvisor() {
   });
 
   const { data: drift } = useQuery({
-    queryKey: ["allocation-drift"],
-    queryFn: () => fetchAllocationDrift("USD"),
+    queryKey: ["allocation-drift", currency],
+    queryFn: () => fetchAllocationDrift(currency),
   });
 
   // Per-holding, not per-asset-type: a portfolio can look fine broken down
@@ -51,8 +55,8 @@ export default function AllocationAdvisor() {
   // position actually carries almost all of the risk -- asset-type
   // allocation alone can't surface that.
   const { data: holdings } = useQuery({
-    queryKey: ["holdings", "summary", "USD", ""],
-    queryFn: () => fetchHoldings({ currency: "USD", summary: true }),
+    queryKey: ["holdings", "summary", currency, ""],
+    queryFn: () => fetchHoldings({ currency, summary: true }),
     staleTime: 1000 * 60,
   });
 
