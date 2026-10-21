@@ -282,6 +282,39 @@ Render's free tier spins the backend down after ~15 minutes of inactivity; the f
 
 Both options are free and require no changes to the backend. The `/health` endpoint is intentionally unauthenticated and lightweight — it runs one `SELECT 1` to confirm the DB is reachable.
 
+## Database backups
+
+A GitHub Actions workflow (`.github/workflows/backup.yml`) runs daily at 05:30 UTC.  It dumps the production database, encrypts the dump with GPG (AES256, passphrase from the `BACKUP_PASSPHRASE` repo secret), and uploads only the encrypted file as an artifact with 14-day retention.  The plain dump is deleted from the runner before upload.
+
+**Required repo secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `PG_BACKUP_URL` | Connection string for the `backup_reader` role (see `supabase/backup_reader_role.sql`) |
+| `BACKUP_PASSPHRASE` | Strong random passphrase for AES256 encryption — store separately in a password manager |
+
+**To decrypt and restore a backup:**
+
+```bash
+# 1. Download and unzip the artifact from the Actions run Summary page.
+
+# 2. Decrypt:
+gpg --batch --pinentry-mode loopback \
+    --passphrase "$BACKUP_PASSPHRASE" \
+    --output backup.sql.gz --decrypt backup.sql.gz.gpg
+# (omit --batch/--passphrase to be prompted interactively)
+
+# 3. Decompress:
+gunzip backup.sql.gz
+
+# 4. Restore into a FRESH EMPTY database or new Supabase project — never over production:
+psql "<TARGET_URL>" < backup.sql
+```
+
+Use the **session pooler** connection string for `<TARGET_URL>`: Supabase Dashboard → Settings → Database → Connection string → **Session mode** (port 5432).
+
+The backup covers the `public` schema only. **`auth.users` rows are not included** — users will need to re-register or be migrated separately after a restore.
+
 ## License
 
 MIT

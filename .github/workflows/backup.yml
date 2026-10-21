@@ -1,34 +1,79 @@
 name: Daily Database Backup
 
-# Runs pg_dump against the production Supabase database and stores the
-# compressed dump as a GitHub Actions artifact (30-day retention).
+# Runs pg_dump against the production Supabase database (Postgres 17),
+# verifies the dump, encrypts it with GPG (AES256), and stores only the
+# encrypted file as a GitHub Actions artifact (14-day retention).  The plain
+# dump is deleted from the runner before the upload step — it never touches
+# artifact storage.
 #
-# Required repo secret (Settings -> Secrets and variables -> Actions):
-#   PG_BACKUP_URL   full Postgres connection string, e.g.:
-#                   postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   PG_BACKUP_URL       Postgres connection string for the backup_reader role,
+#                       e.g.: postgresql://backup_reader:<password>@<host>:5432/postgres
+#                       Do NOT use the service role key or the postgres superuser
+#                       here.  See supabase/backup_reader_role.sql for setup.
+#   BACKUP_PASSPHRASE   A strong random passphrase used to encrypt the dump.
+#                       Store it somewhere safe outside GitHub (a password manager
+#                       or local notes) — you need it to decrypt a backup.
 #
-# To restore: download the artifact, then:
-#   gunzip backup.sql.gz
-#   psql "$PG_BACKUP_URL" < backup.sql
+# ─── Decrypting and restoring a backup ─────────────────────────────────────
 #
-# To add the secret: go to Settings > Secrets and variables > Actions >
-# New repository secret. Use the same connection string you have in the
-# backend's DATABASE_URL, but keep it in a separate secret so this workflow
-# can be revoked independently if needed.
+# 1. Download the artifact from the Actions run (Actions tab → click the run →
+#    Artifacts section at the bottom of the Summary page).  Unzip the archive
+#    GitHub wraps around it — you will end up with backup.sql.gz.gpg.
+#
+# 2. Decrypt:
+#    gpg --batch --pinentry-mode loopback \
+#        --passphrase "$BACKUP_PASSPHRASE" \
+#        --output backup.sql.gz --decrypt backup.sql.gz.gpg
+#    (gpg will prompt for the passphrase interactively if you omit --batch
+#    and --passphrase, but --pinentry-mode loopback is still recommended so
+#    gpg-agent does not intercept the passphrase in a headless terminal.)
+#
+# 3. Decompress:
+#    gunzip backup.sql.gz
+#
+# 4. Restore — ONLY into a fresh empty database or a new Supabase project,
+#    never over production:
+#    psql "<TARGET_URL>" < backup.sql
+#
+#    Use the Supabase session pooler connection string (Supabase Dashboard →
+#    Settings → Database → Connection string → Session mode, port 5432).
+#    The backup covers only the public schema.  Supabase auth.users rows are
+#    NOT included — users will need to re-register or be migrated separately
+#    after restoring.
+#
+# ────────────────────────────────────────────────────────────────────────────
 
 on:
   schedule:
-    - cron: "30 5 * * *"  # 05:30 UTC daily (30 min before snapshot)
-  workflow_dispatch: {}   # allow manual trigger from the Actions tab
+    - cron: "30 5 * * *"   # 05:30 UTC daily (30 min before snapshot)
+  workflow_dispatch: {}     # allow manual trigger from the Actions tab
+
+# Explicit whitelist: only schedule and workflow_dispatch.  No pull_request
+# trigger so a fork cannot run this workflow and attempt to access secrets
+# (GitHub does not pass secrets to workflows triggered by forks on pull
+# requests, but an explicit omission is clearer than relying on that default).
 
 jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Install PostgreSQL client
+      - name: Install postgresql-client 17 from PGDG
+        # Install the official PGDG package that matches the production server
+        # (Postgres 17.6).  Ubuntu's default postgresql-client is 14, which
+        # causes pg_dump to refuse with "server version mismatch".
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client
+          sudo apt-get install -y -qq curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          pg_dump --version
 
       - name: Run pg_dump
         env:
@@ -39,14 +84,56 @@ jobs:
             --format=plain \
             --no-owner \
             --no-acl \
+            --schema=public \
             --file=backup.sql
           gzip backup.sql
-          echo "Backup size: $(du -sh backup.sql.gz | cut -f1)"
+          echo "Dump size (compressed): $(du -sh backup.sql.gz | cut -f1)"
 
-      - name: Upload backup artifact
+      - name: Verify dump
+        # Fail the job before encrypting if the dump looks wrong:
+        # 1. Compressed file must be at least 10 KB (catches an empty or
+        #    near-empty dump caused by a connection failure or RLS blocking
+        #    all rows).
+        # 2. The plain SQL must contain CREATE TABLE for the two most
+        #    critical tables, confirming the schema was actually dumped.
+        run: |
+          MIN_BYTES=10240
+          actual=$(stat -c%s backup.sql.gz)
+          if [ "$actual" -lt "$MIN_BYTES" ]; then
+            echo "ERROR: compressed dump is ${actual} bytes, below minimum ${MIN_BYTES}."
+            exit 1
+          fi
+          gunzip -c backup.sql.gz > backup_check.sql
+          for table in "public.holdings" "public.net_worth_snapshots"; do
+            if ! grep -qF "CREATE TABLE ${table}" backup_check.sql; then
+              echo "ERROR: CREATE TABLE ${table} not found in dump."
+              rm -f backup_check.sql
+              exit 1
+            fi
+          done
+          rm -f backup_check.sql
+          echo "Dump verification passed."
+
+      - name: Encrypt dump
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          gpg --batch --yes \
+              --pinentry-mode loopback \
+              --passphrase "$BACKUP_PASSPHRASE" \
+              --symmetric \
+              --cipher-algo AES256 \
+              --output backup.sql.gz.gpg \
+              backup.sql.gz
+          # Remove the plain dump immediately — the encrypted file is all
+          # that should leave this runner.
+          rm -f backup.sql backup.sql.gz
+          echo "Encrypted backup size: $(du -sh backup.sql.gz.gpg | cut -f1)"
+
+      - name: Upload encrypted backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_id }}-${{ github.run_attempt }}
-          path: backup.sql.gz
-          retention-days: 30
+          path: backup.sql.gz.gpg
+          retention-days: 14
           if-no-files-found: error
