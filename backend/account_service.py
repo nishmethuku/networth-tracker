@@ -36,11 +36,14 @@ from .services import safe_float
 
 
 def export_user_data(user_id) -> Dict:
-    holdings = Holding.query.filter_by(user_id=user_id).all()
+    holdings = Holding.query.filter_by(user_id=user_id).filter(Holding.deleted_at.is_(None)).all()
     holding_ids = [h.id for h in holdings]
 
     transactions = (
-        HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(holding_ids)).all()
+        HoldingTransaction.query.filter(
+            HoldingTransaction.holding_id.in_(holding_ids),
+            HoldingTransaction.deleted_at.is_(None),
+        ).all()
         if holding_ids
         else []
     )

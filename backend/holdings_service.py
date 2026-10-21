@@ -319,7 +319,10 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
 
     transactions_by_holding: Dict[int, List[HoldingTransaction]] = defaultdict(list)
     if quantity_holding_ids:
-        for tx in HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(quantity_holding_ids)).all():
+        for tx in HoldingTransaction.query.filter(
+            HoldingTransaction.holding_id.in_(quantity_holding_ids),
+            HoldingTransaction.deleted_at.is_(None),
+        ).all():
             transactions_by_holding[tx.holding_id].append(tx)
 
     valuations_by_holding: Dict[int, List[HoldingValuation]] = defaultdict(list)

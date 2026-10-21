@@ -28,7 +28,7 @@ def _current_net_worth(user_id, currency="USD") -> float:
     in digest_service.py): a net_worth_above/below alert would trigger
     against gross assets, firing well before (or never, for _below) the
     threshold the user actually meant relative to their real net worth."""
-    holdings = Holding.query.filter_by(user_id=user_id).all()
+    holdings = Holding.query.filter_by(user_id=user_id).filter(Holding.deleted_at.is_(None)).all()
     metrics = list_holdings_with_metrics(holdings, display_currency=currency)
     total_assets = sum(h["display_value"] for h in metrics)
 

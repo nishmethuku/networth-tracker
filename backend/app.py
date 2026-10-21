@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 import requests
 import sentry_sdk
@@ -252,9 +252,11 @@ def create_app():
             if household_id_param not in member_ids:
                 abort(403, description="Not a member of this household")
             return Holding.query.filter(
-                Holding.household_id == household_id_param, Holding.is_private == False  # noqa: E712
+                Holding.household_id == household_id_param,
+                Holding.is_private == False,  # noqa: E712
+                Holding.deleted_at.is_(None),
             )
-        return Holding.query.filter(Holding.user_id == g.user_id)
+        return Holding.query.filter(Holding.user_id == g.user_id, Holding.deleted_at.is_(None))
 
     def get_authorized_holding(holding_id, require_write=False):
         """Fetch a holding the caller may read (owner, or a household member
@@ -263,6 +265,8 @@ def create_app():
         editor could read-via-write: DELETE/PUT-with-is_private-false a
         holding they were never allowed to see)."""
         holding = Holding.query.get_or_404(holding_id)
+        if holding.deleted_at is not None:
+            abort(404)
         if str(holding.user_id) == str(g.user_id):
             return holding
         if holding.household_id:
@@ -329,6 +333,8 @@ def create_app():
 
     def get_authorized_transaction(transaction_id, require_write=False):
         tx = HoldingTransaction.query.get_or_404(transaction_id)
+        if tx.deleted_at is not None:
+            abort(404)
         get_authorized_holding(tx.holding_id, require_write=require_write)
         return tx
 
@@ -458,7 +464,12 @@ def create_app():
     @require_auth
     def delete_holding(holding_id):
         holding = get_authorized_holding(holding_id, require_write=True)
-        db.session.delete(holding)
+        now = datetime.utcnow()
+        holding.deleted_at = now
+        # Soft-delete live transactions so they disappear from position calcs.
+        HoldingTransaction.query.filter_by(holding_id=holding.id).filter(
+            HoldingTransaction.deleted_at.is_(None)
+        ).update({"deleted_at": now}, synchronize_session=False)
         db.session.commit()
         return jsonify({"message": "Holding deleted"}), 200
 
@@ -570,6 +581,7 @@ def create_app():
         get_authorized_holding(holding_id)
         txs = (
             HoldingTransaction.query.filter_by(holding_id=holding_id)
+            .filter(HoldingTransaction.deleted_at.is_(None))
             .order_by(HoldingTransaction.transaction_date.desc())
             .all()
         )
@@ -644,7 +656,7 @@ def create_app():
     @require_auth
     def delete_transaction(transaction_id):
         tx = get_authorized_transaction(transaction_id, require_write=True)
-        db.session.delete(tx)
+        tx.deleted_at = datetime.utcnow()
         db.session.commit()
         return jsonify({"message": "Transaction deleted"}), 200
 
@@ -666,7 +678,10 @@ def create_app():
             and (not search or search in (h.symbol or "").lower() or search in h.name.lower())
         ]
 
-        query = HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(matching_ids))
+        query = HoldingTransaction.query.filter(
+            HoldingTransaction.holding_id.in_(matching_ids),
+            HoldingTransaction.deleted_at.is_(None),
+        )
 
         date_from = request.args.get("date_from")
         if date_from:
@@ -799,7 +814,8 @@ def create_app():
         holdings_by_id = {h.id: h for h in holdings}
         holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency=display_currency)
         all_transactions = HoldingTransaction.query.filter(
-            HoldingTransaction.holding_id.in_([h.id for h in holdings])
+            HoldingTransaction.holding_id.in_([h.id for h in holdings]),
+            HoldingTransaction.deleted_at.is_(None),
         ).all()
         liabilities = scoped_liabilities_query(household_id_param).all()
         total_liabilities = total_liabilities_display(liabilities, display_currency=display_currency)
@@ -1107,7 +1123,10 @@ def create_app():
         holdings = scoped_holdings_query(household_id_param).all()
         holding_ids = [h.id for h in holdings]
 
-        transactions = HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(holding_ids)).all()
+        transactions = HoldingTransaction.query.filter(
+            HoldingTransaction.holding_id.in_(holding_ids),
+            HoldingTransaction.deleted_at.is_(None),
+        ).all()
         valuations = HoldingValuation.query.filter(HoldingValuation.holding_id.in_(holding_ids)).all()
 
         currency = request.args.get("currency", "USD").upper()

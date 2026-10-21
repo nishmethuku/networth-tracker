@@ -24,7 +24,7 @@ def get_emergency_fund_status(user_id=None, household_id=None, currency: str = "
         if household_id
         else Holding.query.filter_by(user_id=user_id)
     )
-    liquid_holdings = query.filter(Holding.asset_type.in_(LIQUID_ASSET_TYPES)).all()
+    liquid_holdings = query.filter(Holding.asset_type.in_(LIQUID_ASSET_TYPES), Holding.deleted_at.is_(None)).all()
     metrics = list_holdings_with_metrics(liquid_holdings, display_currency=currency)
     liquid_value = sum(m["display_value"] for m in metrics)
 

@@ -293,7 +293,8 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                     user_id=user_id, household_id=household_id,
                     asset_type=row["asset_type"], account=row["account"], currency=row["currency"],
                 ).filter(
-                    (Holding.symbol == row["symbol"]) if row["symbol"] else (Holding.name == row["name"])
+                    (Holding.symbol == row["symbol"]) if row["symbol"] else (Holding.name == row["name"]),
+                    Holding.deleted_at.is_(None),
                 ).first()
             if holding is None:
                 holding = Holding(
@@ -341,6 +342,7 @@ def confirm_smart_import(rows: List[Dict], user_id, household_id: Optional[str] 
                     source_holding = Holding.query.filter(
                         Holding.user_id == user_id, Holding.household_id == household_id,
                         Holding.asset_type == "cash", db.func.lower(Holding.name) == source_key,
+                        Holding.deleted_at.is_(None),
                     ).first()
                 is_newly_created = False
                 if source_holding is None:

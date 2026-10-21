@@ -106,6 +106,7 @@ class Holding(db.Model):
     updated_at = db.Column(
         db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
     )
+    deleted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def to_dict(self):
         return {
@@ -148,6 +149,7 @@ class HoldingTransaction(db.Model):
     notes = db.Column(db.Text)
     tags = db.Column(JSONB)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+    deleted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def to_dict(self):
         return {
@@ -499,6 +501,7 @@ class Account(db.Model):
     name = db.Column(db.String(64), nullable=False)
 
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+    deleted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def to_dict(self):
         return {

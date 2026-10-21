@@ -5,9 +5,10 @@ empty one be deleted cleanly. Holding.account itself stays a plain string
 either way (see Account's docstring in models.py); this is purely about
 managing the *list* of known names, not a foreign key relationship.
 """
+from datetime import datetime
 from typing import Dict, List
 
-from .models import Account, Holding, db
+from .models import Account, Holding, HoldingTransaction, db
 
 
 def _registered_query(user_id, household_id=None):
@@ -22,7 +23,7 @@ def _holdings_query(user_id, household_id=None):
     account names/counts from list_accounts, and an editor could hard-
     delete another member's private holdings via delete_account_and_holdings
     using a name they were never supposed to see."""
-    query = Holding.query
+    query = Holding.query.filter(Holding.deleted_at.is_(None))
     if household_id:
         return query.filter(Holding.household_id == household_id, Holding.is_private == False)  # noqa: E712
     return query.filter_by(user_id=user_id, household_id=None)
@@ -136,8 +137,12 @@ def delete_account_and_holdings(user_id, name: str, household_id=None) -> int:
         raise ValueError("name is required")
 
     holdings = _holdings_query(user_id, household_id).filter_by(account=name).all()
+    now = datetime.utcnow()
     for holding in holdings:
-        db.session.delete(holding)
+        holding.deleted_at = now
+        HoldingTransaction.query.filter_by(holding_id=holding.id).filter(
+            HoldingTransaction.deleted_at.is_(None)
+        ).update({"deleted_at": now}, synchronize_session=False)
 
     registered = _registered_query(user_id, household_id).filter_by(name=name).first()
     if registered:

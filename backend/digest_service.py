@@ -76,7 +76,7 @@ def _build_digest_for_scope(user_id=None, household_id=None) -> Dict:
         if user_id is not None
         else Holding.query.filter_by(household_id=household_id, is_private=False)
     )
-    holdings = query.all()
+    holdings = query.filter(Holding.deleted_at.is_(None)).all()
     holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency="USD")
     total_assets = sum(h["display_value"] for h in holdings_with_metrics)
 

@@ -1,0 +1,52 @@
+name: Daily Database Backup
+
+# Runs pg_dump against the production Supabase database and stores the
+# compressed dump as a GitHub Actions artifact (30-day retention).
+#
+# Required repo secret (Settings -> Secrets and variables -> Actions):
+#   PG_BACKUP_URL   full Postgres connection string, e.g.:
+#                   postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+#
+# To restore: download the artifact, then:
+#   gunzip backup.sql.gz
+#   psql "$PG_BACKUP_URL" < backup.sql
+#
+# To add the secret: go to Settings > Secrets and variables > Actions >
+# New repository secret. Use the same connection string you have in the
+# backend's DATABASE_URL, but keep it in a separate secret so this workflow
+# can be revoked independently if needed.
+
+on:
+  schedule:
+    - cron: "30 5 * * *"  # 05:30 UTC daily (30 min before snapshot)
+  workflow_dispatch: {}   # allow manual trigger from the Actions tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+
+      - name: Run pg_dump
+        env:
+          PG_BACKUP_URL: ${{ secrets.PG_BACKUP_URL }}
+        run: |
+          pg_dump "$PG_BACKUP_URL" \
+            --no-password \
+            --format=plain \
+            --no-owner \
+            --no-acl \
+            --file=backup.sql
+          gzip backup.sql
+          echo "Backup size: $(du -sh backup.sql.gz | cut -f1)"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backup.sql.gz
+          retention-days: 30
+          if-no-files-found: error

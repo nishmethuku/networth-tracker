@@ -93,16 +93,19 @@ def get_benchmark_comparison(user_id, benchmark_symbol: str = "SPY", household_i
     benchmark_currency = BENCHMARKS[benchmark_symbol]["currency"]
 
     if household_id:
-        holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
+        holdings = Holding.query.filter_by(household_id=household_id, is_private=False).filter(Holding.deleted_at.is_(None)).all()
     else:
-        holdings = Holding.query.filter_by(user_id=user_id).all()
+        holdings = Holding.query.filter_by(user_id=user_id).filter(Holding.deleted_at.is_(None)).all()
 
     quantity_holdings = [h for h in holdings if h.asset_type in QUANTITY_BASED_TYPES]
     holding_ids = [h.id for h in quantity_holdings]
     if not holding_ids:
         return None
 
-    all_transactions = HoldingTransaction.query.filter(HoldingTransaction.holding_id.in_(holding_ids)).all()
+    all_transactions = HoldingTransaction.query.filter(
+        HoldingTransaction.holding_id.in_(holding_ids),
+        HoldingTransaction.deleted_at.is_(None),
+    ).all()
     buys = [t for t in all_transactions if t.transaction_type == "buy"]
     if not buys:
         return None

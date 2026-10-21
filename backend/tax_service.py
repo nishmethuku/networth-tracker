@@ -169,9 +169,9 @@ def get_tax_summary(user_id=None, household_id=None, cost_basis_method: str = "a
     changes what's owed. This only affects this report, not the live
     dashboard or holdings view."""
     if household_id:
-        holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
+        holdings = Holding.query.filter_by(household_id=household_id, is_private=False).filter(Holding.deleted_at.is_(None)).all()
     else:
-        holdings = Holding.query.filter_by(user_id=user_id).all()
+        holdings = Holding.query.filter_by(user_id=user_id).filter(Holding.deleted_at.is_(None)).all()
 
     quantity_holdings = {h.id: h for h in holdings if h.asset_type in QUANTITY_BASED_TYPES}
     if not quantity_holdings:
@@ -180,7 +180,7 @@ def get_tax_summary(user_id=None, household_id=None, cost_basis_method: str = "a
     buckets: Dict[tuple, Dict] = {}
 
     for holding_id, holding in quantity_holdings.items():
-        transactions = HoldingTransaction.query.filter_by(holding_id=holding_id).all()
+        transactions = HoldingTransaction.query.filter_by(holding_id=holding_id).filter(HoldingTransaction.deleted_at.is_(None)).all()
         if cost_basis_method in ("fifo", "lifo"):
             realized_events, holding_period_splits = _lot_matched_realized_events(transactions, cost_basis_method)
         else:

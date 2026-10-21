@@ -108,7 +108,7 @@ def snapshot_all_users(snapshot_date: Optional[date] = None):
     failed_scopes = []
     for user_id in user_ids:
         try:
-            holdings = Holding.query.filter_by(user_id=user_id).all()
+            holdings = Holding.query.filter_by(user_id=user_id).filter(Holding.deleted_at.is_(None)).all()
             liabilities = Liability.query.filter_by(user_id=user_id).all()
             totals = _compute_totals(holdings, liabilities)
             previous_net_worth = _previous_net_worth(user_id, None, snapshot_date)
@@ -132,7 +132,7 @@ def snapshot_all_users(snapshot_date: Optional[date] = None):
     households_snapshotted = 0
     for household_id in household_ids:
         try:
-            holdings = Holding.query.filter_by(household_id=household_id, is_private=False).all()
+            holdings = Holding.query.filter_by(household_id=household_id, is_private=False).filter(Holding.deleted_at.is_(None)).all()
             liabilities = Liability.query.filter_by(household_id=household_id, is_private=False).all()
             totals = _compute_totals(holdings, liabilities)
             previous_net_worth = _previous_net_worth(None, household_id, snapshot_date)
