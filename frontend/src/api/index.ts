@@ -305,6 +305,38 @@ export async function fetchTaxSummary(householdId: string | null = null, costBas
   return mapTaxSummary(data);
 }
 
+export interface IncomeSummary {
+  total: number;
+  last12Months: number;
+  yieldPct: number | null;
+  byYear: { year: number; amount: number }[];
+  byMonth: { month: string; amount: number }[];
+  byHolding: { holdingId: number; name: string; symbol: string | null; total: number; last12Months: number }[];
+  count: number;
+}
+
+/** Dividend and interest income, grouped by year, month and holding. */
+export async function fetchIncomeSummary(currency: string = "USD", householdId: string | null = null): Promise<IncomeSummary> {
+  const params = new URLSearchParams({ currency });
+  if (householdId) params.append("household_id", householdId);
+  const d = await api.get(`/income-summary?${params.toString()}`);
+  return {
+    total: d?.total ?? 0,
+    last12Months: d?.last_12_months ?? 0,
+    yieldPct: d?.yield_pct ?? null,
+    byYear: d?.by_year ?? [],
+    byMonth: d?.by_month ?? [],
+    byHolding: (d?.by_holding ?? []).map((r: any) => ({
+      holdingId: r.holding_id,
+      name: r.name,
+      symbol: r.symbol ?? null,
+      total: r.total,
+      last12Months: r.last_12_months,
+    })),
+    count: d?.count ?? 0,
+  };
+}
+
 /**
  * Benchmark comparison
  */

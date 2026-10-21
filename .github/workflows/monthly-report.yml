@@ -1,0 +1,32 @@
+name: Monthly Net Worth Report
+
+# Runs on the 1st of each month and hits the backend's
+# /internal/monthly-report endpoint, which emails each user a summary of the
+# month that just ended (net worth change, dividends and interest, biggest
+# positions). Uses the same two repo secrets as the weekly digest:
+#   BACKEND_URL      your exact Render address (copy it from Render, no trailing slash)
+#   SNAPSHOT_SECRET   must match the backend's SNAPSHOT_SECRET env var
+
+on:
+  schedule:
+    - cron: "0 14 1 * *" # 14:00 UTC on the 1st of every month
+  workflow_dispatch: {}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      # Render's free plan sleeps when idle; wake it first (see weekly-digest.yml).
+      - name: Wake up backend
+        run: curl -s -o /dev/null --max-time 120 "${{ secrets.BACKEND_URL }}/" || true
+      - name: Trigger monthly report
+        run: |
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 280 -X POST \
+            "${{ secrets.BACKEND_URL }}/internal/monthly-report" \
+            -H "X-Snapshot-Secret: ${{ secrets.SNAPSHOT_SECRET }}")
+          echo "Response ($status):"
+          cat /tmp/response.json
+          if [ "$status" != "200" ]; then
+            echo "Monthly report request failed with status $status"
+            exit 1
+          fi

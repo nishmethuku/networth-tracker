@@ -79,6 +79,7 @@ from .household_service import (
     list_my_pending_invites,
     remove_member,
 )
+from .income_service import get_income_summary
 from .liability_service import LIABILITY_TYPES, apply_payment, list_liabilities_with_display, total_liabilities_display
 from .milestone_service import list_milestones
 from .models import (
@@ -96,6 +97,7 @@ from .models import (
     PushSubscription,
     db,
 )
+from .monthly_report_service import build_monthly_report
 from .services import rank_symbol_results, safe_float
 from .simple_csv_import_service import parse_simple_csv
 from .sip_service import next_occurrences as next_sip_occurrences
@@ -895,6 +897,21 @@ def create_app():
         )
         return jsonify({"rows": result, "disclaimer": TAX_DISCLAIMER, "cost_basis_method": cost_basis_method})
 
+    # ---------------- INCOME (dividends and interest) ----------------
+
+    @app.route("/income-summary", methods=["GET"])
+    @require_auth
+    def income_summary():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        display_currency = request.args.get("currency", "USD").upper()
+        return jsonify(
+            get_income_summary(
+                g.user_id if not household_id_param else None, household_id_param, display_currency=display_currency
+            )
+        )
+
     # ---------------- PRICE ALERTS ----------------
 
     @app.route("/alerts", methods=["GET"])
@@ -1291,6 +1308,17 @@ def create_app():
             return jsonify({"error": "Unauthorized"}), 401
         digests = build_weekly_digest()
         return jsonify({"digests_built": len(digests)}), 200
+
+    @app.route("/internal/monthly-report", methods=["POST"])
+    @limiter.limit("10 per minute")
+    def trigger_monthly_report():
+        """Builds and emails last month's report to each user. Same secret
+        as the weekly digest, and intended for a monthly GitHub Actions cron."""
+        provided = request.headers.get("X-Snapshot-Secret")
+        if not DIGEST_SECRET or not provided or not hmac.compare_digest(provided, DIGEST_SECRET):
+            return jsonify({"error": "Unauthorized"}), 401
+        reports = build_monthly_report()
+        return jsonify({"reports_built": len(reports)}), 200
 
     @app.route("/internal/unsubscribe", methods=["GET"])
     @limiter.limit("30 per minute")

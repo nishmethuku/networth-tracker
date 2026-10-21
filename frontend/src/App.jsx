@@ -27,6 +27,7 @@ const Alerts = lazy(() => import("./components/Alerts"));
 const TaxSummary = lazy(() => import("./components/TaxSummary"));
 const AllocationAdvisor = lazy(() => import("./components/ai/AllocationAdvisor"));
 const WhatIf = lazy(() => import("./components/WhatIf"));
+const Income = lazy(() => import("./components/Income"));
 const Settings = lazy(() => import("./components/Settings"));
 const Budget = lazy(() => import("./components/Budget"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
@@ -285,6 +286,7 @@ function AppShell() {
               { to: "/tax-summary", label: t("nav.taxSummary") },
               { to: "/insights", label: t("nav.insights") },
               { to: "/allocation-advisor", label: t("nav.allocationAdvisor") },
+              { to: "/income", label: t("nav.income") },
               { to: "/what-if", label: t("nav.whatIf") },
               { to: "/household", label: t("nav.household") },
               { to: "/accounts", label: t("nav.accounts") },
@@ -354,6 +356,7 @@ function AppShell() {
               <Route path="insights" element={<Insights />} />
               <Route path="allocation-advisor" element={<AllocationAdvisor />} />
               <Route path="what-if" element={<WhatIf />} />
+              <Route path="income" element={<Income />} />
               <Route path="settings" element={<Settings />} />
               <Route path="household" element={<Household />} />
               <Route path="accounts" element={<Accounts />} />
