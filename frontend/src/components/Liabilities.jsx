@@ -42,6 +42,8 @@ const emptyForm = {
   current_balance: "",
   original_amount: "",
   interest_rate: "",
+  monthly_payment: "",
+  payment_due_date: "",
   notes: "",
 };
 
@@ -57,6 +59,8 @@ export function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
       current_balance: parseFloat(form.current_balance) || 0,
       original_amount: form.original_amount === "" ? null : parseFloat(form.original_amount),
       interest_rate: form.interest_rate === "" ? null : parseFloat(form.interest_rate),
+      monthly_payment: form.monthly_payment === "" ? null : parseFloat(form.monthly_payment),
+      payment_due_date: form.payment_due_date || null,
       notes: form.notes || null,
     });
   }
@@ -151,6 +155,32 @@ export function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
             min="0"
             value={form.interest_rate}
             onChange={(e) => setForm({ ...form, interest_rate: e.target.value })}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle} htmlFor="liability-monthly-payment">
+            Monthly payment (optional)
+          </label>
+          <input
+            id="liability-monthly-payment"
+            type="number"
+            step="any"
+            min="0"
+            value={form.monthly_payment}
+            onChange={(e) => setForm({ ...form, monthly_payment: e.target.value })}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle} htmlFor="liability-due-date">
+            Payment due date (optional)
+          </label>
+          <input
+            id="liability-due-date"
+            type="date"
+            value={form.payment_due_date}
+            onChange={(e) => setForm({ ...form, payment_due_date: e.target.value })}
             style={inputStyle}
           />
         </div>
@@ -287,6 +317,8 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
           <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
             {getLiabilityTypeLabel(liability.liabilityType)}
             {liability.interestRate != null && ` · ${formatPercent(liability.interestRate, 2)} APR`}
+            {liability.monthlyPayment != null && ` · ${formatCurrencyForDisplay(liability.monthlyPayment, liability.currency, { includeCode: false })}/mo`}
+            {liability.paymentDueDate && ` · due ${liability.paymentDueDate}`}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -468,6 +500,8 @@ export default function Liabilities() {
                       current_balance: String(editing.currentBalance),
                       original_amount: editing.originalAmount != null ? String(editing.originalAmount) : "",
                       interest_rate: editing.interestRate != null ? String(editing.interestRate) : "",
+                      monthly_payment: editing.monthlyPayment != null ? String(editing.monthlyPayment) : "",
+                      payment_due_date: editing.paymentDueDate || "",
                       notes: editing.notes || "",
                     }
                   : null

@@ -153,6 +153,36 @@ export default function ImportCsv() {
         </ul>
       </div>
 
+      <div style={{ marginBottom: "1.25rem" }}>
+        <button
+          type="button"
+          onClick={() => {
+            const header = "Holding Type,Holding Account,Source,Investment,Transaction,Transaction Date,Transaction Units,Transaction price,Currency,Country";
+            const example = "Stocks,My Brokerage,My Bank,AAPL,Buy,2024-01-15,10,185.50,USD,US";
+            const csv = `${header}\n${example}\n`;
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "networth-import-template.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          style={{
+            padding: "0.5rem 1rem",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            color: "var(--primary)",
+            cursor: "pointer",
+            fontSize: "0.8125rem",
+            fontWeight: 500,
+          }}
+        >
+          Download template CSV
+        </button>
+      </div>
+
       <Card>
         <div>
           <label

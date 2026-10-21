@@ -564,6 +564,8 @@ export interface Liability {
   displayBalance: number;
   originalAmount: number | null;
   interestRate: number | null;
+  monthlyPayment: number | null;
+  paymentDueDate: string | null;
   notes: string;
   isPrivate: boolean;
   createdAt: string;
@@ -582,6 +584,8 @@ export function mapLiability(l: any): Liability | null {
     displayBalance: safeNumber(l.display_balance ?? l.current_balance),
     originalAmount: l.original_amount != null ? safeNumber(l.original_amount) : null,
     interestRate: l.interest_rate != null ? safeNumber(l.interest_rate) : null,
+    monthlyPayment: l.monthly_payment != null ? safeNumber(l.monthly_payment) : null,
+    paymentDueDate: l.payment_due_date ?? null,
     notes: l.notes ?? "",
     isPrivate: !!l.is_private,
     createdAt: l.created_at ?? "",

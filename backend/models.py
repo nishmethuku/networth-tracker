@@ -586,6 +586,8 @@ class Liability(db.Model):
     current_balance = db.Column(db.Float, nullable=False)
     original_amount = db.Column(db.Float)
     interest_rate = db.Column(db.Float)
+    monthly_payment = db.Column(db.Float)
+    payment_due_date = db.Column(db.Date)
     notes = db.Column(db.Text)
     is_private = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -605,6 +607,8 @@ class Liability(db.Model):
             "current_balance": self.current_balance,
             "original_amount": self.original_amount,
             "interest_rate": self.interest_rate,
+            "monthly_payment": self.monthly_payment,
+            "payment_due_date": self.payment_due_date.isoformat() if self.payment_due_date else None,
             "notes": self.notes,
             "is_private": self.is_private,
             "created_at": self.created_at.isoformat() if self.created_at else None,

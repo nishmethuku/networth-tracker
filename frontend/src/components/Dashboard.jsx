@@ -26,6 +26,7 @@ import { formatCurrencyCompact, formatPercent } from "../utils/formatters";
 import { groupBuyValueAndGain } from "../utils/holdingReturns";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
+const CONCENTRATION_THRESHOLD_PCT = 25;
 const BENCHMARKS = [
   { value: "SPY", label: "S&P 500 (SPY)" },
   { value: "NIFTYBEES.NS", label: "Nifty 50 (NIFTYBEES)" },
@@ -128,6 +129,15 @@ export default function Dashboard() {
   });
 
   const buyValueSummary = useMemo(() => groupBuyValueAndGain(holdings || []), [holdings]);
+
+  const concentratedHoldings = useMemo(() => {
+    const totalValue = (holdings || []).reduce((sum, h) => sum + (h.displayValue || 0), 0);
+    if (totalValue <= 0) return [];
+    return (holdings || [])
+      .map((h) => ({ ...h, pctOfTotal: (h.displayValue / totalValue) * 100 }))
+      .filter((h) => h.pctOfTotal >= CONCENTRATION_THRESHOLD_PCT)
+      .sort((a, b) => b.pctOfTotal - a.pctOfTotal);
+  }, [holdings]);
 
   const { containerRef, pullDistance, refreshing, threshold } = usePullToRefresh(async () => {
     await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -290,6 +300,27 @@ export default function Dashboard() {
               />
             )}
           </div>
+
+          {concentratedHoldings.length > 0 && (
+            <div
+              style={{
+                background: "var(--warning-light, rgba(245,158,11,0.1))",
+                border: "1px solid var(--warning, #f59e0b)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.875rem 1.25rem",
+                marginBottom: "1.5rem",
+                fontSize: "0.875rem",
+                color: "var(--text)",
+              }}
+            >
+              <strong>Concentration warning</strong> — {concentratedHoldings.map((h, i) => (
+                <span key={h.id}>
+                  {h.symbol || h.name} ({h.pctOfTotal.toFixed(0)}%){i < concentratedHoldings.length - 1 ? ", " : ""}
+                </span>
+              ))} {concentratedHoldings.length === 1 ? "makes up" : "each make up"} more than {CONCENTRATION_THRESHOLD_PCT}% of your portfolio.{" "}
+              <a href="/allocation-advisor" style={{ color: "var(--primary)", textDecoration: "underline" }}>Review allocation →</a>
+            </div>
+          )}
 
           <div
             style={{

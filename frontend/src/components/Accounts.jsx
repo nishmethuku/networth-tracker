@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Card from "./Card";
 import EmptyState from "./EmptyState";
@@ -6,7 +6,9 @@ import LoadingState from "./LoadingState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { fetchAccounts, createAccount, deleteAccount, deleteAccountAndHoldings, renameAccount, ApiError } from "../api";
+import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
+import { fetchAccounts, fetchHoldings, createAccount, deleteAccount, deleteAccountAndHoldings, renameAccount, ApiError } from "../api";
+import { formatCurrencyForDisplay } from "../utils/formatters";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -21,6 +23,7 @@ export default function Accounts() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { currentHouseholdId } = useHousehold();
+  const currency = getDefaultDisplayCurrency();
   const [name, setName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [renamingAccount, setRenamingAccount] = useState(null); // the account object currently being renamed, or null
@@ -30,6 +33,20 @@ export default function Accounts() {
     queryKey: ["accounts", currentHouseholdId],
     queryFn: () => fetchAccounts({ householdId: currentHouseholdId }),
   });
+
+  const { data: holdings } = useQuery({
+    queryKey: ["holdings", "summary", currency, currentHouseholdId],
+    queryFn: () => fetchHoldings({ currency, summary: true, householdId: currentHouseholdId }),
+    staleTime: 1000 * 30,
+  });
+
+  const balanceByAccount = useMemo(() => {
+    return (holdings || []).reduce((acc, h) => {
+      const key = h.account || "";
+      acc[key] = (acc[key] || 0) + (h.displayValue || 0);
+      return acc;
+    }, {});
+  }, [holdings]);
 
   const createMutation = useMutation({
     mutationFn: () => createAccount({ name: name.trim(), household_id: currentHouseholdId }),
@@ -154,6 +171,11 @@ export default function Accounts() {
                   <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                     <span style={{ color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
                       {a.holdingCount} holding{a.holdingCount === 1 ? "" : "s"}
+                      {balanceByAccount[a.name] != null && (
+                        <span style={{ marginLeft: "0.5rem", fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 600 }}>
+                          · {formatCurrencyForDisplay(balanceByAccount[a.name], currency, { includeCode: false })}
+                        </span>
+                      )}
                     </span>
                     <button
                       onClick={() => startRename(a)}

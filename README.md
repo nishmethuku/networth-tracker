@@ -252,8 +252,35 @@ All endpoints except `/internal/*` require an `Authorization: Bearer <supabase-a
 - `GET /account/export`, `GET /account/export.zip`, `DELETE /account/data` (body: `{"confirm": "DELETE"}`)
 - `GET /price-cache-status`
 
+**Health (no auth required)**
+- `GET /health` — returns `{"status":"ok"}` (200) when the DB is reachable, `{"status":"degraded"}` (503) otherwise. Use this as the ping URL for any uptime monitor.
+
 **Internal (secret-protected, called by GitHub Actions crons)**
 - `POST /internal/snapshot`, `POST /internal/weekly-digest`, `POST /internal/check-alerts`, `GET /internal/unsubscribe?token=...`
+
+## Keeping the backend warm (free tier)
+
+Render's free tier spins the backend down after ~15 minutes of inactivity; the first request after that takes up to ~100 seconds to wake. The API client already retries once at a longer timeout with a UI toast, so users don't just see an error — but you can eliminate that wait entirely with a free uptime monitor.
+
+**Option A — UptimeRobot (free, 5-minute interval)**
+
+1. Sign up at https://uptimerobot.com (free plan covers up to 50 monitors).
+2. Click **+ Add New Monitor**.
+3. Monitor type: **HTTP(s)**.
+4. Friendly name: `networth-tracker-backend`.
+5. URL: `https://networth-tracker-backend.onrender.com/health`
+6. Monitoring interval: **5 minutes**.
+7. Save. UptimeRobot starts pinging immediately and keeps the dyno warm.
+
+**Option B — cron-job.org (free, flexible interval)**
+
+1. Sign up at https://cron-job.org (free plan, no credit card).
+2. Create a new cron job:
+   - URL: `https://networth-tracker-backend.onrender.com/health`
+   - Schedule: every 10 minutes (or more often).
+3. Save. The service pings the endpoint on schedule.
+
+Both options are free and require no changes to the backend. The `/health` endpoint is intentionally unauthenticated and lightweight — it runs one `SELECT 1` to confirm the DB is reachable.
 
 ## License
 

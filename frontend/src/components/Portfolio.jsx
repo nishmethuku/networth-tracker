@@ -330,6 +330,21 @@ export default function Portfolio() {
 
   const orderedTypes = ASSET_TYPE_OPTIONS.map((o) => o.value).filter((t) => grouped[t]?.length);
 
+  // Rollup by account and country — used in the summary totals panel.
+  const byAccount = filteredHoldings.reduce((acc, h) => {
+    const key = h.account || "—";
+    acc[key] = (acc[key] || 0) + (h.displayValue || 0);
+    return acc;
+  }, {});
+  const byCountry = filteredHoldings.reduce((acc, h) => {
+    const key = h.country || "—";
+    acc[key] = (acc[key] || 0) + (h.displayValue || 0);
+    return acc;
+  }, {});
+  const accountEntries = Object.entries(byAccount).sort(([, a], [, b]) => b - a);
+  const countryEntries = Object.entries(byCountry).sort(([, a], [, b]) => b - a);
+  const portfolioTotal = filteredHoldings.reduce((sum, h) => sum + (h.displayValue || 0), 0);
+
   function exportToCsv() {
     const cols = [
       "Name",
@@ -514,6 +529,70 @@ export default function Portfolio() {
           >
             Clear ×
           </button>
+        </div>
+      )}
+
+      {orderedTypes.length > 0 && (accountEntries.length > 1 || countryEntries.length > 1) && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "1rem",
+            marginBottom: "1.5rem",
+          }}
+        >
+          {accountEntries.length > 1 && (
+            <div
+              style={{
+                background: "var(--card)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.875rem 1.25rem",
+                fontSize: "0.8125rem",
+              }}
+            >
+              <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: "0.5rem" }}>By Account</div>
+              {accountEntries.map(([acct, val]) => (
+                <div key={acct} style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", color: "var(--text-secondary)" }}>
+                  <span>{acct}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
+                    {formatCurrencyForDisplay(val, currency, { includeCode: false })}
+                    {portfolioTotal > 0 && (
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.35rem" }}>
+                        {((val / portfolioTotal) * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {countryEntries.length > 1 && (
+            <div
+              style={{
+                background: "var(--card)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.875rem 1.25rem",
+                fontSize: "0.8125rem",
+              }}
+            >
+              <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: "0.5rem" }}>By Country</div>
+              {countryEntries.map(([cntry, val]) => (
+                <div key={cntry} style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", color: "var(--text-secondary)" }}>
+                  <span>{cntry}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
+                    {formatCurrencyForDisplay(val, currency, { includeCode: false })}
+                    {portfolioTotal > 0 && (
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginLeft: "0.35rem" }}>
+                        {((val / portfolioTotal) * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

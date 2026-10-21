@@ -194,6 +194,16 @@ def create_app():
     )
     app.extensions["limiter"] = limiter
 
+    # ---------------- HEALTH ----------------
+
+    @app.route("/health", methods=["GET"])
+    def health():
+        try:
+            db.session.execute(db.text("SELECT 1"))
+            return jsonify({"status": "ok"}), 200
+        except Exception:
+            return jsonify({"status": "degraded"}), 503
+
     # ---------------- REQUEST ID + STANDARDIZED ERRORS ----------------
 
     @app.before_request
@@ -1732,6 +1742,12 @@ def create_app():
         if not data.get("name") or not str(data["name"]).strip():
             return jsonify({"error": "name is required"}), 400
 
+        raw_due = data.get("payment_due_date")
+        try:
+            payment_due = date.fromisoformat(raw_due) if raw_due else None
+        except ValueError:
+            return jsonify({"error": "payment_due_date must be YYYY-MM-DD"}), 400
+
         liability = Liability(
             user_id=g.user_id,
             household_id=household_id,
@@ -1741,6 +1757,8 @@ def create_app():
             current_balance=safe_float(data.get("current_balance")),
             original_amount=safe_float(data["original_amount"]) if data.get("original_amount") not in (None, "") else None,
             interest_rate=safe_float(data["interest_rate"]) if data.get("interest_rate") not in (None, "") else None,
+            monthly_payment=safe_float(data["monthly_payment"]) if data.get("monthly_payment") not in (None, "") else None,
+            payment_due_date=payment_due,
             notes=data.get("notes"),
             is_private=bool(data.get("is_private", False)),
         )
@@ -1782,6 +1800,14 @@ def create_app():
             liability.original_amount = safe_float(data["original_amount"]) if data["original_amount"] not in (None, "") else None
         if "interest_rate" in data:
             liability.interest_rate = safe_float(data["interest_rate"]) if data["interest_rate"] not in (None, "") else None
+        if "monthly_payment" in data:
+            liability.monthly_payment = safe_float(data["monthly_payment"]) if data["monthly_payment"] not in (None, "") else None
+        if "payment_due_date" in data:
+            raw_due = data["payment_due_date"]
+            try:
+                liability.payment_due_date = date.fromisoformat(raw_due) if raw_due else None
+            except ValueError:
+                return jsonify({"error": "payment_due_date must be YYYY-MM-DD"}), 400
         if "is_private" in data:
             liability.is_private = bool(data["is_private"])
 

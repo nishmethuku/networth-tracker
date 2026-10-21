@@ -60,7 +60,7 @@ export default function AllocationAdvisor() {
     staleTime: 1000 * 60,
   });
 
-  const CONCENTRATION_WARNING_THRESHOLD_PCT = 20; // a single-position guideline cited widely in diversification advice
+  const CONCENTRATION_WARNING_THRESHOLD_PCT = 25;
   const concentratedHoldings = useMemo(() => {
     const totalValue = (holdings || []).reduce((sum, h) => sum + (h.displayValue || 0), 0);
     if (totalValue <= 0) return [];
