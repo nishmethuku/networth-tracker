@@ -232,7 +232,7 @@ function MobileBottomNav() {
 }
 
 function AppShell() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isDemo } = useAuth();
   const { currentHousehold } = useHousehold();
   const { t } = useTranslation();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -241,6 +241,34 @@ function AppShell() {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", transition: "background-color 0.2s ease" }}>
       <OfflineIndicator />
+      {isDemo && (
+        <div
+          role="status"
+          style={{
+            background: "var(--primary)",
+            color: "#fff",
+            padding: "0.5rem 1rem",
+            textAlign: "center",
+            fontSize: "0.875rem",
+          }}
+        >
+          Demo mode: everything here is sample data and nothing is saved.{" "}
+          <button
+            type="button"
+            onClick={signOut}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#fff",
+              textDecoration: "underline",
+              cursor: "pointer",
+              fontSize: "inherit",
+            }}
+          >
+            Exit demo
+          </button>
+        </div>
+      )}
       <ToastContainer />
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       <MobileMenu />

@@ -2,6 +2,7 @@
  * Centralized API client with error handling, timeout, and base URL configuration
  */
 import { supabase } from "../lib/supabaseClient";
+import { isDemoMode, demoGet, DEMO_READ_ONLY_MESSAGE } from "../lib/demoMode";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 const DEFAULT_TIMEOUT = 15000; // 15 seconds — comfortable for a warm backend
@@ -113,6 +114,13 @@ async function request(endpoint: string, options: RequestInit = {}, timeoutMs: n
   const url = `${API_BASE_URL}${endpoint}`;
   const method = (options.method || "GET").toUpperCase();
 
+  // Demo mode never touches the network: reads come from sample data and
+  // anything that would save a change is refused.
+  if (isDemoMode()) {
+    if (method === "GET") return demoGet(endpoint);
+    throw new ApiError(DEMO_READ_ONLY_MESSAGE, 403);
+  }
+
   try {
     const response = await fetchWithTimeout(url, options, timeoutMs);
     return await parseResponse(response);
@@ -185,6 +193,7 @@ async function fetchUpload(url: string, formData: FormData, timeoutMs: number): 
  * GET — but previously had no timeout or retry at all.
  */
 export async function uploadWithColdStartRetry(endpoint: string, formData: FormData): Promise<any> {
+  if (isDemoMode()) throw new ApiError(DEMO_READ_ONLY_MESSAGE, 403);
   const url = `${API_BASE_URL}${endpoint}`;
   try {
     return await fetchUpload(url, formData, DEFAULT_TIMEOUT);

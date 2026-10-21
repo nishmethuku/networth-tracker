@@ -4,6 +4,7 @@
 
 import api, { uploadWithColdStartRetry, AI_TIMEOUT, BULK_IMPORT_TIMEOUT, ApiError } from "./client";
 import { supabase } from "../lib/supabaseClient";
+import { isDemoMode, DEMO_READ_ONLY_MESSAGE } from "../lib/demoMode";
 import {
   mapHolding,
   mapTransaction,
@@ -416,6 +417,7 @@ export interface StreamAiChatArgs {
  * and parses the backend's SSE-formatted `data: {...}\n\n` frames by hand.
  */
 export async function* streamAiChat({ messages, householdId, currency = "USD" }: StreamAiChatArgs, signal?: AbortSignal) {
+  if (isDemoMode()) throw new ApiError("The AI assistant is turned off in the demo. Sign up to try it on your own data.", 403);
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
@@ -596,6 +598,7 @@ export async function fetchAccountExport() {
  * request() helper since this needs to return a Blob, not parsed JSON.
  */
 export async function fetchAccountExportCsvZip(): Promise<Blob> {
+  if (isDemoMode()) throw new ApiError(DEMO_READ_ONLY_MESSAGE, 403);
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
   const response = await fetch(`${API_BASE_URL}/account/export.zip`, {

@@ -2,12 +2,15 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 import { queryClient } from "../queryClient.js";
+import { DEMO_USER, exitDemoMode, isDemoMode } from "../lib/demoMode";
 
 interface AuthContextValue {
   session: Session | null;
   user: Session["user"] | null;
   accessToken: string | null;
   loading: boolean;
+  /** True while the app is running on sample data (see lib/demoMode.ts). */
+  isDemo: boolean;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -29,6 +32,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const demo = isDemoMode();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -73,6 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    if (isDemoMode()) {
+      // Leaving the demo is not a real sign-out: there is no session to end.
+      exitDemoMode();
+      queryClient.clear();
+      window.location.assign("/login");
+      return;
+    }
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     // Query keys carry no user identity (e.g. ["dashboard", currency,
@@ -111,9 +122,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     session,
-    user: session?.user ?? null,
+    user: demo ? (DEMO_USER as unknown as Session["user"]) : (session?.user ?? null),
     accessToken: session?.access_token ?? null,
-    loading,
+    loading: loading && !demo,
+    isDemo: demo,
     signUpWithEmail,
     signInWithEmail,
     signInWithGoogle,

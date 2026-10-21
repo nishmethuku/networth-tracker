@@ -1,5 +1,14 @@
 # Changelog
 
+## Income, monthly report and demo mode (branch `feature/dividends-monthly-demo`)
+
+- New Income page (More menu): dividends and interest by month, year and holding, with a trailing-12-month yield.
+- Monthly emailed report on the 1st of each month: net worth change, income received, biggest positions, concentration note. New `monthly-report` GitHub workflow; same `BACKEND_URL` and `SNAPSHOT_SECRET` secrets as the weekly digest, and the same unsubscribe list.
+- Demo mode: "Try the demo" button on the login page runs the whole app on sample data with no sign-in and no calls to the backend. Changes are refused, so nothing can touch a real account.
+
+---
+
+
 ## Site review upgrade (branch `upgrade/site-review`)
 
 - Small amounts keep cents (no more "$0" for $0.12); chart labels no longer clipped.
