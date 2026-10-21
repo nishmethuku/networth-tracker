@@ -38,6 +38,7 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, onDelete }) {
             {formatCurrencyForDisplay(goal.targetAmount, goal.currency, { includeCode: false })}
           </span>
           <button
+            aria-label="Delete goal"
             onClick={() => onDelete(goal.id)}
             style={{
               fontSize: "0.7rem",

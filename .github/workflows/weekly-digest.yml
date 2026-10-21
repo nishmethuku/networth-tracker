@@ -7,7 +7,7 @@ name: Weekly Net Worth Digest
 # digest scope, each up to ~70s) — the backend's gunicorn --timeout is set
 # accordingly, see the Dockerfile.
 # Requires the same two repo secrets as daily-snapshot.yml:
-#   BACKEND_URL      e.g. https://networth-tracker.onrender.com
+#   BACKEND_URL      your exact Render address, e.g. https://networth-tracker-backend-xxxx.onrender.com (no trailing slash)
 #   SNAPSHOT_SECRET   must match the backend's SNAPSHOT_SECRET env var
 
 on:

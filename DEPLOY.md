@@ -21,7 +21,7 @@ Architecture: **Vercel** (frontend) + **Render** (Flask backend, Docker) + **Sup
 1. [render.com](https://render.com) → **New → Blueprint** → connect this GitHub repo (it will pick up `render.yaml`)
 2. Render will prompt for the env vars marked `sync: false`: `DATABASE_URL`, `SUPABASE_URL`, `SNAPSHOT_SECRET`, `FINNHUB_API_KEY`, `METALS_API_KEY`, `RESEND_API_KEY`, `GEMINI_API_KEY`, `FRONTEND_URL` (fill this in once you have the Vercel URL from step 3, then redeploy). `METALS_API_KEY`, `RESEND_API_KEY`, and `GEMINI_API_KEY` are all optional — without them, commodity prices show as unavailable, emails are logged instead of sent, and AI features (copilot chat, allocation advisor, transaction categorizer, natural-language search, AI digest narrative, spreadsheet import) return a clean "not configured" response. Everything else still works.
 3. Deploy — the Dockerfile runs `flask db upgrade` before starting gunicorn, so any pending Alembic migrations apply automatically on every deploy
-4. Note the resulting backend URL (e.g. `https://networth-tracker-backend.onrender.com`)
+4. Note the resulting backend URL exactly as Render shows it on the service page (e.g. `https://networth-tracker-backend-xxxx.onrender.com`; Render often adds a random suffix when the plain name is already taken, so do not guess it from the service name)
 
 Render's free tier spins down after 15 minutes of inactivity — the first request after idle will be slow (cold start). Fine for personal/family use; upgrade the plan if that's annoying.
 

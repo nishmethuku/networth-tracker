@@ -1,0 +1,56 @@
+name: Post-deploy check
+
+# Render auto-deploys every push to main. This confirms the NEW version came
+# up healthy: it polls /health until the backend reports this commit's SHA
+# (see the "commit" field in backend/app.py's /health) with status "ok".
+# If Render's build fails or the app crashes on startup, the old version
+# keeps answering with the old commit, so this run times out and fails, and
+# GitHub emails you. That is exactly the kind of outage a green CI run
+# cannot catch (CI only tests the code, not the deployed service).
+#
+# Requires the BACKEND_URL repo secret (your exact Render address, no
+# trailing slash), same as the other workflows here.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  verify-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Wait for this commit to be live and healthy
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "BACKEND_URL secret is not set; cannot verify the deploy."
+            exit 1
+          fi
+          want="${SHA:0:12}"
+          echo "Waiting for commit $want at $BACKEND_URL/health"
+          # Render's build takes a few minutes, and a cold start can add ~100s.
+          for i in $(seq 1 60); do
+            body=$(curl -s --max-time 120 "$BACKEND_URL/health" || true)
+            status=$(echo "$body" | jq -r '.status // empty' 2>/dev/null || true)
+            commit=$(echo "$body" | jq -r '.commit // empty' 2>/dev/null || true)
+            echo "[$i/60] status=${status:-none} commit=${commit:-none}"
+            if [ "$status" = "ok" ] && [ "$commit" = "$want" ]; then
+              echo "Deploy of $want is live and healthy."
+              exit 0
+            fi
+            # An older backend (or a host that does not set RENDER_GIT_COMMIT)
+            # reports no commit at all. Do not fail forever on that: after a
+            # few minutes of "ok", accept it, with a warning that this only
+            # proves the service is up, not which version is running.
+            if [ "$status" = "ok" ] && [ -z "$commit" ] && [ "$i" -ge 20 ]; then
+              echo "::warning::Backend is healthy but does not report its commit, so the version could not be confirmed."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Timed out: $want never became live and healthy. Check the Render deploy logs."
+          exit 1
