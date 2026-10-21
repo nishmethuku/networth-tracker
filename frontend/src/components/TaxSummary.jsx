@@ -3,6 +3,7 @@ import { fetchTaxSummary, ApiError } from "../api";
 import { useMemo, useState } from "react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
 import Card from "./Card";
+import TaxLossCard from "./TaxLossCard";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
@@ -139,6 +140,8 @@ export default function TaxSummary() {
         Realized gains from sales, grouped by financial year — India runs Apr–Mar, everywhere else runs Jan–Dec.
         {costBasisMethod !== "average" && " This method only changes this report — your dashboard and holdings still use average cost."}
       </p>
+
+      <TaxLossCard />
 
       {!summary || summary.rows.length === 0 ? (
         <EmptyState message="No sales recorded yet — realized gains show up here once you sell something." />
