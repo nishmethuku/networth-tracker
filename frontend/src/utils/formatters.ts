@@ -44,11 +44,24 @@ export function currencyForCountry(country: string): Currency {
   return map[country] || "USD";
 }
 
+/** Amounts under this (in absolute value) keep their cents. Whole-dollar
+ * rounding is right for a $26,237 position but turns a $0.12 cost basis
+ * into "$0" and a $4.22 average cost into "$4", which reads as missing or
+ * wrong data. */
+const SMALL_AMOUNT_THRESHOLD = 10;
+
 export function formatCurrencyForDisplay(value: unknown, currency: string = "USD", options: { includeCode?: boolean } = {}): string {
   const { includeCode = true } = options;
-  const num = Math.round(safeNumber(value));
+  const raw = safeNumber(value);
+  const abs = Math.abs(raw);
+  const keepCents = abs > 0 && abs < SMALL_AMOUNT_THRESHOLD;
+  const rounded = keepCents ? Math.round(abs * 100) / 100 : Math.round(abs);
   const symbol = CURRENCY_SYMBOLS[currency] || "$";
-  const base = `${num < 0 ? "-" : ""}${symbol}${Math.abs(num).toLocaleString("en-US")}`;
+  const digits = keepCents ? 2 : 0;
+  const body = rounded.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  // Sign from the rounded value, so a tiny negative that rounds to zero
+  // never renders as "-$0".
+  const base = `${raw < 0 && rounded > 0 ? "-" : ""}${symbol}${body}`;
   return includeCode ? `${base} ${currency}` : base;
 }
 
@@ -73,11 +86,15 @@ export function formatCurrencyCompact(value: unknown, currency: string = "USD"):
     formatted = `${millions.endsWith(".0") ? millions.slice(0, -2) : millions}M`;
   } else if (absNum >= 1000) {
     formatted = `${Math.round(absNum / 1000)}K`;
+  } else if (Math.abs(safeNumber(value)) > 0 && Math.abs(safeNumber(value)) < SMALL_AMOUNT_THRESHOLD) {
+    // Rounded to a whole number this would read "$0" (or a misleading
+    // "$1") for a real, tiny balance, so keep the cents.
+    formatted = Math.abs(safeNumber(value)).toFixed(2);
   } else {
     formatted = absNum.toLocaleString("en-US");
   }
 
-  const sign = num < 0 ? "-" : "";
+  const sign = safeNumber(value) < 0 && formatted !== "0" ? "-" : "";
   return `${sign}${symbol}${formatted} ${currency}`;
 }
 

@@ -33,12 +33,12 @@ export default function ThemeToggle() {
       {theme === "light" ? (
         <>
           <span>🌙</span>
-          <span>Dark</span>
+          <span>Switch to dark</span>
         </>
       ) : (
         <>
           <span>☀️</span>
-          <span>Light</span>
+          <span>Switch to light</span>
         </>
       )}
     </button>

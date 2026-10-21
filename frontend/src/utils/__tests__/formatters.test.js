@@ -64,11 +64,26 @@ describe("formatCurrencyForDisplay", () => {
   it("uses the rupee symbol for INR", () => {
     expect(formatCurrencyForDisplay(1000, "INR")).toBe("₹1,000 INR");
   });
+  // Regression: a $0.12 cost basis rendered as "$0" and a $4.22 average
+  // cost as "$4", which read as missing or wrong data.
+  it("keeps cents for amounts under 10 so small values do not read as $0", () => {
+    expect(formatCurrencyForDisplay(0.12, "USD")).toBe("$0.12 USD");
+    expect(formatCurrencyForDisplay(4.224, "USD", { includeCode: false })).toBe("$4.22");
+    expect(formatCurrencyForDisplay(-0.5, "USD", { includeCode: false })).toBe("-$0.50");
+  });
+  it("still rounds to whole units from 10 up and never shows -$0", () => {
+    expect(formatCurrencyForDisplay(12.89, "USD", { includeCode: false })).toBe("$13");
+    expect(formatCurrencyForDisplay(0, "USD", { includeCode: false })).toBe("$0");
+  });
 });
 
 describe("formatCurrencyCompact", () => {
   it("shows full value under 1000", () => {
     expect(formatCurrencyCompact(500, "USD")).toBe("$500 USD");
+  });
+  it("keeps cents for tiny non-zero amounts", () => {
+    expect(formatCurrencyCompact(0.12, "USD")).toBe("$0.12 USD");
+    expect(formatCurrencyCompact(0, "USD")).toBe("$0 USD");
   });
   it("shows whole K for thousands", () => {
     expect(formatCurrencyCompact(24000, "USD")).toBe("$24K USD");

@@ -63,3 +63,31 @@ export function yearsToTarget(points: ProjectionPoint[], target: number | null |
   const hit = points.find((p) => p.value >= target);
   return hit ? hit.year : null;
 }
+
+/**
+ * Re-expresses a projection in today's money by dividing each year's
+ * figures by (1 + inflation)^year. Contributions are deflated the same way
+ * as a good-enough approximation (each year's contributions are treated as
+ * made at that year's price level), so "growth" stays value minus
+ * contributed in the same units.
+ */
+export function toTodaysDollars(points: ProjectionPoint[], inflationPct: number): ProjectionPoint[] {
+  const inflation = Math.max(-50, Math.min(50, inflationPct || 0)) / 100;
+  return points.map((p) => {
+    const factor = Math.pow(1 + inflation, p.year);
+    const value = p.value / factor;
+    const contributed = p.contributed / factor;
+    return { year: p.year, value, contributed, growth: value - contributed };
+  });
+}
+
+/**
+ * Cautious / expected / optimistic growth rates around a base rate: a
+ * single constant rate over decades is the least realistic part of any
+ * projection, so showing a band communicates that better than one line.
+ * Clamped to the same range the calculator accepts.
+ */
+export function scenarioRates(baseRatePct: number, spreadPts: number = 3): { low: number; base: number; high: number } {
+  const clamp = (v: number) => Math.max(-50, Math.min(50, v));
+  return { low: clamp(baseRatePct - spreadPts), base: clamp(baseRatePct), high: clamp(baseRatePct + spreadPts) };
+}

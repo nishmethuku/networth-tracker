@@ -19,7 +19,7 @@ export default function ReturnsByTypeChart({ holdings }) {
   return (
     <div style={{ width: "100%", height: Math.max(160, data.length * 42) }}>
       <ResponsiveContainer>
-        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 72 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" horizontal={false} />
           <XAxis
             type="number"
