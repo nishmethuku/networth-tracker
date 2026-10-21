@@ -7,6 +7,7 @@ import logging
 from datetime import date
 from typing import Optional
 
+from . import price_service
 from .holdings_service import QUANTITY_BASED_TYPES, list_holdings_with_metrics
 from .liability_service import total_liabilities_display
 from .milestone_service import detect_and_record_milestones
@@ -17,6 +18,12 @@ logger = logging.getLogger(__name__)
 # How far the net worth may drop (fraction) before the snapshot is refused
 # unless sell transactions since the last snapshot can account for it.
 DROP_GUARD_THRESHOLD = 0.30
+
+# How much the net worth may increase (multiplier) before the snapshot is
+# refused unless new buy transactions can explain the gain.  A 3× jump with
+# no matching purchases is the signature of a silent currency-conversion
+# failure (e.g. INR amounts recorded as USD).
+SPIKE_GUARD_THRESHOLD = 3.0
 
 
 def _compute_totals_from_metrics(holdings_with_metrics, liabilities):
@@ -83,6 +90,20 @@ def _sell_proceeds_since(holdings, since_date):
     return sum(t.quantity * t.price_per_unit for t in txs)
 
 
+def _buy_proceeds_since(holdings, since_date):
+    """Sum of buy transaction amounts (qty × price, un-converted) since since_date."""
+    holding_ids = [h.id for h in holdings]
+    if not holding_ids:
+        return 0.0
+    txs = HoldingTransaction.query.filter(
+        HoldingTransaction.holding_id.in_(holding_ids),
+        HoldingTransaction.transaction_type == "buy",
+        HoldingTransaction.transaction_date >= since_date,
+        HoldingTransaction.deleted_at.is_(None),
+    ).all()
+    return sum(t.quantity * t.price_per_unit for t in txs)
+
+
 def _last_snapshot_date(snapshot_date):
     """Date of the most recent snapshot before snapshot_date, or date.min."""
     row = (
@@ -96,14 +117,18 @@ def _last_snapshot_date(snapshot_date):
 
 
 def _validate_snapshot(holdings_with_metrics, holdings, previous_net_worth, new_net_worth, snapshot_date,
-                       *, _sell_proceeds_fn=None, _last_snap_date_fn=None):
+                       *, _sell_proceeds_fn=None, _last_snap_date_fn=None, _buy_proceeds_fn=None):
     """Raises SnapshotRefusedError if:
     - Any quantity-based holding with a live position has a zero display value
       (indicates a price fetch failure rather than a genuinely worthless holding).
     - Net worth dropped more than DROP_GUARD_THRESHOLD from the previous snapshot
       and no sell transactions since then can account for the drop.
+    - Net worth jumped more than SPIKE_GUARD_THRESHOLD× the previous snapshot
+      and new buy transactions cannot explain the increase (signature of a silent
+      currency-conversion failure, e.g. INR amounts stored as USD).
 
-    _sell_proceeds_fn and _last_snap_date_fn are injectable for unit tests only.
+    _sell_proceeds_fn, _buy_proceeds_fn, and _last_snap_date_fn are injectable
+    for unit tests only.
     """
     # Missing-price check: quantity-based holding with net qty > 0 but $0 value
     missing_price = []
@@ -118,11 +143,12 @@ def _validate_snapshot(holdings_with_metrics, holdings, previous_net_worth, new_
             "Snapshot refused to avoid recording a misleadingly low net worth."
         )
 
-    # 30 % drop guard
     if previous_net_worth and previous_net_worth > 0:
+        get_since = _last_snap_date_fn or _last_snapshot_date
+
+        # 30 % drop guard
         drop_frac = (previous_net_worth - new_net_worth) / previous_net_worth
         if drop_frac > DROP_GUARD_THRESHOLD:
-            get_since = _last_snap_date_fn or _last_snapshot_date
             get_proceeds = _sell_proceeds_fn or _sell_proceeds_since
             since_date = get_since(snapshot_date)
             sell_proceeds = get_proceeds(holdings, since_date)
@@ -133,6 +159,23 @@ def _validate_snapshot(holdings_with_metrics, holdings, previous_net_worth, new_
                     f"(from ${previous_net_worth:,.0f} to ${new_net_worth:,.0f}) "
                     f"but only ${sell_proceeds:,.0f} in sell transactions since {since_date}. "
                     "Snapshot refused. Verify prices, then trigger manually."
+                )
+
+        # Spike guard: 3× jump without matching purchases → likely a
+        # currency-conversion failure (INR treated as USD, etc.)
+        spike_ratio = new_net_worth / previous_net_worth
+        if spike_ratio > SPIKE_GUARD_THRESHOLD:
+            get_buys = _buy_proceeds_fn or _buy_proceeds_since
+            since_date = get_since(snapshot_date)
+            buy_proceeds = get_buys(holdings, since_date)
+            unexplained_gain = new_net_worth - previous_net_worth - buy_proceeds
+            if unexplained_gain > previous_net_worth:
+                raise SnapshotRefusedError(
+                    f"Net worth jumped {spike_ratio:.1f}× "
+                    f"(from ${previous_net_worth:,.0f} to ${new_net_worth:,.0f}) "
+                    f"with only ${buy_proceeds:,.0f} in new purchases since {since_date}. "
+                    "Possible currency-conversion error. Snapshot refused. "
+                    "Verify prices, then trigger manually."
                 )
 
 
@@ -188,6 +231,22 @@ def snapshot_all_users(snapshot_date: Optional[date] = None):
         try:
             holdings = Holding.query.filter_by(user_id=user_id).filter(Holding.deleted_at.is_(None)).all()
             liabilities = Liability.query.filter_by(user_id=user_id).all()
+            # Refuse before computing if any needed FX rate is unavailable.
+            # price_service.convert() silently falls back to the unconverted
+            # amount when a rate is None; without this check, INR holdings
+            # would be stored at their raw INR value labelled as USD (the root
+            # cause of the Aug 24 and Sep 28 inflated snapshots).
+            needed_currencies = {
+                h.currency.upper()
+                for h in holdings
+                if h.currency and h.currency.upper() != "USD"
+            }
+            missing_rates = [c for c in needed_currencies if price_service.get_rate(c, "USD") is None]
+            if missing_rates:
+                raise SnapshotRefusedError(
+                    f"Exchange rate(s) unavailable: {missing_rates}. "
+                    "Snapshot refused to prevent storing unconverted amounts as USD."
+                )
             holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency="USD")
             totals = _compute_totals_from_metrics(holdings_with_metrics, liabilities)
             previous_net_worth = _previous_net_worth(user_id, None, snapshot_date)
@@ -218,6 +277,17 @@ def snapshot_all_users(snapshot_date: Optional[date] = None):
         try:
             holdings = Holding.query.filter_by(household_id=household_id, is_private=False).filter(Holding.deleted_at.is_(None)).all()
             liabilities = Liability.query.filter_by(household_id=household_id, is_private=False).all()
+            needed_currencies = {
+                h.currency.upper()
+                for h in holdings
+                if h.currency and h.currency.upper() != "USD"
+            }
+            missing_rates = [c for c in needed_currencies if price_service.get_rate(c, "USD") is None]
+            if missing_rates:
+                raise SnapshotRefusedError(
+                    f"Exchange rate(s) unavailable: {missing_rates}. "
+                    "Snapshot refused to prevent storing unconverted amounts as USD."
+                )
             holdings_with_metrics = list_holdings_with_metrics(holdings, display_currency="USD")
             totals = _compute_totals_from_metrics(holdings_with_metrics, liabilities)
             previous_net_worth = _previous_net_worth(None, household_id, snapshot_date)

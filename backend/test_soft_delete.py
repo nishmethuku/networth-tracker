@@ -355,3 +355,55 @@ def test_sell_proceeds_empty_when_no_holdings():
     from backend import snapshot_service
     proceeds = snapshot_service._sell_proceeds_since([], date(2026, 9, 1))
     assert proceeds == 0.0
+
+
+# ---------------------------------------------------------------------------
+# 7. Spike guard: 3× jump without matching buys → refused
+# ---------------------------------------------------------------------------
+
+def test_spike_guard_refuses_without_matching_buys():
+    """A net worth that jumps to 3× its previous value without a corresponding
+    buy (as would happen if INR amounts were stored as USD) must raise
+    SnapshotRefusedError."""
+    live = _metrics(45_000.0, asset_type="stock",
+                    display_realized_gain=0.0, display_unrealized_gain=0.0)
+    live["symbol"] = "AAPL"
+    live["quantity"] = 1
+    live["name"] = "AAPL"
+
+    with patch("backend.snapshot_service.total_liabilities_display", return_value=0.0):
+        try:
+            _validate_snapshot(
+                [live], [],
+                previous_net_worth=10_000.0,
+                new_net_worth=45_000.0,   # 4.5× — no buys to explain it
+                snapshot_date=date.today(),
+                _sell_proceeds_fn=lambda *a: 0.0,
+                _buy_proceeds_fn=lambda *a: 0.0,
+                _last_snap_date_fn=lambda *a: date(2026, 9, 1),
+            )
+            assert False, "Expected SnapshotRefusedError for unexplained 4.5× spike"
+        except SnapshotRefusedError:
+            pass
+
+
+def test_spike_guard_passes_when_buys_explain_increase():
+    """A 4× jump is fine when the user just bought enough new assets to explain it."""
+    live = _metrics(45_000.0, asset_type="stock",
+                    display_realized_gain=0.0, display_unrealized_gain=0.0)
+    live["symbol"] = "AAPL"
+    live["quantity"] = 1
+    live["name"] = "AAPL"
+
+    with patch("backend.snapshot_service.total_liabilities_display", return_value=0.0):
+        # buy_proceeds = 38000 → unexplained_gain = 45000 - 10000 - 38000 = -3000
+        # unexplained_gain <= previous_net_worth → guard passes
+        _validate_snapshot(
+            [live], [],
+            previous_net_worth=10_000.0,
+            new_net_worth=45_000.0,
+            snapshot_date=date.today(),
+            _sell_proceeds_fn=lambda *a: 0.0,
+            _buy_proceeds_fn=lambda *a: 38_000.0,
+            _last_snap_date_fn=lambda *a: date(2026, 9, 1),
+        )
