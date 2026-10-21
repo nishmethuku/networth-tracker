@@ -34,4 +34,10 @@ EXPOSE 5001
 # already bounded well under 300s by their own internal timeouts (the
 # frontend gives up at 60s regardless), so this only gives the background
 # digest job the room it actually needs.
-CMD flask db upgrade && gunicorn --bind 0.0.0.0:${PORT:-5001} --workers 2 --timeout 300 "backend.app:create_app()"
+# --preload loads the Flask app once in the master process and forks workers
+# from that state, cutting module-import time roughly in half on cold start.
+# Safe here because create_app() makes no DB connections at startup — the
+# SQLAlchemy pool is lazy, so no connections exist at fork time for workers
+# to share (shared connections across fork are the usual preload hazard with
+# SQLAlchemy; an empty pool at fork time means that hazard doesn't apply).
+CMD flask db upgrade && gunicorn --bind 0.0.0.0:${PORT:-5001} --workers 2 --timeout 300 --preload "backend.app:create_app()"
