@@ -47,9 +47,15 @@ export default function ReturnsByTypeChart({ holdings }) {
                 const label = value >= 0 ? `${sign}${value.toFixed(1)}%${arrow}` : `${arrow}${sign}${value.toFixed(1)}%`;
                 const lx = value >= 0 ? x + Math.max(0, width) + 4 : x + Math.min(0, width) - 4;
                 return (
-                  <text x={lx} y={y + (height || 0) / 2} dy={4} fontSize={11} fontWeight={600}
+                  <text
+                    x={lx}
+                    y={y + (height || 0) / 2}
+                    dy={4}
+                    fontSize={11}
+                    fontWeight={600}
                     fill={entry?.clipped ? "var(--warning, #f59e0b)" : "var(--text)"}
-                    textAnchor={value >= 0 ? "start" : "end"}>
+                    textAnchor={value >= 0 ? "start" : "end"}
+                  >
                     {label}
                   </text>
                 );

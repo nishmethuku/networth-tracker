@@ -157,7 +157,8 @@ export default function ImportCsv() {
         <button
           type="button"
           onClick={() => {
-            const header = "Holding Type,Holding Account,Source,Investment,Transaction,Transaction Date,Transaction Units,Transaction price,Currency,Country";
+            const header =
+              "Holding Type,Holding Account,Source,Investment,Transaction,Transaction Date,Transaction Units,Transaction price,Currency,Country";
             const example = "Stocks,My Brokerage,My Bank,AAPL,Buy,2024-01-15,10,185.50,USD,US";
             const csv = `${header}\n${example}\n`;
             const blob = new Blob([csv], { type: "text/csv" });

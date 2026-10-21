@@ -313,12 +313,16 @@ export default function Dashboard() {
                 color: "var(--text)",
               }}
             >
-              <strong>Concentration warning</strong> — {concentratedHoldings.map((h, i) => (
+              <strong>Concentration warning</strong> —{" "}
+              {concentratedHoldings.map((h, i) => (
                 <span key={h.id}>
                   {h.symbol || h.name} ({h.pctOfTotal.toFixed(0)}%){i < concentratedHoldings.length - 1 ? ", " : ""}
                 </span>
-              ))} {concentratedHoldings.length === 1 ? "makes up" : "each make up"} more than {CONCENTRATION_THRESHOLD_PCT}% of your portfolio.{" "}
-              <a href="/allocation-advisor" style={{ color: "var(--primary)", textDecoration: "underline" }}>Review allocation →</a>
+              ))}{" "}
+              {concentratedHoldings.length === 1 ? "makes up" : "each make up"} more than {CONCENTRATION_THRESHOLD_PCT}% of your portfolio.{" "}
+              <a href="/allocation-advisor" style={{ color: "var(--primary)", textDecoration: "underline" }}>
+                Review allocation →
+              </a>
             </div>
           )}
 

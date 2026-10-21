@@ -317,7 +317,8 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
           <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
             {getLiabilityTypeLabel(liability.liabilityType)}
             {liability.interestRate != null && ` · ${formatPercent(liability.interestRate, 2)} APR`}
-            {liability.monthlyPayment != null && ` · ${formatCurrencyForDisplay(liability.monthlyPayment, liability.currency, { includeCode: false })}/mo`}
+            {liability.monthlyPayment != null &&
+              ` · ${formatCurrencyForDisplay(liability.monthlyPayment, liability.currency, { includeCode: false })}/mo`}
             {liability.paymentDueDate && ` · due ${liability.paymentDueDate}`}
           </div>
         </div>

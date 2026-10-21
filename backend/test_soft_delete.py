@@ -12,22 +12,19 @@ regardless — none of them call create_app() or touch db.session.
 """
 import os
 import sys
-from datetime import date, datetime
-from unittest.mock import MagicMock, patch, call
+from datetime import date
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.holdings_service import (
     calculate_holding_metrics,
-    calculate_valuation_metrics,
-    compute_position,
 )
 from backend.snapshot_service import (
     SnapshotRefusedError,
     _compute_totals_from_metrics,
     _validate_snapshot,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -316,7 +313,7 @@ def test_sell_proceeds_guard_soft_deleted_sell_does_not_prevent_refusal():
     of $5000 existed (excluded by the query's deleted_at filter), so a >30%
     drop correctly raises SnapshotRefusedError.
     """
-    from backend.snapshot_service import _validate_snapshot, SnapshotRefusedError
+    from backend.snapshot_service import SnapshotRefusedError, _validate_snapshot
 
     live = _metrics(6_000.0, asset_type="stock",
                     display_realized_gain=0.0, display_unrealized_gain=0.0)

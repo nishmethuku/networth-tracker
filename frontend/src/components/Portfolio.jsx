@@ -553,7 +553,10 @@ export default function Portfolio() {
             >
               <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: "0.5rem" }}>By Account</div>
               {accountEntries.map(([acct, val]) => (
-                <div key={acct} style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", color: "var(--text-secondary)" }}>
+                <div
+                  key={acct}
+                  style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", color: "var(--text-secondary)" }}
+                >
                   <span>{acct}</span>
                   <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
                     {formatCurrencyForDisplay(val, currency, { includeCode: false })}
@@ -579,7 +582,10 @@ export default function Portfolio() {
             >
               <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: "0.5rem" }}>By Country</div>
               {countryEntries.map(([cntry, val]) => (
-                <div key={cntry} style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", color: "var(--text-secondary)" }}>
+                <div
+                  key={cntry}
+                  style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", color: "var(--text-secondary)" }}
+                >
                   <span>{cntry}</span>
                   <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
                     {formatCurrencyForDisplay(val, currency, { includeCode: false })}
