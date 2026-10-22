@@ -22,6 +22,19 @@ EXPENSE_CATEGORIES = [
 _MONTHLY_EQUIVALENT = {"weekly": 52 / 12, "monthly": 1.0, "quarterly": 1 / 3, "yearly": 1 / 12}
 
 
+# Expense categories that are card bill payments, not spending. The purchases on the card
+# are already logged as expenses, so counting the payment too would count them twice.
+# Matching ignores case, spaces, underscores and a trailing "s".
+_NON_SPENDING_CATEGORIES = {"cc-payment", "credit-card-payment", "card-payment"}
+
+
+def is_non_spending_category(category: str) -> bool:
+    key = (category or "").strip().lower().replace("_", "-").replace(" ", "-")
+    if key.endswith("s"):
+        key = key[:-1]
+    return key in _NON_SPENDING_CATEGORIES
+
+
 def _scoped_query(user_id=None, household_id=None):
     if household_id:
         return BudgetEntry.query.filter_by(household_id=household_id, is_private=False)
@@ -61,6 +74,8 @@ def summarize_entries(entries: List[BudgetEntry], months: int = 6, currency: str
     without any limits set don't need to pass anything."""
     matching = [e for e in entries if e.currency == currency]
     other_currency_count = len(entries) - len(matching)
+    # Card bill payments are neither spending nor income, so leave them out of every total.
+    matching = [e for e in matching if not (e.entry_type == "expense" and is_non_spending_category(e.category))]
 
     by_month: Dict[str, Dict] = {}
     for e in matching:

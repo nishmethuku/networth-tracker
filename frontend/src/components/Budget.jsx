@@ -173,6 +173,12 @@ function AddEntryForm({ categories, currency }) {
     enabled: entryType === "expense",
   });
 
+  // Credit cards are something you charge a purchase to. Their bills are paid from the
+  // Liabilities page, so "Pays down" lists only the other kinds (a card bill logged as an
+  // expense would count the same spending twice).
+  const cards = (liabilities || []).filter((l) => l.liabilityType === "credit_card" || l.liabilityType === "line_of_credit");
+  const payable = (liabilities || []).filter((l) => l.liabilityType !== "credit_card" && l.liabilityType !== "line_of_credit");
+
   const mutation = useMutation({
     mutationFn: (data) =>
       createBudgetEntry({
@@ -185,7 +191,9 @@ function AddEntryForm({ categories, currency }) {
         is_recurring: data.is_recurring,
         recurring_frequency: data.is_recurring ? data.recurring_frequency : null,
         ...(data.entry_type === "expense" && data.funding_source_holding_id
-          ? { funding_source_holding_id: Number(data.funding_source_holding_id) }
+          ? String(data.funding_source_holding_id).startsWith("card:")
+            ? { charge_liability_id: Number(String(data.funding_source_holding_id).slice(5)) }
+            : { funding_source_holding_id: Number(data.funding_source_holding_id) }
           : {}),
         ...(data.entry_type === "expense" && data.linked_liability_id ? { linked_liability_id: Number(data.linked_liability_id) } : {}),
         ...(data.entry_type === "income" && data.deposit_target_holding_id
@@ -203,6 +211,12 @@ function AddEntryForm({ categories, currency }) {
         queryClient.invalidateQueries({ queryKey: ["holdings"] });
         toast.success(
           `Expense added — account balance updated to ${formatCurrencyForDisplay(entry.fundingSource.newBalance, entry.fundingSource.currency, { includeCode: false })}`,
+        );
+      } else if (entry.chargedLiability) {
+        queryClient.invalidateQueries({ queryKey: ["liabilities"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        toast.success(
+          `Expense added — card balance now ${formatCurrencyForDisplay(entry.chargedLiability.newBalance, entry.chargedLiability.currency, { includeCode: false })}`,
         );
       } else if (entry.linkedLiability) {
         queryClient.invalidateQueries({ queryKey: ["liabilities"] });
@@ -408,7 +422,7 @@ function AddEntryForm({ categories, currency }) {
             ))}
           </select>
         </div>
-        {entryType === "expense" && cashHoldings?.length > 0 && (
+        {entryType === "expense" && (cashHoldings?.length > 0 || cards.length > 0) && (
           <div>
             <label
               htmlFor="budget-funding-source"
@@ -420,19 +434,24 @@ function AddEntryForm({ categories, currency }) {
               id="budget-funding-source"
               {...register("funding_source_holding_id")}
               style={inputStyle}
-              title="Deducts this expense from the selected account's balance"
+              title="Deducts this expense from the selected account's balance, or adds it to the selected credit card's balance"
             >
               <option value="">— none —</option>
-              {cashHoldings.map((c) => (
+              {(cashHoldings || []).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                   {c.account ? ` (${c.account})` : ""}
                 </option>
               ))}
+              {cards.map((l) => (
+                <option key={`card-${l.id}`} value={`card:${l.id}`}>
+                  {l.name} (credit card)
+                </option>
+              ))}
             </select>
           </div>
         )}
-        {entryType === "expense" && liabilities?.length > 0 && (
+        {entryType === "expense" && payable.length > 0 && (
           <div>
             <label
               htmlFor="budget-linked-liability"
@@ -447,7 +466,7 @@ function AddEntryForm({ categories, currency }) {
               title="Reduces the selected liability's balance by this expense amount"
             >
               <option value="">— none —</option>
-              {liabilities.map((l) => (
+              {payable.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
                 </option>

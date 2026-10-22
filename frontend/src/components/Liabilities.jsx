@@ -8,8 +8,16 @@ import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { fetchLiabilities, createLiability, updateLiability, deleteLiability, ApiError } from "../api";
-import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent } from "../utils/formatters";
+import {
+  fetchLiabilities,
+  createLiability,
+  updateLiability,
+  deleteLiability,
+  recordLiabilityPayment,
+  fetchHoldings,
+  ApiError,
+} from "../api";
+import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent, todayISO } from "../utils/formatters";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { CURRENCIES, LIABILITY_TYPE_OPTIONS, getLiabilityTypeLabel } from "../constants/enums";
 import { projectPayoff, monthsToPayoff } from "../utils/debtPayoff";
@@ -303,8 +311,134 @@ function PayoffCalculator({ liability }) {
   );
 }
 
+function RecordPaymentForm({ liability, onDone }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [amount, setAmount] = useState(liability.monthlyPayment ? String(liability.monthlyPayment) : "");
+  const [date, setDate] = useState(todayISO());
+  const [source, setSource] = useState("");
+
+  const { data: cashHoldings } = useQuery({
+    queryKey: ["holdings", "cash"],
+    queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      recordLiabilityPayment(liability.id, {
+        amount: parseFloat(amount),
+        payment_date: date,
+        currency: liability.currency,
+        ...(source ? { funding_source_holding_id: Number(source) } : {}),
+      }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["liabilities"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (result.fundingSource) {
+        queryClient.invalidateQueries({ queryKey: ["holdings"] });
+        queryClient.invalidateQueries({ queryKey: ["holding", String(result.fundingSource.holdingId)] });
+        queryClient.invalidateQueries({ queryKey: ["holding-valuations", String(result.fundingSource.holdingId)] });
+      }
+      toast.success(
+        `Payment recorded. ${liability.name} is now ${formatCurrencyForDisplay(result.liability.currentBalance, liability.currency, { includeCode: false })}`,
+      );
+      onDone();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to record payment"),
+  });
+
+  const valid = parseFloat(amount) > 0;
+  const idBase = `pay-${liability.id}`;
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (valid) mutation.mutate();
+      }}
+      style={{ marginTop: "0.75rem", padding: "0.75rem", border: "1px solid var(--border-light)", borderRadius: "var(--radius)" }}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem" }}>
+        <div>
+          <label htmlFor={`${idBase}-amount`} style={labelStyle}>
+            Amount ({liability.currency})
+          </label>
+          <input
+            id={`${idBase}-amount`}
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label htmlFor={`${idBase}-date`} style={labelStyle}>
+            Date
+          </label>
+          <input
+            id={`${idBase}-date`}
+            type="date"
+            value={date}
+            max={todayISO()}
+            onChange={(e) => setDate(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label htmlFor={`${idBase}-source`} style={labelStyle}>
+            Paid from
+          </label>
+          <select id={`${idBase}-source`} value={source} onChange={(e) => setSource(e.target.value)} style={inputStyle}>
+            <option value="">— none (just lower the balance) —</option>
+            {(cashHoldings || []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.account ? ` (${c.account})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.6rem 0 0" }}>
+        This lowers the balance
+        {source ? " and takes the money out of the account you picked" : ""}. It is not added to Budget expenses, so spending is not counted
+        twice.
+      </p>
+      <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem" }}>
+        <button
+          type="submit"
+          disabled={!valid || mutation.isPending}
+          style={{
+            padding: "0.5rem 1rem",
+            borderRadius: "var(--radius)",
+            border: "none",
+            background: "var(--primary)",
+            color: "var(--on-primary, #fff)",
+            fontWeight: 600,
+            cursor: valid ? "pointer" : "not-allowed",
+            opacity: valid ? 1 : 0.6,
+          }}
+        >
+          {mutation.isPending ? "Saving…" : "Save payment"}
+        </button>
+        <button
+          type="button"
+          onClick={onDone}
+          style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontWeight: 500 }}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
   const [showCalc, setShowCalc] = useState(false);
+  const [showPay, setShowPay] = useState(false);
   const progressPct =
     liability.originalAmount && liability.originalAmount > 0
       ? Math.max(0, Math.min(100, 100 - (liability.currentBalance / liability.originalAmount) * 100))
@@ -345,7 +479,22 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>{progressPct.toFixed(0)}% paid off</div>
         </div>
       )}
-      <div style={{ display: "flex", gap: "1rem", marginTop: "0.6rem" }}>
+      <div style={{ display: "flex", gap: "1rem", marginTop: "0.6rem", flexWrap: "wrap" }}>
+        <button
+          onClick={() => setShowPay((v) => !v)}
+          aria-expanded={showPay}
+          style={{
+            fontSize: "0.8125rem",
+            color: "var(--primary)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            fontWeight: 600,
+          }}
+        >
+          Record payment
+        </button>
         <button
           onClick={() => setShowCalc((v) => !v)}
           style={{
@@ -389,6 +538,7 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
           Delete
         </button>
       </div>
+      {showPay && <RecordPaymentForm liability={liability} onDone={() => setShowPay(false)} />}
       {showCalc && <PayoffCalculator liability={liability} />}
     </div>
   );

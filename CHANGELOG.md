@@ -1,5 +1,14 @@
 # Changelog
 
+## Credit card payments (branch `feature/credit-card-payments`)
+
+- Budget, Add expense: "Paid from" now lists your credit cards (from Liabilities) next to your cash accounts. Choosing a card adds the purchase to the card balance.
+- Liabilities: every liability has a "Record payment" button with amount, date and "Paid from". It lowers the balance and, if you pick a cash account, takes the money out of it. This is not added to Budget expenses, so a card bill is never counted as spending a second time.
+- Budget "Pays down" no longer lists credit cards or lines of credit (use Record payment instead), and the server rejects it for them.
+- A Budget expense category named "CC-payment" (also "credit card payment") is left out of expense totals, the savings rate and the spending charts, so card bills you log there do not count as spending.
+
+---
+
 ## Plain-language tips (branch `feature/big-batch-8`)
 
 - A small "?" button next to XIRR, CAGR, unrealized and realized gains, Savings rate, Money Health, Emergency Fund and Stress test opens a short plain-English explanation right where the term appears. It works with the keyboard and screen readers.

@@ -197,3 +197,22 @@ def test_most_recent_entry_date_returns_none_when_nothing_logged():
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
+
+
+def test_card_payment_categories_are_not_counted_as_spending():
+    entries = [
+        _entry("income", date(2026, 9, 1), 5000, "paycheck"),
+        _entry("expense", date(2026, 9, 2), 100, "food"),
+        _entry("expense", date(2026, 9, 3), 900, "CC-payment"),
+        _entry("expense", date(2026, 9, 4), 50, "cc payments"),
+    ]
+    result = summarize_entries(entries, months=6, currency="USD")
+    assert result["months"][0]["expenses"] == 100
+    assert [c["category"] for c in result["category_breakdown"]] == ["food"]
+
+
+def test_is_non_spending_category_only_matches_card_payment_names():
+    assert budget_service.is_non_spending_category("CC-payment")
+    assert budget_service.is_non_spending_category("credit_card_payment")
+    assert not budget_service.is_non_spending_category("food")
+    assert not budget_service.is_non_spending_category(None)
