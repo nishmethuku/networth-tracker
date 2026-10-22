@@ -23,6 +23,9 @@ describe("describeRebuild", () => {
   it("handles a preview that found nothing", () => {
     expect(describeRebuild({ status: "preview", months: [] })).toMatch(/nothing was found/);
   });
+  it("tells you to try again when time ran out before any month was priced", () => {
+    expect(describeRebuild({ status: "preview", months: [], more_to_do: true })).toMatch(/again/);
+  });
   it("handles up to date and nothing recorded", () => {
     expect(describeRebuild({ status: "up_to_date" })).toMatch(/already has a point/);
     expect(describeRebuild({ status: "nothing_recorded" })).toMatch(/Add a holding/);

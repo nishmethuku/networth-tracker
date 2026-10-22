@@ -96,3 +96,21 @@ def test_only_the_most_recent_window_is_priced_and_more_to_do_is_set():
     assert len(result["months"]) == svc.MAX_MONTHS_PER_RUN
     assert result["months"][-1]["date"] == "2026-04-01"
     assert result["more_to_do"] is True
+
+
+def test_time_budget_stops_pricing_and_reports_more_to_do():
+    calls = []
+
+    def slow_price(asset_type, symbol, on_date):
+        calls.append(on_date)
+        return (100.0, "USD")
+
+    with patch.object(svc, "Liability") as liab, patch.object(svc, "NetWorthSnapshot") as snap, \
+         patch.object(svc, "load_records", return_value=[_record()]), patch.object(svc, "db"), \
+         patch.object(svc, "TIME_BUDGET_SECONDS", -1.0):
+        liab.query.filter.return_value.count.return_value = 0
+        snap.query.filter.return_value.all.return_value = []
+        result = svc.rebuild_history("u1", today=date(2026, 4, 15), price_fn=slow_price, rate_fn=_rate)
+    assert calls == []
+    assert result["months"] == []
+    assert result["more_to_do"] is True

@@ -20,7 +20,11 @@ from .models import Holding, HoldingTransaction, HoldingValuation, Liability, Ne
 # A web request must finish well inside the server timeout, so look at most
 # this many of the most recent missing months and stop pricing after a budget.
 MAX_MONTHS_PER_RUN = 24
-TIME_BUDGET_SECONDS = 20.0
+TIME_BUDGET_SECONDS = 15.0
+
+
+class _OutOfTime(Exception):
+    """Raised inside a price lookup once the time budget is used up."""
 
 
 def default_price_fn(asset_type, symbol, on_date):
@@ -82,15 +86,27 @@ def rebuild_history(user_id, apply: bool = False, today: Optional[date] = None, 
     truncated = len(missing) > MAX_MONTHS_PER_RUN
     dates = missing[-MAX_MONTHS_PER_RUN:]
 
-    # Price one month at a time so a slow price source cannot hang the request.
+    # Price one month at a time, and give up mid-month if a slow price source
+    # eats the budget, so the request always answers in time. Prices already
+    # fetched are cached, so running it again goes further.
     started = time.monotonic()
+
+    def timed(fn):
+        def wrapper(*args):
+            if time.monotonic() - started > TIME_BUDGET_SECONDS:
+                raise _OutOfTime()
+            return fn(*args)
+
+        return wrapper
+
     series = []
     timed_out = False
     for d in dates:
-        if time.monotonic() - started > TIME_BUDGET_SECONDS:
+        try:
+            series.extend(reconstruct_series(records, [d], timed(price_fn), timed(rate_fn), "USD"))
+        except _OutOfTime:
             timed_out = True
             break
-        series.extend(reconstruct_series(records, [d], price_fn, rate_fn, "USD"))
 
     to_write = [row for row in series if "total" in row]
     skipped = [row for row in series if "skipped" in row]

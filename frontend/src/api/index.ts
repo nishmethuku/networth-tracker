@@ -222,7 +222,8 @@ export interface RebuildHistoryResult {
 
 /** Fill in past months of the net worth chart. apply=false only previews. */
 export async function rebuildNetWorthHistory(apply: boolean): Promise<RebuildHistoryResult> {
-  return api.post("/net-worth-history/rebuild", { apply });
+  // Pricing past months can take a while on the first run (prices are cached after).
+  return api.post("/net-worth-history/rebuild", { apply }, BULK_IMPORT_TIMEOUT);
 }
 
 export interface MonthlyFlowArgs {
