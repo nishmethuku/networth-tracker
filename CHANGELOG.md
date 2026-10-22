@@ -1,5 +1,11 @@
 # Changelog
 
+## 30-day change on the Net Worth card (branch `feature/whats-changed`)
+
+- The Net Worth card on the Dashboard now shows how much your net worth changed in the last 30 days (amount and percent), measured against your saved history. It appears once a saved point at least 30 days old exists, which the Rebuild history button can fill in, so it never shows a change over a shorter window than it says.
+
+---
+
 ## Money Health score (branch `feature/money-health`)
 
 - New Money Health card on the Dashboard: one 0 to 100 score from four simple rules of thumb (emergency cushion, not too much in one holding, spread across asset types, debt compared with assets), each with a plain reason, plus one "Next step" aimed at the weakest area. Uses only numbers the app already has, and hides itself when there is nothing to measure.
