@@ -80,7 +80,14 @@ from .household_service import (
     remove_member,
 )
 from .income_service import get_income_summary
-from .liability_service import CHARGEABLE_TYPES, LIABILITY_TYPES, apply_charge, apply_payment, list_liabilities_with_display, total_liabilities_display
+from .liability_service import (
+    CHARGEABLE_TYPES,
+    LIABILITY_TYPES,
+    apply_charge,
+    apply_payment,
+    list_liabilities_with_display,
+    total_liabilities_display,
+)
 from .milestone_service import list_milestones
 from .models import (
     Account,
