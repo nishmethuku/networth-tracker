@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { rebuildNetWorthHistory, ApiError } from "../../api";
 import { useToast } from "../../contexts/ToastContext";
 import { isDemoMode } from "../../lib/demoMode";
+import { formatCurrencyCompact } from "../../utils/formatters";
 
 const primaryBtn = {
   padding: "0.5rem 1rem",
@@ -24,6 +25,17 @@ const secondaryBtn = {
   fontWeight: 500,
   fontSize: "0.8125rem",
 };
+
+/**
+ * A few of the months about to be saved (first, middle, last) so the totals
+ * can be sanity-checked before saving, since saved points cannot be removed
+ * from the screen. Totals are in US dollars, as snapshots are stored.
+ */
+export function previewSamples(months) {
+  if (!months || months.length === 0) return [];
+  const picks = [0, Math.floor((months.length - 1) / 2), months.length - 1];
+  return [...new Set(picks)].map((i) => months[i]);
+}
 
 /** Plain-language summary of a rebuild result, used for the message under the button. */
 export function describeRebuild(result) {
@@ -108,6 +120,15 @@ export default function RebuildHistory({ pointCount }) {
         )}
       </div>
       {result && <div style={{ marginTop: "0.5rem" }}>{describeRebuild(result)}</div>}
+      {canSave && (
+        <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.25rem" }}>
+          {previewSamples(result.months).map((m) => (
+            <li key={m.date}>
+              {m.date}: {formatCurrencyCompact(m.total, "USD")}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

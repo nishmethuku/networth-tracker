@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { describeRebuild } from "../RebuildHistory";
+import { describeRebuild, previewSamples } from "../RebuildHistory";
 
 describe("describeRebuild", () => {
   it("explains the liabilities limit", () => {
@@ -29,5 +29,19 @@ describe("describeRebuild", () => {
   it("handles up to date and nothing recorded", () => {
     expect(describeRebuild({ status: "up_to_date" })).toMatch(/already has a point/);
     expect(describeRebuild({ status: "nothing_recorded" })).toMatch(/Add a holding/);
+  });
+});
+
+describe("previewSamples", () => {
+  const month = (d) => ({ date: d, total: 1 });
+  it("returns nothing for no months", () => {
+    expect(previewSamples([])).toEqual([]);
+    expect(previewSamples(undefined)).toEqual([]);
+  });
+  it("returns the first, middle and last month, without repeats", () => {
+    const months = ["a", "b", "c", "d", "e"].map(month);
+    expect(previewSamples(months).map((m) => m.date)).toEqual(["a", "c", "e"]);
+    expect(previewSamples([month("a")]).map((m) => m.date)).toEqual(["a"]);
+    expect(previewSamples([month("a"), month("b")]).map((m) => m.date)).toEqual(["a", "b"]);
   });
 });
