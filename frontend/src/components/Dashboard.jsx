@@ -23,6 +23,8 @@ import CagrHistogram from "./dashboard/CagrHistogram";
 import StressTestCard from "./dashboard/StressTestCard";
 import MoneyHealthCard from "./dashboard/MoneyHealthCard";
 import ChangeOverTimeCard from "./dashboard/ChangeOverTimeCard";
+import CustomizeDashboard from "./dashboard/CustomizeDashboard";
+import { useHiddenSections } from "../hooks/useHiddenSections";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
 import AnimatedNumber from "./AnimatedNumber";
 import { fetchDashboard, fetchNetWorthHistory, fetchHoldings, fetchBenchmark, ApiError } from "../api";
@@ -133,6 +135,8 @@ export default function Dashboard() {
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });
+
+  const { hidden, show, toggle: toggleSectionHidden, reset: resetSections } = useHiddenSections();
 
   const monthChange = useMemo(
     () => (dashboard ? netWorthChange(history, dashboard.totalNetWorth, 30, todayISO()) : null),
@@ -346,6 +350,8 @@ export default function Dashboard() {
             </div>
           )}
 
+          <CustomizeDashboard hidden={hidden} onToggle={toggleSectionHidden} onReset={resetSections} />
+
           <div
             style={{
               display: "grid",
@@ -355,83 +361,105 @@ export default function Dashboard() {
             }}
           >
             {/* Net worth over time */}
-            <Card title={t("dashboard.netWorthOverTime")}>
-              <ErrorBoundary mode="section" fallbackMessage="The net worth chart couldn't load.">
-                <NetWorthChart history={history} currency={currency} />
-                {!currentHouseholdId && history && <RebuildHistory pointCount={history.length} />}
-              </ErrorBoundary>
-            </Card>
+            {show("chart") && (
+              <Card title={t("dashboard.netWorthOverTime")}>
+                <ErrorBoundary mode="section" fallbackMessage="The net worth chart couldn't load.">
+                  <NetWorthChart history={history} currency={currency} />
+                  {!currentHouseholdId && history && <RebuildHistory pointCount={history.length} />}
+                </ErrorBoundary>
+              </Card>
+            )}
 
             {/* Allocation donut, drillable by type/country */}
-            <Card title={t("dashboard.whereYourMoneyIs")}>
-              <ErrorBoundary mode="section" fallbackMessage="The allocation chart couldn't load.">
-                <AllocationDonut
-                  allocationByType={dashboard.allocationByType}
-                  allocationByCountry={dashboard.allocationByCountry}
-                  allocationByCurrency={dashboard.allocationByCurrency}
-                  holdings={holdings}
-                  currency={currency}
-                />
+            {show("allocation") && (
+              <Card title={t("dashboard.whereYourMoneyIs")}>
+                <ErrorBoundary mode="section" fallbackMessage="The allocation chart couldn't load.">
+                  <AllocationDonut
+                    allocationByType={dashboard.allocationByType}
+                    allocationByCountry={dashboard.allocationByCountry}
+                    allocationByCurrency={dashboard.allocationByCurrency}
+                    holdings={holdings}
+                    currency={currency}
+                  />
+                </ErrorBoundary>
+              </Card>
+            )}
+
+            {show("goals") && (
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't load goals.">
+                <GoalsCard currentNetWorth={dashboard.totalNetWorth} displayCurrency={currency} />
               </ErrorBoundary>
-            </Card>
+            )}
 
-            <ErrorBoundary mode="section" fallbackMessage="Couldn't load goals.">
-              <GoalsCard currentNetWorth={dashboard.totalNetWorth} displayCurrency={currency} />
-            </ErrorBoundary>
-
-            <ErrorBoundary mode="section" fallbackMessage="Couldn't load emergency fund status.">
-              <EmergencyFundCard currency={currency} householdId={currentHouseholdId} />
-            </ErrorBoundary>
-          </div>
-
-          <div style={{ marginBottom: "1.5rem" }}>
-            <ChangeOverTimeCard history={history} current={dashboard.totalNetWorth} currency={currency} />
-          </div>
-
-          <div style={{ marginBottom: "1.5rem" }}>
-            <ErrorBoundary mode="section" fallbackMessage="Couldn't load the money health score.">
-              <MoneyHealthCard dashboard={dashboard} holdings={holdings} currency={currency} householdId={currentHouseholdId} />
-            </ErrorBoundary>
-          </div>
-
-          <div style={{ marginBottom: "1.5rem" }}>
-            <ErrorBoundary mode="section" fallbackMessage="Couldn't load the stress test.">
-              <StressTestCard holdings={holdings} totalNetWorth={dashboard.totalNetWorth} currency={currency} />
-            </ErrorBoundary>
-          </div>
-
-          <div style={{ marginBottom: "1.5rem" }}>
-            <Card title="Net Worth Breakdown">
-              <ErrorBoundary mode="section" fallbackMessage="Couldn't load the net worth breakdown.">
-                <NetWorthBreakdown holdings={holdings} currency={currency} history={history} />
+            {show("emergency") && (
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't load emergency fund status.">
+                <EmergencyFundCard currency={currency} householdId={currentHouseholdId} />
               </ErrorBoundary>
-            </Card>
+            )}
           </div>
 
-          <div style={{ marginBottom: "1.5rem" }}>
-            <ErrorBoundary mode="section" fallbackMessage="Couldn't load the benchmark comparison.">
-              <BenchmarkCard />
-            </ErrorBoundary>
-          </div>
+          {show("change") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <ChangeOverTimeCard history={history} current={dashboard.totalNetWorth} currency={currency} />
+            </div>
+          )}
 
-          <div style={{ marginBottom: "1.5rem" }}>
-            <Card title={t("dashboard.returnsByType")} subtitle="Value-weighted average return per type">
-              <ErrorBoundary mode="section" fallbackMessage="Couldn't compute returns by asset type.">
-                <ReturnsByTypeChart holdings={holdings} />
+          {show("health") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't load the money health score.">
+                <MoneyHealthCard dashboard={dashboard} holdings={holdings} currency={currency} householdId={currentHouseholdId} />
               </ErrorBoundary>
-            </Card>
-          </div>
+            </div>
+          )}
 
-          <div style={{ marginBottom: "1.5rem" }}>
-            <Card title="CAGR by Holding" subtitle="Annualized return (XIRR) per holding, plus your overall portfolio CAGR">
-              <ErrorBoundary mode="section" fallbackMessage="Couldn't compute CAGR by holding.">
-                <CagrHistogram holdings={holdings} portfolioXirr={dashboard.portfolioXirr} />
+          {show("stress") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't load the stress test.">
+                <StressTestCard holdings={holdings} totalNetWorth={dashboard.totalNetWorth} currency={currency} />
               </ErrorBoundary>
-            </Card>
-          </div>
+            </div>
+          )}
+
+          {show("breakdown") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <Card title="Net Worth Breakdown">
+                <ErrorBoundary mode="section" fallbackMessage="Couldn't load the net worth breakdown.">
+                  <NetWorthBreakdown holdings={holdings} currency={currency} history={history} />
+                </ErrorBoundary>
+              </Card>
+            </div>
+          )}
+
+          {show("benchmark") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <ErrorBoundary mode="section" fallbackMessage="Couldn't load the benchmark comparison.">
+                <BenchmarkCard />
+              </ErrorBoundary>
+            </div>
+          )}
+
+          {show("returns") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <Card title={t("dashboard.returnsByType")} subtitle="Value-weighted average return per type">
+                <ErrorBoundary mode="section" fallbackMessage="Couldn't compute returns by asset type.">
+                  <ReturnsByTypeChart holdings={holdings} />
+                </ErrorBoundary>
+              </Card>
+            </div>
+          )}
+
+          {show("cagr") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <Card title="CAGR by Holding" subtitle="Annualized return (XIRR) per holding, plus your overall portfolio CAGR">
+                <ErrorBoundary mode="section" fallbackMessage="Couldn't compute CAGR by holding.">
+                  <CagrHistogram holdings={holdings} portfolioXirr={dashboard.portfolioXirr} />
+                </ErrorBoundary>
+              </Card>
+            </div>
+          )}
 
           {/* Gainers / losers */}
-          {(dashboard.topGainers.length > 0 || dashboard.topLosers.length > 0) && (
+          {show("movers") && (dashboard.topGainers.length > 0 || dashboard.topLosers.length > 0) && (
             <div
               style={{
                 display: "grid",

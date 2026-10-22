@@ -21,6 +21,7 @@ const PAGES = [
   "/alerts",
   "/accounts",
   "/household",
+  "/review",
 ];
 
 async function startDemo(page: Page) {

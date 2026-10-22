@@ -1,5 +1,11 @@
 # Changelog
 
+## Customize the Dashboard (branch `feature/dashboard-customize`)
+
+- A "Customize" button on the Dashboard lets you hide any of twelve cards (chart, allocation, goals, emergency fund, change over time, Money Health, stress test, breakdown, benchmark, returns, CAGR, gainers and losers) and bring them back with one click. The choice is saved in this browser only. The headline numbers always stay.
+
+---
+
 ## Year in Review, install button, app shortcuts (branch `feature/big-batch-1`)
 
 - New Year in Review page (More menu, `/review`): net worth start and end for a calendar year, best and toughest month, biggest gain and largest holding (current year), dividends received and milestones crossed. A year picker appears once history spans more than one year. A link to it sits under the Dashboard change card.
