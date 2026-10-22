@@ -230,7 +230,11 @@ export function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
 }
 
 function PayoffCalculator({ liability }) {
-  const [monthlyPayment, setMonthlyPayment] = useState(() => Math.max(1, Math.round(liability.currentBalance / 24)));
+  const [monthlyPayment, setMonthlyPayment] = useState(() =>
+    // Start from the payment saved on the loan; only guess (pay it off in
+    // about two years) when none was entered.
+    liability.monthlyPayment > 0 ? liability.monthlyPayment : Math.max(1, Math.round(liability.currentBalance / 24)),
+  );
 
   const points = useMemo(
     () =>

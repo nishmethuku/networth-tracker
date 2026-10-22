@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../contexts/ToastContext";
 import TagSuggestionCard from "./ai/TagSuggestionCard";
 import { fetchHoldings, createTransaction, priceLookup } from "../api";
-import { formatCurrencyForDisplay } from "../utils/formatters";
+import { formatCurrencyForDisplay, todayISO } from "../utils/formatters";
 import { TRANSACTION_TYPES, isIncomeTransactionType } from "../constants/enums";
 
 const inputStyle = {
@@ -27,7 +27,7 @@ export default function AddTransactionForm({ holding, onDone }) {
   const toast = useToast();
   const [form, setForm] = useState({
     transaction_type: "buy",
-    transaction_date: new Date().toISOString().split("T")[0],
+    transaction_date: todayISO(),
     quantity: "",
     price_per_unit: "",
     fees: "0",
@@ -152,7 +152,7 @@ export default function AddTransactionForm({ holding, onDone }) {
           id="tx-date"
           type="date"
           value={form.transaction_date}
-          max={new Date().toISOString().split("T")[0]}
+          max={todayISO()}
           onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
           style={inputStyle}
           required

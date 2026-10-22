@@ -2,7 +2,7 @@ import { clientsClaim } from "workbox-core";
 import { ExpirationPlugin } from "workbox-expiration";
 import { precacheAndRoute } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
-import { StaleWhileRevalidate } from "workbox-strategies";
+import { NetworkFirst } from "workbox-strategies";
 
 // Custom service worker (vite-plugin-pwa's injectManifest strategy)
 // instead of its auto-generated one -- the only reason to hand-write this
@@ -13,8 +13,8 @@ import { StaleWhileRevalidate } from "workbox-strategies";
 
 precacheAndRoute(self.__WB_MANIFEST);
 
-// GET-only, read-scoped API paths safe to serve stale-while-revalidate
-// when offline. Never includes /internal/*, and writes (POST/PUT/DELETE)
+// GET-only, read-scoped API paths kept in a cache so the app still shows
+// data offline. Never includes /internal/*, and writes (POST/PUT/DELETE)
 // are never matched by the method check below regardless.
 const CACHEABLE_API_PATH_PREFIXES = [
   "/holdings",
@@ -28,10 +28,20 @@ const CACHEABLE_API_PATH_PREFIXES = [
   "/milestones",
 ];
 
+// Network first, cache only as a fallback. This used to be
+// StaleWhileRevalidate, which answers from the cache immediately and
+// refreshes it in the background -- so right after adding, editing or
+// deleting something, the app re-read the list, got the OLD saved copy,
+// and showed nothing new until the next visit. Found on the live site:
+// a new holding, transaction, alert and edit all "saved" but did not show
+// up until a reload. Now a fresh answer from the server always wins; the
+// saved copy is used only when the network fails or is slower than 8s
+// (offline, or a sleeping backend), which keeps the offline behavior.
 registerRoute(
   ({ url, request }) => request.method === "GET" && CACHEABLE_API_PATH_PREFIXES.some((p) => url.pathname.startsWith(p)),
-  new StaleWhileRevalidate({
+  new NetworkFirst({
     cacheName: "api-read-cache",
+    networkTimeoutSeconds: 8,
     plugins: [new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 60 * 30 })],
   }),
 );

@@ -1,3 +1,4 @@
+import { todayISO } from "../utils/formatters";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -70,7 +71,7 @@ export default function Settings() {
   const exportMutation = useMutation({
     mutationFn: fetchAccountExport,
     onSuccess: (data) => {
-      downloadJson(data, `networth-tracker-export-${new Date().toISOString().split("T")[0]}.json`);
+      downloadJson(data, `networth-tracker-export-${todayISO()}.json`);
       toast.success("Export downloaded");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Export failed"),
@@ -80,7 +81,7 @@ export default function Settings() {
   const exportCsvMutation = useMutation({
     mutationFn: fetchAccountExportCsvZip,
     onSuccess: (blob) => {
-      downloadBlob(blob, `networth-tracker-backup-${new Date().toISOString().split("T")[0]}.zip`);
+      downloadBlob(blob, `networth-tracker-backup-${todayISO()}.zip`);
       toast.success("Backup downloaded");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Export failed"),
@@ -96,7 +97,7 @@ export default function Settings() {
     mutationFn: setDigestSubscription,
     onSuccess: (result) => {
       queryClient.setQueryData(["digest-subscription"], result);
-      toast.success(result.subscribed ? "Weekly digest emails turned on" : "Weekly digest emails turned off");
+      toast.success(result.subscribed ? "Weekly and monthly emails turned on" : "Weekly and monthly emails turned off");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Couldn't update that setting"),
   });
@@ -254,7 +255,7 @@ export default function Settings() {
           </Link>
 
           <div style={{ ...rowStyle, marginTop: "1.25rem" }}>
-            <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Weekly digest emails</span>
+            <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Weekly digest and monthly report emails</span>
             <button
               onClick={() => digestMutation.mutate(!digestSubscription?.subscribed)}
               disabled={digestMutation.isPending || !digestSubscription}

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  todayISO,
   safeNumber,
   currencyForCountry,
   formatCurrencyForDisplay,
@@ -130,5 +131,25 @@ describe("formatCompactNumber", () => {
   });
   it("formats sub-thousand values with 2 decimals, no suffix", () => {
     expect(formatCompactNumber(42)).toBe("42.00");
+  });
+});
+
+describe("formatCurrencyForDisplay alwaysCents", () => {
+  it("keeps cents for everyday amounts such as a $42.50 expense", () => {
+    expect(formatCurrencyForDisplay(42.5, "USD", { includeCode: false, alwaysCents: true })).toBe("$42.50");
+    expect(formatCurrencyForDisplay(-42.5, "USD", { includeCode: false, alwaysCents: true })).toBe("-$42.50");
+  });
+  it("is unchanged without the option", () => {
+    expect(formatCurrencyForDisplay(42.5, "USD", { includeCode: false })).toBe("$43");
+  });
+});
+
+describe("todayISO", () => {
+  // Regression: forms defaulted to the UTC date, which is already "tomorrow"
+  // in the US evening and was rejected as a future date.
+  it("is the local calendar date, not the UTC date", () => {
+    const now = new Date();
+    const expected = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    expect(todayISO()).toBe(expected);
   });
 });

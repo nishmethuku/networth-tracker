@@ -29,7 +29,7 @@ import {
 } from "../api";
 import { getBudgetCategoryLabel, getAssetTypeLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
-import { formatCurrencyForDisplay, formatCurrencyCompact, formatDateISO } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatCurrencyCompact, formatDateISO, todayISO } from "../utils/formatters";
 
 const RECURRING_FREQUENCIES = [
   { value: "weekly", label: "Weekly" },
@@ -59,7 +59,7 @@ function MonthlyTrendChart({ months, currency }) {
           <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
           <Tooltip
             formatter={(v, name) => [
-              formatCurrencyForDisplay(v, currency),
+              formatCurrencyForDisplay(v, currency, { alwaysCents: true }),
               name === "income" ? "Income" : name === "expenses" ? "Expenses" : "Net",
             ]}
             contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
@@ -89,7 +89,8 @@ function CategoryBreakdown({ breakdown, currency }) {
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem" }}>
               <span style={{ color: "var(--text)" }}>{getBudgetCategoryLabel(c.category)}</span>
               <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                {formatCurrencyForDisplay(c.amount, currency)} <span style={{ color: "var(--text-muted)" }}>({Math.round(pct)}%)</span>
+                {formatCurrencyForDisplay(c.amount, currency, { alwaysCents: true })}{" "}
+                <span style={{ color: "var(--text-muted)" }}>({Math.round(pct)}%)</span>
               </span>
             </div>
             <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
@@ -113,7 +114,7 @@ function AddEntryForm({ categories, currency }) {
       entry_type: "expense",
       category: categories?.expense?.[0] || "",
       amount: "",
-      entry_date: new Date().toISOString().split("T")[0],
+      entry_date: todayISO(),
       description: "",
       currency,
       is_recurring: false,
@@ -228,7 +229,7 @@ function AddEntryForm({ categories, currency }) {
         entry_type: entryType,
         category: categoryOptions[0] || "",
         amount: "",
-        entry_date: new Date().toISOString().split("T")[0],
+        entry_date: todayISO(),
         description: "",
         currency,
         is_recurring: false,
@@ -390,13 +391,7 @@ function AddEntryForm({ categories, currency }) {
           >
             Date
           </label>
-          <input
-            id="budget-entry-date"
-            type="date"
-            {...register("entry_date")}
-            max={new Date().toISOString().split("T")[0]}
-            style={inputStyle}
-          />
+          <input id="budget-entry-date" type="date" {...register("entry_date")} max={todayISO()} style={inputStyle} />
         </div>
         <div>
           <label
@@ -578,7 +573,7 @@ function SubscriptionsCard({ currency }) {
                 </div>
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)" }}>
-                {formatCurrencyForDisplay(item.amount, currency)}
+                {formatCurrencyForDisplay(item.amount, currency, { alwaysCents: true })}
               </span>
             </div>
           ))}
@@ -663,11 +658,13 @@ function SpendingLimitsCard({ currency, limitStatus }) {
                   <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                     {mismatched ? (
                       <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                        {formatCurrencyForDisplay(limit.monthlyLimit, limit.currency)} — switch to {limit.currency} to see progress
+                        {formatCurrencyForDisplay(limit.monthlyLimit, limit.currency, { alwaysCents: true })} — switch to {limit.currency}{" "}
+                        to see progress
                       </span>
                     ) : (
                       <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                        {formatCurrencyForDisplay(status?.spent ?? 0, currency)} / {formatCurrencyForDisplay(limit.monthlyLimit, currency)}{" "}
+                        {formatCurrencyForDisplay(status?.spent ?? 0, currency, { alwaysCents: true })} /{" "}
+                        {formatCurrencyForDisplay(limit.monthlyLimit, currency, { alwaysCents: true })}{" "}
                         <span style={{ color: barColor }}>({Math.round(percent)}%)</span>
                       </span>
                     )}
@@ -892,11 +889,11 @@ export default function Budget() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
-        <Card title="This Month's Income" value={formatCurrencyCompact(thisMonth?.income || 0, currency)} />
-        <Card title="This Month's Expenses" value={formatCurrencyCompact(thisMonth?.expenses || 0, currency)} />
+        <Card title="This Month's Income" value={formatCurrencyForDisplay(thisMonth?.income || 0, currency, { alwaysCents: true })} />
+        <Card title="This Month's Expenses" value={formatCurrencyForDisplay(thisMonth?.expenses || 0, currency, { alwaysCents: true })} />
         <Card
           title="Net"
-          value={formatCurrencyCompact(thisMonth?.net || 0, currency)}
+          value={formatCurrencyForDisplay(thisMonth?.net || 0, currency, { alwaysCents: true })}
           subtitle={
             thisMonth && thisMonth.net >= 0 ? "You're ahead this month" : thisMonth ? "Spending more than you're earning" : undefined
           }
@@ -984,7 +981,7 @@ export default function Budget() {
                       }}
                     >
                       {e.entryType === "income" ? "+" : "−"}
-                      {formatCurrencyForDisplay(e.amount, e.currency)}
+                      {formatCurrencyForDisplay(e.amount, e.currency, { alwaysCents: true })}
                     </span>
                     <button
                       onClick={() => deleteMutation.mutate(e.id)}

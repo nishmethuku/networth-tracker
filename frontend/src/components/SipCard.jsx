@@ -5,7 +5,7 @@ import NumericInput from "./NumericInput";
 import { useForm } from "react-hook-form";
 import { useToast } from "../contexts/ToastContext";
 import { fetchSipProjection, updateHolding, ApiError } from "../api";
-import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
 
 const YEAR_OPTIONS = [5, 10, 15, 20, 25];
 
@@ -16,7 +16,7 @@ function SipSetupForm({ holding, onDone }) {
     defaultValues: {
       sip_amount: holding.sipAmount ?? "",
       sip_frequency: holding.sipFrequency ?? "monthly",
-      sip_start_date: holding.sipStartDate ?? new Date().toISOString().split("T")[0],
+      sip_start_date: holding.sipStartDate ?? todayISO(),
     },
   });
 

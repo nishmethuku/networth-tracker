@@ -1,5 +1,18 @@
 # Changelog
 
+## Fixes from live testing (branch `fix/live-testing-findings`)
+
+- Saved changes now show up right away. The offline cache served the old list after an add or edit until the next reload; it now tries the network first and only uses the cache when offline or slow.
+- Forms no longer default to tomorrow's date in the evening (they used the UTC date). They use your local date.
+- Budget amounts keep cents ($42.50 no longer shows as $43).
+- Debt payoff calculator starts from your real monthly payment.
+- Allocation advisor "Start from current" now sums to 100%.
+- "1 payment" instead of "1 payments" on the Income page.
+- Settings wording makes clear the email switch covers both the weekly digest and the monthly report.
+- AI assistant retries on a lighter backup model when the main one is overloaded (`AI_FALLBACK_MODEL` to change it).
+
+---
+
 ## Income, monthly report and demo mode (branch `feature/dividends-monthly-demo`)
 
 - New Income page (More menu): dividends and interest by month, year and holding, with a trailing-12-month yield.

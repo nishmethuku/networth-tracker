@@ -72,6 +72,9 @@ def _friendly_error(exc: BaseException) -> str:
 # string that eventually gets shut down — e.g. gemini-2.5-flash's planned
 # retirement is exactly the kind of thing this avoids having to track.
 AI_MODEL = "gemini-flash-latest"
+# Used for the second try when the main model is overloaded (Google returns
+# 503 "high demand" in spikes, which made the assistant fail outright).
+AI_FALLBACK_MODEL = os.environ.get("AI_FALLBACK_MODEL", "gemini-flash-lite-latest")
 
 _client: Optional["genai.Client"] = None
 
@@ -156,7 +159,7 @@ def generate_text(prompt: str, system: Optional[str] = None, max_tokens: int = 1
     for attempt in range(2):
         try:
             response = client.models.generate_content(
-                model=AI_MODEL,
+                model=AI_MODEL if attempt == 0 else AI_FALLBACK_MODEL,
                 contents=prompt,
                 config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens),
             )
@@ -216,7 +219,7 @@ def chat_stream(messages: List[Dict], portfolio_snapshot: Dict):
         yielded_any = False
         try:
             stream = client.models.generate_content_stream(
-                model=AI_MODEL,
+                model=AI_MODEL if attempt == 0 else AI_FALLBACK_MODEL,
                 contents=contents,
                 config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=1024),
             )
