@@ -8,6 +8,7 @@ import { prefetchRoute } from "./routePrefetch";
 import RouteAnnouncer from "./components/RouteAnnouncer";
 import ToastContainer from "./components/ToastContainer";
 import ShortcutsHelp from "./components/ShortcutsHelp";
+import QuickAddExpense from "./components/QuickAddExpense";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useAuth } from "./contexts/AuthContext";
 import { useHousehold } from "./contexts/HouseholdContext";
@@ -245,7 +246,8 @@ function AppShell() {
   const { currentHousehold } = useHousehold();
   const { t } = useTranslation();
   const [helpOpen, setHelpOpen] = useState(false);
-  useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true) });
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true), onQuickAdd: () => setQuickAddOpen(true) });
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", transition: "background-color 0.2s ease" }}>
@@ -286,6 +288,7 @@ function AppShell() {
       <UpdateBanner />
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       <MobileMenu />
+      <QuickAddExpense open={quickAddOpen} onOpen={() => setQuickAddOpen(true)} onClose={() => setQuickAddOpen(false)} />
       <MilestoneCelebration />
       {/* Top Navigation (desktop) */}
       <nav

@@ -1,5 +1,14 @@
 # Changelog
 
+## Quick add expense (branch `feature/quick-add-expense`)
+
+- A "+ Expense" button now floats on every page (above the bottom bar on phones). Press **E** anywhere on a computer for the same thing.
+- It opens a small form with the amount already selected: type the amount, pick a category, press Enter. The date starts as today (with a Yesterday button), and it remembers your last category and "Paid from" account.
+- "Paid from" lists your cash accounts and credit cards. "Save and add another" keeps the form open for several in a row.
+- You no longer need to open Budget and scroll down to log an expense.
+
+---
+
 ## Credit card payments (branch `feature/credit-card-payments`)
 
 - Budget, Add expense: "Paid from" now lists your credit cards (from Liabilities) next to your cash accounts. Choosing a card adds the purchase to the card balance.

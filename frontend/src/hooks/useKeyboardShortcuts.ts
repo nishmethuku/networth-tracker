@@ -9,6 +9,7 @@ function isTypingTarget(el: Element | null): boolean {
 
 interface UseKeyboardShortcutsOptions {
   onShowHelp?: () => void;
+  onQuickAdd?: () => void;
 }
 
 /**
@@ -16,7 +17,7 @@ interface UseKeyboardShortcutsOptions {
  * CommandSearch.jsx since it needs its own modal state; this hook covers
  * the plain single-key shortcuts that only need to navigate or toggle help.
  */
-export default function useKeyboardShortcuts({ onShowHelp }: UseKeyboardShortcutsOptions = {}) {
+export default function useKeyboardShortcuts({ onShowHelp, onQuickAdd }: UseKeyboardShortcutsOptions = {}) {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,6 +50,10 @@ export default function useKeyboardShortcuts({ onShowHelp }: UseKeyboardShortcut
           e.preventDefault();
           navigate("/budget");
           break;
+        case "e":
+          e.preventDefault();
+          onQuickAdd?.();
+          break;
         case "?":
           e.preventDefault();
           onShowHelp?.();
@@ -60,5 +65,5 @@ export default function useKeyboardShortcuts({ onShowHelp }: UseKeyboardShortcut
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate, onShowHelp]);
+  }, [navigate, onShowHelp, onQuickAdd]);
 }
