@@ -1997,7 +1997,9 @@ def create_app():
         household_id = data.get("household_id")
         validate_household_id_for_write(household_id)
         try:
-            category = create_category(g.user_id, entry_type=data.get("entry_type"), name=data.get("name"), household_id=household_id)
+            category = create_category(
+                g.user_id, entry_type=data.get("entry_type"), name=data.get("name"), household_id=household_id, parent=data.get("parent")
+            )
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         return jsonify(category), 201

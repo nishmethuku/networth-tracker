@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import Card from "../Card";
 import { fetchBudgetSummary } from "../../api";
 import { topCategories } from "../../utils/spendingCategories";
+import { groupBreakdown } from "../../utils/categoryTree";
 import { formatCurrencyCompact } from "../../utils/formatters";
 
 function label(category) {
@@ -17,7 +18,14 @@ export default function SpendingCategoriesCard({ currency, householdId }) {
     queryFn: () => fetchBudgetSummary({ months: 6, currency, householdId }),
   });
 
-  const rows = useMemo(() => topCategories(summary?.category_breakdown, 5), [summary]);
+  const rows = useMemo(
+    () =>
+      topCategories(
+        groupBreakdown(summary?.category_breakdown).map((g) => ({ category: g.category, amount: g.total })),
+        5,
+      ),
+    [summary],
+  );
   if (rows.length === 0) return null;
 
   return (
