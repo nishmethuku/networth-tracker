@@ -294,6 +294,25 @@ export default function Login() {
             </p>
 
             {mode !== "reset" && (
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: "-0.75rem 0 1.5rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.4rem",
+                  color: "var(--text-secondary)",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <li>✓ All your accounts and investments in one number</li>
+                <li>✓ Budget, goals and a yearly recap</li>
+                <li>✓ Hide amounts with one tap, export or delete your data any time</li>
+              </ul>
+            )}
+
+            {mode !== "reset" && (
               <>
                 <button
                   type="button"

@@ -416,6 +416,76 @@ function incomeSummary() {
   };
 }
 
+// ---------------------------------------------------------- sample budget
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function demoBudgetSummary() {
+  const now = new Date();
+  const expenses = [3650, 3820, 3540, 2050]; // oldest to newest; the current month is partly done
+  const months = expenses.map((e, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (expenses.length - 1 - i), 1);
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return { month, income: 5200, expenses: e, net: 5200 - e };
+  });
+  const category_breakdown = [
+    { category: "housing", amount: 1100 },
+    { category: "food", amount: 420 },
+    { category: "transport", amount: 210 },
+    { category: "entertainment", amount: 140 },
+    { category: "utilities", amount: 120 },
+  ];
+  const limits: Record<string, number> = { housing: 1400, food: 600, entertainment: 150 };
+  const limit_status = category_breakdown
+    .filter((c) => limits[c.category])
+    .map((c) => ({
+      category: c.category,
+      limit: limits[c.category],
+      spent: c.amount,
+      percent: Math.round((c.amount / limits[c.category]) * 1000) / 10,
+    }))
+    .sort((a, b) => b.percent - a.percent);
+  return {
+    currency: "USD",
+    months,
+    category_breakdown,
+    limit_status,
+    other_currency_entries: 0,
+    latest_month: months[months.length - 1].month,
+  };
+}
+
+function demoSubscriptions() {
+  const soon = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return ymd(d);
+  };
+  const items = [
+    {
+      category: "entertainment",
+      description: "Streaming",
+      amount: 15.99,
+      frequency: "monthly",
+      next_due: soon(2),
+      monthly_equivalent: 15.99,
+    },
+    { category: "utilities", description: "Phone plan", amount: 45, frequency: "monthly", next_due: soon(6), monthly_equivalent: 45 },
+    { category: "housing", description: "Rent", amount: 1100, frequency: "monthly", next_due: soon(9), monthly_equivalent: 1100 },
+    {
+      category: "insurance",
+      description: "Renters insurance",
+      amount: 180,
+      frequency: "yearly",
+      next_due: soon(80),
+      monthly_equivalent: 15,
+    },
+  ];
+  return { currency: "USD", items, monthly_total: items.reduce((s, i) => s + i.monthly_equivalent, 0) };
+}
+
 // ------------------------------------------------------------------- routing
 
 const EMPTY_BUDGET_CATEGORIES = {
@@ -487,7 +557,17 @@ export function demoGet(endpoint: string): any {
     ];
   }
   if (path === "/goals")
-    return [{ id: 1, name: "Reach $100K", target_amount: 100000, currency: "USD", target_date: null, created_at: "2025-01-01T00:00:00Z" }];
+    return [
+      { id: 1, name: "Reach $100K", target_amount: 100000, currency: "USD", target_date: null, created_at: "2025-01-01T00:00:00Z" },
+      {
+        id: 2,
+        name: "House down payment",
+        target_amount: 60000,
+        currency: "USD",
+        target_date: `${new Date().getFullYear() + 3}-06-01`,
+        created_at: "2025-01-01T00:00:00Z",
+      },
+    ];
   if (path === "/exchange-rates") return { base: "USD", rates: { USD: 1, INR: 83, AUD: 1.5 } };
   if (path === "/benchmark")
     return { portfolio_xirr: 0.12, benchmark_xirr: 0.1, benchmark_symbol: "SPY", benchmark_label: "S&P 500 (SPY)" };
@@ -497,9 +577,8 @@ export function demoGet(endpoint: string): any {
   if (path === "/emergency-fund")
     return { currency: "USD", liquid_value: 6500, avg_monthly_expenses: 2200, months_covered: 3, recommended_months: 6 };
   if (path === "/budget/categories") return EMPTY_BUDGET_CATEGORIES;
-  if (path === "/budget/summary")
-    return { months: [], category_breakdown: [], limit_status: [], other_currency_entries: 0, latest_month: null };
-  if (path === "/budget/subscriptions") return { items: [], monthly_total: 0 };
+  if (path === "/budget/summary") return demoBudgetSummary();
+  if (path === "/budget/subscriptions") return demoSubscriptions();
   if (path === "/price-cache-status") return {};
   if (path === "/account/digest-subscription") return { subscribed: false };
   return [];

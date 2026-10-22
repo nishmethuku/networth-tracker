@@ -1,6 +1,5 @@
+import { initialTheme, type Theme } from "../utils/theme";
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-
-type Theme = "light" | "dark";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -10,20 +9,33 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Get theme from localStorage or default to light mode
+  // A saved choice wins; otherwise follow the device's light or dark setting.
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem("theme");
-    return saved === "dark" ? "dark" : "light";
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("theme");
+    } catch {
+      /* storage blocked */
+    }
+    return initialTheme(saved, typeof window !== "undefined" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches);
   });
 
   // Apply theme to document root
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // Only an explicit toggle is saved, so people who never choose keep following their device.
   const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+    setTheme((prev) => {
+      const next: Theme = prev === "light" ? "dark" : "light";
+      try {
+        localStorage.setItem("theme", next);
+      } catch {
+        /* storage blocked */
+      }
+      return next;
+    });
   };
 
   return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;

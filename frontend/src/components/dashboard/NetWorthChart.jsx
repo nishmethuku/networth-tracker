@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
+import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import EmptyState from "../EmptyState";
+import { goalLinesForChart } from "../../utils/chartGoals";
 import { isPrivacyOn } from "../../utils/privacy";
 import { trimNegligibleStart } from "../../utils/chartRange";
 import { formatCurrencyCompact, safeNumber } from "../../utils/formatters";
@@ -88,7 +89,7 @@ function BreakdownTooltip({ active, payload, label, currency }) {
   );
 }
 
-export default function NetWorthChart({ history, currency }) {
+export default function NetWorthChart({ history, currency, goals }) {
   const [rangeIdx, setRangeIdxState] = useState(getStoredRangeIdx);
   const [showBreakdown, setShowBreakdown] = useState(false);
 
@@ -126,6 +127,11 @@ export default function NetWorthChart({ history, currency }) {
       assets: r.netWorth + (r.liabilities ?? 0),
     }));
   }, [history, rangeIdx]);
+
+  const goalLines = useMemo(() => {
+    const max = filtered.reduce((m, r) => Math.max(m, r.netWorth), 0);
+    return goalLinesForChart(goals, currency, max);
+  }, [goals, currency, filtered]);
 
   if (!history || history.length === 0) {
     return <EmptyState message="History builds up daily — check back tomorrow." />;
@@ -195,6 +201,22 @@ export default function NetWorthChart({ history, currency }) {
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--text-muted)" }} minTickGap={30} />
             <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => formatYAxis(v, currency)} width={56} />
+            {!showBreakdown &&
+              goalLines.map((g) => (
+                <ReferenceLine
+                  key={g.id}
+                  y={g.targetAmount}
+                  ifOverflow="extendDomain"
+                  stroke="var(--accent)"
+                  strokeDasharray="6 4"
+                  label={{
+                    value: isPrivacyOn() ? g.name : `${g.name} ${formatCurrencyCompact(g.targetAmount, currency)}`,
+                    position: "insideTopLeft",
+                    fill: "var(--text-secondary)",
+                    fontSize: 11,
+                  }}
+                />
+              ))}
             {showBreakdown ? (
               <>
                 <Tooltip content={<BreakdownTooltip currency={currency} />} />
