@@ -28,6 +28,8 @@ import ProjectionCard from "./dashboard/ProjectionCard";
 import NeedsAttentionCard from "./dashboard/NeedsAttentionCard";
 import WelcomeBackCard from "./dashboard/WelcomeBackCard";
 import GettingStartedCard from "./dashboard/GettingStartedCard";
+import WhatMovedCard from "./dashboard/WhatMovedCard";
+import ComingUpCard from "./dashboard/ComingUpCard";
 import CustomizeDashboard from "./dashboard/CustomizeDashboard";
 import { useHiddenSections } from "../hooks/useHiddenSections";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
@@ -419,6 +421,18 @@ export default function Dashboard() {
           {show("attention") && (
             <div style={{ marginBottom: "1.5rem" }}>
               <NeedsAttentionCard holdings={holdings} />
+            </div>
+          )}
+
+          {show("upcoming") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <ComingUpCard currency={currency} householdId={currentHouseholdId} />
+            </div>
+          )}
+
+          {show("moved") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <WhatMovedCard history={history} currency={currency} />
             </div>
           )}
 

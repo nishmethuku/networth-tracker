@@ -1,5 +1,15 @@
 # Changelog
 
+## What moved, bills, freshness, backups, headers (branch `feature/big-batch-4`)
+
+- Dashboard: "What moved your net worth" (30-day change by asset type and debt, with bars) and "Coming up" (recurring bills due in the next 14 days, from the Budget page). Both can be hidden with Customize.
+- Portfolio: hand-entered holdings (real estate, cash, deposits) show "Updated 3 days ago" under the name, in red once older than 90 days.
+- Backup reminder: downloading a backup in Settings is remembered in this browser, and the "Needs your attention" card asks for a fresh one after 30 days.
+- Web page basics: description, social preview and iOS home-screen tags, plus a no-JavaScript message.
+- Hosting: the frontend now sends security headers (no framing, nosniff, strict referrer, locked-down browser features, HSTS), caches built assets for a year, and never caches the service worker so updates arrive promptly.
+
+---
+
 ## Big polish batch (branch `feature/big-batch-3`)
 
 - Dashboard: a "Welcome back" note on the first visit of each day says what changed since you last looked; a "Getting started" checklist for new people (hides itself when done or dismissed); a "next milestone" progress bar under the change card (USD only); the attention card now links straight to the holding when only one needs a look. All can be hidden with Customize.

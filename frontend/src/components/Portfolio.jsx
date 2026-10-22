@@ -1,3 +1,4 @@
+import { freshness } from "../utils/freshness";
 import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -98,6 +99,10 @@ function SortableHeader({ label, sortKey, currentSort, currentDir, onSort, hint 
   );
 }
 
+function fresh(h) {
+  return freshness(h.updatedAt);
+}
+
 function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sortKey, sortDir, onSort }) {
   const quantityBased = isQuantityBased(assetType);
   const isMobile = useIsMobile();
@@ -173,6 +178,11 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
                     {h.country}
                     {h.account ? ` • ${h.account}` : ""}
                   </div>
+                  {!quantityBased && fresh(h) && (
+                    <div style={{ fontSize: "0.75rem", color: fresh(h).stale ? "var(--danger)" : "var(--text-muted)" }}>
+                      {fresh(h).text}
+                    </div>
+                  )}
                 </td>
                 {quantityBased && (
                   <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
