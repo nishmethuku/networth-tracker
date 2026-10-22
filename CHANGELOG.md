@@ -1,5 +1,11 @@
 # Changelog
 
+## Money Health score (branch `feature/money-health`)
+
+- New Money Health card on the Dashboard: one 0 to 100 score from four simple rules of thumb (emergency cushion, not too much in one holding, spread across asset types, debt compared with assets), each with a plain reason, plus one "Next step" aimed at the weakest area. Uses only numbers the app already has, and hides itself when there is nothing to measure.
+
+---
+
 ## Rebuild history button (branch `feature/rebuild-history`)
 
 - New "Rebuild history" button under the Dashboard net worth chart (shown while the chart has fewer than 3 points). It previews the past months it can fill in from your purchases and historical prices, then saves only after you confirm. Existing points are never overwritten, and months it cannot price are skipped.
