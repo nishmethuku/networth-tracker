@@ -6,6 +6,12 @@
 
 ---
 
+## Update banner (branch `feature/update-banner`)
+
+- A small "A new version is ready. Reload" banner appears when a newer copy of the app has been installed in the background, so you never keep using an old version without knowing. It never reloads on its own, so a half-filled form is not lost. The app also checks for a new version every 30 minutes.
+
+---
+
 ## Rebuild history button (branch `feature/rebuild-history`)
 
 - New "Rebuild history" button under the Dashboard net worth chart (shown while the chart has fewer than 3 points). It previews the past months it can fill in from your purchases and historical prices, then saves only after you confirm. Existing points are never overwritten, and months it cannot price are skipped.
