@@ -1,5 +1,11 @@
 # Changelog
 
+## Cleaner "All" chart (branch `fix/chart-leading-zeros`)
+
+- The net worth chart's "All" view skips a long flat stretch of near-zero balances at the start (balances under 1% of today's value), keeping one point before the first real one. Other ranges and the saved data are unchanged.
+
+---
+
 ## Rebuild history preview shows totals (branch `feature/rebuild-preview-numbers`)
 
 - The Rebuild history preview now lists the first, middle and last month with their totals, so you can check the numbers before pressing "Save these months" (saved points cannot be removed from the screen).

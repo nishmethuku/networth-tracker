@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
 import EmptyState from "../EmptyState";
 import { isPrivacyOn } from "../../utils/privacy";
+import { trimNegligibleStart } from "../../utils/chartRange";
 import { formatCurrencyCompact, safeNumber } from "../../utils/formatters";
 
 const RANGES = [
@@ -107,6 +108,9 @@ export default function NetWorthChart({ history, currency }) {
       cutoff.setDate(cutoff.getDate() - range.days);
       rows = history.filter((h) => new Date(h.date) >= cutoff);
       if (rows.length === 0) rows = history.slice(-2); // fall back rather than showing nothing
+    } else {
+      // "All": skip a long flat stretch of near-zero balances at the start.
+      rows = trimNegligibleStart(history);
     }
     const base = rows[0]?.netWorth ?? 0;
     // assets isn't stored directly, but netWorth = assets - liabilities, so
