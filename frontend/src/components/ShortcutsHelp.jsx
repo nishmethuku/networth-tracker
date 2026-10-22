@@ -7,6 +7,8 @@ const SHORTCUTS = [
   { keys: ["H"], description: "Go to Home" },
   { keys: ["P"], description: "Go to Portfolio" },
   { keys: ["T"], description: "Go to Transactions" },
+  { keys: ["B"], description: "Go to Budget" },
+  { keys: ["R"], description: "Go to Year in Review" },
   { keys: ["Esc"], description: "Close any open panel" },
   { keys: ["?"], description: "Show this help" },
 ];

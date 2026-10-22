@@ -10,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import InstallAppCard from "./InstallAppCard";
+import DataChecksCard from "./DataChecksCard";
 import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
 import {
   fetchAccountExport,
@@ -187,6 +188,10 @@ export default function Settings() {
 
       <div style={sectionStyle}>
         <InstallAppCard />
+      </div>
+
+      <div style={sectionStyle}>
+        <DataChecksCard />
       </div>
 
       <div style={sectionStyle}>

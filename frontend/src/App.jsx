@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import OfflineIndicator from "./components/OfflineIndicator";
 import UpdateBanner from "./components/UpdateBanner";
+import RouteAnnouncer from "./components/RouteAnnouncer";
 import ToastContainer from "./components/ToastContainer";
 import ShortcutsHelp from "./components/ShortcutsHelp";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
@@ -245,6 +246,10 @@ function AppShell() {
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", transition: "background-color 0.2s ease" }}>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <RouteAnnouncer />
       <OfflineIndicator />
       {isDemo && (
         <div
@@ -373,7 +378,7 @@ function AppShell() {
       </nav>
 
       {/* Page Content */}
-      <div className="page-content" style={{ padding: "0 2rem 2rem" }}>
+      <main id="main-content" tabIndex={-1} className="page-content" style={{ padding: "0 2rem 2rem", outline: "none" }}>
         <ErrorBoundary>
           <Suspense fallback={<LoadingState message="Loading..." />}>
             <Routes key={privacy ? "private" : "visible"}>
@@ -401,7 +406,7 @@ function AppShell() {
             </Routes>
           </Suspense>
         </ErrorBoundary>
-      </div>
+      </main>
 
       <MobileBottomNav />
       <CopilotChat />

@@ -41,6 +41,14 @@ export default function useKeyboardShortcuts({ onShowHelp }: UseKeyboardShortcut
           e.preventDefault();
           navigate("/transactions");
           break;
+        case "r":
+          e.preventDefault();
+          navigate("/review");
+          break;
+        case "b":
+          e.preventDefault();
+          navigate("/budget");
+          break;
         case "?":
           e.preventDefault();
           onShowHelp?.();
