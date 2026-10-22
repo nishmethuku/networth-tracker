@@ -203,6 +203,7 @@ export default function Settings() {
           <div style={rowStyle}>
             <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{t("settings.language")}</span>
             <select
+              aria-label="Language"
               value={i18n.language}
               onChange={(e) => setLanguage(e.target.value)}
               style={{
@@ -224,6 +225,7 @@ export default function Settings() {
           <div style={{ ...rowStyle, borderBottom: "none" }}>
             <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{t("settings.defaultCurrency")}</span>
             <select
+              aria-label="Default currency"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
               style={{
@@ -334,7 +336,7 @@ export default function Settings() {
                 borderRadius: "var(--radius)",
                 border: "none",
                 background: "var(--danger)",
-                color: "white",
+                color: "var(--text-inverse)",
                 fontWeight: 600,
                 fontSize: "0.875rem",
                 cursor: confirmText === "DELETE" ? "pointer" : "default",

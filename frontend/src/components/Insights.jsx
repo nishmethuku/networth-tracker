@@ -56,7 +56,12 @@ export default function Insights() {
       >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Insights</h1>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
+          <select
+            aria-label="Currency"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            style={{ ...inputStyle, width: "auto" }}
+          >
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
                 {c}

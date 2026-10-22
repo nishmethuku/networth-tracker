@@ -120,7 +120,13 @@ export default function Alerts() {
           </div>
 
           {form.kind === "price" ? (
-            <select value={form.holdingId} onChange={(e) => setForm({ ...form, holdingId: e.target.value })} style={inputStyle} required>
+            <select
+              aria-label="Holding"
+              value={form.holdingId}
+              onChange={(e) => setForm({ ...form, holdingId: e.target.value })}
+              style={inputStyle}
+              required
+            >
               <option value="">Select a holding...</option>
               {quantityHoldings.map((h) => (
                 <option key={h.id} value={h.id}>
@@ -130,7 +136,12 @@ export default function Alerts() {
               ))}
             </select>
           ) : (
-            <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={inputStyle}>
+            <select
+              aria-label="Currency"
+              value={form.currency}
+              onChange={(e) => setForm({ ...form, currency: e.target.value })}
+              style={inputStyle}
+            >
               <option value="USD">USD</option>
               <option value="INR">INR</option>
               <option value="AUD">AUD</option>
@@ -138,7 +149,12 @@ export default function Alerts() {
           )}
 
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <select value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })} style={inputStyle}>
+            <select
+              aria-label="Alert direction"
+              value={form.direction}
+              onChange={(e) => setForm({ ...form, direction: e.target.value })}
+              style={inputStyle}
+            >
               <option value="above">Notify when above</option>
               <option value="below">Notify when below</option>
             </select>
@@ -192,7 +208,7 @@ export default function Alerts() {
                   </span>
                   <button
                     onClick={() => deleteMutation.mutate(a.id)}
-                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.4rem 0.75rem" }}
+                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "var(--text-inverse)", padding: "0.4rem 0.75rem" }}
                   >
                     Delete
                   </button>
@@ -216,7 +232,7 @@ export default function Alerts() {
                   </span>
                   <button
                     onClick={() => deleteMutation.mutate(a.id)}
-                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.4rem 0.75rem" }}
+                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "var(--text-inverse)", padding: "0.4rem 0.75rem" }}
                   >
                     Delete
                   </button>

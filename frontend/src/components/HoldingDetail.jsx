@@ -481,7 +481,12 @@ export default function HoldingDetail() {
                               </button>
                               <button
                                 onClick={() => setDeletingTx(t)}
-                                style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}
+                                style={{
+                                  fontSize: "0.75rem",
+                                  background: "var(--danger)",
+                                  color: "var(--text-inverse)",
+                                  padding: "0.3rem 0.6rem",
+                                }}
                               >
                                 Delete
                               </button>
@@ -517,7 +522,12 @@ export default function HoldingDetail() {
                         <td style={{ padding: "0.6rem" }}>
                           <button
                             onClick={() => deleteValMutation.mutate(v.id)}
-                            style={{ fontSize: "0.75rem", background: "var(--danger)", color: "white", padding: "0.3rem 0.6rem" }}
+                            style={{
+                              fontSize: "0.75rem",
+                              background: "var(--danger)",
+                              color: "var(--text-inverse)",
+                              padding: "0.3rem 0.6rem",
+                            }}
                           >
                             Delete
                           </button>

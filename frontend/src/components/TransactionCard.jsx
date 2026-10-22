@@ -64,7 +64,7 @@ export default function TransactionCard({ t, onEdit, onDelete }) {
           {onDelete && (
             <button
               onClick={onDelete}
-              style={{ flex: 1, fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.4rem 0" }}
+              style={{ flex: 1, fontSize: "0.8125rem", background: "var(--danger)", color: "var(--text-inverse)", padding: "0.4rem 0" }}
             >
               Delete
             </button>

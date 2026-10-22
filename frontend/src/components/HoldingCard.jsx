@@ -35,7 +35,7 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
           padding: "0 1.25rem",
         }}
       >
-        <span style={{ color: "white", fontWeight: 600, fontSize: "0.875rem" }}>Delete</span>
+        <span style={{ color: "var(--text-inverse)", fontWeight: 600, fontSize: "0.875rem" }}>Delete</span>
       </div>
       <motion.div
         drag="x"

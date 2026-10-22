@@ -53,6 +53,7 @@ function BenchmarkCard() {
     <Card title="You vs the Market">
       <div style={{ marginBottom: "1rem", marginTop: "0.5rem" }}>
         <select
+          aria-label="Compare against"
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           style={{
@@ -338,7 +339,7 @@ export default function Dashboard() {
                 </span>
               ))}{" "}
               {concentratedHoldings.length === 1 ? "makes up" : "each make up"} more than {CONCENTRATION_THRESHOLD_PCT}% of your portfolio.{" "}
-              <a href="/allocation-advisor" style={{ color: "var(--primary)", textDecoration: "underline" }}>
+              <a href="/allocation-advisor" style={{ color: "var(--text)", fontWeight: 600, textDecoration: "underline" }}>
                 Review allocation →
               </a>
             </div>

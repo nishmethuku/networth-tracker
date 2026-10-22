@@ -177,7 +177,7 @@ function MobileBottomNav() {
                   height: 48,
                   borderRadius: "50%",
                   background: "var(--primary)",
-                  color: "#ffffff",
+                  color: "var(--text-inverse)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -250,7 +250,7 @@ function AppShell() {
           role="status"
           style={{
             background: "var(--primary)",
-            color: "#fff",
+            color: "var(--text-inverse)",
             padding: "0.5rem 1rem",
             textAlign: "center",
             fontSize: "0.875rem",
@@ -263,7 +263,7 @@ function AppShell() {
             style={{
               background: "none",
               border: "none",
-              color: "#fff",
+              color: "var(--text-inverse)",
               textDecoration: "underline",
               cursor: "pointer",
               fontSize: "inherit",
