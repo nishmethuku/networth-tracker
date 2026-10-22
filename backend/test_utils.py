@@ -74,3 +74,31 @@ def test_get_current_stock_price_still_caches_a_successful_lookup():
     assert first == 123.45
     assert second == 123.45
     mock_fetch.assert_called_once()
+
+
+def test_nse_stock_uses_yahoo_first_and_skips_the_blocked_nse_sources():
+    """NSE's own site blocks datacenter addresses, so each NSE library costs
+    seconds failing. Yahoo works, so it must be asked first and, when it
+    answers, nothing else may be called."""
+    from backend.utils import _fetch_price_with_fallbacks
+
+    with patch("backend.utils._get_price_from_yahoo", return_value=1234.5) as yahoo, \
+         patch("backend.utils._get_price_from_nselib") as nselib, \
+         patch("backend.utils._get_price_from_nsepython") as nsepython, \
+         patch("backend.utils._get_price_from_nsepy") as nsepy:
+        assert _fetch_price_with_fallbacks("RELIANCE.NS", "stock") == 1234.5
+    yahoo.assert_called_once_with("RELIANCE.NS")
+    nselib.assert_not_called()
+    nsepython.assert_not_called()
+    nsepy.assert_not_called()
+
+
+def test_nse_stock_falls_back_to_nse_sources_when_yahoo_has_nothing():
+    from backend.utils import _fetch_price_with_fallbacks
+
+    with patch("backend.utils._get_price_from_yahoo", return_value=None), \
+         patch("backend.utils._get_price_from_nselib", return_value=None), \
+         patch("backend.utils._get_price_from_nsepython", return_value=99.0), \
+         patch("backend.utils._get_price_from_nsepy") as nsepy:
+        assert _fetch_price_with_fallbacks("DEEPAKNTR.NS", "stock") == 99.0
+    nsepy.assert_not_called()

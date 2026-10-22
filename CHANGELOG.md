@@ -6,6 +6,12 @@
 
 ---
 
+## Faster Indian stock prices (branch `fix/india-prices`)
+
+- Indian (.NS) stock prices now ask Yahoo first. NSE's own site blocks the hosting provider, so the three NSE sources used to spend seconds failing (and flood the logs with warnings) before Yahoo was tried. They remain as fallbacks. This also makes the dashboard and Rebuild history faster for anyone holding Indian stocks.
+
+---
+
 ## Update banner (branch `feature/update-banner`)
 
 - A small "A new version is ready. Reload" banner appears when a newer copy of the app has been installed in the background, so you never keep using an old version without knowing. It never reloads on its own, so a half-filled form is not lost. The app also checks for a new version every 30 minutes.
