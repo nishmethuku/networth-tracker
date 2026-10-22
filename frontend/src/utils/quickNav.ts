@@ -10,6 +10,7 @@ export const QUICK_PAGES: QuickPage[] = [
   { to: "/add-holding", title: "Add holding", keywords: ["new", "create", "buy"] },
   { to: "/transactions", title: "Transactions", keywords: ["history", "buys", "sells", "dividends"] },
   { to: "/liabilities", title: "Liabilities", keywords: ["debt", "loans", "mortgage", "credit card"] },
+  { to: "/expenses", title: "Expenses", keywords: ["spend", "spending", "add expense", "log", "purchase", "receipt"] },
   { to: "/budget", title: "Budget", keywords: ["spending", "expenses", "income", "subscriptions", "bills"] },
   { to: "/income", title: "Income", keywords: ["dividends", "interest", "yield"] },
   { to: "/insights", title: "Insights", keywords: ["milestones", "trends", "monthly"] },

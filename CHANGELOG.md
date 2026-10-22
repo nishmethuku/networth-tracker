@@ -1,5 +1,14 @@
 # Changelog
 
+## Expenses on its own page (branch `feature/expenses-page`)
+
+- New **Expenses** page (menu, bottom bar, or press **X**): the add form on top, then this month's entries grouped by day with a daily total, and Prev / Next month buttons to look back.
+- Budget keeps the totals, charts, limits and subscriptions. The long add form is gone from it, replaced by a link to Expenses and your five latest entries.
+- The big center "+" in the phone bottom bar now opens the quick add-expense sheet instead of Add Holding. On a computer the highlighted button in the top bar is now "+ Expense". Add Holding moved into the menu (More on a computer, the menu on a phone).
+- The phone bottom bar is now Home, Portfolio, +, Expenses, Budget. Transactions moved into the phone menu.
+
+---
+
 ## Quick add expense (branch `feature/quick-add-expense`)
 
 - A "+ Expense" button now floats on every page (above the bottom bar on phones). Press **E** anywhere on a computer for the same thing.
