@@ -25,7 +25,8 @@ import MoneyHealthCard from "./dashboard/MoneyHealthCard";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
 import AnimatedNumber from "./AnimatedNumber";
 import { fetchDashboard, fetchNetWorthHistory, fetchHoldings, fetchBenchmark, ApiError } from "../api";
-import { formatCurrencyCompact, formatPercent } from "../utils/formatters";
+import { formatCurrencyCompact, formatPercent, todayISO } from "../utils/formatters";
+import { netWorthChange } from "../utils/netWorthChange";
 import { groupBuyValueAndGain } from "../utils/holdingReturns";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
@@ -130,6 +131,11 @@ export default function Dashboard() {
     staleTime: 1000 * 30,
     placeholderData: keepPreviousData,
   });
+
+  const monthChange = useMemo(
+    () => (dashboard ? netWorthChange(history, dashboard.totalNetWorth, 30, todayISO()) : null),
+    [history, dashboard],
+  );
 
   const buyValueSummary = useMemo(() => groupBuyValueAndGain(holdings || []), [holdings]);
 
@@ -249,9 +255,18 @@ export default function Dashboard() {
               title={t("dashboard.totalNetWorth")}
               value={<AnimatedNumber value={dashboard.totalNetWorth} format={(v) => formatCurrencyCompact(v, currency)} />}
               subtitle={
-                dashboard.totalLiabilities > 0
-                  ? `Assets ${formatCurrencyCompact(dashboard.totalAssets, currency)} − Liabilities ${formatCurrencyCompact(dashboard.totalLiabilities, currency)}`
-                  : undefined
+                [
+                  dashboard.totalLiabilities > 0
+                    ? `Assets ${formatCurrencyCompact(dashboard.totalAssets, currency)} − Liabilities ${formatCurrencyCompact(dashboard.totalLiabilities, currency)}`
+                    : null,
+                  monthChange
+                    ? `${monthChange.delta >= 0 ? "+" : "−"}${formatCurrencyCompact(Math.abs(monthChange.delta), currency)}${
+                        monthChange.pct != null ? ` (${monthChange.pct >= 0 ? "+" : "−"}${Math.abs(monthChange.pct).toFixed(1)}%)` : ""
+                      } in the last 30 days`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined
               }
             />
             {dashboard.totalLiabilities > 0 && (
