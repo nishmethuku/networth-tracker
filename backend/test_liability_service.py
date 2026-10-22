@@ -34,3 +34,24 @@ def test_apply_payment_floors_at_zero_not_negative():
     with patch.object(liability_service.db.session, "add"):
         liability_service.apply_payment(liability, 500.0, "USD")
     assert liability.current_balance == 0.0
+
+
+def test_apply_charge_raises_balance_and_converts_currency():
+    liability = _liability(balance=100.0, currency="USD")
+    with patch.object(liability_service, "price_service") as mock_price_service, \
+         patch.object(liability_service.db.session, "add"):
+        mock_price_service.convert.return_value = 12.0
+        liability_service.apply_charge(liability, 1000.0, "INR")
+        mock_price_service.convert.assert_called_once_with(1000.0, "INR", "USD")
+    assert liability.current_balance == 112.0
+
+
+def test_only_cards_and_credit_lines_are_chargeable():
+    assert "credit_card" in liability_service.CHARGEABLE_TYPES
+    assert "mortgage" not in liability_service.CHARGEABLE_TYPES
+
+
+def test_card_types_match_the_frontend_split_between_charge_and_pays_down():
+    # Budget "Paid from" lists these as chargeable and "Pays down" must exclude them,
+    # otherwise a card bill logged as an expense is counted as spending twice.
+    assert set(liability_service.CHARGEABLE_TYPES) == {"credit_card", "line_of_credit"}

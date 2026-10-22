@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 const SHORTCUTS = [
   { keys: ["⌘", "K"], description: "Search your portfolio" },
+  { keys: ["E"], description: "Add an expense" },
   { keys: ["N"], description: "Add a new holding" },
   { keys: ["H"], description: "Go to Home" },
   { keys: ["P"], description: "Go to Portfolio" },

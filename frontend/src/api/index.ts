@@ -588,6 +588,19 @@ export async function updateLiability(id: number | string, payload: any) {
   return mapLiability(data);
 }
 
+export async function recordLiabilityPayment(
+  id: number | string,
+  payload: { amount: number; payment_date: string; currency: string; funding_source_holding_id?: number },
+) {
+  const data = await api.post(`/liabilities/${id}/payments`, payload);
+  return {
+    liability: mapLiability(data.liability),
+    fundingSource: data.funding_source
+      ? { holdingId: data.funding_source.holding_id, newBalance: Number(data.funding_source.value), currency: data.funding_source.currency }
+      : null,
+  };
+}
+
 export async function deleteLiability(id: number | string) {
   await api.delete(`/liabilities/${id}`);
 }

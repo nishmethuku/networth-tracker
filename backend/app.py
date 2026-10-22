@@ -80,7 +80,14 @@ from .household_service import (
     remove_member,
 )
 from .income_service import get_income_summary
-from .liability_service import LIABILITY_TYPES, apply_payment, list_liabilities_with_display, total_liabilities_display
+from .liability_service import (
+    CHARGEABLE_TYPES,
+    LIABILITY_TYPES,
+    apply_charge,
+    apply_payment,
+    list_liabilities_with_display,
+    total_liabilities_display,
+)
 from .milestone_service import list_milestones
 from .models import (
     Account,
@@ -1856,6 +1863,44 @@ def create_app():
         db.session.commit()
         return jsonify(liability.to_dict())
 
+    @app.route("/liabilities/<int:liability_id>/payments", methods=["POST"])
+    @require_auth
+    def record_liability_payment(liability_id):
+        """Record a payment on a liability (a credit card bill, a loan
+        installment): lowers its balance and, if a cash account is given,
+        takes the money out of that account. Deliberately not a Budget entry,
+        so a card bill is not counted as spending a second time."""
+        liability = get_authorized_liability(liability_id, require_write=True)
+        data = request.get_json(force=True)
+
+        amount = safe_float(data.get("amount"))
+        if not amount or amount <= 0:
+            return jsonify({"error": "amount must be greater than 0"}), 400
+        currency = data.get("currency") or liability.currency
+        try:
+            paid_on = date.fromisoformat(data["payment_date"]) if data.get("payment_date") else date.today()
+        except ValueError:
+            return jsonify({"error": "payment_date must be YYYY-MM-DD"}), 400
+
+        funding_valuation = None
+        funding_source_id = data.get("funding_source_holding_id")
+        if funding_source_id:
+            source_holding = get_authorized_holding(funding_source_id, require_write=True)
+            source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
+            try:
+                funding_valuation = build_funding_valuation(source_holding, source_valuations, amount, currency, paid_on, g.user_id)
+            except ValueError as e:
+                db.session.rollback()
+                return jsonify({"error": str(e)}), 400
+            db.session.add(funding_valuation)
+
+        apply_payment(liability, amount, currency)
+        db.session.commit()
+        return jsonify({
+            "liability": liability.to_dict(),
+            "funding_source": funding_valuation.to_dict() if funding_valuation else None,
+        }), 201
+
     @app.route("/liabilities/<int:liability_id>", methods=["DELETE"])
     @require_auth
     def delete_liability(liability_id):
@@ -2062,6 +2107,22 @@ def create_app():
         # into a raw IntegrityError (foreign-key violation) and a 500.
         linked_liability_id = data.get("linked_liability_id") if entry_type == "expense" else None
         liability = get_authorized_liability(linked_liability_id, require_write=True) if linked_liability_id else None
+        if liability and liability.liability_type in CHARGEABLE_TYPES:
+            # The purchases on a card are already expenses; counting the bill as an
+            # expense too would count the same money twice.
+            return jsonify({"error": "Record credit card payments from the Liabilities page so they are not counted as spending twice"}), 400
+
+        # A purchase "paid from" a credit card raises that card's balance.
+        # Authorized up front for the same autoflush reason, and it can't be
+        # combined with the other ways of paying for the same expense.
+        charge_liability_id = data.get("charge_liability_id") if entry_type == "expense" else None
+        charged_liability = None
+        if charge_liability_id:
+            if linked_liability_id or data.get("funding_source_holding_id"):
+                return jsonify({"error": "Pick one place to pay from: a cash account or a credit card"}), 400
+            charged_liability = get_authorized_liability(charge_liability_id, require_write=True)
+            if charged_liability.liability_type not in CHARGEABLE_TYPES:
+                return jsonify({"error": "Only a credit card or line of credit can be charged"}), 400
 
         # Same autoflush-safe ordering as linked_liability_id above:
         # authorize the deposit target *before* constructing/adding the
@@ -2105,6 +2166,10 @@ def create_app():
         if liability:
             liability_after_payment = apply_payment(liability, entry.amount, entry.currency)
 
+        liability_after_charge = None
+        if charged_liability:
+            liability_after_charge = apply_charge(charged_liability, entry.amount, entry.currency)
+
         # A deposit target doesn't have to be a cash holding -- picking a
         # stock/other account here also tags the income entry with it
         # (deposit_target_holding_id, already set above) as a "this is
@@ -2127,6 +2192,7 @@ def create_app():
             **entry.to_dict(),
             "funding_source": funding_valuation.to_dict() if funding_valuation else None,
             "linked_liability": liability_after_payment.to_dict() if liability_after_payment else None,
+            "charged_liability": liability_after_charge.to_dict() if liability_after_charge else None,
             "deposit_target": deposit_valuation.to_dict() if deposit_valuation else None,
         }), 201
 

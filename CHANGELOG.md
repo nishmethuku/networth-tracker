@@ -1,5 +1,23 @@
 # Changelog
 
+## Quick add expense (branch `feature/quick-add-expense`)
+
+- A "+ Expense" button now floats on every page (above the bottom bar on phones). Press **E** anywhere on a computer for the same thing.
+- It opens a small form with the amount already selected: type the amount, pick a category, press Enter. The date starts as today (with a Yesterday button), and it remembers your last category and "Paid from" account.
+- "Paid from" lists your cash accounts and credit cards. "Save and add another" keeps the form open for several in a row.
+- You no longer need to open Budget and scroll down to log an expense.
+
+---
+
+## Credit card payments (branch `feature/credit-card-payments`)
+
+- Budget, Add expense: "Paid from" now lists your credit cards (from Liabilities) next to your cash accounts. Choosing a card adds the purchase to the card balance.
+- Liabilities: every liability has a "Record payment" button with amount, date and "Paid from". It lowers the balance and, if you pick a cash account, takes the money out of it. This is not added to Budget expenses, so a card bill is never counted as spending a second time.
+- Budget "Pays down" no longer lists credit cards or lines of credit (use Record payment instead), and the server rejects it for them.
+- A Budget expense category named "CC-payment" (also "credit card payment") is left out of expense totals, the savings rate and the spending charts, so card bills you log there do not count as spending.
+
+---
+
 ## Categories inside categories (branch `feature/category-hierarchy`)
 
 - When you add a Budget category, a new "Top level / Inside ..." choice lets you put it inside another category, for example Cellphone inside Utilities. One level deep.

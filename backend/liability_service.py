@@ -47,3 +47,17 @@ def apply_payment(liability: Liability, amount: float, amount_currency: str) -> 
     liability.current_balance = max(0.0, liability.current_balance - converted)
     db.session.add(liability)
     return liability
+
+
+CHARGEABLE_TYPES = ("credit_card", "line_of_credit")
+
+
+def apply_charge(liability: Liability, amount: float, amount_currency: str) -> Liability:
+    """Raises a liability's balance by a purchase amount (converted into the
+    liability's own currency) -- the mirror of apply_payment, used when a
+    Budget expense is "paid from" a credit card. Uncommitted; the caller
+    commits alongside the BudgetEntry insert."""
+    converted = price_service.convert(amount, amount_currency, liability.currency)
+    liability.current_balance = liability.current_balance + converted
+    db.session.add(liability)
+    return liability
