@@ -8,6 +8,7 @@ import MonthlySnapshots from "./dashboard/MonthlySnapshots";
 import MonthlyNetFlow from "./dashboard/MonthlyNetFlow";
 import MilestonesCard from "./dashboard/MilestonesCard";
 import YearByYearCard from "./dashboard/YearByYearCard";
+import SpendingTrendCard from "./dashboard/SpendingTrendCard";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { fetchNetWorthHistory, ApiError } from "../api";
 import { CURRENCIES } from "../constants/enums";
@@ -76,6 +77,12 @@ export default function Insights() {
       <div style={{ marginBottom: "1.5rem" }}>
         <ErrorBoundary mode="section" fallbackMessage="Couldn't load milestones.">
           <MilestonesCard householdId={currentHouseholdId} />
+        </ErrorBoundary>
+      </div>
+
+      <div style={{ marginBottom: "1.5rem" }}>
+        <ErrorBoundary mode="section" fallbackMessage="Couldn't load the spending trend.">
+          <SpendingTrendCard currency={currency} householdId={currentHouseholdId} />
         </ErrorBoundary>
       </div>
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## Compact Dashboard, price freshness, spending trend (branch `feature/big-batch-7`)
+
+- The smaller Dashboard cards (coming up, what moved, how you are doing, savings rate, where you could be, Money Health) now sit side by side on wide screens instead of one long column. On phones they stack as before. The "How you are doing" tiles no longer stretch across the page.
+- A line under the headline numbers says how current market prices are ("Market prices as of Oct 21"), and turns red with a warning when weekdays have passed without an update (weekends are not counted).
+- Insights has an "Income and spending" bar chart, month by month, from your Budget entries.
+
+---
+
 ## Chart goal lines, follow-system theme, richer demo, login polish (branch `feature/big-batch-6`)
 
 - The net worth chart draws a dashed line for your nearest goals (same currency, still ahead of you, and not so far away that the chart goes flat). Goal amounts are hidden in the label when Hide amounts is on.

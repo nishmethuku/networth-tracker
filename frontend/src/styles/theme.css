@@ -284,3 +284,15 @@ a:hover {
 .skip-link:focus {
   left: 0;
 }
+
+/* Dashboard: the smaller cards sit side by side when there is room. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 1.5rem;
+}
+.dash-cell:empty {
+  display: none;
+}
