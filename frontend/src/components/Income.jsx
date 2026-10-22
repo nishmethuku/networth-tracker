@@ -73,6 +73,11 @@ export default function Income() {
               subtitle="Dividends and interest, after fees"
             />
             <Card
+              title="Average per month"
+              value={formatCurrencyCompact(income.last12Months / 12, currency)}
+              subtitle="A fair guess for what comes next if nothing changes"
+            />
+            <Card
               title="Yield (last 12 months)"
               value={income.yieldPct != null ? formatPercent(income.yieldPct) : "n/a"}
               subtitle={

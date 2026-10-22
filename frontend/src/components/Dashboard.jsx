@@ -23,6 +23,9 @@ import CagrHistogram from "./dashboard/CagrHistogram";
 import StressTestCard from "./dashboard/StressTestCard";
 import MoneyHealthCard from "./dashboard/MoneyHealthCard";
 import ChangeOverTimeCard from "./dashboard/ChangeOverTimeCard";
+import SavingsRateCard from "./dashboard/SavingsRateCard";
+import ProjectionCard from "./dashboard/ProjectionCard";
+import NeedsAttentionCard from "./dashboard/NeedsAttentionCard";
 import CustomizeDashboard from "./dashboard/CustomizeDashboard";
 import { useHiddenSections } from "../hooks/useHiddenSections";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
@@ -387,7 +390,7 @@ export default function Dashboard() {
 
             {show("goals") && (
               <ErrorBoundary mode="section" fallbackMessage="Couldn't load goals.">
-                <GoalsCard currentNetWorth={dashboard.totalNetWorth} displayCurrency={currency} />
+                <GoalsCard currentNetWorth={dashboard.totalNetWorth} displayCurrency={currency} history={history} />
               </ErrorBoundary>
             )}
 
@@ -398,9 +401,27 @@ export default function Dashboard() {
             )}
           </div>
 
+          {show("attention") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <NeedsAttentionCard holdings={holdings} />
+            </div>
+          )}
+
           {show("change") && (
             <div style={{ marginBottom: "1.5rem" }}>
               <ChangeOverTimeCard history={history} current={dashboard.totalNetWorth} currency={currency} />
+            </div>
+          )}
+
+          {show("savings") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <SavingsRateCard currency={currency} householdId={currentHouseholdId} />
+            </div>
+          )}
+
+          {show("projection") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <ProjectionCard currentNetWorth={dashboard.totalNetWorth} currency={currency} householdId={currentHouseholdId} />
             </div>
           )}
 

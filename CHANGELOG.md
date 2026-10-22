@@ -1,5 +1,13 @@
 # Changelog
 
+## Savings, projection, attention and goal dates (branch `feature/big-batch-2`)
+
+- Dashboard: new "Savings rate" card (share of income kept over the last 3 full months, from Budget entries), a "Where you could be" card (5, 10 and 20 year illustration at a growth rate you pick, using your recent monthly savings), and a "Needs your attention" card for holdings with no live price or valuations not updated in 90 days. All three can be hidden with Customize.
+- Goals now show an estimated month of completion at your recent pace, hidden when the pace is flat, falling, too new to measure, or more than 50 years out.
+- Income page: new "Average per month" card.
+
+---
+
 ## Customize the Dashboard (branch `feature/dashboard-customize`)
 
 - A "Customize" button on the Dashboard lets you hide any of twelve cards (chart, allocation, goals, emergency fund, change over time, Money Health, stress test, breakdown, benchmark, returns, CAGR, gainers and losers) and bring them back with one click. The choice is saved in this browser only. The headline numbers always stay.

@@ -7,6 +7,8 @@ import { useToast } from "../../contexts/ToastContext";
 import { fetchGoals, createGoal, deleteGoal, ApiError } from "../../api";
 import { formatCurrencyForDisplay } from "../../utils/formatters";
 import { CURRENCIES } from "../../constants/enums";
+import { goalEta } from "../../utils/goalEta";
+import { todayISO } from "../../utils/formatters";
 
 const inputStyle = {
   padding: "0.5rem 0.625rem",
@@ -17,17 +19,23 @@ const inputStyle = {
   fontSize: "0.8125rem",
 };
 
+function formatEtaMonth(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(y, m - 1, 1));
+}
+
 function daysRemaining(targetDate) {
   if (!targetDate) return null;
   const ms = new Date(targetDate) - new Date();
   return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
 
-function GoalRow({ goal, currentNetWorth, displayCurrency, onDelete }) {
+function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete }) {
   const sameCurrency = goal.currency === displayCurrency;
   const pct = sameCurrency && goal.targetAmount > 0 ? Math.min(100, (currentNetWorth / goal.targetAmount) * 100) : null;
   const remaining = sameCurrency ? Math.max(0, goal.targetAmount - currentNetWorth) : null;
   const days = daysRemaining(goal.targetDate);
+  const eta = sameCurrency && remaining > 0 ? goalEta(history, currentNetWorth, goal.targetAmount, todayISO()) : null;
 
   return (
     <div style={{ padding: "0.75rem 0", borderBottom: "1px solid var(--border-light)" }}>
@@ -85,6 +93,11 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, onDelete }) {
             </span>
             {days != null && <span>{days > 0 ? `${days} days left` : "Target date passed"}</span>}
           </div>
+          {eta && (
+            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.25rem" }}>
+              At your recent pace, about {formatEtaMonth(eta.reachedMonth)}.
+            </div>
+          )}
         </>
       ) : (
         <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
@@ -195,7 +208,7 @@ function AddGoalForm({ onDone, defaultCurrency }) {
   );
 }
 
-export default function GoalsCard({ currentNetWorth, displayCurrency }) {
+export default function GoalsCard({ currentNetWorth, displayCurrency, history }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -224,6 +237,7 @@ export default function GoalsCard({ currentNetWorth, displayCurrency }) {
               goal={goal}
               currentNetWorth={currentNetWorth}
               displayCurrency={displayCurrency}
+              history={history}
               onDelete={(id) => deleteMutation.mutate(id)}
             />
           ))}
