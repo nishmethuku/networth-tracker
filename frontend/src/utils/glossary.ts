@@ -1,4 +1,5 @@
-export type GlossaryTerm = "xirr" | "cagr" | "unrealized" | "realized" | "savingsRate" | "moneyHealth" | "emergencyFund" | "stressTest";
+export type GlossaryTerm =
+  "xirr" | "cagr" | "unrealized" | "realized" | "savingsRate" | "moneyHealth" | "emergencyFund" | "stressTest" | "fiNumber";
 
 export const GLOSSARY: Record<GlossaryTerm, { name: string; text: string }> = {
   xirr: {
@@ -32,5 +33,9 @@ export const GLOSSARY: Record<GlossaryTerm, { name: string; text: string }> = {
   stressTest: {
     name: "Stress test",
     text: "Shows what a sharp drop in one area would do to your net worth. It is a what-if, not a forecast.",
+  },
+  fiNumber: {
+    name: "Financial independence number",
+    text: "About 25 times what you spend in a year. At that size, taking out 4 percent a year has historically covered spending for decades. It is a rule of thumb, not a promise.",
   },
 };

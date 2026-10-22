@@ -1,5 +1,14 @@
 # Changelog
 
+## Financial independence, spending categories, history download (branch `feature/big-batch-9`)
+
+- A new "Financial independence" card on the Dashboard shows about 25 times your yearly spending (from your Budget), how far along you are as a percent, and roughly how many years are left at your current saving pace and 6% growth. It has a "?" explanation and can be hidden in Customize.
+- A new "Where your spending goes" card lists your five biggest budget categories in the latest month with simple bars, and groups the rest as "Other".
+- A "Download history (CSV)" button under the net worth chart saves your net worth snapshots as a spreadsheet file (date, net worth, currency).
+- Both new cards appear in the demo.
+
+---
+
 ## Plain-language tips (branch `feature/big-batch-8`)
 
 - A small "?" button next to XIRR, CAGR, unrealized and realized gains, Savings rate, Money Health, Emergency Fund and Stress test opens a short plain-English explanation right where the term appears. It works with the keyboard and screen readers.

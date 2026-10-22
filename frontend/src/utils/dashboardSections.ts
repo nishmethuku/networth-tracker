@@ -17,6 +17,8 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
   { id: "change", label: "How you are doing" },
   { id: "savings", label: "Savings rate" },
   { id: "projection", label: "Where you could be" },
+  { id: "independence", label: "Financial independence" },
+  { id: "categories", label: "Where your spending goes" },
   { id: "health", label: "Money Health" },
   { id: "stress", label: "Stress test" },
   { id: "breakdown", label: "Net worth breakdown" },
