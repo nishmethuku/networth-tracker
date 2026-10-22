@@ -212,6 +212,19 @@ export async function fetchNetWorthHistory(householdId: string | null = null, cu
   return mapNetWorthHistory(data);
 }
 
+export interface RebuildHistoryResult {
+  status: "has_liabilities" | "nothing_recorded" | "up_to_date" | "preview" | "saved";
+  first_activity?: string;
+  months?: { date: string; total: number }[];
+  skipped?: { date: string; reasons: string[] }[];
+  more_to_do?: boolean;
+}
+
+/** Fill in past months of the net worth chart. apply=false only previews. */
+export async function rebuildNetWorthHistory(apply: boolean): Promise<RebuildHistoryResult> {
+  return api.post("/net-worth-history/rebuild", { apply });
+}
+
 export interface MonthlyFlowArgs {
   householdId?: string;
   currency?: string;

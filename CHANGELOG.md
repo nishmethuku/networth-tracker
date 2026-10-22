@@ -1,5 +1,13 @@
 # Changelog
 
+## Rebuild history button (branch `feature/rebuild-history`)
+
+- New "Rebuild history" button under the Dashboard net worth chart (shown while the chart has fewer than 3 points). It previews the past months it can fill in from your purchases and historical prices, then saves only after you confirm. Existing points are never overwritten, and months it cannot price are skipped.
+- Works only when you have no liabilities (past debt balances are not recorded). Looks back at most 24 months per run; press it again for older months.
+- The command-line backfill script now shares the same code (`backend/history_rebuild_service.py`).
+
+---
+
 ## Fixes from live testing (branch `fix/live-testing-findings`)
 
 - Saved changes now show up right away. The offline cache served the old list after an add or edit until the next reload; it now tries the network first and only uses the cache when offline or slow.
