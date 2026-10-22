@@ -9,6 +9,7 @@ import ChangePasswordCard from "./ChangePasswordCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
+import { BACKUP_KEY } from "../utils/backupReminder";
 import InstallAppCard from "./InstallAppCard";
 import DataChecksCard from "./DataChecksCard";
 import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
@@ -54,6 +55,14 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+function rememberBackup() {
+  try {
+    localStorage.setItem(BACKUP_KEY, todayISO());
+  } catch {
+    /* storage blocked: the reminder simply keeps showing */
+  }
+}
+
 function downloadJson(data, filename) {
   downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), filename);
 }
@@ -74,6 +83,7 @@ export default function Settings() {
     mutationFn: fetchAccountExport,
     onSuccess: (data) => {
       downloadJson(data, `networth-tracker-export-${todayISO()}.json`);
+      rememberBackup();
       toast.success("Export downloaded");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Export failed"),
@@ -84,6 +94,7 @@ export default function Settings() {
     mutationFn: fetchAccountExportCsvZip,
     onSuccess: (blob) => {
       downloadBlob(blob, `networth-tracker-backup-${todayISO()}.zip`);
+      rememberBackup();
       toast.success("Backup downloaded");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Export failed"),

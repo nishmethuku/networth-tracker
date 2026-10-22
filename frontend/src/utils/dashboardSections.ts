@@ -12,6 +12,8 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
   { id: "welcome", label: "Welcome back note" },
   { id: "started", label: "Getting started checklist" },
   { id: "attention", label: "Needs your attention" },
+  { id: "upcoming", label: "Coming up (bills)" },
+  { id: "moved", label: "What moved your net worth" },
   { id: "change", label: "How you are doing" },
   { id: "savings", label: "Savings rate" },
   { id: "projection", label: "Where you could be" },

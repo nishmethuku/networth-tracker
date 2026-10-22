@@ -18,8 +18,10 @@ test("page titles, shortcuts and the skip link work", async ({ page }) => {
 
   // The first Tab stop on a fresh page is the skip link, and it reaches the main area.
   await page.goto("/portfolio");
-  await page.keyboard.press("Tab");
   const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expect(skip).toBeAttached();
+  await page.waitForLoadState("networkidle");
+  await page.keyboard.press("Tab");
   await expect(skip).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("main#main-content")).toBeVisible();
