@@ -9,6 +9,7 @@ import RouteAnnouncer from "./components/RouteAnnouncer";
 import ToastContainer from "./components/ToastContainer";
 import ShortcutsHelp from "./components/ShortcutsHelp";
 import QuickAddExpense from "./components/QuickAddExpense";
+import useSyncPendingExpenses from "./hooks/useSyncPendingExpenses";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useAuth } from "./contexts/AuthContext";
 import { useHousehold } from "./contexts/HouseholdContext";
@@ -264,6 +265,7 @@ function AppShell() {
   const { t } = useTranslation();
   const [helpOpen, setHelpOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  useSyncPendingExpenses(!isDemo);
   useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true), onQuickAdd: () => setQuickAddOpen(true) });
 
   return (

@@ -11,6 +11,7 @@ import { useHousehold } from "../contexts/HouseholdContext";
 import { fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, ApiError } from "../api";
 import EditEntryModal from "./budget/EditEntryModal";
 import { filterEntries } from "../utils/filterEntries";
+import { entriesToCsv } from "../utils/entriesCsv";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
@@ -82,12 +83,33 @@ export default function Expenses() {
     queryFn: () => fetchBudgetEntries({ householdId: currentHouseholdId, dateFrom: `${month}-01`, dateTo: lastDayOf(month) }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteBudgetEntry,
+  const restoreMutation = useMutation({
+    mutationFn: (e) =>
+      createBudgetEntry({
+        entry_type: e.entryType,
+        entry_date: e.entryDate,
+        amount: e.amount,
+        currency: e.currency,
+        category: e.category,
+        description: e.description || null,
+        is_recurring: !!e.isRecurring,
+        recurring_frequency: e.recurringFrequency || null,
+        ...(currentHouseholdId ? { household_id: currentHouseholdId } : {}),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
-      toast.success("Entry deleted");
+      toast.success("Entry restored");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not restore the entry"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (e) => deleteBudgetEntry(e.id),
+    onSuccess: (_data, e) => {
+      queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      toast.success("Entry deleted", 6000, { label: "Undo", onClick: () => restoreMutation.mutate(e) });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not delete the entry"),
   });
@@ -202,6 +224,21 @@ export default function Expenses() {
 
       {(entries || []).length > 0 && (
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+          <button
+            type="button"
+            style={navBtn}
+            onClick={() => {
+              const blob = new Blob([entriesToCsv(entries)], { type: "text/csv;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `expenses-${month}.csv`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Download CSV
+          </button>
           <input
             type="search"
             aria-label="Search expenses"
@@ -294,7 +331,7 @@ export default function Expenses() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteMutation.mutate(e.id)}
+                      onClick={() => deleteMutation.mutate(e)}
                       aria-label={`Delete ${getBudgetCategoryLabel(e.category)} entry`}
                       style={{
                         fontSize: "0.75rem",

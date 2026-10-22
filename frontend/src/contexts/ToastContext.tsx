@@ -2,19 +2,25 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 
 type ToastType = "success" | "error" | "info";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface Toast {
   id: number;
   message: string;
   type: ToastType;
   duration: number;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
   toasts: Toast[];
   dismiss: (id: number) => void;
-  success: (message: string, duration?: number) => number;
+  success: (message: string, duration?: number, action?: ToastAction) => number;
   error: (message: string, duration?: number) => number;
-  info: (message: string, duration?: number) => number;
+  info: (message: string, duration?: number, action?: ToastAction) => number;
 }
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
@@ -35,9 +41,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (message: string, type: ToastType = "info", duration: number = DEFAULT_DURATION) => {
+    (message: string, type: ToastType = "info", duration: number = DEFAULT_DURATION, action?: ToastAction) => {
       const id = nextId++;
-      setToasts((prev) => [...prev, { id, message, type, duration }]);
+      setToasts((prev) => [...prev, { id, message, type, duration, action }]);
       timers.current[id] = setTimeout(() => dismiss(id), duration);
       return id;
     },
@@ -47,9 +53,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const value: ToastContextValue = {
     toasts,
     dismiss,
-    success: (message, duration) => push(message, "success", duration),
+    success: (message, duration, action) => push(message, "success", duration, action),
     error: (message, duration) => push(message, "error", duration),
-    info: (message, duration) => push(message, "info", duration),
+    info: (message, duration, action) => push(message, "info", duration, action),
   };
 
   useEffect(() => {

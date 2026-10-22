@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createBudgetEntry, fetchBudgetCategories, fetchBudgetEntries, fetchHoldings, fetchLiabilities, ApiError } from "../api";
+import {
+  createBudgetEntry,
+  fetchBudgetCategories,
+  fetchBudgetEntries,
+  fetchBudgetSummary,
+  fetchHoldings,
+  fetchLiabilities,
+  ApiError,
+} from "../api";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { getBudgetCategoryLabel } from "../constants/enums";
+import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
 import { orderCategoryOptions } from "../utils/categoryTree";
 import { frequentExpenses } from "../utils/frequentExpenses";
 import { monthOf, monthTotals } from "../utils/entryGroups";
+import { enqueuePending, loadPending, shouldQueue } from "../utils/pendingExpenses";
+import { limitWarning } from "../utils/limitWarning";
 import { buildExpensePayload, loadLast, saveLast, validateQuickAdd, yesterdayOf } from "../utils/quickAdd";
 
 const fieldStyle = {
@@ -32,7 +42,8 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
   const { currentHouseholdId } = useHousehold();
   const amountRef = useRef(null);
   const addAnotherRef = useRef(false);
-  const currency = useMemo(() => getDefaultDisplayCurrency(), []);
+  const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
+  const [pendingCount, setPendingCount] = useState(() => loadPending().length);
 
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -98,6 +109,8 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     setDescription("");
     setDate(todayISO());
     setError(null);
+    setCurrency(getDefaultDisplayCurrency());
+    setPendingCount(loadPending().length);
     setPaidFrom(last.paidFrom ?? "");
     setCategory(last.category ?? "");
     const id = window.setTimeout(() => amountRef.current?.focus(), 30);
@@ -120,6 +133,12 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
   }, [open, paidFrom, cashHoldings, liabilities, cards]);
 
   useEffect(() => {
+    const refresh = () => setPendingCount(loadPending().length);
+    window.addEventListener("nw:pending-changed", refresh);
+    return () => window.removeEventListener("nw:pending-changed", refresh);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     function onKey(e) {
       if (e.key === "Escape") onClose();
@@ -135,6 +154,25 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
       saveLast({ category, paidFrom });
+      if (entry.entryDate?.slice(0, 7) === monthOf(todayISO())) {
+        queryClient
+          .fetchQuery({
+            queryKey: ["budget-summary", currency, currentHouseholdId],
+            queryFn: () => fetchBudgetSummary({ months: 6, currency, householdId: currentHouseholdId }),
+            staleTime: 0,
+          })
+          .then((summary) => {
+            const msg = limitWarning(
+              summary?.limit_status,
+              entry.category,
+              categories?.parents?.expense?.[entry.category],
+              getBudgetCategoryLabel,
+              (v) => formatCurrencyForDisplay(v, currency, { includeCode: false }),
+            );
+            if (msg) toast.info(msg, 6000);
+          })
+          .catch(() => {});
+      }
       const where = entry.chargedLiability
         ? ` Card balance now ${formatCurrencyForDisplay(entry.chargedLiability.newBalance, entry.chargedLiability.currency, { includeCode: false })}.`
         : entry.fundingSource
@@ -149,7 +187,21 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
         onClose();
       }
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the expense. Try again."),
+    onError: (err, payload) => {
+      if (shouldQueue(err) && enqueuePending(payload)) {
+        setPendingCount(loadPending().length);
+        toast.info("No connection. Saved on this device and it will sync when you are back online.", 5000);
+        if (addAnotherRef.current) {
+          setAmount("");
+          setDescription("");
+          amountRef.current?.focus();
+        } else {
+          onClose();
+        }
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "Could not save the expense. Try again.");
+    },
   });
 
   function submit(another) {
@@ -198,6 +250,11 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
             }}
           >
             <h2 style={{ margin: "0 0 1rem", fontSize: "1.125rem" }}>Add expense</h2>
+            {pendingCount > 0 && (
+              <p role="status" style={{ margin: "-0.5rem 0 0.75rem", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+                {pendingCount} expense{pendingCount === 1 ? "" : "s"} saved on this device, waiting to sync.
+              </p>
+            )}
 
             {recent && (
               <p style={{ margin: "-0.5rem 0 0.75rem", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
@@ -235,20 +292,34 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
             )}
 
             <label htmlFor="qa-amount" style={labelStyle}>
-              Amount ({currency})
+              Amount
             </label>
-            <input
-              id="qa-amount"
-              ref={amountRef}
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              style={{ ...fieldStyle, fontSize: "1.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}
-            />
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <input
+                id="qa-amount"
+                ref={amountRef}
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                style={{ ...fieldStyle, fontSize: "1.5rem", fontFamily: "var(--font-mono)", fontWeight: 600, flex: 1, minWidth: 0 }}
+              />
+              <select
+                aria-label="Currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                style={{ ...fieldStyle, width: "auto" }}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div style={{ display: "grid", gap: "0.75rem", marginTop: "0.75rem" }}>
               <div>

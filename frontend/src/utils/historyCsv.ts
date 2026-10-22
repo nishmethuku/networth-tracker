@@ -1,4 +1,4 @@
-function cell(value: string | number): string {
+export function cell(value: string | number): string {
   const s = String(value);
   // Quote anything with a comma, quote or newline. Also defuse spreadsheet formulas.
   const safe = /^[=+\-@]/.test(s) && Number.isNaN(Number(s)) ? `'${s}` : s;
