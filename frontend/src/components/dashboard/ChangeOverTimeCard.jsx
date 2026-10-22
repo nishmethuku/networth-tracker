@@ -31,7 +31,7 @@ export default function ChangeOverTimeCard({ history, current, currency }) {
 
   return (
     <Card title="How you are doing" subtitle="Net worth change since each point in time">
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.75rem", marginTop: "0.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 200px))", gap: "0.75rem", marginTop: "0.75rem" }}>
         {rows.map(({ days, label, change }) => {
           const up = change.delta >= 0;
           return (

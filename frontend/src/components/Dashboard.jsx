@@ -30,6 +30,7 @@ import WelcomeBackCard from "./dashboard/WelcomeBackCard";
 import GettingStartedCard from "./dashboard/GettingStartedCard";
 import WhatMovedCard from "./dashboard/WhatMovedCard";
 import ComingUpCard from "./dashboard/ComingUpCard";
+import PriceFreshnessNote from "./dashboard/PriceFreshnessNote";
 import CustomizeDashboard from "./dashboard/CustomizeDashboard";
 import { useHiddenSections } from "../hooks/useHiddenSections";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
@@ -359,6 +360,7 @@ export default function Dashboard() {
             </div>
           )}
 
+          <PriceFreshnessNote />
           <CustomizeDashboard hidden={hidden} onToggle={toggleSectionHidden} onReset={resetSections} />
 
           <div
@@ -426,43 +428,45 @@ export default function Dashboard() {
             </div>
           )}
 
-          {show("upcoming") && (
-            <div style={{ marginBottom: "1.5rem" }}>
-              <ComingUpCard currency={currency} householdId={currentHouseholdId} />
-            </div>
-          )}
+          <div className="dash-grid">
+            {show("upcoming") && (
+              <div className="dash-cell">
+                <ComingUpCard currency={currency} householdId={currentHouseholdId} />
+              </div>
+            )}
 
-          {show("moved") && (
-            <div style={{ marginBottom: "1.5rem" }}>
-              <WhatMovedCard history={history} currency={currency} />
-            </div>
-          )}
+            {show("moved") && (
+              <div className="dash-cell">
+                <WhatMovedCard history={history} currency={currency} />
+              </div>
+            )}
 
-          {show("change") && (
-            <div style={{ marginBottom: "1.5rem" }}>
-              <ChangeOverTimeCard history={history} current={dashboard.totalNetWorth} currency={currency} />
-            </div>
-          )}
+            {show("change") && (
+              <div className="dash-cell">
+                <ChangeOverTimeCard history={history} current={dashboard.totalNetWorth} currency={currency} />
+              </div>
+            )}
 
-          {show("savings") && (
-            <div style={{ marginBottom: "1.5rem" }}>
-              <SavingsRateCard currency={currency} householdId={currentHouseholdId} />
-            </div>
-          )}
+            {show("savings") && (
+              <div className="dash-cell">
+                <SavingsRateCard currency={currency} householdId={currentHouseholdId} />
+              </div>
+            )}
 
-          {show("projection") && (
-            <div style={{ marginBottom: "1.5rem" }}>
-              <ProjectionCard currentNetWorth={dashboard.totalNetWorth} currency={currency} householdId={currentHouseholdId} />
-            </div>
-          )}
+            {show("projection") && (
+              <div className="dash-cell">
+                <ProjectionCard currentNetWorth={dashboard.totalNetWorth} currency={currency} householdId={currentHouseholdId} />
+              </div>
+            )}
 
-          {show("health") && (
-            <div style={{ marginBottom: "1.5rem" }}>
-              <ErrorBoundary mode="section" fallbackMessage="Couldn't load the money health score.">
-                <MoneyHealthCard dashboard={dashboard} holdings={holdings} currency={currency} householdId={currentHouseholdId} />
-              </ErrorBoundary>
-            </div>
-          )}
+            {show("health") && (
+              <div className="dash-cell">
+                <ErrorBoundary mode="section" fallbackMessage="Couldn't load the money health score.">
+                  <MoneyHealthCard dashboard={dashboard} holdings={holdings} currency={currency} householdId={currentHouseholdId} />
+                </ErrorBoundary>
+              </div>
+            )}
+          </div>
 
           {show("stress") && (
             <div style={{ marginBottom: "1.5rem" }}>

@@ -239,6 +239,12 @@ export async function fetchMonthlyFlow({ householdId, currency = "USD", months =
   return mapMonthlyFlow(data);
 }
 
+/** Newest stored market price date, used to tell people how current their numbers are. */
+export async function fetchPriceCacheStatus(): Promise<{ newestPriceDate: string | null }> {
+  const d = await api.get("/price-cache-status");
+  return { newestPriceDate: d?.price_history?.newest_price_date ?? null };
+}
+
 export async function fetchExchangeRates(base: string = "USD") {
   return api.get(`/exchange-rates?base=${base}`);
 }
