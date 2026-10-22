@@ -74,3 +74,18 @@ test("exiting the demo returns to the login page and clears demo mode", async ({
   await page.goto("/");
   await expect(page).toHaveURL(/\/login/);
 });
+
+test("Hide amounts masks every money amount on the Dashboard and Show amounts brings them back", async ({ page }) => {
+  await startDemo(page);
+  const netWorthCard = page.locator("body");
+  await expect(netWorthCard).toContainText(/\$\d/); // real amounts are visible first
+  await page.getByRole("button", { name: "Hide amounts" }).first().click();
+  await expect(page.getByRole("button", { name: "Show amounts" }).first()).toBeVisible();
+  await page.waitForTimeout(600); // the animated net worth number settles
+  // A goal named "Reach $100K" is the user's own text, not a formatted amount.
+  const text = (await page.locator(".page-content").innerText()).replace("Reach $100K", "");
+  expect(text).toContain("••••");
+  expect(text).not.toMatch(/\$\d/); // no dollar figure is left on the page
+  await page.getByRole("button", { name: "Show amounts" }).first().click();
+  await expect(netWorthCard).toContainText(/\$\d/);
+});

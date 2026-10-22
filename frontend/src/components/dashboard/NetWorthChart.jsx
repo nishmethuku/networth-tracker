@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
 import EmptyState from "../EmptyState";
+import { isPrivacyOn } from "../../utils/privacy";
 import { formatCurrencyCompact, safeNumber } from "../../utils/formatters";
 
 const RANGES = [
@@ -21,6 +22,7 @@ function getStoredRangeIdx() {
 }
 
 function formatYAxis(value, currency) {
+  if (isPrivacyOn()) return "";
   const num = Math.round(safeNumber(value));
   const abs = Math.abs(num);
   const symbol = currency === "INR" ? "₹" : currency === "AUD" ? "A$" : "$";
