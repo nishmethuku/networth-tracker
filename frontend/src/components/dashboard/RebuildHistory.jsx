@@ -36,6 +36,9 @@ export function describeRebuild(result) {
       return "Every month since your first purchase already has a point on the chart.";
     case "preview": {
       const count = result.months?.length ?? 0;
+      if (count === 0 && result.more_to_do) {
+        return "Still collecting past prices, which can take a minute the first time. Press Rebuild history again to continue.";
+      }
       if (count === 0) {
         return "No past month could be priced right now, so nothing was found to add.";
       }
