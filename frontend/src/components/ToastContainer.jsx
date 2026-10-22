@@ -41,6 +41,27 @@ function ToastItem({ toast, onDismiss }) {
       }}
     >
       <span style={{ flex: 1 }}>{toast.message}</span>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action.onClick();
+            onDismiss(toast.id);
+          }}
+          style={{
+            background: "rgba(255,255,255,0.2)",
+            border: "1px solid rgba(255,255,255,0.6)",
+            color: "var(--text-inverse)",
+            borderRadius: "var(--radius-sm)",
+            padding: "0.25rem 0.6rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontSize: "0.8125rem",
+          }}
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         aria-label="Dismiss notification"
         onClick={() => onDismiss(toast.id)}

@@ -1,5 +1,15 @@
 # Changelog
 
+## Offline saving, undo, limits, currency, CSV (branch `feature/expense-offline-undo`)
+
+- **No signal? No problem.** If an expense cannot reach the server because you are offline, it is saved on your phone or computer and sent automatically when the connection returns (you get a "Synced" message). Timeouts and server errors are not saved this way, so nothing can be logged twice.
+- **Undo delete:** deleting an expense shows an Undo button for a few seconds.
+- **Limit warnings:** after you add an expense, you get a heads-up if that category (or its parent) is at 80 percent or more of its monthly limit.
+- **Currency** can be changed right in the quick add form.
+- **Download CSV** on the Expenses page saves the month's entries as a spreadsheet file.
+
+---
+
 ## Faster expenses (branch `feature/expense-speed`)
 
 - **Edit** any expense on the Expenses page (amount, category, note, date). Changing the amount does not change the balance of the account or card it was paid from, and the form says so.
