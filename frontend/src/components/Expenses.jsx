@@ -10,6 +10,8 @@ import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, ApiError } from "../api";
 import EditEntryModal from "./budget/EditEntryModal";
+import ExpenseInsights from "./budget/ExpenseInsights";
+import { isNonSpendingCategory } from "../utils/nonSpending";
 import { filterEntries } from "../utils/filterEntries";
 import { entriesToCsv } from "../utils/entriesCsv";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
@@ -222,6 +224,8 @@ export default function Expenses() {
         )}
       </p>
 
+      <ExpenseInsights currency={currency} householdId={currentHouseholdId} month={month} spent={totals.expenses} />
+
       {(entries || []).length > 0 && (
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
           <button
@@ -300,6 +304,11 @@ export default function Expenses() {
                   <div style={{ fontWeight: 500, color: "var(--text)", fontSize: "0.9375rem", minWidth: 0 }}>
                     {getBudgetCategoryLabel(e.category)}
                     {e.description ? <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}> — {e.description}</span> : null}
+                    {e.entryType === "expense" && isNonSpendingCategory(e.category) && (
+                      <span style={{ display: "block", color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 400 }}>
+                        Card payment, not counted as spending
+                      </span>
+                    )}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
                     <span

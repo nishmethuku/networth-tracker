@@ -1,5 +1,14 @@
 # Changelog
 
+## Spending pace, limits and bills due (branch `feature/expense-insights`)
+
+- Under the month's total on the Expenses page: "About $X a day. On pace for $Y this month (down 12% from last month)."
+- Your monthly limits show as progress bars right there, turning red when you pass one.
+- A "Due to log" card lists recurring expenses (rent, subscriptions) that have come around again, each with a "Log it" button that adds it for today.
+- Card bill payments (the "CC-payment" category) are no longer counted in the Expenses page total, so it matches Budget. They still show in the list, marked "Card payment, not counted as spending".
+
+---
+
 ## Offline saving, undo, limits, currency, CSV (branch `feature/expense-offline-undo`)
 
 - **No signal? No problem.** If an expense cannot reach the server because you are offline, it is saved on your phone or computer and sent automatically when the connection returns (you get a "Synced" message). Timeouts and server errors are not saved this way, so nothing can be logged twice.
