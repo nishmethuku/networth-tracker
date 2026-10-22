@@ -1,5 +1,11 @@
 # Changelog
 
+## Plan for exact money columns (branch `docs/money-columns-plan`)
+
+- Added `docs/money-columns-plan.md`: a proposal (no code change) for moving money columns from Float to NUMERIC, in two phases, with the column list, migration steps, tests and rollback.
+
+---
+
 ## Smarter default account (branch `fix/account-naming`)
 
 - Adding a holding with the Account field left blank no longer creates a stray "Account 1". It goes into the account you already use most, or "Main account" if you have none yet. The field now says which one it will use.
