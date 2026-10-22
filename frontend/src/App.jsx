@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import OfflineIndicator from "./components/OfflineIndicator";
 import UpdateBanner from "./components/UpdateBanner";
+import { prefetchRoute } from "./routePrefetch";
 import RouteAnnouncer from "./components/RouteAnnouncer";
 import ToastContainer from "./components/ToastContainer";
 import ShortcutsHelp from "./components/ShortcutsHelp";
@@ -51,6 +52,8 @@ function NavLink({ to, children, highlight }) {
   return (
     <Link
       to={to}
+      onPointerEnter={() => prefetchRoute(to)}
+      onFocus={() => prefetchRoute(to)}
       style={
         highlight
           ? {

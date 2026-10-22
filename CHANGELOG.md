@@ -1,5 +1,15 @@
 # Changelog
 
+## Quick page search, goal targets, year by year, faster menus (branch `feature/big-batch-5`)
+
+- Ctrl/Cmd+K now jumps to any page by name or keyword ("budget", "mortgage", "backup") with arrow keys and Enter, and works without any AI. Longer questions still go to the AI search through an "Ask AI" row.
+- Goals with a target date now show about how much to add each month to hit it on time (assuming 5% growth).
+- Insights has a "Year by year" table: net worth at the end of each year and the change.
+- Menu links start loading their page when you hover or focus them, so pages open faster.
+- Settings Data checks shows the date of your last backup from this browser.
+
+---
+
 ## What moved, bills, freshness, backups, headers (branch `feature/big-batch-4`)
 
 - Dashboard: "What moved your net worth" (30-day change by asset type and debt, with bars) and "Coming up" (recurring bills due in the next 14 days, from the Budget page). Both can be hidden with Customize.

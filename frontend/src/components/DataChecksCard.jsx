@@ -5,6 +5,8 @@ import Card from "./Card";
 import { fetchHoldings } from "../api";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { dataChecks } from "../utils/dataChecks";
+import { readLastBackup } from "../utils/backupReminder";
+import { formatDateISO } from "../utils/formatters";
 
 /** Settings: a quick health check of the holdings list. */
 export default function DataChecksCard() {
@@ -28,6 +30,8 @@ export default function DataChecksCard() {
       ),
     [holdings],
   );
+
+  const lastBackup = readLastBackup();
 
   if (isLoading) return null;
 
@@ -56,6 +60,9 @@ export default function DataChecksCard() {
           ))}
         </ul>
       )}
+      <p style={{ margin: "0.75rem 0 0", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+        Last backup from this browser: {lastBackup ? formatDateISO(lastBackup) : "none yet"}.
+      </p>
     </Card>
   );
 }
