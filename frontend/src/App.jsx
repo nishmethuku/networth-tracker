@@ -41,6 +41,7 @@ const Accounts = lazy(() => import("./components/Accounts"));
 import Login from "./components/Login";
 import ResetPassword from "./components/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
+import YearInReview from "./components/YearInReview";
 import ErrorBoundary from "./components/ErrorBoundary";
 import CopilotChat from "./components/ai/CopilotChat";
 import CommandSearch from "./components/ai/CommandSearch";
@@ -321,6 +322,7 @@ function AppShell() {
               { to: "/allocation-advisor", label: t("nav.allocationAdvisor") },
               { to: "/income", label: t("nav.income") },
               { to: "/what-if", label: t("nav.whatIf") },
+              { to: "/review", label: t("nav.review") },
               { to: "/household", label: t("nav.household") },
               { to: "/accounts", label: t("nav.accounts") },
             ]}
@@ -392,6 +394,7 @@ function AppShell() {
               <Route path="what-if" element={<WhatIf />} />
               <Route path="income" element={<Income />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="review" element={<YearInReview />} />
               <Route path="household" element={<Household />} />
               <Route path="accounts" element={<Accounts />} />
               <Route path="*" element={<Navigate to="/" replace />} />

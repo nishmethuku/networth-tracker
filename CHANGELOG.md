@@ -1,5 +1,14 @@
 # Changelog
 
+## Year in Review, install button, app shortcuts (branch `feature/big-batch-1`)
+
+- New Year in Review page (More menu, `/review`): net worth start and end for a calendar year, best and toughest month, biggest gain and largest holding (current year), dividends received and milestones crossed. A year picker appears once history spans more than one year. A link to it sits under the Dashboard change card.
+- Settings has an Install card that offers one-tap install where the browser allows it, with a Safari "Add to Home Screen" hint on iPhone and iPad. It hides itself once the app is installed.
+- The app manifest now declares an id, scope, categories and long-press shortcuts (Add holding, Budget, Year in Review).
+- The accessibility scan now includes the new page.
+
+---
+
 ## Honest change windows (branch `fix/change-card-honest-windows`)
 
 - The "How you are doing" card hides a window (such as "This week") when the nearest saved snapshot is much older than the window, so it never shows a monthly change under a weekly label.

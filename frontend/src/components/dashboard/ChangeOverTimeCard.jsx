@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import Card from "../Card";
 import { netWorthChange } from "../../utils/netWorthChange";
 import { formatCurrencyCompact, todayISO } from "../../utils/formatters";
@@ -46,6 +47,11 @@ export default function ChangeOverTimeCard({ history, current, currency }) {
             </div>
           );
         })}
+      </div>
+      <div style={{ marginTop: "1rem", fontSize: "0.875rem" }}>
+        <Link to="/review" style={{ color: "var(--text)", fontWeight: 600, textDecoration: "underline" }}>
+          See your year in review →
+        </Link>
       </div>
     </Card>
   );
