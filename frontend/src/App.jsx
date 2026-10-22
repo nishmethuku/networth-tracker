@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } f
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import OfflineIndicator from "./components/OfflineIndicator";
+import UpdateBanner from "./components/UpdateBanner";
 import ToastContainer from "./components/ToastContainer";
 import ShortcutsHelp from "./components/ShortcutsHelp";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
@@ -270,6 +271,7 @@ function AppShell() {
         </div>
       )}
       <ToastContainer />
+      <UpdateBanner />
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       <MobileMenu />
       <MilestoneCelebration />
