@@ -10,11 +10,17 @@ const WINDOWS = [
   { days: 365, label: "This year" },
 ];
 
-/** Net worth change over several windows. A window shows only once a saved snapshot is old enough. */
+function daysBetween(from, to) {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+}
+
+/** Net worth change over several windows. A window shows only when a saved snapshot lies close to its start, so a week is never measured from a monthly point. */
 export default function ChangeOverTimeCard({ history, current, currency }) {
   const rows = useMemo(() => {
     const today = todayISO();
-    return WINDOWS.map((w) => ({ ...w, change: netWorthChange(history, current, w.days, today) })).filter((r) => r.change);
+    return WINDOWS.map((w) => ({ ...w, change: netWorthChange(history, current, w.days, today) })).filter(
+      (r) => r.change && daysBetween(r.change.fromDate, today) <= r.days * 1.5 + 3,
+    );
   }, [history, current]);
 
   if (rows.length === 0) return null;

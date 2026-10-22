@@ -1,5 +1,11 @@
 # Changelog
 
+## Honest change windows (branch `fix/change-card-honest-windows`)
+
+- The "How you are doing" card hides a window (such as "This week") when the nearest saved snapshot is much older than the window, so it never shows a monthly change under a weekly label.
+
+---
+
 ## Change over time card (branch `feature/weekly-summary`)
 
 - New "How you are doing" card on the Dashboard shows how net worth changed this week, this month, over 3 months and this year. A window appears only once a saved snapshot is old enough to measure it.
