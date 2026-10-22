@@ -1,3 +1,5 @@
+import { isNonSpendingCategory } from "./nonSpending";
+
 export interface EntryLike {
   id: number | string;
   entryDate: string; // YYYY-MM-DD
@@ -40,7 +42,9 @@ export function groupByDay<T extends EntryLike>(entries: T[] | null | undefined,
     .map(([date, list]) => ({
       date,
       entries: [...list].sort((a, b) => Number(b.id) - Number(a.id)),
-      expenseTotal: list.filter((e) => e.entryType === "expense" && e.currency === currency).reduce((s, e) => s + e.amount, 0),
+      expenseTotal: list
+        .filter((e) => e.entryType === "expense" && e.currency === currency && !isNonSpendingCategory(e.category))
+        .reduce((s, e) => s + e.amount, 0),
     }));
 }
 
@@ -51,7 +55,7 @@ export function monthTotals(entries: EntryLike[] | null | undefined, month: stri
   for (const e of entries ?? []) {
     if (monthOf(e.entryDate) !== month || e.currency !== currency) continue;
     if (e.entryType === "income") income += e.amount;
-    else if (e.entryType === "expense") expenses += e.amount;
+    else if (e.entryType === "expense" && !isNonSpendingCategory(e.category)) expenses += e.amount;
   }
   return { income, expenses };
 }
