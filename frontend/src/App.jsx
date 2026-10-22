@@ -10,6 +10,8 @@ import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useAuth } from "./contexts/AuthContext";
 import { useHousehold } from "./contexts/HouseholdContext";
 import ThemeToggle from "./components/ThemeToggle";
+import PrivacyToggle from "./components/PrivacyToggle";
+import { usePrivacy } from "./utils/privacy";
 import MobileMenu from "./components/MobileMenu";
 import LoadingState from "./components/LoadingState";
 import MilestoneCelebration from "./components/MilestoneCelebration";
@@ -233,6 +235,7 @@ function MobileBottomNav() {
 }
 
 function AppShell() {
+  const privacy = usePrivacy();
   const { user, signOut, isDemo } = useAuth();
   const { currentHousehold } = useHousehold();
   const { t } = useTranslation();
@@ -347,6 +350,7 @@ function AppShell() {
           <Link to="/settings" aria-label="Settings" style={{ color: "var(--text-secondary)", fontSize: "1.125rem", lineHeight: 1 }}>
             ⚙️
           </Link>
+          <PrivacyToggle />
           <ThemeToggle />
           <button
             onClick={signOut}
@@ -370,7 +374,7 @@ function AppShell() {
       <div className="page-content" style={{ padding: "0 2rem 2rem" }}>
         <ErrorBoundary>
           <Suspense fallback={<LoadingState message="Loading..." />}>
-            <Routes>
+            <Routes key={privacy ? "private" : "visible"}>
               <Route index element={<Dashboard />} />
               <Route path="portfolio" element={<Portfolio />} />
               <Route path="portfolio/:id" element={<HoldingDetail />} />

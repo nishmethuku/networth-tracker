@@ -1,5 +1,11 @@
 # Changelog
 
+## Hide amounts (privacy mode) (branch `feature/privacy-mode`)
+
+- New "Hide amounts" button in the top bar (and the phone menu). It replaces every money amount with $•••• and hides the chart's dollar axis, so you can show the app to someone without showing your numbers. Percentages and names stay visible. The choice is remembered on this device. It is a screen-sharing convenience, not a security lock.
+
+---
+
 ## Plan for exact money columns (branch `docs/money-columns-plan`)
 
 - Added `docs/money-columns-plan.md`: a proposal (no code change) for moving money columns from Float to NUMERIC, in two phases, with the column list, migration steps, tests and rollback.

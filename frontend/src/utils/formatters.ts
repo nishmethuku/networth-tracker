@@ -1,3 +1,5 @@
+import { isPrivacyOn, MASK } from "./privacy";
+
 /**
  * Utility functions for formatting numbers, currencies, and percentages.
  * Currency *conversion* lives in contexts/RatesContext.jsx (live FX rates) —
@@ -68,6 +70,7 @@ export function formatCurrencyForDisplay(
   // alwaysCents is for everyday amounts (budget entries, subscriptions)
   // where the cents matter: $42.50 must not read as "$43".
   const { includeCode = true, alwaysCents = false } = options;
+  if (isPrivacyOn()) return `${CURRENCY_SYMBOLS[currency] || "$"}${MASK}`;
   const raw = safeNumber(value);
   const abs = Math.abs(raw);
   const keepCents = alwaysCents || (abs > 0 && abs < SMALL_AMOUNT_THRESHOLD);
@@ -86,6 +89,7 @@ export function formatCurrencyForDisplay(
  * Examples: $24,000 USD, $24K USD, $2.4M USD, ₹240K INR
  */
 export function formatCurrencyCompact(value: unknown, currency: string = "USD"): string {
+  if (isPrivacyOn()) return `${CURRENCY_SYMBOLS[currency] || "$"}${MASK}`;
   const num = Math.round(safeNumber(value));
   const symbol = CURRENCY_SYMBOLS[currency] || "$";
   const absNum = Math.abs(num);

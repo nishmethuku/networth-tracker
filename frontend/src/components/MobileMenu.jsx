@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
+import PrivacyToggle from "./PrivacyToggle";
 
 // Everything not already reachable from the 5-item bottom tab bar (Home,
 // Portfolio, Add, Transactions, Budget) — including Settings and Sign Out,
@@ -148,6 +149,7 @@ export default function MobileMenu() {
               <div
                 style={{ padding: "1rem", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "0.75rem" }}
               >
+                <PrivacyToggle />
                 <ThemeToggle />
                 <button
                   onClick={() => {
