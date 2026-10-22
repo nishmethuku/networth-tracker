@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Card from "../Card";
+import InfoTip from "../InfoTip";
 import { fetchEmergencyFund } from "../../api";
 import { computeMoneyHealth } from "../../utils/moneyHealth";
 
@@ -34,7 +35,15 @@ export default function MoneyHealthCard({ dashboard, holdings, currency, househo
   if (result.score == null) return null;
 
   return (
-    <Card title="Money Health" subtitle="A quick check on four rules of thumb. A nudge, not financial advice.">
+    <Card
+      title={
+        <>
+          Money Health
+          <InfoTip term="moneyHealth" />
+        </>
+      }
+      subtitle="A quick check on four rules of thumb. A nudge, not financial advice."
+    >
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginTop: "0.5rem", marginBottom: "1rem" }}>
         <span style={{ fontSize: "2.25rem", fontWeight: 700, fontFamily: "var(--font-mono)", color: barColor(result.score) }}>
           {result.score}

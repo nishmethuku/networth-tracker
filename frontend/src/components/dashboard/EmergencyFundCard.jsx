@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import Card from "../Card";
+import InfoTip from "../InfoTip";
 import { fetchEmergencyFund } from "../../api";
 import { formatCurrencyCompact } from "../../utils/formatters";
 
@@ -19,7 +20,12 @@ export default function EmergencyFundCard({ currency, householdId }) {
 
   return (
     <Card
-      title="Emergency Fund"
+      title={
+        <>
+          Emergency Fund
+          <InfoTip term="emergencyFund" />
+        </>
+      }
       subtitle={`Liquid cash vs. your average monthly spend — a ${data.recommendedMonths}-month cushion is the common rule of thumb`}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginTop: "0.5rem", marginBottom: "0.75rem" }}>

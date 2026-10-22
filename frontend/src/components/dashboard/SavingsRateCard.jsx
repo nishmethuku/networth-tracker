@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import Card from "../Card";
+import InfoTip from "../InfoTip";
 import { fetchBudgetSummary } from "../../api";
 import { savingsRate } from "../../utils/savingsRate";
 import { formatCurrencyCompact } from "../../utils/formatters";
@@ -25,7 +26,12 @@ export default function SavingsRateCard({ currency, householdId }) {
 
   return (
     <Card
-      title="Savings rate"
+      title={
+        <>
+          Savings rate
+          <InfoTip term="savingsRate" />
+        </>
+      }
       subtitle={`Share of income you kept over the last ${result.monthsUsed} month${result.monthsUsed === 1 ? "" : "s"}`}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap" }}>

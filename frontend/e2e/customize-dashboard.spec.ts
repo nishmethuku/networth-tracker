@@ -7,12 +7,13 @@ test("hiding a Dashboard card sticks across reloads and can be undone", async ({
   await expect(page.getByText(/demo mode/i).first()).toBeVisible();
   await page.goto("/");
 
-  const stress = page.getByText("Stress test", { exact: true }).first();
+  const stress = page.getByText("Stress test").first();
   await expect(stress).toBeVisible();
+  await expect(page.getByText("Drag a slider to see what a sharp drop")).toBeVisible();
 
   await page.getByRole("button", { name: "Customize" }).click();
   await page.getByRole("checkbox", { name: "Stress test" }).uncheck();
-  await expect(page.getByRole("heading", { name: "Stress test" })).toHaveCount(0);
+  await expect(page.getByText("Drag a slider to see what a sharp drop")).toHaveCount(0);
 
   await page.reload();
   await page.getByRole("button", { name: "Customize" }).click();
