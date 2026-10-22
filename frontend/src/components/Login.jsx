@@ -1,3 +1,4 @@
+import { enterDemoMode } from "../lib/demoMode";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -294,6 +295,27 @@ export default function Login() {
 
             {mode !== "reset" && (
               <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    enterDemoMode();
+                    window.location.assign("/");
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "0.875rem 1rem",
+                    borderRadius: "var(--radius)",
+                    border: "1px dashed var(--primary)",
+                    background: "transparent",
+                    color: "var(--primary)",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: "0.9375rem",
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  Try the demo (sample data, no sign-up)
+                </button>
                 <button
                   type="button"
                   onClick={handleGoogle}

@@ -133,6 +133,53 @@ def render_digest_email(digest: dict, narrative: str = None, unsubscribe_token: 
     """
 
 
+def render_monthly_email(report: dict, name: str = None, unsubscribe_token: str = None) -> str:
+    """Monthly report email. Every user-entered string (holding names) is
+    escaped before it lands in the HTML."""
+    esc = html_lib.escape
+    change = report.get("change")
+    pct = report.get("change_pct")
+    if change is None:
+        change_text = "—"
+    else:
+        sign = "+" if change >= 0 else "-"
+        change_text = f"{sign}${abs(change):,.2f}" + (f" ({sign}{abs(pct):.1f}%)" if pct is not None else "")
+
+    holdings_html = "".join(
+        f'<li>{esc(str(h["name"]))}: ${h["value"]:,.2f} ({h["pct"]:.0f}% of assets)</li>' for h in report.get("top_holdings", [])
+    )
+    conc = report.get("concentration")
+    conc_html = (
+        f'<p style="margin-top:16px;padding:12px 16px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;'
+        f'font-size:13px;color:#92400e;">{esc(str(conc["name"]))} is {conc["pct"]:.0f}% of your assets. '
+        f"That is a lot in one place, so it may be worth a look.</p>"
+        if conc
+        else ""
+    )
+    greeting = f"Hi {esc(name)}, here" if name else "Here"
+    unsubscribe_html = ""
+    if unsubscribe_token and BACKEND_URL:
+        url = f"{BACKEND_URL}/internal/unsubscribe?token={unsubscribe_token}"
+        unsubscribe_html = (
+            f'<p style="margin-top:24px;font-size:12px;color:#94a3b8;">'
+            f'<a href="{url}" style="color:#94a3b8;">Unsubscribe from these emails</a></p>'
+        )
+    return f"""
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
+      <h2 style="color:#0f172a;">Your {esc(report.get("month_label", "Monthly"))} Report</h2>
+      <p style="color:#334155;line-height:1.6;">{greeting} is how your month went.</p>
+      <div>
+        {_card("Net Worth", f'${report.get("net_worth", 0):,.2f}')}
+        {_card("Change This Month", change_text)}
+        {_card("Dividends and Interest", f'${report.get("income", 0):,.2f}')}
+      </div>
+      {f'<h3 style="color:#0f172a;">Biggest Positions</h3><ul>{holdings_html}</ul>' if holdings_html else ""}
+      {conc_html}
+      {unsubscribe_html}
+    </div>
+    """
+
+
 def render_alert_email(alert: dict, current_value: float) -> str:
     label = html_lib.escape(alert["symbol"]) if alert.get("symbol") else "Net Worth"
     return f"""

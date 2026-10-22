@@ -4,6 +4,7 @@
 
 import api, { uploadWithColdStartRetry, AI_TIMEOUT, BULK_IMPORT_TIMEOUT, ApiError } from "./client";
 import { supabase } from "../lib/supabaseClient";
+import { isDemoMode, DEMO_READ_ONLY_MESSAGE } from "../lib/demoMode";
 import {
   mapHolding,
   mapTransaction,
@@ -305,6 +306,38 @@ export async function fetchTaxSummary(householdId: string | null = null, costBas
   return mapTaxSummary(data);
 }
 
+export interface IncomeSummary {
+  total: number;
+  last12Months: number;
+  yieldPct: number | null;
+  byYear: { year: number; amount: number }[];
+  byMonth: { month: string; amount: number }[];
+  byHolding: { holdingId: number; name: string; symbol: string | null; total: number; last12Months: number }[];
+  count: number;
+}
+
+/** Dividend and interest income, grouped by year, month and holding. */
+export async function fetchIncomeSummary(currency: string = "USD", householdId: string | null = null): Promise<IncomeSummary> {
+  const params = new URLSearchParams({ currency });
+  if (householdId) params.append("household_id", householdId);
+  const d = await api.get(`/income-summary?${params.toString()}`);
+  return {
+    total: d?.total ?? 0,
+    last12Months: d?.last_12_months ?? 0,
+    yieldPct: d?.yield_pct ?? null,
+    byYear: d?.by_year ?? [],
+    byMonth: d?.by_month ?? [],
+    byHolding: (d?.by_holding ?? []).map((r: any) => ({
+      holdingId: r.holding_id,
+      name: r.name,
+      symbol: r.symbol ?? null,
+      total: r.total,
+      last12Months: r.last_12_months,
+    })),
+    count: d?.count ?? 0,
+  };
+}
+
 /**
  * Benchmark comparison
  */
@@ -384,6 +417,7 @@ export interface StreamAiChatArgs {
  * and parses the backend's SSE-formatted `data: {...}\n\n` frames by hand.
  */
 export async function* streamAiChat({ messages, householdId, currency = "USD" }: StreamAiChatArgs, signal?: AbortSignal) {
+  if (isDemoMode()) throw new ApiError("The AI assistant is turned off in the demo. Sign up to try it on your own data.", 403);
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
 
@@ -564,6 +598,7 @@ export async function fetchAccountExport() {
  * request() helper since this needs to return a Blob, not parsed JSON.
  */
 export async function fetchAccountExportCsvZip(): Promise<Blob> {
+  if (isDemoMode()) throw new ApiError(DEMO_READ_ONLY_MESSAGE, 403);
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
   const response = await fetch(`${API_BASE_URL}/account/export.zip`, {

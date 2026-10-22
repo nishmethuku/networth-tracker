@@ -27,6 +27,7 @@ const Alerts = lazy(() => import("./components/Alerts"));
 const TaxSummary = lazy(() => import("./components/TaxSummary"));
 const AllocationAdvisor = lazy(() => import("./components/ai/AllocationAdvisor"));
 const WhatIf = lazy(() => import("./components/WhatIf"));
+const Income = lazy(() => import("./components/Income"));
 const Settings = lazy(() => import("./components/Settings"));
 const Budget = lazy(() => import("./components/Budget"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
@@ -231,7 +232,7 @@ function MobileBottomNav() {
 }
 
 function AppShell() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isDemo } = useAuth();
   const { currentHousehold } = useHousehold();
   const { t } = useTranslation();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -240,6 +241,34 @@ function AppShell() {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", transition: "background-color 0.2s ease" }}>
       <OfflineIndicator />
+      {isDemo && (
+        <div
+          role="status"
+          style={{
+            background: "var(--primary)",
+            color: "#fff",
+            padding: "0.5rem 1rem",
+            textAlign: "center",
+            fontSize: "0.875rem",
+          }}
+        >
+          Demo mode: everything here is sample data and nothing is saved.{" "}
+          <button
+            type="button"
+            onClick={signOut}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#fff",
+              textDecoration: "underline",
+              cursor: "pointer",
+              fontSize: "inherit",
+            }}
+          >
+            Exit demo
+          </button>
+        </div>
+      )}
       <ToastContainer />
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       <MobileMenu />
@@ -285,6 +314,7 @@ function AppShell() {
               { to: "/tax-summary", label: t("nav.taxSummary") },
               { to: "/insights", label: t("nav.insights") },
               { to: "/allocation-advisor", label: t("nav.allocationAdvisor") },
+              { to: "/income", label: t("nav.income") },
               { to: "/what-if", label: t("nav.whatIf") },
               { to: "/household", label: t("nav.household") },
               { to: "/accounts", label: t("nav.accounts") },
@@ -354,6 +384,7 @@ function AppShell() {
               <Route path="insights" element={<Insights />} />
               <Route path="allocation-advisor" element={<AllocationAdvisor />} />
               <Route path="what-if" element={<WhatIf />} />
+              <Route path="income" element={<Income />} />
               <Route path="settings" element={<Settings />} />
               <Route path="household" element={<Household />} />
               <Route path="accounts" element={<Accounts />} />
