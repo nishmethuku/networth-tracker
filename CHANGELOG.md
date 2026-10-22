@@ -1,5 +1,11 @@
 # Changelog
 
+## Faster Indian stock prices (branch `fix/india-prices`)
+
+- Indian (.NS) stock prices now ask Yahoo first. NSE's own site blocks the hosting provider, so the three NSE sources used to spend seconds failing (and flood the logs with warnings) before Yahoo was tried. They remain as fallbacks. This also makes the dashboard and Rebuild history faster for anyone holding Indian stocks.
+
+---
+
 ## Rebuild history button (branch `feature/rebuild-history`)
 
 - New "Rebuild history" button under the Dashboard net worth chart (shown while the chart has fewer than 3 points). It previews the past months it can fill in from your purchases and historical prices, then saves only after you confirm. Existing points are never overwritten, and months it cannot price are skipped.

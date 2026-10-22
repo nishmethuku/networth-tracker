@@ -413,10 +413,9 @@ def get_current_stock_price(ticker: str, asset_type: str = None):
     Get current stock price or mutual fund NAV with optimized fallback chain and caching.
     
     For Indian NSE stocks (.NS, .NSE):
-    1. nselib (compatible with new NSE website, most reliable)
-    2. nsepython (supports live data)
-    3. NSEpy (historical data)
-    4. Finnhub (if FINNHUB_API_KEY is set)
+    1. Yahoo Finance (works from the hosting provider)
+    2. nselib, 3. nsepython, 4. NSEpy (NSE blocks datacenters, fallbacks only)
+    5. Finnhub (if FINNHUB_API_KEY is set)
     
     For Indian Mutual Funds (AMFI scheme codes):
     1. mftool (AMFI NAV data)
@@ -471,31 +470,33 @@ def _fetch_price_with_fallbacks(ticker: str, asset_type: str = None):
     # Check if this is an Indian NSE stock (ends with .NS or .NSE)
     is_nse_stock = ticker.endswith(".NS") or ticker.endswith(".NSE")
     
-    # For NSE stocks, try multiple NSE libraries in order
+    # For NSE stocks, Yahoo goes first: it is the one source that works from
+    # the hosting provider. NSE's own site blocks datacenter addresses, so
+    # the three NSE libraries below each spend seconds failing (and log
+    # warnings) before they give up. They stay as fallbacks in case Yahoo
+    # ever changes.
     if is_nse_stock:
-        # 1) Try nselib first (most compatible with new NSE website)
-        price = _get_price_from_nselib(ticker)
-        if price:
-            return price
-        
-        # 2) Try nsepython (supports live data)
-        price = _get_price_from_nsepython(ticker)
-        if price:
-            return price
-        
-        # 3) Try NSEpy (historical data)
-        price = _get_price_from_nsepy(ticker)
-        if price:
-            return price
-        
-        # 4) Fallback to Finnhub for NSE stocks
-        price = _get_price_from_finnhub(ticker, asset_type)
+        price = _get_price_from_yahoo(ticker)
         if price:
             return price
 
-        # 5) Fallback to Yahoo Finance (unofficial, but currently the only
-        # source that reliably works for NSE stocks — see _get_price_from_yahoo)
-        price = _get_price_from_yahoo(ticker)
+        # 2) nselib (compatible with the new NSE website)
+        price = _get_price_from_nselib(ticker)
+        if price:
+            return price
+
+        # 3) nsepython (supports live data)
+        price = _get_price_from_nsepython(ticker)
+        if price:
+            return price
+
+        # 4) NSEpy (historical data)
+        price = _get_price_from_nsepy(ticker)
+        if price:
+            return price
+
+        # 5) Finnhub (free tier does not cover NSE, kept for paid keys)
+        price = _get_price_from_finnhub(ticker, asset_type)
         if price:
             return price
 
