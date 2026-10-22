@@ -343,7 +343,7 @@ function PendingInvites() {
                 borderRadius: "var(--radius)",
                 border: "none",
                 background: "var(--success)",
-                color: "white",
+                color: "var(--text-inverse)",
                 cursor: "pointer",
                 fontSize: "0.8125rem",
                 fontWeight: 600,

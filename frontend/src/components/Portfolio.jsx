@@ -245,7 +245,7 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
                     style={{
                       fontSize: "0.8125rem",
                       background: "var(--danger)",
-                      color: "white",
+                      color: "var(--text-inverse)",
                       padding: "0.35rem 0.75rem",
                     }}
                   >

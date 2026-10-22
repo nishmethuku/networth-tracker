@@ -18,7 +18,7 @@
   /* Text Colors */
   --text: #241f1d;
   --text-secondary: #5c5450;
-  --text-muted: #96897e;
+  --text-muted: #6b5f55;
   --text-inverse: #ffffff;
 
   /* Primary: deep wine */
@@ -33,7 +33,7 @@
   --accent-dark: #8c6a20;
 
   /* Semantic Colors */
-  --success: #3f8f5f;
+  --success: #266a42;
   --success-light: #dff0e4;
   --danger: #b23b3b;
   --danger-light: #f6e0e0;
@@ -74,7 +74,7 @@
   /* Text Colors */
   --text: #f5efe7;
   --text-secondary: #d6c9bb;
-  --text-muted: #8e8177;
+  --text-muted: #b3a597;
   --text-inverse: #1b1715;
 
   /* Primary: lighter wine for contrast on dark */

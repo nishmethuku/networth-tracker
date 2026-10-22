@@ -505,7 +505,7 @@ function AddEntryForm({ categories, currency }) {
           Recurring (subscription, rent, bill, etc.)
         </label>
         {isRecurring && (
-          <select {...register("recurring_frequency")} style={{ ...inputStyle, width: "auto" }}>
+          <select aria-label="Repeat frequency" {...register("recurring_frequency")} style={{ ...inputStyle, width: "auto" }}>
             {RECURRING_FREQUENCIES.map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}
@@ -868,7 +868,12 @@ export default function Budget() {
       >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Budget</h1>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
+          <select
+            aria-label="Display currency"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            style={{ ...inputStyle, width: "auto" }}
+          >
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
                 {c}

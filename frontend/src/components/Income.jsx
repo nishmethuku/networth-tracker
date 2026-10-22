@@ -51,7 +51,7 @@ export default function Income() {
       <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.5rem" }}>Income</h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
         Dividends and interest you have received. Record one from the{" "}
-        <Link to="/transactions" style={{ color: "var(--primary)" }}>
+        <Link to="/transactions" style={{ color: "var(--primary)", textDecoration: "underline" }}>
           Transactions page
         </Link>{" "}
         by choosing Dividend or Interest.

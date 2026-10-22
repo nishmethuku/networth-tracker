@@ -39,7 +39,12 @@ export default function MonthlyNetFlow({ currency, householdId }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", maxHeight: 420, overflowY: "auto" }}>
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label="Scrollable list"
+      style={{ display: "flex", flexDirection: "column", maxHeight: 420, overflowY: "auto" }}
+    >
       {months.map((m, i) => {
         const isOpen = expanded === m.month;
         const breakdown = Object.entries(m.byAssetType || {}).sort((a, b) => b[1] - a[1]);

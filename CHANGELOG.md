@@ -1,5 +1,12 @@
 # Changelog
 
+## Accessibility pass (branch `feature/accessibility-audit`)
+
+- Added an automated accessibility scan (axe) of every page in light and dark mode to the test suite.
+- Fixed what it found: darker muted text and success green in light mode, a lighter muted text in dark mode, names for unlabeled dropdowns, underlined links inside sentences, a keyboard-focusable scroll area, and button text that follows the theme instead of fixed white.
+
+---
+
 ## Cleaner "All" chart (branch `fix/chart-leading-zeros`)
 
 - The net worth chart's "All" view skips a long flat stretch of near-zero balances at the start (balances under 1% of today's value), keeping one point before the first real one. Other ranges and the saved data are unchanged.

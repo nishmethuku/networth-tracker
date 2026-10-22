@@ -231,7 +231,7 @@ export default function GoalsCard({ currentNetWorth, displayCurrency }) {
       )}
       <p style={{ marginTop: "0.75rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
         Not sure what to aim for? Try the{" "}
-        <Link to="/what-if" style={{ color: "var(--primary)" }}>
+        <Link to="/what-if" style={{ color: "var(--primary)", textDecoration: "underline" }}>
           What-If calculator
         </Link>{" "}
         to see where you could be in 10 or 20 years and when you could reach financial independence.

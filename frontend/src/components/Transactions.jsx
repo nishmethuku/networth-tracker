@@ -203,7 +203,12 @@ export default function Transactions() {
           onChange={(e) => handleSearchChange(e.target.value)}
           style={{ ...inputStyle, minWidth: 200 }}
         />
-        <select value={filters.assetType} onChange={(e) => updateFilters({ ...filters, assetType: e.target.value })} style={inputStyle}>
+        <select
+          aria-label="Filter by asset type"
+          value={filters.assetType}
+          onChange={(e) => updateFilters({ ...filters, assetType: e.target.value })}
+          style={inputStyle}
+        >
           <option value="">All Types</option>
           {ASSET_TYPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -211,7 +216,12 @@ export default function Transactions() {
             </option>
           ))}
         </select>
-        <select value={filters.country} onChange={(e) => updateFilters({ ...filters, country: e.target.value })} style={inputStyle}>
+        <select
+          aria-label="Filter by country"
+          value={filters.country}
+          onChange={(e) => updateFilters({ ...filters, country: e.target.value })}
+          style={inputStyle}
+        >
           <option value="">All Countries</option>
           {COUNTRIES.map((c) => (
             <option key={c} value={c}>
@@ -320,7 +330,12 @@ export default function Transactions() {
                       </button>
                       <button
                         onClick={() => setDeletingTx(t)}
-                        style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "white", padding: "0.35rem 0.75rem" }}
+                        style={{
+                          fontSize: "0.8125rem",
+                          background: "var(--danger)",
+                          color: "var(--text-inverse)",
+                          padding: "0.35rem 0.75rem",
+                        }}
                       >
                         Delete
                       </button>
