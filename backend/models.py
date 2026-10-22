@@ -461,6 +461,8 @@ class BudgetCategory(db.Model):
 
     entry_type = db.Column(db.String(8), nullable=False)  # 'income' | 'expense'
     name = db.Column(db.String(64), nullable=False)
+    # Optional parent category (by name, preset or custom): one level of nesting only.
+    parent = db.Column(db.String(64), nullable=True)
 
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
@@ -471,6 +473,7 @@ class BudgetCategory(db.Model):
             "household_id": str(self.household_id) if self.household_id else None,
             "entry_type": self.entry_type,
             "name": self.name,
+            "parent": self.parent,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

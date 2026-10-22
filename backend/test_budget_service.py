@@ -197,3 +197,53 @@ def test_most_recent_entry_date_returns_none_when_nothing_logged():
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
+
+
+def test_breakdown_rows_carry_their_parent_category():
+    entries = [
+        _entry("expense", date(2026, 9, 2), 60, "cellphone"),
+        _entry("expense", date(2026, 9, 3), 100, "utilities"),
+        _entry("expense", date(2026, 9, 4), 20, "food"),
+    ]
+    result = summarize_entries(entries, months=6, currency="USD", parents={"cellphone": "utilities"})
+    rows = {r["category"]: r for r in result["category_breakdown"]}
+    assert rows["cellphone"]["parent"] == "utilities"
+    assert "parent" not in rows["utilities"]
+    assert "parent" not in rows["food"]
+
+
+class _FakeQuery:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def all(self):
+        return self.rows
+
+
+def _fake_category(name, parent=None):
+    return type("C", (), {"name": name, "parent": parent})()
+
+
+def _create(name, parent, custom_rows):
+    from unittest.mock import patch as _patch
+
+    with _patch.object(budget_service, "_custom_categories_query", return_value=_FakeQuery(custom_rows)), \
+         _patch.object(budget_service.db.session, "add"), _patch.object(budget_service.db.session, "commit"), \
+         _patch.object(budget_service.BudgetCategory, "to_dict", lambda self: {"name": self.name, "parent": self.parent}):
+        return budget_service.create_category("u1", "expense", name, parent=parent)
+
+
+def test_create_category_can_sit_inside_a_preset_or_custom_parent():
+    assert _create("Cellphone", "utilities", [])["parent"] == "utilities"
+    assert _create("Mobile data", "Cellphone", [_fake_category("Cellphone")])["parent"] == "Cellphone"
+
+
+def test_create_category_rejects_unknown_self_and_deeply_nested_parents():
+    import pytest
+
+    with pytest.raises(ValueError):
+        _create("Pets", "nope", [])
+    with pytest.raises(ValueError):
+        _create("Pets", "pets", [])
+    with pytest.raises(ValueError):
+        _create("Deep", "Cellphone", [_fake_category("Cellphone", parent="utilities")])
