@@ -9,6 +9,16 @@
 
 ---
 
+## Categories inside categories (branch `feature/category-hierarchy`)
+
+- When you add a Budget category, a new "Top level / Inside ..." choice lets you put it inside another category, for example Cellphone inside Utilities. One level deep.
+- The category list shows each subcategory right under its parent ("Utilities › Cellphone").
+- "Spending by Category" shows one row per parent with the combined total, and "own + subcategories" under it. Click the row to see each subcategory.
+- The Dashboard "Where your spending goes" card uses the parent totals.
+- Deleting a parent moves its subcategories to the top level. Existing entries are not changed.
+
+---
+
 ## Financial independence, spending categories, history download (branch `feature/big-batch-9`)
 
 - A new "Financial independence" card on the Dashboard shows about 25 times your yearly spending (from your Budget), how far along you are as a percent, and roughly how many years are left at your current saving pace and 6% growth. It has a "?" explanation and can be hidden in Customize.

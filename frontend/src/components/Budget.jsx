@@ -30,6 +30,7 @@ import {
 import { getBudgetCategoryLabel, getAssetTypeLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatDateISO, todayISO } from "../utils/formatters";
+import { groupBreakdown, orderCategoryOptions } from "../utils/categoryTree";
 
 const RECURRING_FREQUENCIES = [
   { value: "weekly", label: "Weekly" },
@@ -77,25 +78,88 @@ function MonthlyTrendChart({ months, currency }) {
   );
 }
 
+function BreakdownBar({ pct }) {
+  return (
+    <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${pct}%`, background: "var(--primary)", borderRadius: 3 }} />
+    </div>
+  );
+}
+
 function CategoryBreakdown({ breakdown, currency }) {
-  const total = breakdown.reduce((sum, c) => sum + c.amount, 0);
+  const [open, setOpen] = useState(() => new Set());
+  const groups = useMemo(() => groupBreakdown(breakdown), [breakdown]);
+  const total = groups.reduce((sum, g) => sum + g.total, 0);
   if (total === 0) return <EmptyState message="No expenses logged this month yet." />;
+  const money = (v) => formatCurrencyForDisplay(v, currency, { alwaysCents: true });
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-      {breakdown.map((c) => {
-        const pct = (c.amount / total) * 100;
+      {groups.map((g) => {
+        const pct = (g.total / total) * 100;
+        const hasKids = g.children.length > 0;
+        const expanded = open.has(g.category);
         return (
-          <div key={c.category}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem" }}>
-              <span style={{ color: "var(--text)" }}>{getBudgetCategoryLabel(c.category)}</span>
-              <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                {formatCurrencyForDisplay(c.amount, currency, { alwaysCents: true })}{" "}
-                <span style={{ color: "var(--text-muted)" }}>({Math.round(pct)}%)</span>
+          <div key={g.category}>
+            <div
+              style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.25rem", gap: "0.5rem" }}
+            >
+              {hasKids ? (
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() =>
+                    setOpen((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(g.category)) next.delete(g.category);
+                      else next.add(g.category);
+                      return next;
+                    })
+                  }
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "var(--text)",
+                    cursor: "pointer",
+                    font: "inherit",
+                    textAlign: "left",
+                  }}
+                >
+                  <span aria-hidden="true">{expanded ? "▾" : "▸"} </span>
+                  {getBudgetCategoryLabel(g.category)}
+                </button>
+              ) : (
+                <span style={{ color: "var(--text)" }}>{getBudgetCategoryLabel(g.category)}</span>
+              )}
+              <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", textAlign: "right" }}>
+                {money(g.total)} <span style={{ color: "var(--text-muted)" }}>({Math.round(pct)}%)</span>
+                {hasKids && g.own > 0 && (
+                  <span style={{ display: "block", color: "var(--text-muted)", fontSize: "0.75rem" }}>
+                    {money(g.own)} + {money(g.total - g.own)}
+                  </span>
+                )}
               </span>
             </div>
-            <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${pct}%`, background: "var(--primary)", borderRadius: 3 }} />
-            </div>
+            <BreakdownBar pct={pct} />
+            {hasKids && expanded && (
+              <ul style={{ listStyle: "none", margin: "0.5rem 0 0", padding: "0 0 0 1rem", display: "grid", gap: "0.35rem" }}>
+                {g.own > 0 && (
+                  <li style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+                    <span>{getBudgetCategoryLabel(g.category)} (itself)</span>
+                    <span style={{ fontFamily: "var(--font-mono)" }}>{money(g.own)}</span>
+                  </li>
+                )}
+                {g.children.map((c) => (
+                  <li
+                    key={c.category}
+                    style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "var(--text-secondary)" }}
+                  >
+                    <span>{getBudgetCategoryLabel(c.category)}</span>
+                    <span style={{ fontFamily: "var(--font-mono)" }}>{money(c.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         );
       })}
@@ -131,6 +195,13 @@ function AddEntryForm({ categories, currency }) {
     () => (entryType === "income" ? categories?.income || [] : categories?.expense || []),
     [entryType, categories],
   );
+  const parentMap = categories?.parents?.[entryType] || {};
+  const orderedOptions = useMemo(
+    () => orderCategoryOptions(categoryOptions, parentMap, getBudgetCategoryLabel),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [categoryOptions, categories, entryType],
+  );
+  const [newCategoryParent, setNewCategoryParent] = useState("");
 
   // Regression: defaultValues.category was captured once at mount
   // (categories?.expense?.[0]) -- if the categories query hadn't
@@ -257,12 +328,19 @@ function AddEntryForm({ categories, currency }) {
   });
 
   const createCategoryMutation = useMutation({
-    mutationFn: () => createBudgetCategory({ entry_type: entryType, name: newCategoryName.trim(), household_id: currentHouseholdId }),
+    mutationFn: () =>
+      createBudgetCategory({
+        entry_type: entryType,
+        name: newCategoryName.trim(),
+        household_id: currentHouseholdId,
+        ...(newCategoryParent ? { parent: newCategoryParent } : {}),
+      }),
     onSuccess: (category) => {
       queryClient.invalidateQueries({ queryKey: ["budget-categories"] });
       setValue("category", category.name);
       setAddingCategory(false);
       setNewCategoryName("");
+      setNewCategoryParent("");
       toast.success(`"${category.name}" category added`);
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add category"),
@@ -335,9 +413,9 @@ function AddEntryForm({ categories, currency }) {
             }}
             style={inputStyle}
           >
-            {categoryOptions.map((c) => (
-              <option key={c} value={c}>
-                {getBudgetCategoryLabel(c)}
+            {orderedOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
             <option value="__new__">+ New category…</option>
@@ -358,6 +436,21 @@ function AddEntryForm({ categories, currency }) {
                   }
                 }}
               />
+              <select
+                aria-label="Put the new category inside"
+                value={newCategoryParent}
+                onChange={(e) => setNewCategoryParent(e.target.value)}
+                style={{ ...inputStyle, flex: "0 1 9rem" }}
+              >
+                <option value="">Top level</option>
+                {orderedOptions
+                  .filter((o) => !o.parent)
+                  .map((o) => (
+                    <option key={o.value} value={o.value}>
+                      Inside {o.label}
+                    </option>
+                  ))}
+              </select>
               <button
                 type="button"
                 onClick={() => newCategoryName.trim() && createCategoryMutation.mutate()}

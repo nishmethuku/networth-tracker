@@ -60,13 +60,20 @@ def get_monthly_summary(user_id=None, household_id=None, months: int = 6, curren
     than silently mixed into the total."""
     entries = _scoped_query(user_id, household_id).order_by(BudgetEntry.entry_date.asc()).all()
     limits = get_limits(user_id=user_id, household_id=household_id)
-    result = summarize_entries(entries, months=months, currency=currency, limits=limits)
+    parents = {c.name: c.parent for c in _custom_categories_query("expense", user_id, household_id).all() if c.parent}
+    result = summarize_entries(entries, months=months, currency=currency, limits=limits, parents=parents)
     if household_id and result["latest_month"]:
         result["by_member"] = get_member_breakdown(household_id, result["latest_month"], currency=currency)
     return result
 
 
-def summarize_entries(entries: List[BudgetEntry], months: int = 6, currency: str = "USD", limits: Optional[List[Dict]] = None) -> Dict:
+def summarize_entries(
+    entries: List[BudgetEntry],
+    months: int = 6,
+    currency: str = "USD",
+    limits: Optional[List[Dict]] = None,
+    parents: Optional[Dict[str, str]] = None,
+) -> Dict:
     """Pure aggregation over an already-fetched list of entries — split out
     from get_monthly_summary so it's testable without a real database.
     `limits` (BudgetLimit.to_dict()-shaped, already currency-independent
@@ -110,8 +117,12 @@ def summarize_entries(entries: List[BudgetEntry], months: int = 6, currency: str
             if e.entry_date.strftime("%Y-%m") != latest_month or e.entry_type != "expense":
                 continue
             by_category[e.category] = by_category.get(e.category, 0.0) + e.amount
+        parents = parents or {}
         category_breakdown = sorted(
-            [{"category": k, "amount": round(v, 2)} for k, v in by_category.items()],
+            [
+                {"category": k, "amount": round(v, 2), **({"parent": parents[k]} if k in parents else {})}
+                for k, v in by_category.items()
+            ],
             key=lambda c: -c["amount"],
         )
 
@@ -246,13 +257,21 @@ def _custom_categories_query(entry_type, user_id, household_id=None):
     return query.filter_by(household_id=household_id) if household_id else query.filter_by(user_id=user_id, household_id=None)
 
 
-def list_categories(user_id, household_id=None) -> Dict[str, List[str]]:
+def list_categories(user_id, household_id=None) -> Dict:
     """The fixed presets plus any custom categories for this scope,
     in creation order after the presets -- matches how the Category
-    dropdown is built (presets first, then whatever's been added)."""
-    income_custom = [c.name for c in _custom_categories_query("income", user_id, household_id).order_by(BudgetCategory.created_at).all()]
-    expense_custom = [c.name for c in _custom_categories_query("expense", user_id, household_id).order_by(BudgetCategory.created_at).all()]
-    return {"income": INCOME_CATEGORIES + income_custom, "expense": EXPENSE_CATEGORIES + expense_custom}
+    dropdown is built (presets first, then whatever's been added).
+    `parents` maps a subcategory's name to the category it sits in."""
+    income_rows = _custom_categories_query("income", user_id, household_id).order_by(BudgetCategory.created_at).all()
+    expense_rows = _custom_categories_query("expense", user_id, household_id).order_by(BudgetCategory.created_at).all()
+    return {
+        "income": INCOME_CATEGORIES + [c.name for c in income_rows],
+        "expense": EXPENSE_CATEGORIES + [c.name for c in expense_rows],
+        "parents": {
+            "income": {c.name: c.parent for c in income_rows if c.parent},
+            "expense": {c.name: c.parent for c in expense_rows if c.parent},
+        },
+    }
 
 
 def category_exists(category: str, entry_type: str, user_id, household_id=None) -> bool:
@@ -272,7 +291,7 @@ def category_exists(category: str, entry_type: str, user_id, household_id=None) 
     return _custom_categories_query(entry_type, user_id, household_id).filter_by(name=category).first() is not None
 
 
-def create_category(user_id, entry_type: str, name: str, household_id=None) -> Dict:
+def create_category(user_id, entry_type: str, name: str, household_id=None, parent: Optional[str] = None) -> Dict:
     if entry_type not in ("income", "expense"):
         raise ValueError("entry_type must be 'income' or 'expense'")
     name = (name or "").strip()
@@ -288,7 +307,17 @@ def create_category(user_id, entry_type: str, name: str, household_id=None) -> D
     if name.lower() in existing_names:
         raise ValueError(f"'{name}' already exists")
 
-    category = BudgetCategory(user_id=user_id, household_id=household_id, entry_type=entry_type, name=name)
+    parent = (parent or "").strip() or None
+    if parent:
+        if parent.lower() == name.lower():
+            raise ValueError("A category cannot be inside itself")
+        custom = {c.name: c for c in _custom_categories_query(entry_type, user_id, household_id).all()}
+        if parent not in presets and parent not in custom:
+            raise ValueError(f"'{parent}' isn't a known {entry_type} category")
+        if parent in custom and custom[parent].parent:
+            raise ValueError("Categories can only be nested one level deep")
+
+    category = BudgetCategory(user_id=user_id, household_id=household_id, entry_type=entry_type, name=name, parent=parent)
     db.session.add(category)
     db.session.commit()
     return category.to_dict()
@@ -303,6 +332,10 @@ def delete_category(category_id, user_id=None, household_id=None) -> bool:
     category = query.first()
     if not category:
         return False
+    # Subcategories of a deleted category move up to the top level instead of disappearing.
+    children = _custom_categories_query(category.entry_type, user_id, household_id).filter_by(parent=category.name).all()
+    for child in children:
+        child.parent = None
     db.session.delete(category)
     db.session.commit()
     return True
