@@ -10,6 +10,7 @@ export default function NeedsAttentionCard({ holdings }) {
     () =>
       needsAttention(
         (holdings || []).map((h) => ({
+          id: h.id,
           label: h.symbol || h.name || "A holding",
           quantityBased: isQuantityBased(h.assetType),
           currentPrice: h.currentPrice ?? null,

@@ -1,5 +1,15 @@
 # Changelog
 
+## Big polish batch (branch `feature/big-batch-3`)
+
+- Dashboard: a "Welcome back" note on the first visit of each day says what changed since you last looked; a "Getting started" checklist for new people (hides itself when done or dismissed); a "next milestone" progress bar under the change card (USD only); the attention card now links straight to the holding when only one needs a look. All can be hidden with Customize.
+- Year in Review has a "Print or save as PDF" button with a clean print layout (no menus or buttons).
+- Settings has a "Data checks" card that flags duplicate holdings in the same account, holdings with no value, and holdings with no country.
+- Keyboard: `B` opens Budget and `R` opens Year in Review (press `?` to see all shortcuts).
+- Accessibility and navigation: each page now sets its own browser tab title, focus moves to the page content after you navigate, a "Skip to main content" link appears for keyboard users, and the page content is a proper `main` landmark.
+
+---
+
 ## Savings, projection, attention and goal dates (branch `feature/big-batch-2`)
 
 - Dashboard: new "Savings rate" card (share of income kept over the last 3 full months, from Budget entries), a "Where you could be" card (5, 10 and 20 year illustration at a growth rate you pick, using your recent monthly savings), and a "Needs your attention" card for holdings with no live price or valuations not updated in 90 days. All three can be hidden with Customize.

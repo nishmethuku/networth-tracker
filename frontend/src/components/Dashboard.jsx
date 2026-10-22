@@ -26,6 +26,8 @@ import ChangeOverTimeCard from "./dashboard/ChangeOverTimeCard";
 import SavingsRateCard from "./dashboard/SavingsRateCard";
 import ProjectionCard from "./dashboard/ProjectionCard";
 import NeedsAttentionCard from "./dashboard/NeedsAttentionCard";
+import WelcomeBackCard from "./dashboard/WelcomeBackCard";
+import GettingStartedCard from "./dashboard/GettingStartedCard";
 import CustomizeDashboard from "./dashboard/CustomizeDashboard";
 import { useHiddenSections } from "../hooks/useHiddenSections";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
@@ -400,6 +402,19 @@ export default function Dashboard() {
               </ErrorBoundary>
             )}
           </div>
+
+          {show("welcome") && <WelcomeBackCard current={dashboard.totalNetWorth} currency={currency} />}
+
+          {show("started") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <GettingStartedCard
+                holdingCount={(holdings || []).length}
+                historyPoints={(history || []).length}
+                currency={currency}
+                householdId={currentHouseholdId}
+              />
+            </div>
+          )}
 
           {show("attention") && (
             <div style={{ marginBottom: "1.5rem" }}>

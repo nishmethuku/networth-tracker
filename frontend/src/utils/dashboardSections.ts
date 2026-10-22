@@ -9,6 +9,8 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
   { id: "allocation", label: "Where your money is" },
   { id: "goals", label: "Goals" },
   { id: "emergency", label: "Emergency fund" },
+  { id: "welcome", label: "Welcome back note" },
+  { id: "started", label: "Getting started checklist" },
   { id: "attention", label: "Needs your attention" },
   { id: "change", label: "How you are doing" },
   { id: "savings", label: "Savings rate" },

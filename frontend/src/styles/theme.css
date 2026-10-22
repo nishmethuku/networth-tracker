@@ -249,3 +249,38 @@ a:hover {
     max-width: none !important;
   }
 }
+
+/* Print: a clean page with no navigation or controls (used by Year in Review). */
+@media print {
+  .desktop-top-nav,
+  .mobile-bottom-nav,
+  .no-print,
+  [role="status"][style*="fixed"] {
+    display: none !important;
+  }
+  body,
+  [data-theme="dark"],
+  [data-theme="light"] {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  * {
+    box-shadow: none !important;
+  }
+}
+
+/* Skip link: hidden until a keyboard user tabs to it. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  padding: 0.75rem 1rem;
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-radius: 0 0 var(--radius) 0;
+  font-weight: 600;
+}
+.skip-link:focus {
+  left: 0;
+}

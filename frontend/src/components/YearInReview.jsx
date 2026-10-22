@@ -87,8 +87,24 @@ export default function YearInReview() {
         }}
       >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Year in Review</h1>
+        <button
+          type="button"
+          className="no-print"
+          onClick={() => window.print()}
+          style={{
+            padding: "0.5rem 1rem",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            color: "var(--text)",
+            cursor: "pointer",
+          }}
+        >
+          Print or save as PDF
+        </button>
         {years.length > 1 && (
           <select
+            className="no-print"
             aria-label="Year"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}

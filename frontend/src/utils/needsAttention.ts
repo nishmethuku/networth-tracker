@@ -1,4 +1,5 @@
 export interface AttentionHolding {
+  id?: number | string;
   label: string;
   quantityBased: boolean;
   currentPrice: number | null;
@@ -34,7 +35,7 @@ export function needsAttention(holdings: AttentionHolding[] | null | undefined, 
     items.push({
       id: "no-price",
       message: `No live price for ${names}${noPrice.length > 3 ? ` and ${noPrice.length - 3} more` : ""}. They may be counted at zero.`,
-      link: "/portfolio",
+      link: noPrice.length === 1 && noPrice[0].id != null ? `/portfolio/${noPrice[0].id}` : "/portfolio",
     });
   }
 
@@ -51,7 +52,7 @@ export function needsAttention(holdings: AttentionHolding[] | null | undefined, 
     items.push({
       id: "stale",
       message: `${names}${stale.length > 3 ? ` and ${stale.length - 3} more` : ""} ${stale.length === 1 ? "has" : "have"} not been updated in over ${STALE_DAYS} days.`,
-      link: "/portfolio",
+      link: stale.length === 1 && stale[0].id != null ? `/portfolio/${stale[0].id}` : "/portfolio",
     });
   }
 

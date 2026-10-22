@@ -52,6 +52,14 @@ describe("needsAttention", () => {
     expect(items[1].message).not.toContain("Cash");
   });
 
+  it("links straight to the holding when only one needs attention", () => {
+    const items = needsAttention(
+      [{ id: 7, label: "House", quantityBased: false, currentPrice: null, updatedAt: "2026-01-01T00:00:00Z" }],
+      now,
+    );
+    expect(items[0].link).toBe("/portfolio/7");
+  });
+
   it("returns nothing when all is fine", () => {
     expect(needsAttention([], now)).toEqual([]);
     expect(needsAttention(null, now)).toEqual([]);
