@@ -31,6 +31,7 @@ import GettingStartedCard from "./dashboard/GettingStartedCard";
 import WhatMovedCard from "./dashboard/WhatMovedCard";
 import ComingUpCard from "./dashboard/ComingUpCard";
 import PriceFreshnessNote from "./dashboard/PriceFreshnessNote";
+import InfoTip from "./InfoTip";
 import CustomizeDashboard from "./dashboard/CustomizeDashboard";
 import { useHiddenSections } from "../hooks/useHiddenSections";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
@@ -310,18 +311,33 @@ export default function Dashboard() {
               />
             )}
             <Card
-              title={t("dashboard.unrealizedGains")}
+              title={
+                <>
+                  {t("dashboard.unrealizedGains")}
+                  <InfoTip term="unrealized" />
+                </>
+              }
               value={formatCurrencyCompact(dashboard.unrealizedGain, currency)}
               subtitle={t("dashboard.unrealizedGainsSubtitle")}
             />
             <Card
-              title={t("dashboard.realizedGains")}
+              title={
+                <>
+                  {t("dashboard.realizedGains")}
+                  <InfoTip term="realized" />
+                </>
+              }
               value={formatCurrencyCompact(dashboard.realizedGain, currency)}
               subtitle={t("dashboard.realizedGainsSubtitle")}
             />
             {dashboard.portfolioXirr != null && (
               <Card
-                title="Overall Portfolio XIRR"
+                title={
+                  <>
+                    Overall Portfolio XIRR
+                    <InfoTip term="xirr" />
+                  </>
+                }
                 value={formatPercent(dashboard.portfolioXirr * 100)}
                 subtitle="Annualized, across every buy/sell"
               />
@@ -506,7 +522,15 @@ export default function Dashboard() {
 
           {show("cagr") && (
             <div style={{ marginBottom: "1.5rem" }}>
-              <Card title="CAGR by Holding" subtitle="Annualized return (XIRR) per holding, plus your overall portfolio CAGR">
+              <Card
+                title={
+                  <>
+                    CAGR by Holding
+                    <InfoTip term="cagr" />
+                  </>
+                }
+                subtitle="Annualized return (XIRR) per holding, plus your overall portfolio CAGR"
+              >
                 <ErrorBoundary mode="section" fallbackMessage="Couldn't compute CAGR by holding.">
                   <CagrHistogram holdings={holdings} portfolioXirr={dashboard.portfolioXirr} />
                 </ErrorBoundary>

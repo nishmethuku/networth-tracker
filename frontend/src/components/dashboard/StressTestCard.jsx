@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import Card from "../Card";
+import InfoTip from "../InfoTip";
 import EmptyState from "../EmptyState";
 import { computeStress } from "../../utils/stressTest";
 import { formatCurrencyCompact, formatPercent } from "../../utils/formatters";
@@ -72,7 +73,15 @@ export default function StressTestCard({ holdings, totalNetWorth, currency }) {
   }
 
   return (
-    <Card title="Stress test" subtitle="Drag a slider to see what a sharp drop would cost you">
+    <Card
+      title={
+        <>
+          Stress test
+          <InfoTip term="stressTest" />
+        </>
+      }
+      subtitle="Drag a slider to see what a sharp drop would cost you"
+    >
       <Scenario
         id="stress-top"
         title={`${result.topHolding.label} drops`}

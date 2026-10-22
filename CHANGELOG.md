@@ -1,5 +1,12 @@
 # Changelog
 
+## Plain-language tips (branch `feature/big-batch-8`)
+
+- A small "?" button next to XIRR, CAGR, unrealized and realized gains, Savings rate, Money Health, Emergency Fund and Stress test opens a short plain-English explanation right where the term appears. It works with the keyboard and screen readers.
+- The Year by year table shows "n/a" instead of a dash when there is no earlier year to compare.
+
+---
+
 ## Compact Dashboard, price freshness, spending trend (branch `feature/big-batch-7`)
 
 - The smaller Dashboard cards (coming up, what moved, how you are doing, savings rate, where you could be, Money Health) now sit side by side on wide screens instead of one long column. On phones they stack as before. The "How you are doing" tiles no longer stretch across the page.

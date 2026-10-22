@@ -43,7 +43,7 @@ export default function YearByYearCard({ history, currency }) {
                 }}
               >
                 {r.delta == null
-                  ? "—"
+                  ? "n/a"
                   : `${r.delta >= 0 ? "+" : "−"}${formatCurrencyCompact(Math.abs(r.delta), currency)}${
                       r.pct != null ? ` (${r.pct >= 0 ? "+" : "−"}${Math.abs(r.pct).toFixed(0)}%)` : ""
                     }`}
