@@ -8,6 +8,7 @@ import { fetchGoals, createGoal, deleteGoal, ApiError } from "../../api";
 import { formatCurrencyForDisplay } from "../../utils/formatters";
 import { CURRENCIES } from "../../constants/enums";
 import { goalEta } from "../../utils/goalEta";
+import { requiredMonthly } from "../../utils/requiredMonthly";
 import { todayISO } from "../../utils/formatters";
 
 const inputStyle = {
@@ -35,6 +36,10 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete }) 
   const pct = sameCurrency && goal.targetAmount > 0 ? Math.min(100, (currentNetWorth / goal.targetAmount) * 100) : null;
   const remaining = sameCurrency ? Math.max(0, goal.targetAmount - currentNetWorth) : null;
   const days = daysRemaining(goal.targetDate);
+  const needed =
+    sameCurrency && remaining > 0 && goal.targetDate
+      ? requiredMonthly(currentNetWorth, goal.targetAmount, goal.targetDate, todayISO())
+      : null;
   const eta = sameCurrency && remaining > 0 ? goalEta(history, currentNetWorth, goal.targetAmount, todayISO()) : null;
 
   return (
@@ -93,6 +98,12 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete }) 
             </span>
             {days != null && <span>{days > 0 ? `${days} days left` : "Target date passed"}</span>}
           </div>
+          {needed != null && needed > 0 && (
+            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.25rem" }}>
+              To hit it by the target date, add about {formatCurrencyForDisplay(needed, goal.currency, { includeCode: false })} a month
+              (assuming 5% growth).
+            </div>
+          )}
           {eta && (
             <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.25rem" }}>
               At your recent pace, about {formatEtaMonth(eta.reachedMonth)}.
