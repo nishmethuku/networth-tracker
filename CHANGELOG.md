@@ -1,5 +1,11 @@
 # Changelog
 
+## Smarter default account (branch `fix/account-naming`)
+
+- Adding a holding with the Account field left blank no longer creates a stray "Account 1". It goes into the account you already use most, or "Main account" if you have none yet. The field now says which one it will use.
+
+---
+
 ## 30-day change on the Net Worth card (branch `feature/whats-changed`)
 
 - The Net Worth card on the Dashboard now shows how much your net worth changed in the last 30 days (amount and percent), measured against your saved history. It appears once a saved point at least 30 days old exists, which the Rebuild history button can fill in, so it never shows a change over a shorter window than it says.

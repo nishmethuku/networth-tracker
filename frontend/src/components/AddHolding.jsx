@@ -1,3 +1,4 @@
+import { defaultAccountName } from "../utils/accountDefaults";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -176,6 +177,7 @@ export default function AddHolding() {
     staleTime: 1000 * 60,
   });
   const accountSuggestions = (registeredAccounts || []).map((a) => a.name).sort();
+  const blankAccountHint = `Leave blank to use "${defaultAccountName(registeredAccounts)}"`;
 
   // Cash holdings to offer as a funding source for the initial buy -- e.g.
   // buying a stock and paying for it out of a bank account, which should
@@ -201,7 +203,7 @@ export default function AddHolding() {
         symbol: form.assetType === "commodity" ? form.symbol : form.symbol || null,
         name: form.name || form.symbol,
         country: form.country,
-        account: ACCOUNT_LESS_TYPES.has(form.assetType) ? "" : form.account || "Account 1",
+        account: ACCOUNT_LESS_TYPES.has(form.assetType) ? "" : form.account || defaultAccountName(registeredAccounts),
         institution: form.institution || null,
         currency: form.currency || "USD",
         is_private: form.is_private,
@@ -473,7 +475,7 @@ export default function AddHolding() {
               <input
                 id="holding-account"
                 {...register("account")}
-                placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Brokerage name"}
+                placeholder={ACCOUNT_PLACEHOLDERS[assetType] ? `${ACCOUNT_PLACEHOLDERS[assetType]}. ${blankAccountHint}` : blankAccountHint}
                 list="account-suggestions"
                 style={inputStyle}
               />
@@ -515,7 +517,9 @@ export default function AddHolding() {
                   <input
                     id="holding-account"
                     {...register("account")}
-                    placeholder={ACCOUNT_PLACEHOLDERS[assetType] || "e.g., Account name"}
+                    placeholder={
+                      ACCOUNT_PLACEHOLDERS[assetType] ? `${ACCOUNT_PLACEHOLDERS[assetType]}. ${blankAccountHint}` : blankAccountHint
+                    }
                     list="account-suggestions"
                     style={inputStyle}
                   />
