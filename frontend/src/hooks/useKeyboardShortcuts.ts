@@ -46,6 +46,10 @@ export default function useKeyboardShortcuts({ onShowHelp, onQuickAdd }: UseKeyb
           e.preventDefault();
           navigate("/review");
           break;
+        case "x":
+          e.preventDefault();
+          navigate("/expenses");
+          break;
         case "b":
           e.preventDefault();
           navigate("/budget");

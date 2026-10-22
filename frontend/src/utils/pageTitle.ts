@@ -5,6 +5,7 @@ const TITLES: Record<string, string> = {
   "/add-holding": "Add holding",
   "/transactions": "Transactions",
   "/budget": "Budget",
+  "/expenses": "Expenses",
   "/import-spreadsheet": "Import spreadsheet",
   "/import-bank-statement": "Import bank statement",
   "/import": "Import CSV",

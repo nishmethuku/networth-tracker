@@ -341,8 +341,9 @@ a:hover {
 }
 
 @media (max-width: 640px) {
+  /* On phones the big center "+" in the bottom bar does this job. */
   .quick-add-fab {
-    bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+    display: none;
   }
 
   .quick-add-backdrop {
