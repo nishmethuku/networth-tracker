@@ -53,6 +53,13 @@ registerRoute(
 self.skipWaiting();
 clientsClaim();
 
+// Browsers can leave a freshly installed worker "waiting" even after the call
+// above (live testing showed the new version needing two or three reloads).
+// The page's update banner sends this message to make the takeover explicit.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
+});
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {
