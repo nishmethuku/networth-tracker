@@ -1,5 +1,11 @@
 # Changelog
 
+## Reliable updates (branch `fix/update-takeover`)
+
+- Live testing showed a new version of the app could take two or three reloads to appear, because the browser kept the new version "waiting". The "new version is ready" banner now also appears when a new version is waiting, and its Reload button tells the waiting version to take over before reloading, so one click is enough.
+
+---
+
 ## Hide amounts (privacy mode) (branch `feature/privacy-mode`)
 
 - New "Hide amounts" button in the top bar (and the phone menu). It replaces every money amount with $•••• and hides the chart's dollar axis, so you can show the app to someone without showing your numbers. Percentages and names stay visible. The choice is remembered on this device. It is a screen-sharing convenience, not a security lock.
