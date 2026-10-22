@@ -18,6 +18,7 @@ const PAGES = [
   "/alerts",
   "/accounts",
   "/settings",
+  "/review",
 ];
 
 for (const theme of ["light", "dark"]) {

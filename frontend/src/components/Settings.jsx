@@ -9,6 +9,7 @@ import ChangePasswordCard from "./ChangePasswordCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
+import InstallAppCard from "./InstallAppCard";
 import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
 import {
   fetchAccountExport,
@@ -182,6 +183,10 @@ export default function Settings() {
             </button>
           </div>
         </Card>
+      </div>
+
+      <div style={sectionStyle}>
+        <InstallAppCard />
       </div>
 
       <div style={sectionStyle}>
