@@ -24,6 +24,9 @@ import StressTestCard from "./dashboard/StressTestCard";
 import MoneyHealthCard from "./dashboard/MoneyHealthCard";
 import ChangeOverTimeCard from "./dashboard/ChangeOverTimeCard";
 import SavingsRateCard from "./dashboard/SavingsRateCard";
+import FinancialIndependenceCard from "./dashboard/FinancialIndependenceCard";
+import SpendingCategoriesCard from "./dashboard/SpendingCategoriesCard";
+import { historyToCsv } from "../utils/historyCsv";
 import ProjectionCard from "./dashboard/ProjectionCard";
 import NeedsAttentionCard from "./dashboard/NeedsAttentionCard";
 import WelcomeBackCard from "./dashboard/WelcomeBackCard";
@@ -393,6 +396,33 @@ export default function Dashboard() {
                 <ErrorBoundary mode="section" fallbackMessage="The net worth chart couldn't load.">
                   <NetWorthChart history={history} currency={currency} goals={goalList} />
                   {!currentHouseholdId && history && <RebuildHistory pointCount={history.length} />}
+                  {history && history.length > 1 && (
+                    <button
+                      type="button"
+                      style={{
+                        marginTop: "0.75rem",
+                        padding: "0.5rem 1rem",
+                        borderRadius: "var(--radius)",
+                        border: "1px solid var(--border)",
+                        background: "var(--card)",
+                        color: "var(--text)",
+                        cursor: "pointer",
+                        fontWeight: 500,
+                        fontSize: "0.8125rem",
+                      }}
+                      onClick={() => {
+                        const blob = new Blob([historyToCsv(history, currency)], { type: "text/csv;charset=utf-8" });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.download = `net-worth-history-${todayISO()}.csv`;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Download history (CSV)
+                    </button>
+                  )}
                 </ErrorBoundary>
               </Card>
             )}
@@ -472,6 +502,18 @@ export default function Dashboard() {
             {show("projection") && (
               <div className="dash-cell">
                 <ProjectionCard currentNetWorth={dashboard.totalNetWorth} currency={currency} householdId={currentHouseholdId} />
+              </div>
+            )}
+
+            {show("independence") && (
+              <div className="dash-cell">
+                <FinancialIndependenceCard netWorth={dashboard.totalNetWorth} currency={currency} householdId={currentHouseholdId} />
+              </div>
+            )}
+
+            {show("categories") && (
+              <div className="dash-cell">
+                <SpendingCategoriesCard currency={currency} householdId={currentHouseholdId} />
               </div>
             )}
 
