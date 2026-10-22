@@ -1,5 +1,11 @@
 # Changelog
 
+## Money Health score (branch `feature/money-health`)
+
+- New Money Health card on the Dashboard: one 0 to 100 score from four simple rules of thumb (emergency cushion, not too much in one holding, spread across asset types, debt compared with assets), each with a plain reason, plus one "Next step" aimed at the weakest area. Uses only numbers the app already has, and hides itself when there is nothing to measure.
+
+---
+
 ## Faster Indian stock prices (branch `fix/india-prices`)
 
 - Indian (.NS) stock prices now ask Yahoo first. NSE's own site blocks the hosting provider, so the three NSE sources used to spend seconds failing (and flood the logs with warnings) before Yahoo was tried. They remain as fallbacks. This also makes the dashboard and Rebuild history faster for anyone holding Indian stocks.
