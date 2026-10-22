@@ -34,7 +34,7 @@ import CustomizeDashboard from "./dashboard/CustomizeDashboard";
 import { useHiddenSections } from "../hooks/useHiddenSections";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
 import AnimatedNumber from "./AnimatedNumber";
-import { fetchDashboard, fetchNetWorthHistory, fetchHoldings, fetchBenchmark, ApiError } from "../api";
+import { fetchDashboard, fetchNetWorthHistory, fetchHoldings, fetchBenchmark, fetchGoals, ApiError } from "../api";
 import { formatCurrencyCompact, formatPercent, todayISO } from "../utils/formatters";
 import { netWorthChange } from "../utils/netWorthChange";
 import { groupBuyValueAndGain } from "../utils/holdingReturns";
@@ -144,6 +144,8 @@ export default function Dashboard() {
   });
 
   const { hidden, show, toggle: toggleSectionHidden, reset: resetSections } = useHiddenSections();
+
+  const { data: goalList } = useQuery({ queryKey: ["goals"], queryFn: fetchGoals, staleTime: 1000 * 60 });
 
   const monthChange = useMemo(
     () => (dashboard ? netWorthChange(history, dashboard.totalNetWorth, 30, todayISO()) : null),
@@ -371,7 +373,7 @@ export default function Dashboard() {
             {show("chart") && (
               <Card title={t("dashboard.netWorthOverTime")}>
                 <ErrorBoundary mode="section" fallbackMessage="The net worth chart couldn't load.">
-                  <NetWorthChart history={history} currency={currency} />
+                  <NetWorthChart history={history} currency={currency} goals={goalList} />
                   {!currentHouseholdId && history && <RebuildHistory pointCount={history.length} />}
                 </ErrorBoundary>
               </Card>

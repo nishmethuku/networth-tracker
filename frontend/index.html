@@ -2,6 +2,14 @@
 <html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Pick the theme before first paint so dark-mode devices never flash light.
+      try {
+        var t = localStorage.getItem("theme");
+        if (t !== "dark" && t !== "light") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#7D2E42" />
     <link rel="icon" type="image/png" href="/pwa-192x192.png" />

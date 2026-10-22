@@ -84,7 +84,7 @@ test("Hide amounts masks every money amount on the Dashboard and Show amounts br
   await expect(page.getByRole("button", { name: "Show amounts" }).first()).toBeVisible();
   await page.waitForTimeout(600); // the animated net worth number settles
   // A goal named "Reach $100K" is the user's own text, not a formatted amount.
-  const text = (await page.locator(".page-content").innerText()).replace("Reach $100K", "");
+  const text = (await page.locator(".page-content").innerText()).split("Reach $100K").join("");
   expect(text).toContain("••••");
   expect(text).not.toMatch(/\$\d/); // no dollar figure is left on the page
   await page.getByRole("button", { name: "Show amounts" }).first().click();

@@ -1,5 +1,14 @@
 # Changelog
 
+## Chart goal lines, follow-system theme, richer demo, login polish (branch `feature/big-batch-6`)
+
+- The net worth chart draws a dashed line for your nearest goals (same currency, still ahead of you, and not so far away that the chart goes flat). Goal amounts are hidden in the label when Hide amounts is on.
+- First-time visitors now get light or dark mode to match their device, with no flash of the wrong theme while the page loads. Once you choose a theme with the toggle, that choice is kept.
+- The demo has sample budget months, upcoming bills and a second goal with a date, so every Dashboard card is visible in the demo.
+- The login page lists what the app gives you in three short lines.
+
+---
+
 ## Quick page search, goal targets, year by year, faster menus (branch `feature/big-batch-5`)
 
 - Ctrl/Cmd+K now jumps to any page by name or keyword ("budget", "mortgage", "backup") with arrow keys and Enter, and works without any AI. Longer questions still go to the AI search through an "Ask AI" row.
