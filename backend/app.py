@@ -1154,6 +1154,20 @@ def create_app():
 
         return jsonify([convert_row(r) for r in rows])
 
+    @app.route("/net-worth-history/rebuild", methods=["POST"])
+    @require_auth
+    @limiter.limit("6 per hour")
+    def rebuild_net_worth_history():
+        """Fills in past months of the net worth chart from recorded
+        transactions and historical prices. Body {"apply": false} (the
+        default) only previews; {"apply": true} saves. Never overwrites an
+        existing snapshot."""
+        from .history_rebuild_service import rebuild_history
+
+        data = request.get_json(silent=True) or {}
+        result = rebuild_history(g.user_id, apply=bool(data.get("apply")))
+        return jsonify(result), 200
+
     @app.route("/monthly-flow", methods=["GET"])
     @require_auth
     def get_monthly_flow():

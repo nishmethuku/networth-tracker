@@ -11,6 +11,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
 import NetWorthChart from "./dashboard/NetWorthChart";
+import RebuildHistory from "./dashboard/RebuildHistory";
 import DashboardSkeleton from "./dashboard/DashboardSkeleton";
 import AllocationDonut from "./dashboard/AllocationDonut";
 import NetWorthBreakdown from "./dashboard/NetWorthBreakdown";
@@ -339,6 +340,7 @@ export default function Dashboard() {
             <Card title={t("dashboard.netWorthOverTime")}>
               <ErrorBoundary mode="section" fallbackMessage="The net worth chart couldn't load.">
                 <NetWorthChart history={history} currency={currency} />
+                {!currentHouseholdId && history && <RebuildHistory pointCount={history.length} />}
               </ErrorBoundary>
             </Card>
 
