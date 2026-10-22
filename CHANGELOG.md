@@ -1,5 +1,11 @@
 # Changelog
 
+## Change over time card (branch `feature/weekly-summary`)
+
+- New "How you are doing" card on the Dashboard shows how net worth changed this week, this month, over 3 months and this year. A window appears only once a saved snapshot is old enough to measure it.
+
+---
+
 ## Accessibility pass (branch `feature/accessibility-audit`)
 
 - Added an automated accessibility scan (axe) of every page in light and dark mode to the test suite.
