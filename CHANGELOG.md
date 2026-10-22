@@ -1,5 +1,11 @@
 # Changelog
 
+## Rebuild history preview shows totals (branch `feature/rebuild-preview-numbers`)
+
+- The Rebuild history preview now lists the first, middle and last month with their totals, so you can check the numbers before pressing "Save these months" (saved points cannot be removed from the screen).
+
+---
+
 ## Reliable updates (branch `fix/update-takeover`)
 
 - Live testing showed a new version of the app could take two or three reloads to appear, because the browser kept the new version "waiting". The "new version is ready" banner now also appears when a new version is waiting, and its Reload button tells the waiting version to take over before reloading, so one click is enough.
