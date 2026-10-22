@@ -22,7 +22,7 @@ import {
   deleteValuation,
   ApiError,
 } from "../api";
-import { formatCurrencyForDisplay, formatPercent, safeNumber, formatDateISO } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatPercent, safeNumber, formatDateISO, todayISO } from "../utils/formatters";
 import { getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 import { computeTransactionTimeline } from "../utils/transactionTimeline";
 import { RETURN_RANGES, computePeriodReturn } from "../utils/periodReturn";
@@ -38,7 +38,7 @@ const inputStyle = {
 
 function AddValuationForm({ holding, onDone }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ valuation_date: new Date().toISOString().split("T")[0], value: "" });
+  const [form, setForm] = useState({ valuation_date: todayISO(), value: "" });
 
   const mutation = useMutation({
     mutationFn: (payload) => createValuation(holding.id, payload),
@@ -71,7 +71,7 @@ function AddValuationForm({ holding, onDone }) {
           id="valuation-date"
           type="date"
           value={form.valuation_date}
-          max={new Date().toISOString().split("T")[0]}
+          max={todayISO()}
           onChange={(e) => setForm({ ...form, valuation_date: e.target.value })}
           style={inputStyle}
           required

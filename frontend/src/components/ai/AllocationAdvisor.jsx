@@ -91,7 +91,6 @@ export default function AllocationAdvisor() {
   });
 
   const currentAllocation = dashboard?.allocationByType || [];
-  const totalNetWorth = dashboard?.totalNetWorth || 0;
 
   const allTypes = useMemo(() => {
     const fromCurrent = currentAllocation.map((a) => a.label);
@@ -122,7 +121,11 @@ export default function AllocationAdvisor() {
   }
 
   function useCurrentAsTarget() {
-    if (currentAllocation.length === 0 || totalNetWorth <= 0) {
+    // Share of total assets, not of net worth: with any debt, net worth is
+    // smaller than assets and the slices came out above 100% (and then got
+    // forced back to 100 by shrinking the largest one -- a wrong split).
+    const totalAllocated = currentAllocation.reduce((sum, a) => sum + a.value, 0);
+    if (currentAllocation.length === 0 || totalAllocated <= 0) {
       const zeroed = {};
       currentAllocation.forEach((a) => {
         zeroed[a.label] = 0;
@@ -137,7 +140,7 @@ export default function AllocationAdvisor() {
     // valid target -- unlike setSplitEvenly just above, which already
     // accounts for its own remainder. Any rounding leftover here goes
     // onto the largest slice, where a 1-point nudge is least noticeable.
-    const rounded = currentAllocation.map((a) => ({ label: a.label, value: Math.round((a.value / totalNetWorth) * 100) }));
+    const rounded = currentAllocation.map((a) => ({ label: a.label, value: Math.round((a.value / totalAllocated) * 100) }));
     const remainder = 100 - rounded.reduce((sum, r) => sum + r.value, 0);
     if (remainder !== 0) {
       const largest = rounded.reduce((max, r) => (r.value > max.value ? r : max), rounded[0]);

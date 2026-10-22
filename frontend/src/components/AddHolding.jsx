@@ -15,7 +15,7 @@ import {
 } from "../api";
 import { useToast } from "../contexts/ToastContext";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, CURRENCIES, isQuantityBased } from "../constants/enums";
-import { currencyForCountry } from "../utils/formatters";
+import { currencyForCountry, todayISO } from "../utils/formatters";
 import { holdingSchema } from "../utils/holdingSchema";
 import NumericInput from "./NumericInput";
 
@@ -134,7 +134,7 @@ export default function AddHolding() {
       is_private: false,
       notes: "",
       tags: "",
-      date: new Date().toISOString().split("T")[0],
+      date: todayISO(),
       symbol: "",
       name: "",
       institution: "",
@@ -147,7 +147,7 @@ export default function AddHolding() {
       sip_enabled: false,
       sip_amount: "",
       sip_frequency: "monthly",
-      sip_start_date: new Date().toISOString().split("T")[0],
+      sip_start_date: todayISO(),
     },
   });
 
@@ -549,7 +549,7 @@ export default function AddHolding() {
                 id="holding-date"
                 type="date"
                 {...register("date")}
-                max={new Date().toISOString().split("T")[0]}
+                max={todayISO()}
                 style={fieldStyle(touchedFields.date, errors.date)}
               />
               <FieldStatus message={errors.date?.message} touched={touchedFields.date} />

@@ -32,6 +32,16 @@ export function formatDateISO(value: string | Date | null | undefined): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * Today's date as YYYY-MM-DD in the user's own timezone. Do not use
+ * new Date().toISOString().split("T")[0] for this: that is the UTC date, so
+ * in the US evening it is already "tomorrow", and a form defaulting to it was
+ * rejected by its own "date can't be in the future" check.
+ */
+export function todayISO(): string {
+  return formatDateISO(new Date());
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
   AUD: "$",
@@ -50,11 +60,17 @@ export function currencyForCountry(country: string): Currency {
  * wrong data. */
 const SMALL_AMOUNT_THRESHOLD = 10;
 
-export function formatCurrencyForDisplay(value: unknown, currency: string = "USD", options: { includeCode?: boolean } = {}): string {
-  const { includeCode = true } = options;
+export function formatCurrencyForDisplay(
+  value: unknown,
+  currency: string = "USD",
+  options: { includeCode?: boolean; alwaysCents?: boolean } = {},
+): string {
+  // alwaysCents is for everyday amounts (budget entries, subscriptions)
+  // where the cents matter: $42.50 must not read as "$43".
+  const { includeCode = true, alwaysCents = false } = options;
   const raw = safeNumber(value);
   const abs = Math.abs(raw);
-  const keepCents = abs > 0 && abs < SMALL_AMOUNT_THRESHOLD;
+  const keepCents = alwaysCents || (abs > 0 && abs < SMALL_AMOUNT_THRESHOLD);
   const rounded = keepCents ? Math.round(abs * 100) / 100 : Math.round(abs);
   const symbol = CURRENCY_SYMBOLS[currency] || "$";
   const digits = keepCents ? 2 : 0;

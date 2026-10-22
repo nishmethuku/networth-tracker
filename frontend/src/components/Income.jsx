@@ -62,7 +62,11 @@ export default function Income() {
       ) : (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
-            <Card title="Received, all time" value={formatCurrencyCompact(income.total, currency)} subtitle={`${income.count} payments`} />
+            <Card
+              title="Received, all time"
+              value={formatCurrencyCompact(income.total, currency)}
+              subtitle={`${income.count} ${income.count === 1 ? "payment" : "payments"}`}
+            />
             <Card
               title="Last 12 months"
               value={formatCurrencyCompact(income.last12Months, currency)}

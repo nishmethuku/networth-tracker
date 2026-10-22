@@ -1,3 +1,4 @@
+import { todayISO } from "../utils/formatters";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -97,7 +98,7 @@ export default function EditTransactionModal({ transaction, onClose }) {
             id="edit-tx-date"
             type="date"
             value={form.transaction_date}
-            max={new Date().toISOString().split("T")[0]}
+            max={todayISO()}
             onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
             style={inputStyle}
             required

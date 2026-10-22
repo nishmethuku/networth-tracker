@@ -11,7 +11,7 @@ import HoldingCard from "./HoldingCard";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
-import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatPercent, safeNumber, todayISO } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 import { holdingGrowthPct as gainPct, groupBuyValueAndGain } from "../utils/holdingReturns";
 
@@ -403,7 +403,7 @@ export default function Portfolio() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `portfolio-${todayISO()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
