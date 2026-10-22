@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createBudgetEntry, fetchBudgetCategories, fetchHoldings, fetchLiabilities, ApiError } from "../api";
+import { createBudgetEntry, fetchBudgetCategories, fetchBudgetEntries, fetchHoldings, fetchLiabilities, ApiError } from "../api";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { getBudgetCategoryLabel } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
-import { formatCurrencyForDisplay, todayISO } from "../utils/formatters";
+import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
 import { orderCategoryOptions } from "../utils/categoryTree";
+import { frequentExpenses } from "../utils/frequentExpenses";
+import { monthOf, monthTotals } from "../utils/entryGroups";
 import { buildExpensePayload, loadLast, saveLast, validateQuickAdd, yesterdayOf } from "../utils/quickAdd";
 
 const fieldStyle = {
@@ -54,6 +56,30 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     queryFn: () => fetchLiabilities({ currency }),
     enabled: open,
   });
+
+  // Recent entries power the one-tap "frequent" buttons and the spent-so-far line.
+  const sinceDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 120);
+    return formatDateISO(d);
+  }, []);
+  const { data: recent } = useQuery({
+    queryKey: ["budget-entries", currentHouseholdId, "recent-120"],
+    queryFn: () => fetchBudgetEntries({ householdId: currentHouseholdId, dateFrom: sinceDate }),
+    enabled: open,
+    staleTime: 30_000,
+  });
+  const frequent = useMemo(() => frequentExpenses(recent, currency), [recent, currency]);
+  const spent = useMemo(() => {
+    const today = todayISO();
+    const month = monthTotals(recent, monthOf(today), currency).expenses;
+    const day = monthTotals(
+      (recent || []).filter((e) => e.entryDate === today),
+      monthOf(today),
+      currency,
+    ).expenses;
+    return { day, month };
+  }, [recent, currency]);
 
   const cards = useMemo(
     () => (liabilities || []).filter((l) => l.liabilityType === "credit_card" || l.liabilityType === "line_of_credit"),
@@ -172,6 +198,41 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
             }}
           >
             <h2 style={{ margin: "0 0 1rem", fontSize: "1.125rem" }}>Add expense</h2>
+
+            {recent && (
+              <p style={{ margin: "-0.5rem 0 0.75rem", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+                Spent today {formatCurrencyForDisplay(spent.day, currency, { includeCode: false })} · this month{" "}
+                {formatCurrencyForDisplay(spent.month, currency, { includeCode: false })}
+              </p>
+            )}
+            {frequent.length > 0 && (
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginBottom: "0.9rem" }} aria-label="Frequent expenses">
+                {frequent.map((f) => (
+                  <button
+                    key={`${f.category}-${f.description}`}
+                    type="button"
+                    onClick={() => {
+                      setAmount(String(f.amount));
+                      setCategory(f.category);
+                      setDescription(f.description);
+                      amountRef.current?.focus();
+                    }}
+                    style={{
+                      padding: "0.35rem 0.7rem",
+                      borderRadius: "999px",
+                      border: "1px solid var(--border)",
+                      background: "var(--card)",
+                      color: "var(--text)",
+                      cursor: "pointer",
+                      fontSize: "0.8125rem",
+                    }}
+                  >
+                    {f.description || getBudgetCategoryLabel(f.category)} ·{" "}
+                    {formatCurrencyForDisplay(f.amount, currency, { includeCode: false })}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <label htmlFor="qa-amount" style={labelStyle}>
               Amount ({currency})
