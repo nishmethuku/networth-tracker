@@ -6,6 +6,7 @@ const loaders: Record<string, () => Promise<unknown>> = {
   "/transactions": () => import("./components/Transactions"),
   "/liabilities": () => import("./components/Liabilities"),
   "/budget": () => import("./components/Budget"),
+  "/expenses": () => import("./components/Expenses"),
   "/import": () => import("./components/ImportCsv"),
   "/alerts": () => import("./components/Alerts"),
   "/tax-summary": () => import("./components/TaxSummary"),

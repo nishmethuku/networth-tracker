@@ -36,6 +36,7 @@ const WhatIf = lazy(() => import("./components/WhatIf"));
 const Income = lazy(() => import("./components/Income"));
 const Settings = lazy(() => import("./components/Settings"));
 const Budget = lazy(() => import("./components/Budget"));
+const Expenses = lazy(() => import("./components/Expenses"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
 const ImportBankStatement = lazy(() => import("./components/ImportBankStatement"));
 const Insights = lazy(() => import("./components/Insights"));
@@ -161,12 +162,12 @@ function MoreMenu({ items }) {
 const BOTTOM_TABS = [
   { to: "/", icon: "🏠", labelKey: "nav.home" },
   { to: "/portfolio", icon: "📊", labelKey: "nav.portfolio" },
-  { to: "/add-holding", icon: "➕", labelKey: "nav.add", fab: true },
-  { to: "/transactions", icon: "📋", labelKey: "nav.history" },
+  { to: "/expenses", icon: "➕", labelKey: "nav.add", fab: true },
+  { to: "/expenses", icon: "🧾", labelKey: "nav.expenses", list: true },
   { to: "/budget", icon: "💰", labelKey: "nav.budget" },
 ];
 
-function MobileBottomNav() {
+function MobileBottomNav({ onAdd }) {
   const location = useLocation();
   const { t } = useTranslation();
   return (
@@ -174,8 +175,24 @@ function MobileBottomNav() {
       {BOTTOM_TABS.map((tab) => {
         const active = location.pathname === tab.to;
         if (tab.fab) {
+          // The big center "+" opens the quick add-expense sheet, since expenses are logged far more often than holdings.
           return (
-            <Link key={tab.to} to={tab.to} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <button
+              key="quick-add"
+              type="button"
+              onClick={onAdd}
+              aria-label="Add expense"
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
               <motion.span
                 whileTap={{ scale: 0.88 }}
                 style={{
@@ -200,7 +217,7 @@ function MobileBottomNav() {
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </motion.span>
-            </Link>
+            </button>
           );
         }
         return (
@@ -323,9 +340,11 @@ function AppShell() {
           <NavLink to="/portfolio">{t("nav.portfolio")}</NavLink>
           <NavLink to="/liabilities">{t("nav.liabilities")}</NavLink>
           <NavLink to="/transactions">{t("nav.transactions")}</NavLink>
+          <NavLink to="/expenses">{t("nav.expenses")}</NavLink>
           <NavLink to="/budget">{t("nav.budget")}</NavLink>
           <MoreMenu
             items={[
+              { to: "/add-holding", label: t("nav.addHolding") },
               { to: "/import", label: t("nav.importCsv") },
               { to: "/alerts", label: t("nav.alerts") },
               { to: "/tax-summary", label: t("nav.taxSummary") },
@@ -338,9 +357,22 @@ function AppShell() {
               { to: "/accounts", label: t("nav.accounts") },
             ]}
           />
-          <NavLink to="/add-holding" highlight>
-            {t("nav.addHolding")}
-          </NavLink>
+          <button
+            type="button"
+            onClick={() => setQuickAddOpen(true)}
+            style={{
+              color: "var(--primary)",
+              fontWeight: 600,
+              padding: "0.5rem 1rem",
+              borderRadius: "var(--radius)",
+              background: "var(--primary-light)",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "inherit",
+            }}
+          >
+            + {t("nav.addExpense")}
+          </button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           {currentHousehold && (
@@ -395,6 +427,7 @@ function AppShell() {
               <Route path="add-holding" element={<AddHolding />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="budget" element={<Budget />} />
+              <Route path="expenses" element={<Expenses />} />
               <Route path="import-spreadsheet" element={<ImportSpreadsheet />} />
               <Route path="import-bank-statement" element={<ImportBankStatement />} />
               <Route path="import" element={<ImportCsv />} />
@@ -414,7 +447,7 @@ function AppShell() {
         </ErrorBoundary>
       </main>
 
-      <MobileBottomNav />
+      <MobileBottomNav onAdd={() => setQuickAddOpen(true)} />
       <CopilotChat />
       <CommandSearch />
     </div>

@@ -11,6 +11,8 @@ import PrivacyToggle from "./PrivacyToggle";
 // which previously only existed in the desktop nav that's fully hidden on
 // mobile, so there was literally no way to reach them from a phone.
 const MENU_LINKS = [
+  { to: "/transactions", labelKey: "nav.transactions", icon: "📋" },
+  { to: "/add-holding", labelKey: "nav.addHolding", icon: "➕" },
   { to: "/liabilities", labelKey: "nav.liabilities", icon: "🏦" },
   { to: "/insights", labelKey: "nav.insights", icon: "📈" },
   { to: "/import", labelKey: "nav.importCsv", icon: "📥" },

@@ -70,6 +70,13 @@ test.describe("Mobile layout", () => {
 
   test("Budget has no horizontal overflow on a narrow viewport", async ({ mockedPage: page }) => {
     await page.goto("/budget");
+    await expect(page.getByText("Log an expense")).toBeVisible();
+
+    await expectNoElementOverflowsViewport(page);
+  });
+
+  test("Expenses has no horizontal overflow on a narrow viewport", async ({ mockedPage: page }) => {
+    await page.goto("/expenses");
     await expect(page.getByText("Add an entry")).toBeVisible();
 
     await expectNoElementOverflowsViewport(page);
