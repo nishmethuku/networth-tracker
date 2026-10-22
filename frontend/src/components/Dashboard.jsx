@@ -22,6 +22,7 @@ import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
 import CagrHistogram from "./dashboard/CagrHistogram";
 import StressTestCard from "./dashboard/StressTestCard";
 import MoneyHealthCard from "./dashboard/MoneyHealthCard";
+import ChangeOverTimeCard from "./dashboard/ChangeOverTimeCard";
 import OnboardingWizard, { isOnboardingDismissed } from "./OnboardingWizard";
 import AnimatedNumber from "./AnimatedNumber";
 import { fetchDashboard, fetchNetWorthHistory, fetchHoldings, fetchBenchmark, ApiError } from "../api";
@@ -381,6 +382,10 @@ export default function Dashboard() {
             <ErrorBoundary mode="section" fallbackMessage="Couldn't load emergency fund status.">
               <EmergencyFundCard currency={currency} householdId={currentHouseholdId} />
             </ErrorBoundary>
+          </div>
+
+          <div style={{ marginBottom: "1.5rem" }}>
+            <ChangeOverTimeCard history={history} current={dashboard.totalNetWorth} currency={currency} />
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>
