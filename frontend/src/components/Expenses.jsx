@@ -8,11 +8,18 @@ import ErrorState from "./ErrorState";
 import AddEntryForm from "./budget/AddEntryForm";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, ApiError } from "../api";
+import { fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, ApiError } from "../api";
+import EditEntryModal from "./budget/EditEntryModal";
+import { filterEntries } from "../utils/filterEntries";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
 import { groupByDay, monthOf, monthTotals, shiftMonth } from "../utils/entryGroups";
+
+function lastDayOf(month) {
+  const [y, m] = month.split("-").map(Number);
+  return `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
+}
 
 const selectStyle = {
   padding: "0.625rem 0.875rem",
@@ -21,6 +28,16 @@ const selectStyle = {
   background: "var(--bg)",
   color: "var(--text)",
   fontSize: "0.875rem",
+};
+
+const smallBtn = {
+  fontSize: "0.75rem",
+  background: "transparent",
+  border: "1px solid var(--border)",
+  color: "var(--text-secondary)",
+  padding: "0.25rem 0.5rem",
+  borderRadius: "var(--radius-sm)",
+  cursor: "pointer",
 };
 
 const navBtn = {
@@ -42,6 +59,9 @@ export default function Expenses() {
   const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
   const thisMonth = monthOf(todayISO());
   const [month, setMonth] = useState(thisMonth);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [editing, setEditing] = useState(null);
   const queryClient = useQueryClient();
   const toast = useToast();
   const { currentHouseholdId } = useHousehold();
@@ -57,8 +77,9 @@ export default function Expenses() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["budget-entries", currentHouseholdId],
-    queryFn: () => fetchBudgetEntries({ householdId: currentHouseholdId }),
+    // One month at a time, so older months are never cut off by the server's list limit.
+    queryKey: ["budget-entries", currentHouseholdId, month],
+    queryFn: () => fetchBudgetEntries({ householdId: currentHouseholdId, dateFrom: `${month}-01`, dateTo: lastDayOf(month) }),
   });
 
   const deleteMutation = useMutation({
@@ -71,7 +92,30 @@ export default function Expenses() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not delete the entry"),
   });
 
-  const days = useMemo(() => groupByDay(entries, month, currency), [entries, month, currency]);
+  const repeatMutation = useMutation({
+    mutationFn: (e) =>
+      createBudgetEntry({
+        entry_type: e.entryType,
+        entry_date: todayISO(),
+        amount: e.amount,
+        currency: e.currency,
+        category: e.category,
+        description: e.description || null,
+        is_recurring: false,
+        recurring_frequency: null,
+        ...(currentHouseholdId ? { household_id: currentHouseholdId } : {}),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      toast.success("Logged again for today");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not repeat the entry"),
+  });
+
+  const visible = useMemo(() => filterEntries(entries, search, categoryFilter, getBudgetCategoryLabel), [entries, search, categoryFilter]);
+  const days = useMemo(() => groupByDay(visible, month, currency), [visible, month, currency]);
+  const categoryChoices = useMemo(() => [...new Set((entries || []).map((e) => e.category))].sort(), [entries]);
   const totals = useMemo(() => monthTotals(entries, month, currency), [entries, month, currency]);
   const money = (v, cur = currency) => formatCurrencyForDisplay(v, cur, { alwaysCents: true });
 
@@ -156,12 +200,38 @@ export default function Expenses() {
         )}
       </p>
 
+      {(entries || []).length > 0 && (
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+          <input
+            type="search"
+            aria-label="Search expenses"
+            placeholder="Search notes or categories"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ ...selectStyle, flex: "1 1 12rem" }}
+          />
+          <select
+            aria-label="Filter by category"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="">All categories</option>
+            {categoryChoices.map((c) => (
+              <option key={c} value={c}>
+                {getBudgetCategoryLabel(c)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {isLoading ? (
         <LoadingState message="Loading your expenses..." />
       ) : isError ? (
         <ErrorState error={error instanceof ApiError ? error.message : "Failed to load expenses"} onRetry={refetch} />
       ) : days.length === 0 ? (
-        <EmptyState message={`Nothing logged in ${monthLabel(month)} yet.`} />
+        <EmptyState message={search || categoryFilter ? "No entries match that search." : `Nothing logged in ${monthLabel(month)} yet.`} />
       ) : (
         <div style={{ display: "grid", gap: "1rem" }}>
           {days.map((d) => (
@@ -207,6 +277,23 @@ export default function Expenses() {
                     </span>
                     <button
                       type="button"
+                      onClick={() => setEditing(e)}
+                      aria-label={`Edit ${getBudgetCategoryLabel(e.category)} entry`}
+                      style={smallBtn}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => repeatMutation.mutate(e)}
+                      disabled={repeatMutation.isPending}
+                      aria-label={`Repeat ${getBudgetCategoryLabel(e.category)} entry today`}
+                      style={smallBtn}
+                    >
+                      Repeat
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => deleteMutation.mutate(e.id)}
                       aria-label={`Delete ${getBudgetCategoryLabel(e.category)} entry`}
                       style={{
@@ -228,6 +315,7 @@ export default function Expenses() {
           ))}
         </div>
       )}
+      {editing && <EditEntryModal entry={editing} categories={categories} onClose={() => setEditing(null)} />}
     </div>
   );
 }

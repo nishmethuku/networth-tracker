@@ -1,5 +1,15 @@
 # Changelog
 
+## Faster expenses (branch `feature/expense-speed`)
+
+- **Edit** any expense on the Expenses page (amount, category, note, date). Changing the amount does not change the balance of the account or card it was paid from, and the form says so.
+- **Repeat** an entry with one tap to log the same thing again for today.
+- **Search** your expenses by note or category, and filter by one category.
+- The Expenses page now loads one month at a time, so older months are no longer cut off.
+- The quick add sheet shows what you have spent today and this month, and offers your most repeated expenses (for example "Coffee · $6.00") as one-tap buttons that fill in the amount, category and note.
+
+---
+
 ## Expenses on its own page (branch `feature/expenses-page`)
 
 - New **Expenses** page (menu, bottom bar, or press **X**): the add form on top, then this month's entries grouped by day with a daily total, and Prev / Next month buttons to look back.
