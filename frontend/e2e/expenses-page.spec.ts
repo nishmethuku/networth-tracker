@@ -31,7 +31,7 @@ test("Expenses is its own page with the add form and this month's entries", asyn
   await page.goto("/expenses");
   await expect(page.getByRole("heading", { name: "Expenses" })).toBeVisible();
   await expect(page.getByText("Add an entry")).toBeVisible();
-  await expect(page.getByText("Lunch")).toBeVisible();
+  await expect(page.getByText("— Lunch")).toBeVisible();
   await expect(page.getByText("Spent")).toContainText("$52.50");
   await expect(page).toHaveTitle(/Expenses/);
 

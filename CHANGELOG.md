@@ -1,5 +1,14 @@
 # Changelog
 
+## Limits, habits and month review (branch `feature/budget-planner`)
+
+- **Suggested limits** on Expenses: based on your last three months, with a one-tap "Limit $X" for each category that has none yet.
+- **Your habits:** a weekday chart showing which day costs you the most, your no-spend days and current streak this month, and your top notes (like "Chipotle" or "Uber") by total.
+- **Month in review:** open any finished month to see the total, the days you spent, how it compares with your usual month, and the biggest single purchase.
+- **Undo after quick add:** the "Expense added" message has an Undo button. It is not offered when the expense also changed an account or card balance.
+
+---
+
 ## Spending hub (branch `feature/spending-hub`)
 
 - **Dashboard Spending card:** today, this week (with how it compares to last week) and this month, your biggest categories, the last five expenses, and a "+ Add expense" button. It stays hidden until you have logged something, and can be hidden from Customize.

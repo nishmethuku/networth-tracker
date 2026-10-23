@@ -15,6 +15,9 @@ import SpendCalendar from "./expenses/SpendCalendar";
 import CategoryChanges from "./expenses/CategoryChanges";
 import SafeToSpend from "./expenses/SafeToSpend";
 import RecurringSuggestions from "./expenses/RecurringSuggestions";
+import SuggestedLimits from "./expenses/SuggestedLimits";
+import SpendingPatterns from "./expenses/SpendingPatterns";
+import MonthReview from "./expenses/MonthReview";
 import { useRecentEntries } from "../hooks/useRecentEntries";
 import { isNonSpendingCategory } from "../utils/nonSpending";
 import { filterEntries } from "../utils/filterEntries";
@@ -264,6 +267,9 @@ export default function Expenses() {
       <div style={{ display: "grid", gap: "1rem", marginBottom: "1rem" }}>
         <SpendCalendar entries={entries} month={month} currency={currency} selected={day} onSelect={setDay} />
         <CategoryChanges entries={recent || entries} month={month} currency={currency} />
+        <MonthReview currency={currency} householdId={currentHouseholdId} month={month} />
+        <SpendingPatterns currency={currency} householdId={currentHouseholdId} month={month} />
+        <SuggestedLimits currency={currency} householdId={currentHouseholdId} />
         <RecurringSuggestions currency={currency} householdId={currentHouseholdId} />
       </div>
 
