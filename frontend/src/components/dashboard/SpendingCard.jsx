@@ -8,7 +8,7 @@ import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../../utils/f
 
 function Stat({ label, value, note }) {
   return (
-    <div style={{ minWidth: "6rem" }}>
+    <div style={{ minWidth: 0 }}>
       <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{label}</div>
       <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "1.125rem", color: "var(--text)" }}>{value}</div>
       {note && <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{note}</div>}
@@ -31,7 +31,7 @@ export default function SpendingCard({ currency, householdId }) {
 
   return (
     <Card title="Spending" subtitle="Card payments are left out so nothing is counted twice">
-      <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", margin: "0.75rem 0" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(6.5rem, 1fr))", gap: "1rem", margin: "0.75rem 0" }}>
         <Stat label="Today" value={money(s.today)} />
         <Stat label="This week" value={money(s.week)} note={weekNote} />
         <Stat label="This month" value={money(s.month)} />

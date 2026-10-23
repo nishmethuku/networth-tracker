@@ -54,6 +54,7 @@ test("quick add understands a typed sentence", async ({ mockedPage: page }) => {
   await page.goto("/portfolio");
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Add expense (E)" }).click();
+  await page.getByRole("button", { name: /type it instead/i }).click();
   const typed = page.getByLabel("Type it (optional)");
   await typed.fill("coffee 4.50 yesterday");
   await expect(page.getByText(/press Enter to fill the form/)).toContainText("4.50");

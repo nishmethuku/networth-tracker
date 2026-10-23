@@ -20,6 +20,7 @@ import SuggestedLimits from "./expenses/SuggestedLimits";
 import SpendingPatterns from "./expenses/SpendingPatterns";
 import MonthReview from "./expenses/MonthReview";
 import { useRecentEntries } from "../hooks/useRecentEntries";
+import useIsMobile from "../hooks/useIsMobile";
 import { isNonSpendingCategory } from "../utils/nonSpending";
 import { biggestFirst, filterByAmount, filterEntries } from "../utils/filterEntries";
 import { entriesToCsv } from "../utils/entriesCsv";
@@ -74,6 +75,10 @@ export default function Expenses() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [editing, setEditing] = useState(null);
+  const isMobile = useIsMobile();
+  // On a phone the form and the insight cards start folded away so the list is right there.
+  const [formOpen, setFormOpen] = useState(!isMobile);
+  const [insightsOpen, setInsightsOpen] = useState(!isMobile);
   const [day, setDay] = useState(null);
   const [allMonths, setAllMonths] = useState(false);
   const [minAmt, setMinAmt] = useState("");
@@ -249,6 +254,7 @@ export default function Expenses() {
         gap: "0.75rem",
         padding: "0.5rem 0",
         borderTop: "1px solid var(--border-light)",
+        flexWrap: "wrap",
       }}
     >
       {selectMode && (
@@ -268,7 +274,15 @@ export default function Expenses() {
           </span>
         )}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          flexShrink: 0,
+          ...(isMobile ? { flexBasis: "100%", justifyContent: "space-between", flexWrap: "wrap" } : {}),
+        }}
+      >
         <span
           style={{
             fontFamily: "var(--font-mono)",
@@ -346,15 +360,26 @@ export default function Expenses() {
       </p>
 
       <div style={{ marginBottom: "1.5rem" }}>
-        <Card title="Add an entry">
-          {/* key={currency}: the form reads its defaults once, so remount when the currency changes. */}
-          <AddEntryForm key={currency} categories={categories} currency={currency} />
-          <p style={{ marginTop: "1rem", fontSize: "0.8125rem" }}>
-            <Link to="/import-bank-statement" style={{ color: "var(--primary)" }}>
-              Import a bank or credit card statement instead →
-            </Link>
-          </p>
-        </Card>
+        {formOpen ? (
+          <Card title="Add an entry">
+            {/* key={currency}: the form reads its defaults once, so remount when the currency changes. */}
+            <AddEntryForm key={currency} categories={categories} currency={currency} />
+            <p style={{ marginTop: "1rem", fontSize: "0.8125rem" }}>
+              <Link to="/import-bank-statement" style={{ color: "var(--primary)" }}>
+                Import a bank or credit card statement instead →
+              </Link>
+            </p>
+          </Card>
+        ) : (
+          <button
+            type="button"
+            style={{ ...navBtn, width: "100%", textAlign: "left" }}
+            aria-expanded="false"
+            onClick={() => setFormOpen(true)}
+          >
+            ▸ Add an entry with the full form
+          </button>
+        )}
       </div>
 
       <div
@@ -401,7 +426,15 @@ export default function Expenses() {
 
       <ExpenseInsights currency={currency} householdId={currentHouseholdId} month={month} spent={totals.expenses} />
 
-      <div style={{ display: "grid", gap: "1rem", marginBottom: "1rem" }}>
+      <button
+        type="button"
+        style={{ ...navBtn, marginBottom: "0.75rem" }}
+        aria-expanded={insightsOpen}
+        onClick={() => setInsightsOpen((v) => !v)}
+      >
+        {insightsOpen ? "▾ Hide insights" : "▸ Show insights"}
+      </button>
+      <div style={{ display: insightsOpen ? "grid" : "none", gap: "1rem", marginBottom: "1rem" }}>
         <SpendCalendar entries={entries} month={month} currency={currency} selected={day} onSelect={setDay} />
         <CategoryChanges entries={recent || entries} month={month} currency={currency} onPick={setCategoryFilter} />
         <MonthReview currency={currency} householdId={currentHouseholdId} month={month} />

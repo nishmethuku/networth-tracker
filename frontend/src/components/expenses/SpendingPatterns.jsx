@@ -48,7 +48,7 @@ export default function SpendingPatterns({ currency, householdId, month }) {
                   width: "100%",
                   height: `${Math.max(4, (w.average / max) * 100)}%`,
                   borderRadius: "4px 4px 0 0",
-                  background: w.average === max ? "var(--primary)" : "rgba(37, 99, 235, 0.35)",
+                  background: w.average === max ? "var(--primary)" : "color-mix(in srgb, var(--primary) 35%, transparent)",
                 }}
               />
               <span style={{ fontSize: "0.6875rem", color: "var(--text-muted)", marginTop: "2px" }}>{NAMES[w.day][0]}</span>
