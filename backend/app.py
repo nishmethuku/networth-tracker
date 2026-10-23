@@ -50,7 +50,9 @@ from .budget_service import (
     get_limits,
     get_monthly_summary,
     get_subscriptions,
+    get_year,
     list_categories,
+    log_due_recurring,
     set_limit,
 )
 from .digest_service import build_weekly_digest
@@ -2326,6 +2328,30 @@ def create_app():
         )
         return jsonify(result)
 
+    @app.route("/budget/year", methods=["GET"])
+    @require_auth
+    def budget_year():
+        household_id_param = request.args.get("household_id")
+        if household_id_param and household_id_param not in get_member_household_ids(g.user_id):
+            abort(403)
+        currency = request.args.get("currency", "USD").upper()
+        try:
+            year = int(request.args["year"]) if request.args.get("year") else None
+        except ValueError:
+            return jsonify({"error": "year must be a number"}), 400
+        return jsonify(get_year(g.user_id if not household_id_param else None, household_id_param, year=year, currency=currency))
+
+    @app.route("/budget/recurring/log-due", methods=["POST"])
+    @require_auth
+    def budget_log_due_recurring():
+        """Logs the recurring bills that have come due since their last entry. Safe to call
+        repeatedly (and from several devices): each run starts from the latest entry."""
+        data = request.get_json(silent=True) or {}
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        created = log_due_recurring(g.user_id, household_id)
+        return jsonify({"created": [e.to_dict() for e in created], "count": len(created)}), 201 if created else 200
+
     @app.route("/budget/limits", methods=["GET"])
     @require_auth
     def budget_limits_list():
@@ -2348,6 +2374,7 @@ def create_app():
                 monthly_limit=safe_float(data.get("monthly_limit")),
                 currency=data.get("currency", "USD"),
                 household_id=household_id,
+                rollover=bool(data["rollover"]) if "rollover" in data else None,
             )
         except ValueError as e:
             return jsonify({"error": str(e)}), 400

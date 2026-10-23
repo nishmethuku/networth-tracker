@@ -741,6 +741,23 @@ export async function fetchSubscriptions({ householdId, currency = "USD" }: { ho
   return api.get(`/budget/subscriptions?${params.toString()}`);
 }
 
+/** A calendar year of spending: each month, top categories and how it compares with last year. */
+export async function fetchBudgetYear({
+  householdId,
+  year,
+  currency = "USD",
+}: { householdId?: string; year?: number; currency?: string } = {}) {
+  const params = new URLSearchParams({ currency });
+  if (year) params.append("year", String(year));
+  if (householdId) params.append("household_id", householdId);
+  return api.get(`/budget/year?${params.toString()}`);
+}
+
+/** Logs the recurring bills that have come due. Safe to call again: each run starts from the latest entry. */
+export async function logDueRecurring({ householdId }: { householdId?: string } = {}) {
+  return api.post("/budget/recurring/log-due", householdId ? { household_id: householdId } : {});
+}
+
 export async function fetchBudgetLimits({ householdId }: { householdId?: string } = {}) {
   const params = new URLSearchParams();
   if (householdId) params.append("household_id", householdId);

@@ -432,6 +432,8 @@ class BudgetLimit(db.Model):
     category = db.Column(db.String(32), nullable=False)
     monthly_limit = db.Column(db.Float, nullable=False)
     currency = db.Column(db.String(8), nullable=False)
+    # When on, whatever was left unspent last month is added to this month's limit.
+    rollover = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
@@ -443,6 +445,7 @@ class BudgetLimit(db.Model):
             "category": self.category,
             "monthly_limit": self.monthly_limit,
             "currency": self.currency,
+            "rollover": bool(self.rollover),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

@@ -17,6 +17,9 @@ import CategoryChanges from "./expenses/CategoryChanges";
 import SafeToSpend from "./expenses/SafeToSpend";
 import RecurringSuggestions from "./expenses/RecurringSuggestions";
 import SuggestedLimits from "./expenses/SuggestedLimits";
+import SplitEntryModal from "./expenses/SplitEntryModal";
+import YearReview from "./expenses/YearReview";
+import AutoLogSetting from "./expenses/AutoLogSetting";
 import SpendingPatterns from "./expenses/SpendingPatterns";
 import MonthReview from "./expenses/MonthReview";
 import { useRecentEntries } from "../hooks/useRecentEntries";
@@ -75,6 +78,7 @@ export default function Expenses() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [editing, setEditing] = useState(null);
+  const [splitting, setSplitting] = useState(null);
   const isMobile = useIsMobile();
   // On a phone the form and the insight cards start folded away so the list is right there.
   const [formOpen, setFormOpen] = useState(!isMobile);
@@ -310,6 +314,16 @@ export default function Expenses() {
         >
           Repeat
         </button>
+        {e.entryType === "expense" && !isNonSpendingCategory(e.category) && e.amount > 0.01 && (
+          <button
+            type="button"
+            onClick={() => setSplitting(e)}
+            aria-label={`Split ${getBudgetCategoryLabel(e.category)} entry`}
+            style={smallBtn}
+          >
+            Split
+          </button>
+        )}
         <button
           type="button"
           onClick={() => deleteMutation.mutate(e)}
@@ -441,6 +455,8 @@ export default function Expenses() {
         <SpendingPatterns currency={currency} householdId={currentHouseholdId} month={month} />
         <SuggestedLimits currency={currency} householdId={currentHouseholdId} />
         <RecurringSuggestions currency={currency} householdId={currentHouseholdId} />
+        <AutoLogSetting currency={currency} householdId={currentHouseholdId} />
+        <YearReview currency={currency} householdId={currentHouseholdId} />
       </div>
 
       {day && (
@@ -613,6 +629,7 @@ export default function Expenses() {
           ))}
         </div>
       )}
+      {splitting && <SplitEntryModal entry={splitting} categories={categories} onClose={() => setSplitting(null)} />}
       {editing && <EditEntryModal entry={editing} categories={categories} onClose={() => setEditing(null)} />}
     </div>
   );

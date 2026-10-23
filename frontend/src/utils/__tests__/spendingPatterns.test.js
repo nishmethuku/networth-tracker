@@ -105,3 +105,50 @@ describe("monthReview", () => {
     expect(monthReview([e(1, "2026-10-02", 10)], "2026-10", "USD").vsUsualPct).toBeNull();
   });
 });
+
+import { planSplit, remainder } from "../splitExpense";
+
+describe("planSplit and remainder", () => {
+  it("keeps the first part and adds the rest when the parts add up", () => {
+    const r = planSplit(50, [
+      { category: "food", amount: 30 },
+      { category: "household", amount: 20 },
+    ]);
+    expect(r).toEqual({ ok: true, keep: { category: "food", amount: 30 }, add: [{ category: "household", amount: 20 }] });
+  });
+  it("adds up to the cent despite floating point", () => {
+    expect(
+      planSplit(0.3, [
+        { category: "a", amount: 0.1 },
+        { category: "b", amount: 0.2 },
+      ]).ok,
+    ).toBe(true);
+  });
+  it("says what is missing or extra", () => {
+    expect(
+      planSplit(50, [
+        { category: "a", amount: 10 },
+        { category: "b", amount: 20 },
+      ]),
+    ).toMatchObject({ ok: false, message: "20.00 is still unassigned." });
+    expect(
+      planSplit(50, [
+        { category: "a", amount: 40 },
+        { category: "b", amount: 20 },
+      ]),
+    ).toMatchObject({ ok: false, message: "The parts are 10.00 over the total." });
+  });
+  it("needs two parts with a category and an amount", () => {
+    expect(planSplit(50, [{ category: "a", amount: 50 }]).ok).toBe(false);
+    expect(
+      planSplit(50, [
+        { category: "", amount: 25 },
+        { category: "b", amount: 25 },
+      ]).ok,
+    ).toBe(false);
+  });
+  it("works out the remainder", () => {
+    expect(remainder(50, [{ category: "a", amount: 30.25 }])).toBe(19.75);
+    expect(remainder(50, [{ category: "a", amount: 80 }])).toBe(0);
+  });
+});

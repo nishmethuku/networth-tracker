@@ -1,5 +1,15 @@
 # Changelog
 
+## Splits, rollover, automatic bills, year so far (branch `feature/splits-rollover-autolog`)
+
+- **Split an expense** across categories: a grocery run that was half food and half household. Each part is its own entry on the same day, paid the same way, so card and account balances stay right.
+- **Carry over unspent budget:** switch "Carry over" on for a monthly limit and whatever was left last month is added to this month (never more than one month's limit). The limit bar says how much carried over.
+- **Log recurring bills automatically** (Expenses, "Recurring bills" card): when you open the app, bills that have come due are logged for you. Safe on several devices, because each run starts from the latest entry. It never touches a card or account balance.
+- **Year so far:** a bar for each month of this year, the biggest month, the top categories, and how it compares with last year.
+- Small database change (a rollover column on limits), applied automatically on deploy.
+
+---
+
 ## Phone polish for Expenses (branch `feature/mobile-expenses`)
 
 - On a phone, entry rows give the note the full width, with the amount and the Edit, Repeat and Delete buttons on a line below. Before, long notes were squeezed into a thin column.

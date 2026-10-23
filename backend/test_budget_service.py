@@ -91,7 +91,9 @@ def test_limit_status_reports_spend_vs_limit_for_latest_month():
     entries = [_entry("expense", date(2026, 3, 1), 450, "food")]
     limits = [{"category": "food", "monthly_limit": 600, "currency": "USD"}]
     result = summarize_entries(entries, limits=limits)
-    assert result["limit_status"] == [{"category": "food", "limit": 600, "spent": 450.0, "percent": 75.0}]
+    assert result["limit_status"] == [
+        {"category": "food", "limit": 600, "base_limit": 600, "carried_over": 0.0, "rollover": False, "spent": 450.0, "percent": 75.0}
+    ]
 
 
 def test_limit_status_ignores_limits_in_a_different_currency():

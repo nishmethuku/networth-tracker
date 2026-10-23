@@ -465,6 +465,7 @@ export interface BudgetLimit {
   category: string;
   monthlyLimit: number;
   currency: string;
+  rollover: boolean;
   createdAt: string;
 }
 
@@ -476,6 +477,7 @@ export function mapBudgetLimit(l: any): BudgetLimit | null {
     category: l.category,
     monthlyLimit: safeNumber(l.monthly_limit),
     currency: l.currency ?? "USD",
+    rollover: !!l.rollover,
     createdAt: l.created_at ?? "",
   };
 }
