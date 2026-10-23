@@ -38,13 +38,13 @@ test("Expenses can search, edit and repeat an entry", async ({ mockedPage: page 
   });
 
   await page.goto("/expenses");
-  await expect(page.getByText("Lunch")).toBeVisible();
-  await expect(page.getByText("Gas")).toBeVisible();
+  await expect(page.getByText("— Lunch")).toBeVisible();
+  await expect(page.getByText("— Gas")).toBeVisible();
 
   // Search narrows the list.
   await page.getByLabel("Search expenses").fill("gas");
-  await expect(page.getByText("Lunch")).toHaveCount(0);
-  await expect(page.getByText("Gas")).toBeVisible();
+  await expect(page.getByText("— Lunch")).toHaveCount(0);
+  await expect(page.getByText("— Gas")).toBeVisible();
   await page.getByLabel("Search expenses").fill("nothing like this");
   await expect(page.getByText(/no entries match/i)).toBeVisible();
   await page.getByLabel("Search expenses").fill("");

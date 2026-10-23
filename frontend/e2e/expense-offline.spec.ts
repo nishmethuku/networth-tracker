@@ -72,7 +72,7 @@ test("deleting an expense offers Undo, and quick add can switch currency", async
   });
 
   await page.goto("/expenses");
-  await expect(page.getByText("Lunch")).toBeVisible();
+  await expect(page.getByText("— Lunch")).toBeVisible();
   await page.getByRole("button", { name: /delete food entry/i }).click();
   await page.getByRole("button", { name: "Undo" }).click();
   await expect.poll(() => restored).not.toBeNull();
