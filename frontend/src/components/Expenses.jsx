@@ -8,7 +8,8 @@ import ErrorState from "./ErrorState";
 import AddEntryForm from "./budget/AddEntryForm";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, ApiError } from "../api";
+import { fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, updateBudgetEntry, ApiError } from "../api";
+import { orderCategoryOptions } from "../utils/categoryTree";
 import EditEntryModal from "./budget/EditEntryModal";
 import ExpenseInsights from "./budget/ExpenseInsights";
 import SpendCalendar from "./expenses/SpendCalendar";
@@ -20,7 +21,7 @@ import SpendingPatterns from "./expenses/SpendingPatterns";
 import MonthReview from "./expenses/MonthReview";
 import { useRecentEntries } from "../hooks/useRecentEntries";
 import { isNonSpendingCategory } from "../utils/nonSpending";
-import { filterEntries } from "../utils/filterEntries";
+import { biggestFirst, filterByAmount, filterEntries } from "../utils/filterEntries";
 import { entriesToCsv } from "../utils/entriesCsv";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -75,6 +76,12 @@ export default function Expenses() {
   const [editing, setEditing] = useState(null);
   const [day, setDay] = useState(null);
   const [allMonths, setAllMonths] = useState(false);
+  const [minAmt, setMinAmt] = useState("");
+  const [maxAmt, setMaxAmt] = useState("");
+  const [sortBiggest, setSortBiggest] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulkCategory, setBulkCategory] = useState("");
   const searchRef = useRef(null);
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -175,16 +182,139 @@ export default function Expenses() {
 
   const source = allMonths && search ? recent : entries;
   const visible = useMemo(() => {
-    const found = filterEntries(source, search, categoryFilter, getBudgetCategoryLabel);
+    const found = filterByAmount(filterEntries(source, search, categoryFilter, getBudgetCategoryLabel), minAmt, maxAmt);
     return day ? found.filter((e) => e.entryDate === day) : found;
-  }, [source, search, categoryFilter, day]);
+  }, [source, search, categoryFilter, day, minAmt, maxAmt]);
   const days = useMemo(
     () => groupByDay(visible, allMonths && search ? null : month, currency),
     [visible, month, currency, allMonths, search],
   );
-  const categoryChoices = useMemo(() => [...new Set((entries || []).map((e) => e.category))].sort(), [entries]);
+  const categoryChoices = useMemo(
+    () => [...new Set([...(entries || []).map((e) => e.category), ...(categoryFilter ? [categoryFilter] : [])])].sort(),
+    [entries, categoryFilter],
+  );
+  const flat = useMemo(() => (sortBiggest ? biggestFirst(days.flatMap((d) => d.entries)) : []), [sortBiggest, days]);
+  const categoryOptions = useMemo(
+    () => orderCategoryOptions(categories?.expense || [], categories?.parents?.expense, getBudgetCategoryLabel),
+    [categories],
+  );
+
+  function toggleSelected(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function leaveSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+    setBulkCategory("");
+  }
+  const chosen = useMemo(() => visible.filter((e) => selected.has(e.id)), [visible, selected]);
+
+  const bulkRecategorize = useMutation({
+    mutationFn: (category) => Promise.all(chosen.map((e) => updateBudgetEntry(e.id, { category }))),
+    onSuccess: (_d, category) => {
+      queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      toast.success(`Moved ${chosen.length} ${chosen.length === 1 ? "entry" : "entries"} to ${getBudgetCategoryLabel(category)}`);
+      leaveSelectMode();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not change the category"),
+  });
+  const bulkDelete = useMutation({
+    mutationFn: () =>
+      Promise.all(
+        chosen.map((e) => deleteBudgetEntry(e.id, { reverse: !!(e.chargedLiabilityId || e.fundingHoldingId || e.linkedLiabilityId) })),
+      ),
+    onSuccess: () => {
+      for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"]) queryClient.invalidateQueries({ queryKey: [key] });
+      toast.success(`Deleted ${chosen.length} ${chosen.length === 1 ? "entry" : "entries"}`);
+      leaveSelectMode();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not delete those entries"),
+  });
   const totals = useMemo(() => monthTotals(entries, month, currency), [entries, month, currency]);
   const money = (v, cur = currency) => formatCurrencyForDisplay(v, cur, { alwaysCents: true });
+
+  const renderRow = (e) => (
+    <div
+      key={e.id}
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "0.75rem",
+        padding: "0.5rem 0",
+        borderTop: "1px solid var(--border-light)",
+      }}
+    >
+      {selectMode && (
+        <input
+          type="checkbox"
+          checked={selected.has(e.id)}
+          onChange={() => toggleSelected(e.id)}
+          aria-label={`Select ${getBudgetCategoryLabel(e.category)} entry ${e.description || ""}`.trim()}
+        />
+      )}
+      <div style={{ fontWeight: 500, flex: 1, color: "var(--text)", fontSize: "0.9375rem", minWidth: 0 }}>
+        {getBudgetCategoryLabel(e.category)}
+        {e.description ? <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}> — {e.description}</span> : null}
+        {e.entryType === "expense" && isNonSpendingCategory(e.category) && (
+          <span style={{ display: "block", color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 400 }}>
+            Card payment, not counted as spending
+          </span>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontWeight: 600,
+            color: e.entryType === "income" ? "var(--success)" : "var(--danger)",
+          }}
+        >
+          {e.entryType === "income" ? "+" : "−"}
+          {money(e.amount, e.currency)}
+        </span>
+        <button
+          type="button"
+          onClick={() => setEditing(e)}
+          aria-label={`Edit ${getBudgetCategoryLabel(e.category)} entry`}
+          style={smallBtn}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => repeatMutation.mutate(e)}
+          disabled={repeatMutation.isPending}
+          aria-label={`Repeat ${getBudgetCategoryLabel(e.category)} entry today`}
+          style={smallBtn}
+        >
+          Repeat
+        </button>
+        <button
+          type="button"
+          onClick={() => deleteMutation.mutate(e)}
+          aria-label={`Delete ${getBudgetCategoryLabel(e.category)} entry`}
+          style={{
+            fontSize: "0.75rem",
+            background: "transparent",
+            border: "1px solid var(--border)",
+            color: "var(--text-muted)",
+            padding: "0.25rem 0.5rem",
+            borderRadius: "var(--radius-sm)",
+            cursor: "pointer",
+          }}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -273,7 +403,7 @@ export default function Expenses() {
 
       <div style={{ display: "grid", gap: "1rem", marginBottom: "1rem" }}>
         <SpendCalendar entries={entries} month={month} currency={currency} selected={day} onSelect={setDay} />
-        <CategoryChanges entries={recent || entries} month={month} currency={currency} />
+        <CategoryChanges entries={recent || entries} month={month} currency={currency} onPick={setCategoryFilter} />
         <MonthReview currency={currency} householdId={currentHouseholdId} month={month} />
         <SpendingPatterns currency={currency} householdId={currentHouseholdId} month={month} />
         <SuggestedLimits currency={currency} householdId={currentHouseholdId} />
@@ -332,6 +462,92 @@ export default function Expenses() {
               </option>
             ))}
           </select>
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            aria-label="Minimum amount"
+            placeholder="Min"
+            value={minAmt}
+            onChange={(e) => setMinAmt(e.target.value)}
+            style={{ ...selectStyle, width: "5.5rem" }}
+          />
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            aria-label="Maximum amount"
+            placeholder="Max"
+            value={maxAmt}
+            onChange={(e) => setMaxAmt(e.target.value)}
+            style={{ ...selectStyle, width: "5.5rem" }}
+          />
+          <select
+            aria-label="Sort entries"
+            value={sortBiggest ? "biggest" : "newest"}
+            onChange={(e) => setSortBiggest(e.target.value === "biggest")}
+            style={selectStyle}
+          >
+            <option value="newest">Newest first</option>
+            <option value="biggest">Biggest first</option>
+          </select>
+          <button type="button" style={navBtn} onClick={() => (selectMode ? leaveSelectMode() : setSelectMode(true))}>
+            {selectMode ? "Done selecting" : "Select"}
+          </button>
+        </div>
+      )}
+
+      {selectMode && (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          style={{
+            display: "flex",
+            gap: "0.5rem",
+            flexWrap: "wrap",
+            alignItems: "center",
+            marginBottom: "1rem",
+            padding: "0.75rem",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius)",
+            background: "var(--card)",
+          }}
+        >
+          <span style={{ fontSize: "0.875rem", color: "var(--text)" }}>{selected.size} selected</span>
+          <button type="button" style={smallBtn} onClick={() => setSelected(new Set(visible.map((e) => e.id)))}>
+            Select all shown
+          </button>
+          <select aria-label="Move to category" value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} style={selectStyle}>
+            <option value="">Move to category…</option>
+            {categoryOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            style={navBtn}
+            disabled={!bulkCategory || selected.size === 0 || bulkRecategorize.isPending}
+            onClick={() => bulkRecategorize.mutate(bulkCategory)}
+          >
+            Move
+          </button>
+          <button
+            type="button"
+            style={{ ...navBtn, color: "var(--danger)" }}
+            disabled={selected.size === 0 || bulkDelete.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Delete ${selected.size} ${selected.size === 1 ? "entry" : "entries"}? Card and account balances they moved are put back.`,
+                )
+              )
+                bulkDelete.mutate();
+            }}
+          >
+            Delete selected
+          </button>
         </div>
       )}
 
@@ -341,6 +557,8 @@ export default function Expenses() {
         <ErrorState error={error instanceof ApiError ? error.message : "Failed to load expenses"} onRetry={refetch} />
       ) : days.length === 0 ? (
         <EmptyState message={search || categoryFilter ? "No entries match that search." : `Nothing logged in ${monthLabel(month)} yet.`} />
+      ) : sortBiggest ? (
+        <Card title="Biggest first">{flat.map(renderRow)}</Card>
       ) : (
         <div style={{ display: "grid", gap: "1rem" }}>
           {days.map((d) => (
@@ -357,74 +575,7 @@ export default function Expenses() {
                 <span>{formatDateISO(d.date)}</span>
                 {d.expenseTotal > 0 && <span style={{ fontFamily: "var(--font-mono)" }}>{money(d.expenseTotal)}</span>}
               </div>
-              {d.entries.map((e) => (
-                <div
-                  key={e.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                    padding: "0.5rem 0",
-                    borderTop: "1px solid var(--border-light)",
-                  }}
-                >
-                  <div style={{ fontWeight: 500, color: "var(--text)", fontSize: "0.9375rem", minWidth: 0 }}>
-                    {getBudgetCategoryLabel(e.category)}
-                    {e.description ? <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}> — {e.description}</span> : null}
-                    {e.entryType === "expense" && isNonSpendingCategory(e.category) && (
-                      <span style={{ display: "block", color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 400 }}>
-                        Card payment, not counted as spending
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontWeight: 600,
-                        color: e.entryType === "income" ? "var(--success)" : "var(--danger)",
-                      }}
-                    >
-                      {e.entryType === "income" ? "+" : "−"}
-                      {money(e.amount, e.currency)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setEditing(e)}
-                      aria-label={`Edit ${getBudgetCategoryLabel(e.category)} entry`}
-                      style={smallBtn}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => repeatMutation.mutate(e)}
-                      disabled={repeatMutation.isPending}
-                      aria-label={`Repeat ${getBudgetCategoryLabel(e.category)} entry today`}
-                      style={smallBtn}
-                    >
-                      Repeat
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteMutation.mutate(e)}
-                      aria-label={`Delete ${getBudgetCategoryLabel(e.category)} entry`}
-                      style={{
-                        fontSize: "0.75rem",
-                        background: "transparent",
-                        border: "1px solid var(--border)",
-                        color: "var(--text-muted)",
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "var(--radius-sm)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {d.entries.map(renderRow)}
             </Card>
           ))}
         </div>

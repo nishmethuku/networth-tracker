@@ -1,5 +1,13 @@
 # Changelog
 
+## Bulk edit, amount filters and sorting (branch `feature/bulk-and-filters`)
+
+- **Select several entries** on Expenses, then move them all to another category or delete them in one go. Deleting puts back any card or account balance the expenses moved.
+- **Filter by amount** with a minimum and maximum, and **sort biggest first** to find the large purchases fast.
+- In "What changed vs last month", tap a category to show only that category in the list below.
+
+---
+
 ## Editing keeps balances right, plus duplicate warnings (branch `feature/edit-balance-and-dupes`)
 
 - **Editing an expense moves the balance by the difference.** Change a card purchase from $50 to $80 and the card balance goes up $30. The same goes for a loan payment or an expense paid from a cash account. This applies to expenses added after the last update, which remember where they were paid from.
