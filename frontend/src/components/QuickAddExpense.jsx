@@ -55,6 +55,7 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
   const [paidFrom, setPaidFrom] = useState("");
   const [error, setError] = useState(null);
   const [typed, setTyped] = useState("");
+  const [typedOpen, setTypedOpen] = useState(false);
   const [dupConfirmed, setDupConfirmed] = useState(false);
   const categoryTouched = useRef(false);
 
@@ -141,6 +142,7 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     setAmount("");
     setDescription("");
     setTyped("");
+    setTypedOpen(false);
     setDupConfirmed(false);
     categoryTouched.current = false;
     setDate(todayISO());
@@ -364,38 +366,64 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
               </div>
             )}
 
-            <label htmlFor="qa-typed" style={labelStyle}>
-              Type it (optional)
-            </label>
-            <input
-              id="qa-typed"
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  applyTyped();
-                  amountRef.current?.focus();
-                }
-              }}
-              placeholder="e.g. coffee 4.50 yesterday"
-              autoComplete="off"
-              style={{ ...fieldStyle, marginBottom: "0.35rem" }}
-            />
-            <p aria-live="polite" style={{ margin: "0 0 0.9rem", fontSize: "0.75rem", color: "var(--text-secondary)", minHeight: "1rem" }}>
-              {parsed
-                ? [
-                    parsed.amount !== undefined
-                      ? formatCurrencyForDisplay(parsed.amount, currency, { includeCode: false })
-                      : "no amount yet",
-                    parsed.description || null,
-                    parsed.category ? getBudgetCategoryLabel(parsed.category) : null,
-                    parsed.date ? formatDateISO(parsed.date) : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") + "  (press Enter to fill the form)"
-                : "Fill the fields below, or type a sentence and press Enter."}
-            </p>
+            {typedOpen ? (
+              <>
+                <label htmlFor="qa-typed" style={labelStyle}>
+                  Type it (optional)
+                </label>
+                <input
+                  id="qa-typed"
+                  value={typed}
+                  onChange={(e) => setTyped(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyTyped();
+                      amountRef.current?.focus();
+                    }
+                  }}
+                  placeholder="e.g. coffee 4.50 yesterday"
+                  autoComplete="off"
+                  style={{ ...fieldStyle, marginBottom: "0.35rem" }}
+                />
+                <p
+                  aria-live="polite"
+                  style={{ margin: "0 0 0.9rem", fontSize: "0.75rem", color: "var(--text-secondary)", minHeight: "1rem" }}
+                >
+                  {parsed
+                    ? [
+                        parsed.amount !== undefined
+                          ? formatCurrencyForDisplay(parsed.amount, currency, { includeCode: false })
+                          : "no amount yet",
+                        parsed.description || null,
+                        parsed.category ? getBudgetCategoryLabel(parsed.category) : null,
+                        parsed.date ? formatDateISO(parsed.date) : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") + "  (press Enter to fill the form)"
+                    : "Fill the fields below, or type a sentence and press Enter."}
+                </p>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setTypedOpen(true);
+                  window.setTimeout(() => document.getElementById("qa-typed")?.focus(), 0);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  margin: "0 0 0.9rem",
+                  color: "var(--primary)",
+                  cursor: "pointer",
+                  fontSize: "0.8125rem",
+                }}
+              >
+                ✎ Type it instead, like &quot;coffee 4.50 yesterday&quot;
+              </button>
+            )}
 
             <label htmlFor="qa-amount" style={labelStyle}>
               Amount

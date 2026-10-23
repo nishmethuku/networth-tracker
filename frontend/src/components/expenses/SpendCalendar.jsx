@@ -4,7 +4,7 @@ import { buildCalendar } from "../../utils/spendCalendar";
 import { formatCurrencyForDisplay, formatDateISO } from "../../utils/formatters";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const SHADE = ["transparent", "rgba(37, 99, 235, 0.18)", "rgba(37, 99, 235, 0.35)", "rgba(37, 99, 235, 0.55)", "rgba(37, 99, 235, 0.8)"];
+const SHADE = ["transparent", ...[18, 35, 55, 80].map((n) => `color-mix(in srgb, var(--primary) ${n}%, transparent)`)];
 
 /** A month of days shaded by how much was spent. Tap a day to see just that day. */
 export default function SpendCalendar({ entries, month, currency, selected, onSelect }) {

@@ -1,5 +1,15 @@
 # Changelog
 
+## Phone polish for Expenses (branch `feature/mobile-expenses`)
+
+- On a phone, entry rows give the note the full width, with the amount and the Edit, Repeat and Delete buttons on a line below. Before, long notes were squeezed into a thin column.
+- The full add form and the insight cards start folded away on a phone, so your list is right under the month total. Tap "Show insights" or "Add an entry with the full form" to open them.
+- The calendar and weekday chart now use your theme color instead of blue.
+- The Spending card on the Dashboard shows today, this week and this month in an even row.
+- In Add expense, "Type it" is now a small link under the title so the amount box stays first. Tap it to type a sentence.
+
+---
+
 ## Bulk edit, amount filters and sorting (branch `feature/bulk-and-filters`)
 
 - **Select several entries** on Expenses, then move them all to another category or delete them in one go. Deleting puts back any card or account balance the expenses moved.

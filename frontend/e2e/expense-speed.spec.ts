@@ -76,7 +76,7 @@ test("quick add offers your frequent expenses as one-tap buttons", async ({ mock
   await page.keyboard.press("e");
   const dialog = page.getByRole("dialog", { name: "Add expense" });
   await expect(dialog.getByText(/spent today/i)).toBeVisible();
-  await dialog.getByRole("button", { name: /coffee/i }).click();
+  await dialog.getByRole("button", { name: /^coffee ·/i }).click();
   await expect(dialog.getByLabel(/Amount/)).toHaveValue("6");
   await expect(dialog.getByLabel("Category")).toHaveValue("food");
   await expect(dialog.getByLabel(/Note/)).toHaveValue("Coffee");
