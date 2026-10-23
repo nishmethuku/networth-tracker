@@ -86,6 +86,8 @@ from .liability_service import (
     apply_charge,
     apply_payment,
     list_liabilities_with_display,
+    reverse_charge,
+    reverse_payment,
     total_liabilities_display,
 )
 from .milestone_service import list_milestones
@@ -2144,6 +2146,7 @@ def create_app():
             is_recurring=bool(data.get("is_recurring", False)),
             recurring_frequency=recurring_frequency,
             linked_liability_id=linked_liability_id,
+            charged_liability_id=charged_liability.id if charged_liability else None,
             deposit_target_holding_id=deposit_target_id,
         )
         db.session.add(entry)
@@ -2161,6 +2164,7 @@ def create_app():
                 db.session.rollback()
                 return jsonify({"error": str(e)}), 400
             db.session.add(funding_valuation)
+            entry.funding_holding_id = source_holding.id
 
         liability_after_payment = None
         if liability:
@@ -2230,9 +2234,38 @@ def create_app():
     @require_auth
     def delete_budget_entry(entry_id):
         entry = get_authorized_budget_entry(entry_id, require_write=True)
+        reversed_items = {}
+        # With ?reverse=true, put back the money this expense moved: the card
+        # balance it raised, the cash account it drew down, or the loan
+        # payment it made. Anything the user can no longer write to is skipped.
+        if request.args.get("reverse") == "true" and entry.entry_type == "expense":
+            try:
+                if entry.charged_liability_id:
+                    card = get_authorized_liability(entry.charged_liability_id, require_write=True)
+                    reverse_charge(card, entry.amount, entry.currency)
+                    reversed_items["charged_liability"] = card.to_dict()
+                if entry.linked_liability_id:
+                    loan = get_authorized_liability(entry.linked_liability_id, require_write=True)
+                    reverse_payment(loan, entry.amount, entry.currency)
+                    reversed_items["linked_liability"] = loan.to_dict()
+                if entry.funding_holding_id:
+                    source = get_authorized_holding(entry.funding_holding_id, require_write=True)
+                    valuations = HoldingValuation.query.filter_by(holding_id=source.id).all()
+                    refund = build_deposit_valuation(
+                        source, valuations, entry.amount, entry.currency, date.today(), g.user_id,
+                        notes="Put back after deleting an expense",
+                    )
+                    db.session.add(refund)
+                    reversed_items["funding_source"] = refund.to_dict()
+            except HTTPException:
+                db.session.rollback()
+                return jsonify({"error": "You can no longer change the account this was paid from"}), 403
+            except ValueError as e:
+                db.session.rollback()
+                return jsonify({"error": str(e)}), 400
         db.session.delete(entry)
         db.session.commit()
-        return jsonify({"message": "Entry deleted"}), 200
+        return jsonify({"message": "Entry deleted", "reversed": reversed_items}), 200
 
     @app.route("/budget/summary", methods=["GET"])
     @require_auth

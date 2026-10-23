@@ -1,5 +1,13 @@
 # Changelog
 
+## Deleting an expense puts the money back (branch `feature/entry-reversal`)
+
+- Delete an expense that was paid with a credit card, a cash account, or a loan payment, and the card balance, cash balance or loan balance is put back. The message says so, and Undo charges it again.
+- Undo right after adding an expense (from quick add) now works for those too.
+- The app now remembers which card or cash account each new expense was paid from (a small database change that is applied automatically on deploy). Expenses added before this keep the old behavior: deleting them does not change any balance.
+
+---
+
 ## Limits, habits and month review (branch `feature/budget-planner`)
 
 - **Suggested limits** on Expenses: based on your last three months, with a one-tap "Limit $X" for each category that has none yet.

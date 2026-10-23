@@ -61,3 +61,21 @@ def apply_charge(liability: Liability, amount: float, amount_currency: str) -> L
     liability.current_balance = liability.current_balance + converted
     db.session.add(liability)
     return liability
+
+
+def reverse_charge(liability: Liability, amount: float, amount_currency: str) -> Liability:
+    """Undoes apply_charge when the purchase is deleted: lowers the balance
+    by the amount (converted into the liability's currency), floored at 0."""
+    converted = price_service.convert(amount, amount_currency, liability.currency)
+    liability.current_balance = max(0.0, liability.current_balance - converted)
+    db.session.add(liability)
+    return liability
+
+
+def reverse_payment(liability: Liability, amount: float, amount_currency: str) -> Liability:
+    """Undoes apply_payment when the payment entry is deleted: puts the amount
+    (converted into the liability's currency) back on the balance."""
+    converted = price_service.convert(amount, amount_currency, liability.currency)
+    liability.current_balance = liability.current_balance + converted
+    db.session.add(liability)
+    return liability
