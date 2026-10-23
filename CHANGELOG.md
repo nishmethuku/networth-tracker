@@ -1,5 +1,12 @@
 # Changelog
 
+## Exact decimals for money
+
+- Money columns (amounts, balances, quantities, prices, snapshot totals, goal targets, limits) are now stored as exact decimals in the database instead of floating point numbers, so sums such as 0.1 + 0.2 no longer drift.
+- The app still receives plain numbers, so nothing changes on screen.
+- Interest rates, exchange rates, allocation targets and alert thresholds stay as floats on purpose.
+- Migration `e7b1c4a98d32` converts existing rows with rounding to 4 decimals (8 for quantities and prices) and can be reversed. Back up the database before deploying.
+
 ## Backend routes split into modules (branch `refactor/split-app`)
 
 - No change to what the app does. The 2,400-line `backend/app.py` is now about 850 lines, and thirteen topics (budget, liabilities, households, AI, goals, search, imports, alerts and push, history, jobs, accounts, milestones, account data) each live in their own file in `backend/routes/`.
