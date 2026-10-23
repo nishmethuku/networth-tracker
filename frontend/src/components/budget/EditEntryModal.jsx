@@ -50,6 +50,8 @@ export default function EditEntryModal({ entry, categories, onClose }) {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["liabilities"] });
+      queryClient.invalidateQueries({ queryKey: ["holdings"] });
       toast.success("Entry updated");
       onClose();
     },

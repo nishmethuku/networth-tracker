@@ -79,3 +79,25 @@ def reverse_payment(liability: Liability, amount: float, amount_currency: str) -
     liability.current_balance = liability.current_balance + converted
     db.session.add(liability)
     return liability
+
+
+def adjust_for_edit(
+    liability: Liability,
+    old_amount: float,
+    old_currency: str,
+    new_amount: float,
+    new_currency: str,
+    kind: str,
+) -> Liability:
+    """When an expense that moved a liability is edited, applies only the
+    difference. kind is "charge" (a purchase on a card: more spending means a
+    higher balance) or "payment" (a loan payment: more paid means a lower
+    balance). The balance never goes below 0."""
+    old_converted = price_service.convert(old_amount, old_currency, liability.currency)
+    new_converted = price_service.convert(new_amount, new_currency, liability.currency)
+    delta = new_converted - old_converted
+    if kind == "payment":
+        delta = -delta
+    liability.current_balance = max(0.0, liability.current_balance + delta)
+    db.session.add(liability)
+    return liability

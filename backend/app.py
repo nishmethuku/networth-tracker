@@ -83,6 +83,7 @@ from .income_service import get_income_summary
 from .liability_service import (
     CHARGEABLE_TYPES,
     LIABILITY_TYPES,
+    adjust_for_edit,
     apply_charge,
     apply_payment,
     list_liabilities_with_display,
@@ -2205,6 +2206,7 @@ def create_app():
     def update_budget_entry(entry_id):
         entry = get_authorized_budget_entry(entry_id, require_write=True)
         data = request.get_json(force=True)
+        old_amount, old_currency = entry.amount, entry.currency
 
         if "entry_date" in data:
             entry.entry_date = date.fromisoformat(data["entry_date"])
@@ -2227,8 +2229,40 @@ def create_app():
                 return jsonify({"error": "recurring_frequency must be weekly, monthly, quarterly, or yearly"}), 400
             entry.recurring_frequency = data["recurring_frequency"]
 
+        # Changing the amount or currency of an expense that was paid from a
+        # card, a loan or a cash account moves that balance by the difference.
+        adjusted = {}
+        if entry.entry_type == "expense" and (entry.amount != old_amount or entry.currency != old_currency):
+            try:
+                if entry.charged_liability_id:
+                    card = get_authorized_liability(entry.charged_liability_id, require_write=True)
+                    adjust_for_edit(card, old_amount, old_currency, entry.amount, entry.currency, "charge")
+                    adjusted["charged_liability"] = card.to_dict()
+                if entry.linked_liability_id:
+                    loan = get_authorized_liability(entry.linked_liability_id, require_write=True)
+                    adjust_for_edit(loan, old_amount, old_currency, entry.amount, entry.currency, "payment")
+                    adjusted["linked_liability"] = loan.to_dict()
+                if entry.funding_holding_id:
+                    source = get_authorized_holding(entry.funding_holding_id, require_write=True)
+                    old_in_holding = price_service.convert(old_amount, old_currency, source.currency)
+                    new_in_holding = price_service.convert(entry.amount, entry.currency, source.currency)
+                    delta = new_in_holding - old_in_holding
+                    if abs(delta) > 0.004:
+                        valuations = HoldingValuation.query.filter_by(holding_id=source.id).all()
+                        builder = build_funding_valuation if delta > 0 else build_deposit_valuation
+                        kwargs = {} if delta > 0 else {"notes": "Adjusted after editing an expense"}
+                        valuation = builder(source, valuations, abs(delta), source.currency, date.today(), g.user_id, **kwargs)
+                        db.session.add(valuation)
+                        adjusted["funding_source"] = valuation.to_dict()
+            except HTTPException:
+                db.session.rollback()
+                return jsonify({"error": "You can no longer change the account this was paid from"}), 403
+            except ValueError as e:
+                db.session.rollback()
+                return jsonify({"error": str(e)}), 400
+
         db.session.commit()
-        return jsonify(entry.to_dict())
+        return jsonify({**entry.to_dict(), **adjusted})
 
     @app.route("/budget/entries/<int:entry_id>", methods=["DELETE"])
     @require_auth

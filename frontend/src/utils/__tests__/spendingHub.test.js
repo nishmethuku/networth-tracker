@@ -252,3 +252,24 @@ describe("groupByDay without a month", () => {
     expect(groupByDay(rows, null, "USD").map((d) => d.date)).toEqual(["2026-10-01", "2026-09-30"]);
   });
 });
+
+import { findDuplicate } from "../duplicateCheck";
+
+describe("findDuplicate", () => {
+  const x = { id: 1, entryType: "expense", entryDate: "2026-10-22", amount: 12.5, currency: "USD", category: "food", description: "Lunch" };
+  const cand = { amount: 12.5, currency: "USD", date: "2026-10-22", category: "food", description: "" };
+  it("finds the same amount, day and category", () => {
+    expect(findDuplicate([x], cand)).toBe(x);
+  });
+  it("matches on the same note even in another category", () => {
+    expect(findDuplicate([x], { ...cand, category: "fun", description: " lunch " })).toBe(x);
+  });
+  it("ignores other days, amounts, currencies, types and unrelated categories", () => {
+    expect(findDuplicate([x], { ...cand, date: "2026-10-21" })).toBeNull();
+    expect(findDuplicate([x], { ...cand, amount: 12.6 })).toBeNull();
+    expect(findDuplicate([x], { ...cand, currency: "INR" })).toBeNull();
+    expect(findDuplicate([{ ...x, entryType: "income" }], cand)).toBeNull();
+    expect(findDuplicate([x], { ...cand, category: "fun" })).toBeNull();
+    expect(findDuplicate(null, cand)).toBeNull();
+  });
+});

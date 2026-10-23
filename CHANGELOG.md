@@ -1,5 +1,13 @@
 # Changelog
 
+## Editing keeps balances right, plus duplicate warnings (branch `feature/edit-balance-and-dupes`)
+
+- **Editing an expense moves the balance by the difference.** Change a card purchase from $50 to $80 and the card balance goes up $30. The same goes for a loan payment or an expense paid from a cash account. This applies to expenses added after the last update, which remember where they were paid from.
+- **Duplicate warning in quick add:** if you already logged the same amount on the same day for the same category or note, you get a heads-up first. Press Save again to log it anyway.
+- **Note suggestions:** the note field now suggests notes you have used before, and picking one brings its usual category along.
+
+---
+
 ## Deleting an expense puts the money back (branch `feature/entry-reversal`)
 
 - Delete an expense that was paid with a credit card, a cash account, or a loan payment, and the card balance, cash balance or loan balance is put back. The message says so, and Undo charges it again.
