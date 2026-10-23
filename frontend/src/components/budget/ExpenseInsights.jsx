@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "../Card";
-import { createBudgetEntry, fetchBudgetSummary, fetchSubscriptions, ApiError } from "../../api";
+import { createBudgetEntry, createBudgetLimit, fetchBudgetSummary, fetchSubscriptions, ApiError } from "../../api";
 import { useToast } from "../../contexts/ToastContext";
 import { getBudgetCategoryLabel } from "../../constants/enums";
 import { formatCurrencyForDisplay, todayISO } from "../../utils/formatters";
@@ -25,6 +25,16 @@ export default function ExpenseInsights({ currency, householdId, month, spent })
     queryKey: ["budget-subscriptions", currency, householdId],
     queryFn: () => fetchSubscriptions({ householdId, currency }),
     enabled: isThisMonth,
+  });
+
+  const rollover = useMutation({
+    mutationFn: (l) => createBudgetLimit({ category: l.category, monthly_limit: l.base_limit ?? l.limit, currency, rollover: !l.rollover }),
+    onSuccess: (_d, l) => {
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-limits"] });
+      toast.success(l.rollover ? "Carry over turned off" : "Unspent budget will carry over to next month");
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not change that limit"),
   });
 
   const lastTotal = useMemo(() => summary?.months?.find((m) => m.month === shiftMonth(month, -1))?.expenses ?? null, [summary, month]);
@@ -127,11 +137,37 @@ export default function ExpenseInsights({ currency, householdId, month, spent })
               return (
                 <li key={l.category}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", gap: "0.5rem" }}>
-                    <span>{getBudgetCategoryLabel(l.category)}</span>
+                    <span>
+                      {getBudgetCategoryLabel(l.category)}
+                      <button
+                        type="button"
+                        disabled={rollover.isPending}
+                        onClick={() => rollover.mutate(l)}
+                        aria-pressed={!!l.rollover}
+                        aria-label={`Carry over unspent ${getBudgetCategoryLabel(l.category)} budget: ${l.rollover ? "on" : "off"}`}
+                        style={{
+                          marginLeft: "0.5rem",
+                          fontSize: "0.6875rem",
+                          padding: "0.1rem 0.4rem",
+                          borderRadius: "999px",
+                          border: "1px solid var(--border)",
+                          background: l.rollover ? "var(--primary-light)" : "transparent",
+                          color: "var(--text-secondary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {l.rollover ? "Carry over: on" : "Carry over"}
+                      </button>
+                    </span>
                     <span style={{ fontFamily: "var(--font-mono)", color: over ? "var(--danger)" : "var(--text-secondary)" }}>
                       {money(l.spent)} of {money(l.limit)}
                     </span>
                   </div>
+                  {l.carried_over > 0 && (
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      Includes {money(l.carried_over)} left over from last month
+                    </div>
+                  )}
                   <div
                     role="progressbar"
                     aria-label={`${getBudgetCategoryLabel(l.category)} limit used`}

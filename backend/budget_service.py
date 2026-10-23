@@ -4,6 +4,7 @@ holdings_service — this never touches net worth, so there's no
 double-counting risk between "money you logged as spent" and "a cash
 holding you track separately."
 """
+from datetime import date
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
@@ -129,15 +130,30 @@ def summarize_entries(
     limit_status = []
     if latest_month and limits:
         spent_by_category = {c["category"]: c["amount"] for c in category_breakdown}
+        previous_month = _previous_month(latest_month)
+        previous_spent: Dict[str, float] = {}
+        for e in matching:
+            if e.entry_type == "expense" and e.entry_date.strftime("%Y-%m") == previous_month:
+                previous_spent[e.category] = previous_spent.get(e.category, 0.0) + e.amount
         for lim in limits:
             if lim["currency"] != currency:
                 continue
             spent = spent_by_category.get(lim["category"], 0.0)
+            carried = 0.0
+            # Rollover adds last month's unspent amount (never more than one month's limit),
+            # but only when last month actually has entries, so a gap in logging is not
+            # mistaken for a month of saving.
+            if lim.get("rollover") and previous_month in by_month:
+                carried = min(lim["monthly_limit"], max(0.0, lim["monthly_limit"] - previous_spent.get(lim["category"], 0.0)))
+            effective = lim["monthly_limit"] + carried
             limit_status.append({
                 "category": lim["category"],
-                "limit": lim["monthly_limit"],
+                "limit": effective,
+                "base_limit": lim["monthly_limit"],
+                "carried_over": round(carried, 2),
+                "rollover": bool(lim.get("rollover")),
                 "spent": round(spent, 2),
-                "percent": round((spent / lim["monthly_limit"]) * 100, 1) if lim["monthly_limit"] else 0.0,
+                "percent": round((spent / effective) * 100, 1) if effective else 0.0,
             })
         limit_status.sort(key=lambda s: -s["percent"])
 
@@ -216,7 +232,7 @@ def get_limits(user_id=None, household_id=None) -> List[Dict]:
     return [r.to_dict() for r in rows]
 
 
-def set_limit(user_id, category: str, monthly_limit: float, currency: str, household_id=None) -> Dict:
+def set_limit(user_id, category: str, monthly_limit: float, currency: str, household_id=None, rollover: Optional[bool] = None) -> Dict:
     """Upserts by (user_id or household_id, category) — no DB-level unique
     constraint (household_id is nullable, which complicates a partial
     unique index for little benefit here), so this checks for an existing
@@ -233,9 +249,14 @@ def set_limit(user_id, category: str, monthly_limit: float, currency: str, house
     if existing:
         existing.monthly_limit = monthly_limit
         existing.currency = currency
+        if rollover is not None:
+            existing.rollover = rollover
         limit = existing
     else:
-        limit = BudgetLimit(user_id=user_id, household_id=household_id, category=category, monthly_limit=monthly_limit, currency=currency)
+        limit = BudgetLimit(
+            user_id=user_id, household_id=household_id, category=category, monthly_limit=monthly_limit,
+            currency=currency, rollover=bool(rollover),
+        )
         db.session.add(limit)
     db.session.commit()
     return limit.to_dict()
@@ -365,3 +386,114 @@ def get_member_breakdown(household_id, month: str, currency: str = "USD") -> Lis
         {"household_id": str(household_id), "currency": currency, "month": month},
     ).mappings().all()
     return [{"user_id": str(r["user_id"]), "email": r["email"], "total": round(r["total"], 2)} for r in rows]
+
+
+def _previous_month(month: str) -> str:
+    year, mon = int(month[:4]), int(month[5:7])
+    return f"{year - 1}-12" if mon == 1 else f"{year}-{mon - 1:02d}"
+
+
+def summarize_year(entries: List[BudgetEntry], year: int, currency: str = "USD") -> Dict:
+    """A calendar year of spending in one currency: each month, the total, the biggest
+    categories, and how it compares with the year before. Card payments are left out.
+    Pure, so it is testable without a database."""
+    def counted(e):
+        return e.currency == currency and not (e.entry_type == "expense" and is_non_spending_category(e.category))
+
+    this_year = [e for e in entries if counted(e) and e.entry_date.year == year]
+    last_year = [e for e in entries if counted(e) and e.entry_date.year == year - 1]
+
+    months = []
+    for m in range(1, 13):
+        spent = sum(e.amount for e in this_year if e.entry_type == "expense" and e.entry_date.month == m)
+        earned = sum(e.amount for e in this_year if e.entry_type == "income" and e.entry_date.month == m)
+        months.append({"month": f"{year}-{m:02d}", "expenses": round(spent, 2), "income": round(earned, 2)})
+
+    by_category: Dict[str, float] = {}
+    for e in this_year:
+        if e.entry_type == "expense":
+            by_category[e.category] = by_category.get(e.category, 0.0) + e.amount
+    top_categories = [
+        {"category": c, "amount": round(a, 2)}
+        for c, a in sorted(by_category.items(), key=lambda kv: -kv[1])[:8]
+    ]
+
+    total_spent = sum(m["expenses"] for m in months)
+    total_income = sum(m["income"] for m in months)
+    active = [m for m in months if m["expenses"] > 0]
+    biggest = max(active, key=lambda m: m["expenses"]) if active else None
+    last_total = sum(e.amount for e in last_year if e.entry_type == "expense")
+    return {
+        "year": year,
+        "currency": currency,
+        "months": months,
+        "total_spent": round(total_spent, 2),
+        "total_income": round(total_income, 2),
+        "average_month": round(total_spent / len(active), 2) if active else 0.0,
+        "biggest_month": biggest,
+        "top_categories": top_categories,
+        "last_year_spent": round(last_total, 2) if last_total > 0 else None,
+    }
+
+
+def get_year(user_id=None, household_id=None, year: Optional[int] = None, currency: str = "USD") -> Dict:
+    year = year or date.today().year
+    entries = (
+        _scoped_query(user_id, household_id)
+        .filter(BudgetEntry.entry_date >= date(year - 1, 1, 1), BudgetEntry.entry_date <= date(year, 12, 31))
+        .all()
+    )
+    return summarize_year(entries, year, currency)
+
+
+def plan_due_recurring(entries: List[BudgetEntry], today: date, max_per_item: int = 3) -> List[Dict]:
+    """For each recurring bill (grouped like the Subscriptions view), the dates a new
+    entry is due: one period after its latest entry, repeated to catch up, never past
+    today. Returns [{source, entry_date}]. Pure, so it is testable without a database.
+    Because each run starts from the latest entry, running it twice logs nothing new."""
+    groups: Dict[tuple, BudgetEntry] = {}
+    for e in sorted(entries, key=lambda e: e.entry_date):
+        if not e.is_recurring or e.recurring_frequency not in sip_service.FREQUENCY_DAYS:
+            continue
+        desc = (e.description or "").strip().lower()
+        key = (e.currency, e.entry_type, e.category, desc) if desc else (e.currency, e.entry_type, e.category, desc, e.amount)
+        groups[key] = e
+
+    plan = []
+    for latest in groups.values():
+        cursor = latest.entry_date
+        for _ in range(max_per_item):
+            due = sip_service._advance(cursor, latest.recurring_frequency, 1)
+            if due > today:
+                break
+            plan.append({"source": latest, "entry_date": due})
+            cursor = due
+    return plan
+
+
+def log_due_recurring(user_id, household_id=None, today: Optional[date] = None) -> List[BudgetEntry]:
+    """Adds the recurring entries that have come due. Bills only: nothing here touches
+    a card, loan or cash balance."""
+    today = today or date.today()
+    entries = _scoped_query(user_id if not household_id else None, household_id).filter(BudgetEntry.is_recurring == True).all()  # noqa: E712
+    created = []
+    for item in plan_due_recurring(entries, today):
+        src = item["source"]
+        entry = BudgetEntry(
+            user_id=user_id,
+            household_id=src.household_id,
+            entry_type=src.entry_type,
+            entry_date=item["entry_date"],
+            amount=src.amount,
+            currency=src.currency,
+            category=src.category,
+            description=src.description,
+            is_private=src.is_private,
+            is_recurring=True,
+            recurring_frequency=src.recurring_frequency,
+        )
+        db.session.add(entry)
+        created.append(entry)
+    if created:
+        db.session.commit()
+    return created

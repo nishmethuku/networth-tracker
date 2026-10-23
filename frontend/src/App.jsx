@@ -10,6 +10,7 @@ import ToastContainer from "./components/ToastContainer";
 import ShortcutsHelp from "./components/ShortcutsHelp";
 import QuickAddExpense from "./components/QuickAddExpense";
 import useSyncPendingExpenses from "./hooks/useSyncPendingExpenses";
+import { useAutoLogRecurring } from "./hooks/useAutoLogRecurring";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useAuth } from "./contexts/AuthContext";
 import { useHousehold } from "./contexts/HouseholdContext";
@@ -271,6 +272,7 @@ function AppShell() {
     return () => window.removeEventListener("nw:quick-add", open);
   }, []);
   useSyncPendingExpenses(!isDemo);
+  useAutoLogRecurring(!isDemo);
   useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true), onQuickAdd: () => setQuickAddOpen(true) });
 
   return (
