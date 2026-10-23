@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "./Card";
@@ -11,6 +11,11 @@ import { useHousehold } from "../contexts/HouseholdContext";
 import { fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, ApiError } from "../api";
 import EditEntryModal from "./budget/EditEntryModal";
 import ExpenseInsights from "./budget/ExpenseInsights";
+import SpendCalendar from "./expenses/SpendCalendar";
+import CategoryChanges from "./expenses/CategoryChanges";
+import SafeToSpend from "./expenses/SafeToSpend";
+import RecurringSuggestions from "./expenses/RecurringSuggestions";
+import { useRecentEntries } from "../hooks/useRecentEntries";
 import { isNonSpendingCategory } from "../utils/nonSpending";
 import { filterEntries } from "../utils/filterEntries";
 import { entriesToCsv } from "../utils/entriesCsv";
@@ -65,6 +70,9 @@ export default function Expenses() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [editing, setEditing] = useState(null);
+  const [day, setDay] = useState(null);
+  const [allMonths, setAllMonths] = useState(false);
+  const searchRef = useRef(null);
   const queryClient = useQueryClient();
   const toast = useToast();
   const { currentHouseholdId } = useHousehold();
@@ -84,6 +92,24 @@ export default function Expenses() {
     queryKey: ["budget-entries", currentHouseholdId, month],
     queryFn: () => fetchBudgetEntries({ householdId: currentHouseholdId, dateFrom: `${month}-01`, dateTo: lastDayOf(month) }),
   });
+
+  // The last six months, for searching every month and comparing with last month.
+  const { data: recent } = useRecentEntries(currentHouseholdId);
+
+  useEffect(() => {
+    function onKey(e) {
+      const t = e.target;
+      const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+      if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => setDay(null), [month]);
 
   const restoreMutation = useMutation({
     mutationFn: (e) =>
@@ -137,8 +163,15 @@ export default function Expenses() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not repeat the entry"),
   });
 
-  const visible = useMemo(() => filterEntries(entries, search, categoryFilter, getBudgetCategoryLabel), [entries, search, categoryFilter]);
-  const days = useMemo(() => groupByDay(visible, month, currency), [visible, month, currency]);
+  const source = allMonths && search ? recent : entries;
+  const visible = useMemo(() => {
+    const found = filterEntries(source, search, categoryFilter, getBudgetCategoryLabel);
+    return day ? found.filter((e) => e.entryDate === day) : found;
+  }, [source, search, categoryFilter, day]);
+  const days = useMemo(
+    () => groupByDay(visible, allMonths && search ? null : month, currency),
+    [visible, month, currency, allMonths, search],
+  );
   const categoryChoices = useMemo(() => [...new Set((entries || []).map((e) => e.category))].sort(), [entries]);
   const totals = useMemo(() => monthTotals(entries, month, currency), [entries, month, currency]);
   const money = (v, cur = currency) => formatCurrencyForDisplay(v, cur, { alwaysCents: true });
@@ -224,7 +257,24 @@ export default function Expenses() {
         )}
       </p>
 
+      {month === thisMonth && <SafeToSpend currency={currency} householdId={currentHouseholdId} />}
+
       <ExpenseInsights currency={currency} householdId={currentHouseholdId} month={month} spent={totals.expenses} />
+
+      <div style={{ display: "grid", gap: "1rem", marginBottom: "1rem" }}>
+        <SpendCalendar entries={entries} month={month} currency={currency} selected={day} onSelect={setDay} />
+        <CategoryChanges entries={recent || entries} month={month} currency={currency} />
+        <RecurringSuggestions currency={currency} householdId={currentHouseholdId} />
+      </div>
+
+      {day && (
+        <p style={{ margin: "0 0 0.75rem", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+          Showing {formatDateISO(day)} only.{" "}
+          <button type="button" onClick={() => setDay(null)} style={{ ...smallBtn, marginLeft: "0.25rem" }}>
+            Show the whole month
+          </button>
+        </p>
+      )}
 
       {(entries || []).length > 0 && (
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
@@ -245,12 +295,17 @@ export default function Expenses() {
           </button>
           <input
             type="search"
+            ref={searchRef}
             aria-label="Search expenses"
-            placeholder="Search notes or categories"
+            placeholder="Search notes or categories (press /)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ ...selectStyle, flex: "1 1 12rem" }}
           />
+          <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+            <input type="checkbox" checked={allMonths} onChange={(e) => setAllMonths(e.target.checked)} />
+            Search all months
+          </label>
           <select
             aria-label="Filter by category"
             value={categoryFilter}

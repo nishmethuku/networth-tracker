@@ -228,3 +228,10 @@ export const test = base.extend<{ mockedPage: Page }>({
 });
 
 export { expect, mockBackend, json, API_BASE };
+
+/** YYYY-MM-DD in the browser's local time, which is what the app means by "today" (toISOString is UTC and can be a day ahead). */
+export function localISO(d: Date = new Date()): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}

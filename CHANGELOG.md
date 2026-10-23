@@ -1,5 +1,18 @@
 # Changelog
 
+## Spending hub (branch `feature/spending-hub`)
+
+- **Dashboard Spending card:** today, this week (with how it compares to last week) and this month, your biggest categories, the last five expenses, and a "+ Add expense" button. It stays hidden until you have logged something, and can be hidden from Customize.
+- **Type it:** in Add expense, write "coffee 4.50 yesterday" (or "gas 40 mon", "movie 15 3 days ago") and press Enter. The amount, date, note and category fill in for you.
+- **Spending calendar** on Expenses: each day shaded by how much you spent. Tap a day to see only that day.
+- **What changed vs last month:** the categories that moved the most, compared over the same days while the month is still going.
+- **Safe to spend:** one line saying how much you can spend per day for the rest of the month after income, spending so far and bills still due.
+- **Looks recurring:** expenses that repeat monthly or weekly are spotted, with a one-tap "Track as monthly" that adds them to Coming up.
+- **Search all months** and the `/` key to jump to the search box on Expenses.
+- Card payments (CC-payment) stay out of every total here, so nothing is counted twice.
+
+---
+
 ## Spending pace, limits and bills due (branch `feature/expense-insights`)
 
 - Under the month's total on the Expenses page: "About $X a day. On pace for $Y this month (down 12% from last month)."

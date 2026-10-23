@@ -22,6 +22,7 @@ test("the E key and the floating button open a quick expense form that saves in 
   const dialog = page.getByRole("dialog", { name: "Add expense" });
   await expect(dialog).toBeVisible();
   // The amount is focused, so typing goes straight in.
+  await expect(dialog.locator("#qa-amount")).toBeFocused();
   await page.keyboard.type("12.50");
   await dialog.getByLabel("Category").selectOption("food");
   await dialog.getByLabel(/Note/).fill("Lunch");

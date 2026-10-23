@@ -32,6 +32,7 @@ import NeedsAttentionCard from "./dashboard/NeedsAttentionCard";
 import WelcomeBackCard from "./dashboard/WelcomeBackCard";
 import GettingStartedCard from "./dashboard/GettingStartedCard";
 import WhatMovedCard from "./dashboard/WhatMovedCard";
+import SpendingCard from "./dashboard/SpendingCard";
 import ComingUpCard from "./dashboard/ComingUpCard";
 import PriceFreshnessNote from "./dashboard/PriceFreshnessNote";
 import InfoTip from "./InfoTip";
@@ -471,6 +472,12 @@ export default function Dashboard() {
           {show("attention") && (
             <div style={{ marginBottom: "1.5rem" }}>
               <NeedsAttentionCard holdings={holdings} />
+            </div>
+          )}
+
+          {show("spending") && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <SpendingCard currency={currency} householdId={currentHouseholdId} />
             </div>
           )}
 
