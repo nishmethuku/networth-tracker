@@ -263,6 +263,7 @@ export default function AllocationAdvisor() {
                         type="number"
                         min="0"
                         max="100"
+                        aria-label={`${ASSET_TYPE_LABELS[type] || getAssetTypeLabel(type)} target percent`}
                         value={targets[type] ?? ""}
                         onChange={(e) => setTargets((prev) => ({ ...prev, [type]: e.target.value }))}
                         style={{
@@ -284,7 +285,7 @@ export default function AllocationAdvisor() {
                 style={{
                   marginTop: "1rem",
                   fontSize: "0.8125rem",
-                  color: Math.abs(targetTotal - 100) < 0.5 ? "var(--success)" : "var(--warning)",
+                  color: Math.abs(targetTotal - 100) < 0.5 ? "var(--success)" : "var(--danger)",
                 }}
               >
                 Total: {targetTotal.toFixed(0)}% {Math.abs(targetTotal - 100) < 0.5 ? "✓" : "(must equal 100%)"}

@@ -1,5 +1,13 @@
 # Changelog
 
+## Accessibility and speed pass (branch `feature/a11y-speed-pass`)
+
+- **Faster first load:** the chart library is no longer downloaded until a page that draws charts is opened, and the Dashboard charts load after its numbers. The first download is about 40% smaller.
+- **Accessibility fixes found by new automated scans:** the spending calendar now reads correctly to screen readers, its darkest days have readable text, links in the Expenses intro are underlined, and the Allocation Advisor inputs have labels and a readable "must equal 100%" message.
+- New scans cover Expenses with real data, every dialog (Add expense, Split, Edit, select mode) and the phone layout, in light and dark, plus seven more pages in the demo scan.
+
+---
+
 ## Splits, rollover, automatic bills, year so far (branch `feature/splits-rollover-autolog`)
 
 - **Split an expense** across categories: a grocery run that was half food and half household. Each part is its own entry on the same day, paid the same way, so card and account balances stay right.

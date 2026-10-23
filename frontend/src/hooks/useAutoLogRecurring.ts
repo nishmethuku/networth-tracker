@@ -30,13 +30,14 @@ export function useAutoLogRecurring(enabled: boolean) {
     if (!enabled || read(AUTO_LOG_KEY) !== "1") return;
     const today = todayISO();
     if (read(LAST_RUN_KEY) === today) return;
+    // Marked up front, so the effect re-running (a new toast object, a new render) cannot start a second call.
+    try {
+      localStorage.setItem(LAST_RUN_KEY, today);
+    } catch {
+      /* ignore */
+    }
     logDueRecurring({ householdId: currentHouseholdId || undefined })
       .then((res: { count?: number }) => {
-        try {
-          localStorage.setItem(LAST_RUN_KEY, today);
-        } catch {
-          /* ignore */
-        }
         if (res?.count) {
           for (const key of ["budget-entries", "budget-summary", "budget-subscriptions", "budget-year"]) {
             queryClient.invalidateQueries({ queryKey: [key] });
@@ -44,6 +45,13 @@ export function useAutoLogRecurring(enabled: boolean) {
           toast.success(`Logged ${res.count} recurring ${res.count === 1 ? "bill" : "bills"} that came due`);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Try again next time the app opens.
+        try {
+          localStorage.removeItem(LAST_RUN_KEY);
+        } catch {
+          /* ignore */
+        }
+      });
   }, [enabled, currentHouseholdId, queryClient, toast]);
 }

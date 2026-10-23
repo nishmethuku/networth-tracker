@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import usePullToRefresh from "../hooks/usePullToRefresh";
@@ -7,19 +7,20 @@ import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference
 import { useAuth } from "../contexts/AuthContext";
 import { useHousehold } from "../contexts/HouseholdContext";
 import Card from "./Card";
+import Skeleton from "./Skeleton";
 import ErrorBoundary from "./ErrorBoundary";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
-import NetWorthChart from "./dashboard/NetWorthChart";
+const NetWorthChart = lazy(() => import("./dashboard/NetWorthChart"));
 import RebuildHistory from "./dashboard/RebuildHistory";
 import DashboardSkeleton from "./dashboard/DashboardSkeleton";
-import AllocationDonut from "./dashboard/AllocationDonut";
-import NetWorthBreakdown from "./dashboard/NetWorthBreakdown";
+const AllocationDonut = lazy(() => import("./dashboard/AllocationDonut"));
+const NetWorthBreakdown = lazy(() => import("./dashboard/NetWorthBreakdown"));
 import GoalsCard from "./dashboard/GoalsCard";
 import EmergencyFundCard from "./dashboard/EmergencyFundCard";
-import MoverHeatGrid from "./dashboard/MoverHeatGrid";
-import ReturnsByTypeChart from "./dashboard/ReturnsByTypeChart";
-import CagrHistogram from "./dashboard/CagrHistogram";
+const MoverHeatGrid = lazy(() => import("./dashboard/MoverHeatGrid"));
+const ReturnsByTypeChart = lazy(() => import("./dashboard/ReturnsByTypeChart"));
+const CagrHistogram = lazy(() => import("./dashboard/CagrHistogram"));
 import StressTestCard from "./dashboard/StressTestCard";
 import MoneyHealthCard from "./dashboard/MoneyHealthCard";
 import ChangeOverTimeCard from "./dashboard/ChangeOverTimeCard";
@@ -112,6 +113,11 @@ function BenchmarkCard() {
       )}
     </Card>
   );
+}
+
+/** Charts load on their own so the numbers on this page show first. */
+function ChartBoundary({ children }) {
+  return <Suspense fallback={<Skeleton height="14rem" radius="var(--radius)" />}>{children}</Suspense>;
 }
 
 export default function Dashboard() {
@@ -395,7 +401,9 @@ export default function Dashboard() {
             {show("chart") && (
               <Card title={t("dashboard.netWorthOverTime")}>
                 <ErrorBoundary mode="section" fallbackMessage="The net worth chart couldn't load.">
-                  <NetWorthChart history={history} currency={currency} goals={goalList} />
+                  <ChartBoundary>
+                    <NetWorthChart history={history} currency={currency} goals={goalList} />
+                  </ChartBoundary>
                   {!currentHouseholdId && history && <RebuildHistory pointCount={history.length} />}
                   {history && history.length > 1 && (
                     <button
@@ -432,13 +440,15 @@ export default function Dashboard() {
             {show("allocation") && (
               <Card title={t("dashboard.whereYourMoneyIs")}>
                 <ErrorBoundary mode="section" fallbackMessage="The allocation chart couldn't load.">
-                  <AllocationDonut
-                    allocationByType={dashboard.allocationByType}
-                    allocationByCountry={dashboard.allocationByCountry}
-                    allocationByCurrency={dashboard.allocationByCurrency}
-                    holdings={holdings}
-                    currency={currency}
-                  />
+                  <ChartBoundary>
+                    <AllocationDonut
+                      allocationByType={dashboard.allocationByType}
+                      allocationByCountry={dashboard.allocationByCountry}
+                      allocationByCurrency={dashboard.allocationByCurrency}
+                      holdings={holdings}
+                      currency={currency}
+                    />
+                  </ChartBoundary>
                 </ErrorBoundary>
               </Card>
             )}
@@ -545,7 +555,9 @@ export default function Dashboard() {
             <div style={{ marginBottom: "1.5rem" }}>
               <Card title="Net Worth Breakdown">
                 <ErrorBoundary mode="section" fallbackMessage="Couldn't load the net worth breakdown.">
-                  <NetWorthBreakdown holdings={holdings} currency={currency} history={history} />
+                  <ChartBoundary>
+                    <NetWorthBreakdown holdings={holdings} currency={currency} history={history} />
+                  </ChartBoundary>
                 </ErrorBoundary>
               </Card>
             </div>
@@ -563,7 +575,9 @@ export default function Dashboard() {
             <div style={{ marginBottom: "1.5rem" }}>
               <Card title={t("dashboard.returnsByType")} subtitle="Value-weighted average return per type">
                 <ErrorBoundary mode="section" fallbackMessage="Couldn't compute returns by asset type.">
-                  <ReturnsByTypeChart holdings={holdings} />
+                  <ChartBoundary>
+                    <ReturnsByTypeChart holdings={holdings} />
+                  </ChartBoundary>
                 </ErrorBoundary>
               </Card>
             </div>
@@ -581,7 +595,9 @@ export default function Dashboard() {
                 subtitle="Annualized return (XIRR) per holding, plus your overall portfolio CAGR"
               >
                 <ErrorBoundary mode="section" fallbackMessage="Couldn't compute CAGR by holding.">
-                  <CagrHistogram holdings={holdings} portfolioXirr={dashboard.portfolioXirr} />
+                  <ChartBoundary>
+                    <CagrHistogram holdings={holdings} portfolioXirr={dashboard.portfolioXirr} />
+                  </ChartBoundary>
                 </ErrorBoundary>
               </Card>
             </div>
@@ -602,7 +618,9 @@ export default function Dashboard() {
                   <EmptyState message="Not enough price history yet." />
                 ) : (
                   <ErrorBoundary mode="section" fallbackMessage="Couldn't load top gainers.">
-                    <MoverHeatGrid movers={dashboard.topGainers} currency={currency} />
+                    <ChartBoundary>
+                      <MoverHeatGrid movers={dashboard.topGainers} currency={currency} />
+                    </ChartBoundary>
                   </ErrorBoundary>
                 )}
               </Card>
@@ -611,7 +629,9 @@ export default function Dashboard() {
                   <EmptyState message="Not enough price history yet." />
                 ) : (
                   <ErrorBoundary mode="section" fallbackMessage="Couldn't load top losers.">
-                    <MoverHeatGrid movers={dashboard.topLosers} currency={currency} />
+                    <ChartBoundary>
+                      <MoverHeatGrid movers={dashboard.topLosers} currency={currency} />
+                    </ChartBoundary>
                   </ErrorBoundary>
                 )}
               </Card>
