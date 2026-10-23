@@ -59,7 +59,7 @@ def test_unsubscribe_route_escapes_email_in_html_response(client, monkeypatch):
     monkeypatch.setattr(svc, "_SECRET", b"test-secret")
     token = svc.generate_unsubscribe_token('"><script>alert(1)</script>@example.com')
 
-    with patch("backend.app.unsubscribe_email"):
+    with patch("backend.routes.jobs.unsubscribe_email"):
         resp = client.get(f"/internal/unsubscribe?token={token}")
 
     assert b"<script>" not in resp.data

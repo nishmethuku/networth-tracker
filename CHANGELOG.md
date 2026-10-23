@@ -1,5 +1,12 @@
 # Changelog
 
+## Backend routes split into modules (branch `refactor/split-app`)
+
+- No change to what the app does. The 2,400-line `backend/app.py` is now about 850 lines, and thirteen topics (budget, liabilities, households, AI, goals, search, imports, alerts and push, history, jobs, accounts, milestones, account data) each live in their own file in `backend/routes/`.
+- Checked by comparing the full list of 101 routes before and after (identical), and a new test that calls every route without a login to make sure none crash.
+
+---
+
 ## Accessibility and speed pass (branch `feature/a11y-speed-pass`)
 
 - **Faster first load:** the chart library is no longer downloaded until a page that draws charts is opened, and the Dashboard charts load after its numbers. The first download is about 40% smaller.

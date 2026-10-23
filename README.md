@@ -114,7 +114,8 @@ Every external call in this chain has an explicit `timeout=`; the three NSE-libr
 ```
 networth_tracker/
 ├── backend/
-│   ├── app.py                       # Flask routes (auth-scoped, orchestration only)
+│   ├── app.py                       # Builds the Flask app, security, shared auth helpers, holdings/transactions/dashboard routes
+│   ├── routes/                      # The rest of the HTTP routes, one module per topic (budget, liabilities, households, ai, ...)
 │   ├── auth.py                      # Supabase JWT verification (JWKS)
 │   ├── models.py                    # SQLAlchemy models (Postgres)
 │   ├── holdings_service.py          # Cost basis, realized/unrealized gains, XIRR, dashboard aggregation
