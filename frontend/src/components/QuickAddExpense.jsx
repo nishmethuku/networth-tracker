@@ -20,6 +20,7 @@ import { frequentExpenses } from "../utils/frequentExpenses";
 import { monthOf, monthTotals } from "../utils/entryGroups";
 import { enqueuePending, loadPending, shouldQueue } from "../utils/pendingExpenses";
 import { limitWarning } from "../utils/limitWarning";
+import { findDuplicate } from "../utils/duplicateCheck";
 import { parseQuickEntry } from "../utils/quickEntryParser";
 import { buildExpensePayload, loadLast, saveLast, validateQuickAdd, yesterdayOf } from "../utils/quickAdd";
 
@@ -54,6 +55,8 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
   const [paidFrom, setPaidFrom] = useState("");
   const [error, setError] = useState(null);
   const [typed, setTyped] = useState("");
+  const [dupConfirmed, setDupConfirmed] = useState(false);
+  const categoryTouched = useRef(false);
 
   const { data: categories } = useQuery({
     queryKey: ["budget-categories", currentHouseholdId],
@@ -84,6 +87,8 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     staleTime: 30_000,
   });
   const frequent = useMemo(() => frequentExpenses(recent, currency), [recent, currency]);
+  // Every note you have used, for type-ahead on the note field.
+  const noteChoices = useMemo(() => frequentExpenses(recent, currency, 40, 1).filter((f) => f.description), [recent, currency]);
   const spent = useMemo(() => {
     const today = todayISO();
     const month = monthTotals(recent, monthOf(today), currency).expenses;
@@ -117,6 +122,8 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     [typed, options, frequent],
   );
 
+  useEffect(() => setDupConfirmed(false), [amount, category, description, date, currency]);
+
   function applyTyped() {
     if (!parsed) return false;
     if (parsed.amount !== undefined) setAmount(String(parsed.amount));
@@ -134,6 +141,8 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     setAmount("");
     setDescription("");
     setTyped("");
+    setDupConfirmed(false);
+    categoryTouched.current = false;
     setDate(todayISO());
     setError(null);
     setCurrency(getDefaultDisplayCurrency());
@@ -260,6 +269,22 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
       return;
     }
     setError(null);
+    if (!dupConfirmed) {
+      const dup = findDuplicate(recent, {
+        amount: Number(input.amount),
+        currency: input.currency,
+        date: input.date,
+        category: input.category,
+        description: input.description,
+      });
+      if (dup) {
+        setError(
+          `You already logged ${formatCurrencyForDisplay(dup.amount, dup.currency, { includeCode: false })} for ${dup.description || getBudgetCategoryLabel(dup.category)} that day. Press Save again if this is a different purchase.`,
+        );
+        setDupConfirmed(true);
+        return;
+      }
+    }
     addAnotherRef.current = another;
     mutation.mutate(buildExpensePayload(input));
   }
@@ -407,7 +432,15 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
                 <label htmlFor="qa-category" style={labelStyle}>
                   Category
                 </label>
-                <select id="qa-category" value={category} onChange={(e) => setCategory(e.target.value)} style={fieldStyle}>
+                <select
+                  id="qa-category"
+                  value={category}
+                  onChange={(e) => {
+                    categoryTouched.current = true;
+                    setCategory(e.target.value);
+                  }}
+                  style={fieldStyle}
+                >
                   {options.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
@@ -423,11 +456,24 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
                 <input
                   id="qa-note"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  list="qa-note-choices"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDescription(v);
+                    // A note you have used before brings its usual category along, unless you picked one yourself.
+                    const known = noteChoices.find((n) => n.description.toLowerCase() === v.trim().toLowerCase());
+                    if (known && !categoryTouched.current && options.some((o) => o.value === known.category)) setCategory(known.category);
+                  }}
                   placeholder="e.g. Lunch"
                   style={fieldStyle}
                 />
               </div>
+
+              <datalist id="qa-note-choices">
+                {noteChoices.map((n) => (
+                  <option key={`${n.category}-${n.description}`} value={n.description} />
+                ))}
+              </datalist>
 
               {(cashHoldings?.length > 0 || cards.length > 0) && (
                 <div>

@@ -81,3 +81,29 @@ def test_reverse_payment_puts_the_amount_back():
     with patch.object(liability_service.db.session, "add"):
         liability_service.reverse_payment(liability, 200.0, "USD")
     assert liability.current_balance == 1000.0
+
+
+def test_adjust_for_edit_charge_applies_only_the_difference():
+    card = _liability(balance=500.0, currency="USD")
+    with patch.object(liability_service.db.session, "add"):
+        liability_service.adjust_for_edit(card, 50.0, "USD", 80.0, "USD", "charge")
+        assert card.current_balance == 530.0
+        liability_service.adjust_for_edit(card, 80.0, "USD", 20.0, "USD", "charge")
+    assert card.current_balance == 470.0
+
+
+def test_adjust_for_edit_payment_goes_the_other_way_and_floors_at_zero():
+    loan = _liability(balance=1000.0, currency="USD")
+    with patch.object(liability_service.db.session, "add"):
+        liability_service.adjust_for_edit(loan, 200.0, "USD", 300.0, "USD", "payment")
+        assert loan.current_balance == 900.0
+        liability_service.adjust_for_edit(loan, 300.0, "USD", 5000.0, "USD", "payment")
+    assert loan.current_balance == 0.0
+
+
+def test_adjust_for_edit_handles_a_currency_change():
+    card = _liability(balance=100.0, currency="USD")
+    with patch.object(liability_service, "price_service") as ps, patch.object(liability_service.db.session, "add"):
+        ps.convert.side_effect = lambda amt, frm, to: amt if frm == to else amt * 0.012
+        liability_service.adjust_for_edit(card, 10.0, "USD", 1000.0, "INR", "charge")
+    assert card.current_balance == 102.0
