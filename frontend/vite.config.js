@@ -65,10 +65,21 @@ export default defineConfig({
         // app code, so browsers can cache this chunk across deploys, and it
         // avoids recharts' internal re-exports landing in different chunks
         // (which Rollup warns about as a circular-dependency risk).
-        manualChunks: {
-          recharts: ["recharts"],
-          vendor: ["react", "react-dom", "react-router-dom", "@tanstack/react-query", "@supabase/supabase-js"],
-          motion: ["framer-motion"],
+        manualChunks(id) {
+          // Rollup's shared helpers must not land in the charts chunk, or every page
+          // would download the whole chart library just to get them.
+          if (id.includes("commonjsHelpers") || id.includes("\0")) return "vendor";
+          if (!id.includes("node_modules")) return undefined;
+          if (
+            /node_modules\/(recharts|recharts-scale|victory-vendor|d3-[^/]+|internmap|decimal\.js-light|react-smooth|fast-equals|eventemitter3|tiny-invariant|clsx|lodash)\//.test(
+              id,
+            )
+          )
+            return "recharts";
+          if (/node_modules\/framer-motion\//.test(id)) return "motion";
+          if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler|@remix-run|@tanstack|@supabase)\//.test(id))
+            return "vendor";
+          return undefined;
         },
       },
     },

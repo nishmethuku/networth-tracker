@@ -81,7 +81,7 @@ test("Expenses has a calendar you can tap, a recurring tip, and search across mo
   // Calendar: tap today to see only today, then clear it.
   const dayNumber = String(Number(today.slice(8, 10)));
   await page
-    .getByRole("gridcell", { name: new RegExp(`${dayNumber}.*\\$`) })
+    .getByRole("button", { name: new RegExp(`${dayNumber}.*\\$`) })
     .first()
     .click();
   await expect(page.getByText(/only\./)).toBeVisible();

@@ -19,6 +19,13 @@ const PAGES = [
   "/accounts",
   "/settings",
   "/review",
+  "/expenses",
+  "/add-holding",
+  "/allocation-advisor",
+  "/household",
+  "/import",
+  "/import-spreadsheet",
+  "/import-bank-statement",
 ];
 
 for (const theme of ["light", "dark"]) {

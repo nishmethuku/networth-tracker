@@ -31,9 +31,9 @@ test.describe("phone", () => {
 
     // The form and the insights start folded away.
     await expect(page.getByText("Add an entry", { exact: true })).toHaveCount(0);
-    await expect(page.getByRole("grid", { name: "Spending calendar" })).toBeHidden();
+    await expect(page.getByRole("group", { name: "Spending calendar" })).toBeHidden();
     await page.getByRole("button", { name: /show insights/i }).click();
-    await expect(page.getByRole("grid", { name: "Spending calendar" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Spending calendar" })).toBeVisible();
     await page.getByRole("button", { name: /add an entry with the full form/i }).click();
     await expect(page.getByText("Add an entry", { exact: true })).toBeVisible();
 

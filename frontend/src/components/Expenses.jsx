@@ -367,7 +367,7 @@ export default function Expenses() {
       </div>
       <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
         Log what you spend and review it day by day. Totals, limits and subscriptions are on the{" "}
-        <Link to="/budget" style={{ color: "var(--primary)" }}>
+        <Link to="/budget" style={{ color: "var(--primary)", textDecoration: "underline" }}>
           Budget
         </Link>{" "}
         page.
