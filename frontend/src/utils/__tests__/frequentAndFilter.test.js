@@ -67,3 +67,28 @@ describe("filterEntries", () => {
     expect(filterEntries(undefined, "x", "")).toEqual([]);
   });
 });
+
+import { filterByAmount, biggestFirst } from "../filterEntries";
+
+describe("filterByAmount and biggestFirst", () => {
+  const rows = [
+    { id: 1, amount: 5, entryDate: "2026-10-01" },
+    { id: 2, amount: 50, entryDate: "2026-10-02" },
+    { id: 3, amount: 500, entryDate: "2026-10-03" },
+    { id: 4, amount: 50, entryDate: "2026-10-09" },
+  ];
+  it("keeps amounts inside the bounds, inclusive", () => {
+    expect(filterByAmount(rows, "10", "100").map((r) => r.id)).toEqual([2, 4]);
+    expect(filterByAmount(rows, "50", "50").map((r) => r.id)).toEqual([2, 4]);
+  });
+  it("treats blank or invalid bounds as no limit", () => {
+    expect(filterByAmount(rows, "", "").length).toBe(4);
+    expect(filterByAmount(rows, "abc", "").length).toBe(4);
+    expect(filterByAmount(rows, "100", "").map((r) => r.id)).toEqual([3]);
+    expect(filterByAmount(null, "", "")).toEqual([]);
+  });
+  it("sorts biggest first, newest first on ties, without changing the input", () => {
+    expect(biggestFirst(rows).map((r) => r.id)).toEqual([3, 4, 2, 1]);
+    expect(rows[0].id).toBe(1);
+  });
+});

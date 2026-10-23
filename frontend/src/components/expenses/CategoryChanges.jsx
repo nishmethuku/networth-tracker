@@ -5,7 +5,7 @@ import { getBudgetCategoryLabel } from "../../constants/enums";
 import { formatCurrencyForDisplay, todayISO } from "../../utils/formatters";
 
 /** The categories that moved the most compared with last month (same days while the month is in progress). */
-export default function CategoryChanges({ entries, month, currency }) {
+export default function CategoryChanges({ entries, month, currency, onPick }) {
   const rows = useMemo(() => categoryChanges(entries, month, todayISO(), currency), [entries, month, currency]);
   if (rows.length === 0) return null;
   const money = (v) => formatCurrencyForDisplay(v, currency, { includeCode: false });
@@ -25,7 +25,18 @@ export default function CategoryChanges({ entries, month, currency }) {
               color: "var(--text)",
             }}
           >
-            <span>{getBudgetCategoryLabel(r.category)}</span>
+            {onPick ? (
+              <button
+                type="button"
+                onClick={() => onPick(r.category)}
+                aria-label={`Show only ${getBudgetCategoryLabel(r.category)}`}
+                style={{ background: "none", border: "none", padding: 0, color: "var(--primary)", cursor: "pointer", font: "inherit" }}
+              >
+                {getBudgetCategoryLabel(r.category)}
+              </button>
+            ) : (
+              <span>{getBudgetCategoryLabel(r.category)}</span>
+            )}
             <span style={{ fontFamily: "var(--font-mono)", color: r.delta > 0 ? "var(--danger)" : "var(--success)" }}>
               {r.delta > 0 ? "▲ " : "▼ "}
               {money(Math.abs(r.delta))}
