@@ -718,8 +718,9 @@ export async function updateBudgetEntry(id: number | string, payload: any) {
   return mapBudgetEntry(data);
 }
 
-export async function deleteBudgetEntry(id: number | string) {
-  await api.delete(`/budget/entries/${id}`);
+/** With `reverse`, the money the expense moved (card balance, cash account, loan payment) is put back. */
+export async function deleteBudgetEntry(id: number | string, opts: { reverse?: boolean } = {}) {
+  return api.delete(`/budget/entries/${id}${opts.reverse ? "?reverse=true" : ""}`);
 }
 
 export interface BudgetSummaryArgs {

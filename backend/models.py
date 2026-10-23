@@ -387,6 +387,11 @@ class BudgetEntry(db.Model):
     # deleting this entry later does not reverse a balance change.
     deposit_target_holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id", ondelete="SET NULL"), nullable=True)
 
+    # Where an expense was paid from, remembered so deleting the entry can
+    # put the money back (DELETE /budget/entries/<id>?reverse=true).
+    charged_liability_id = db.Column(db.BigInteger, db.ForeignKey("liabilities.id", ondelete="SET NULL"), nullable=True)
+    funding_holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id", ondelete="SET NULL"), nullable=True)
+
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
     def to_dict(self):
@@ -404,6 +409,8 @@ class BudgetEntry(db.Model):
             "is_recurring": self.is_recurring,
             "recurring_frequency": self.recurring_frequency,
             "linked_liability_id": self.linked_liability_id,
+            "charged_liability_id": self.charged_liability_id,
+            "funding_holding_id": self.funding_holding_id,
             "deposit_target_holding_id": self.deposit_target_holding_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

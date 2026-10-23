@@ -79,7 +79,7 @@ test("quick add offers Undo after saving", async ({ mockedPage: page }) => {
     }
     return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
-  await page.route(`${API_BASE}/budget/entries/77`, (route) => {
+  await page.route(`${API_BASE}/budget/entries/77**`, (route) => {
     deleted = route.request().method() === "DELETE";
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ message: "Entry deleted" }) });
   });

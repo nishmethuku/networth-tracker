@@ -205,20 +205,18 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
         : entry.fundingSource
           ? ` Account balance now ${formatCurrencyForDisplay(entry.fundingSource.newBalance, entry.fundingSource.currency, { includeCode: false })}.`
           : "";
-      // Undo only when no account balance moved, because deleting an entry does not reverse one.
-      const undo =
-        !entry.chargedLiability && !entry.fundingSource
-          ? {
-              label: "Undo",
-              onClick: () =>
-                deleteBudgetEntry(entry.id)
-                  .then(() => {
-                    for (const key of ["budget-entries", "budget-summary"]) queryClient.invalidateQueries({ queryKey: [key] });
-                    toast.success("Expense removed");
-                  })
-                  .catch(() => toast.error("Could not undo that expense")),
-            }
-          : undefined;
+      // Undo removes the entry and puts back any card or account balance it moved.
+      const undo = {
+        label: "Undo",
+        onClick: () =>
+          deleteBudgetEntry(entry.id, { reverse: true })
+            .then(() => {
+              for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"])
+                queryClient.invalidateQueries({ queryKey: [key] });
+              toast.success("Expense removed");
+            })
+            .catch(() => toast.error("Could not undo that expense")),
+      };
       toast.success(`Expense added.${where}`, 6000, undo);
       if (addAnotherRef.current) {
         setAmount("");

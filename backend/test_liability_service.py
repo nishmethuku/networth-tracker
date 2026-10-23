@@ -55,3 +55,29 @@ def test_card_types_match_the_frontend_split_between_charge_and_pays_down():
     # Budget "Paid from" lists these as chargeable and "Pays down" must exclude them,
     # otherwise a card bill logged as an expense is counted as spending twice.
     assert set(liability_service.CHARGEABLE_TYPES) == {"credit_card", "line_of_credit"}
+
+
+def test_reverse_charge_lowers_balance_and_floors_at_zero():
+    liability = _liability(balance=100.0, currency="USD")
+    with patch.object(liability_service.db.session, "add"):
+        liability_service.reverse_charge(liability, 30.0, "USD")
+        assert liability.current_balance == 70.0
+        liability_service.reverse_charge(liability, 500.0, "USD")
+    assert liability.current_balance == 0.0
+
+
+def test_reverse_charge_converts_currency():
+    liability = _liability(balance=100.0, currency="USD")
+    with patch.object(liability_service, "price_service") as mock_price_service, \
+         patch.object(liability_service.db.session, "add"):
+        mock_price_service.convert.return_value = 12.0
+        liability_service.reverse_charge(liability, 1000.0, "INR")
+        mock_price_service.convert.assert_called_once_with(1000.0, "INR", "USD")
+    assert liability.current_balance == 88.0
+
+
+def test_reverse_payment_puts_the_amount_back():
+    liability = _liability(balance=800.0, currency="USD")
+    with patch.object(liability_service.db.session, "add"):
+        liability_service.reverse_payment(liability, 200.0, "USD")
+    assert liability.current_balance == 1000.0

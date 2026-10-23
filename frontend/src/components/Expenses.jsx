@@ -125,22 +125,29 @@ export default function Expenses() {
         description: e.description || null,
         is_recurring: !!e.isRecurring,
         recurring_frequency: e.recurringFrequency || null,
+        // Paying the same way again, so the card or account is charged once more.
+        ...(e.chargedLiabilityId ? { charge_liability_id: e.chargedLiabilityId } : {}),
+        ...(e.fundingHoldingId ? { funding_source_holding_id: e.fundingHoldingId } : {}),
+        ...(e.linkedLiabilityId ? { linked_liability_id: e.linkedLiabilityId } : {}),
         ...(currentHouseholdId ? { household_id: currentHouseholdId } : {}),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"]) queryClient.invalidateQueries({ queryKey: [key] });
       toast.success("Entry restored");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not restore the entry"),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (e) => deleteBudgetEntry(e.id),
+    // An expense that was paid from a card or account gives that money back when deleted.
+    mutationFn: (e) => deleteBudgetEntry(e.id, { reverse: !!(e.chargedLiabilityId || e.fundingHoldingId || e.linkedLiabilityId) }),
     onSuccess: (_data, e) => {
-      queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
-      toast.success("Entry deleted", 6000, { label: "Undo", onClick: () => restoreMutation.mutate(e) });
+      for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"]) queryClient.invalidateQueries({ queryKey: [key] });
+      const back = e.chargedLiabilityId || e.fundingHoldingId || e.linkedLiabilityId;
+      toast.success(back ? "Entry deleted and the money put back" : "Entry deleted", 6000, {
+        label: "Undo",
+        onClick: () => restoreMutation.mutate(e),
+      });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not delete the entry"),
   });
