@@ -1,6 +1,6 @@
-import { test, expect, mockBackend, API_BASE } from "./fixtures";
+import { test, expect, mockBackend, API_BASE, localISO } from "./fixtures";
 
-const today = new Date().toISOString().slice(0, 10);
+const today = localISO();
 const row = (id: number) => ({
   id,
   user_id: "x",

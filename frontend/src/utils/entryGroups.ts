@@ -31,10 +31,10 @@ export interface DayGroup<T extends EntryLike> {
  * Entries in one month, newest day first, with each day's expense total in
  * `currency`. Entries in other currencies are still listed but not summed.
  */
-export function groupByDay<T extends EntryLike>(entries: T[] | null | undefined, month: string, currency: string): DayGroup<T>[] {
+export function groupByDay<T extends EntryLike>(entries: T[] | null | undefined, month: string | null, currency: string): DayGroup<T>[] {
   const byDay = new Map<string, T[]>();
   for (const e of entries ?? []) {
-    if (monthOf(e.entryDate) !== month) continue;
+    if (month && monthOf(e.entryDate) !== month) continue;
     byDay.set(e.entryDate, [...(byDay.get(e.entryDate) ?? []), e]);
   }
   return [...byDay.entries()]

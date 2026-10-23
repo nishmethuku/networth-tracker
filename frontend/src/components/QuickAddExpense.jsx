@@ -19,6 +19,7 @@ import { frequentExpenses } from "../utils/frequentExpenses";
 import { monthOf, monthTotals } from "../utils/entryGroups";
 import { enqueuePending, loadPending, shouldQueue } from "../utils/pendingExpenses";
 import { limitWarning } from "../utils/limitWarning";
+import { parseQuickEntry } from "../utils/quickEntryParser";
 import { buildExpensePayload, loadLast, saveLast, validateQuickAdd, yesterdayOf } from "../utils/quickAdd";
 
 const fieldStyle = {
@@ -51,6 +52,7 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
   const [date, setDate] = useState(todayISO());
   const [paidFrom, setPaidFrom] = useState("");
   const [error, setError] = useState(null);
+  const [typed, setTyped] = useState("");
 
   const { data: categories } = useQuery({
     queryKey: ["budget-categories", currentHouseholdId],
@@ -101,12 +103,36 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     [categories],
   );
 
+  const parsed = useMemo(
+    () =>
+      typed.trim()
+        ? parseQuickEntry(typed, {
+            today: todayISO(),
+            categories: options.map((o) => o.value),
+            labelFor: getBudgetCategoryLabel,
+            frequent,
+          })
+        : null,
+    [typed, options, frequent],
+  );
+
+  function applyTyped() {
+    if (!parsed) return false;
+    if (parsed.amount !== undefined) setAmount(String(parsed.amount));
+    if (parsed.date) setDate(parsed.date);
+    if (parsed.description) setDescription(parsed.description);
+    if (parsed.category && options.some((o) => o.value === parsed.category)) setCategory(parsed.category);
+    setTyped("");
+    return true;
+  }
+
   // Each time it opens: fresh amount and date, remembering the last category and account.
   useEffect(() => {
     if (!open) return;
     const last = loadLast();
     setAmount("");
     setDescription("");
+    setTyped("");
     setDate(todayISO());
     setError(null);
     setCurrency(getDefaultDisplayCurrency());
@@ -205,7 +231,16 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
   });
 
   function submit(another) {
-    const input = { amount, category, description, date, currency, paidFrom };
+    let input = { amount, category, description, date, currency, paidFrom };
+    if (parsed && typed.trim()) {
+      input = {
+        ...input,
+        amount: parsed.amount !== undefined ? String(parsed.amount) : amount,
+        date: parsed.date || date,
+        description: parsed.description || description,
+        category: parsed.category && options.some((o) => o.value === parsed.category) ? parsed.category : category,
+      };
+    }
     const problem = validateQuickAdd(input, todayISO());
     if (problem) {
       setError(problem);
@@ -290,6 +325,39 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
                 ))}
               </div>
             )}
+
+            <label htmlFor="qa-typed" style={labelStyle}>
+              Type it (optional)
+            </label>
+            <input
+              id="qa-typed"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applyTyped();
+                  amountRef.current?.focus();
+                }
+              }}
+              placeholder="e.g. coffee 4.50 yesterday"
+              autoComplete="off"
+              style={{ ...fieldStyle, marginBottom: "0.35rem" }}
+            />
+            <p aria-live="polite" style={{ margin: "0 0 0.9rem", fontSize: "0.75rem", color: "var(--text-secondary)", minHeight: "1rem" }}>
+              {parsed
+                ? [
+                    parsed.amount !== undefined
+                      ? formatCurrencyForDisplay(parsed.amount, currency, { includeCode: false })
+                      : "no amount yet",
+                    parsed.description || null,
+                    parsed.category ? getBudgetCategoryLabel(parsed.category) : null,
+                    parsed.date ? formatDateISO(parsed.date) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") + "  (press Enter to fill the form)"
+                : "Fill the fields below, or type a sentence and press Enter."}
+            </p>
 
             <label htmlFor="qa-amount" style={labelStyle}>
               Amount

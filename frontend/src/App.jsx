@@ -265,6 +265,11 @@ function AppShell() {
   const { t } = useTranslation();
   const [helpOpen, setHelpOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setQuickAddOpen(true);
+    window.addEventListener("nw:quick-add", open);
+    return () => window.removeEventListener("nw:quick-add", open);
+  }, []);
   useSyncPendingExpenses(!isDemo);
   useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true), onQuickAdd: () => setQuickAddOpen(true) });
 

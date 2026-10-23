@@ -1,9 +1,9 @@
-import { test, expect, mockBackend, API_BASE } from "./fixtures";
+import { test, expect, mockBackend, API_BASE, localISO } from "./fixtures";
 
 const now = new Date();
-const today = now.toISOString().slice(0, 10);
+const today = localISO(now);
 const month = today.slice(0, 7);
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
+const ymd = (d: Date) => localISO(d);
 const daysAgo = (n: number) => ymd(new Date(now.getTime() - n * 86400000));
 
 const row = (id: number, amount: number, category: string, description: string, entry_date = today) => ({

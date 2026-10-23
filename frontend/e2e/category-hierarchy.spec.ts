@@ -1,8 +1,8 @@
-import { test, expect, mockBackend, API_BASE } from "./fixtures";
+import { test, expect, mockBackend, API_BASE, localISO } from "./fixtures";
 
 test("subcategories group under their parent with a total and expand to show the parts", async ({ mockedPage: page }) => {
   await mockBackend(page);
-  const month = new Date().toISOString().slice(0, 7);
+  const month = localISO().slice(0, 7);
   await page.route(`${API_BASE}/budget/categories**`, (route) => {
     const req = route.request();
     if (req.method() === "POST") {
