@@ -17,6 +17,7 @@ from .models import (
     HouseholdInvite,
     HouseholdMember,
     Liability,
+    LinkedConnection,
     Milestone,
     NetWorthSnapshot,
     db,
@@ -119,7 +120,7 @@ def _household_scoped_models():
     Keep in sync with UNSHARE_MODEL_NAMES in test_household_service.py (see
     test_unshare_model_list_covers_every_household_scoped_model, which
     checks this list against every household_id-bearing model)."""
-    return (Holding, NetWorthSnapshot, BudgetEntry, BudgetLimit, BudgetCategory, Account, Liability, Milestone)
+    return (Holding, NetWorthSnapshot, BudgetEntry, BudgetLimit, BudgetCategory, Account, Liability, Milestone, LinkedConnection)
 
 
 def accept_invite(invite_id, user_id, user_email) -> HouseholdInvite:

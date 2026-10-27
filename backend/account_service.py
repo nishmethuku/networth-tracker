@@ -26,6 +26,7 @@ from .models import (
     HoldingTransaction,
     HoldingValuation,
     Liability,
+    LinkedConnection,
     Milestone,
     NetWorthSnapshot,
     PriceAlert,
@@ -63,9 +64,12 @@ def export_user_data(user_id) -> Dict:
     goals = Goal.query.filter_by(user_id=user_id).all()
     allocation_targets = AllocationTarget.query.filter_by(user_id=user_id).all()
     push_subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
+    # Which banks are linked (never the stored tokens: to_dict leaves them out).
+    linked_connections = LinkedConnection.query.filter_by(user_id=user_id).all()
 
     return {
         "holdings": [h.to_dict() for h in holdings],
+        "linked_connections": [c.to_dict() for c in linked_connections],
         "transactions": [t.to_dict() for t in transactions],
         "valuations": [v.to_dict() for v in valuations],
         "alerts": [a.to_dict() for a in alerts],
@@ -145,6 +149,8 @@ def delete_all_user_data(user_id) -> Dict:
     # this, deleting the account would leave a device still subscribed to
     # push notifications for a user that no longer exists.
     push_subscriptions_count = PushSubscription.query.filter_by(user_id=user_id).delete()
+    # Linked banks go too, so no provider token outlives the account.
+    linked_connections_count = LinkedConnection.query.filter_by(user_id=user_id).delete()
 
     db.session.commit()
 
@@ -161,6 +167,7 @@ def delete_all_user_data(user_id) -> Dict:
         "budget_limits_deleted": budget_limits_count,
         "budget_categories_deleted": budget_categories_count,
         "push_subscriptions_deleted": push_subscriptions_count,
+        "linked_connections_deleted": linked_connections_count,
     }
 
 

@@ -392,6 +392,10 @@ class BudgetEntry(db.Model):
     charged_liability_id = db.Column(db.BigInteger, db.ForeignKey("liabilities.id", ondelete="SET NULL"), nullable=True)
     funding_holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id", ondelete="SET NULL"), nullable=True)
 
+    # Set when the entry came from a linked bank, so syncing twice never
+    # adds the same purchase twice.
+    external_id = db.Column(db.String(128), nullable=True)
+
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
     def to_dict(self):
@@ -650,5 +654,38 @@ class Milestone(db.Model):
             "currency": self.currency,
             "achieved_date": self.achieved_date.isoformat(),
             "acknowledged": self.acknowledged,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class LinkedConnection(db.Model):
+    """A bank or broker the user linked through a sync provider. The provider
+    token is stored encrypted (see sync_service.TokenVault), never in plain text."""
+    __tablename__ = "linked_connections"
+    __table_args__ = (db.Index("linked_connections_user_idx", "user_id"),)
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
+    provider = db.Column(db.String(32), nullable=False)
+    kind = db.Column(db.String(8), nullable=False, default="bank")  # 'bank' | 'broker'
+    external_id = db.Column(db.String(128), nullable=False)
+    institution_name = db.Column(db.String(128))
+    access_token_enc = db.Column(db.Text)
+    cursor = db.Column(db.Text)
+    status = db.Column(db.String(16), nullable=False, default="active")  # 'active' | 'error' | 'disconnected'
+    last_synced_at = db.Column(db.DateTime(timezone=True))
+    last_error = db.Column(db.Text)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "provider": self.provider,
+            "kind": self.kind,
+            "institution_name": self.institution_name,
+            "status": self.status,
+            "last_synced_at": self.last_synced_at.isoformat() if self.last_synced_at else None,
+            "last_error": self.last_error,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

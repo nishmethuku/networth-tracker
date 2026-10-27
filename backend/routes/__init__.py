@@ -13,6 +13,7 @@ from . import (
     liabilities,
     milestones,
     search,
+    sync,
 )
 
 
@@ -30,3 +31,4 @@ def register_all(app, h):
     milestones.register(app, h)
     account_data.register(app, h)
     budget.register(app, h)
+    sync.register(app, h)
