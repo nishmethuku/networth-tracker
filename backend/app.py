@@ -136,7 +136,10 @@ def create_app():
                 "FRONTEND_URL is not set in production: CORS is open to every origin. "
                 "Set FRONTEND_URL to your frontend's address (e.g. https://your-app.vercel.app)."
             )
-        CORS(app, origins=[os.environ.get("FRONTEND_URL", "*")], expose_headers=["X-Request-ID"])
+        # The iOS and Android apps load the site from these built-in addresses,
+        # so the browser rules must let them call the API as well.
+        native_origins = ["capacitor://localhost", "https://localhost", "http://localhost"]
+        CORS(app, origins=[os.environ.get("FRONTEND_URL", "*"), *native_origins], expose_headers=["X-Request-ID"])
     else:
         CORS(app, expose_headers=["X-Request-ID"])
 
