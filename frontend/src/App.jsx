@@ -276,7 +276,7 @@ function AppShell() {
   useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true), onQuickAdd: () => setQuickAddOpen(true) });
 
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh", transition: "background-color 0.2s ease" }}>
+    <div style={{ minHeight: "100vh", transition: "background-color 0.2s ease" }}>
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>

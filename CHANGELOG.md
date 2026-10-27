@@ -7,6 +7,12 @@
 - Interest rates, exchange rates, allocation targets and alert thresholds stay as floats on purpose.
 - Migration `e7b1c4a98d32` converts existing rows with rounding to 4 decimals (8 for quantities and prices) and can be reversed. Back up the database before deploying.
 
+## Glass design
+
+- The whole app now uses a frosted glass look in both light and dark mode: translucent blurred cards, a glass navigation bar and bottom bar, frosted inputs and sheets, and soft wine and gold light behind everything.
+- The original colors are unchanged.
+- People who turn on "reduce transparency" in their system settings, and browsers that cannot blur, get solid surfaces so text stays easy to read.
+
 ## Backend routes split into modules (branch `refactor/split-app`)
 
 - No change to what the app does. The 2,400-line `backend/app.py` is now about 850 lines, and thirteen topics (budget, liabilities, households, AI, goals, search, imports, alerts and push, history, jobs, accounts, milestones, account data) each live in their own file in `backend/routes/`.

@@ -11,9 +11,20 @@
 :root {
   /* Background Colors */
   --bg: #faf7f2;
-  --bg-secondary: #f2eae0;
-  --card: #ffffff;
-  --card-hover: #fbf7f1;
+  --bg-secondary: rgba(255, 255, 255, 0.42);
+  --card: rgba(255, 255, 255, 0.62);
+  --card-hover: rgba(255, 255, 255, 0.78);
+  --card-solid: #fbf8f5;
+
+  /* Glass */
+  --glass-blur: 18px;
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --glass-edge: rgba(125, 46, 66, 0.12);
+  --aurora-1: rgba(125, 46, 66, 0.32);
+  --aurora-2: rgba(180, 135, 46, 0.34);
+  --aurora-3: rgba(208, 138, 156, 0.3);
+  --aurora-base: linear-gradient(135deg, #faf7f2 0%, #f6ece4 55%, #f2eae0 100%);
 
   /* Text Colors */
   --text: #241f1d;
@@ -41,21 +52,21 @@
   --warning-light: #f3e8ce;
 
   /* Borders & Dividers */
-  --border: #e8dfd2;
-  --border-light: #f2eae0;
-  --border-dark: #d5c7b3;
+  --border: rgba(125, 46, 66, 0.14);
+  --border-light: rgba(125, 46, 66, 0.08);
+  --border-dark: rgba(85, 29, 42, 0.28);
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(36, 31, 29, 0.06);
-  --shadow: 0 4px 6px -1px rgba(36, 31, 29, 0.1), 0 2px 4px -1px rgba(36, 31, 29, 0.06);
-  --shadow-md: 0 10px 15px -3px rgba(36, 31, 29, 0.1), 0 4px 6px -2px rgba(36, 31, 29, 0.05);
-  --shadow-lg: 0 20px 25px -5px rgba(36, 31, 29, 0.12), 0 10px 10px -5px rgba(36, 31, 29, 0.04);
+  --shadow-sm: 0 1px 2px 0 rgba(60, 30, 50, 0.06);
+  --shadow: 0 8px 28px -8px rgba(80, 40, 70, 0.18), var(--glass-highlight);
+  --shadow-md: 0 14px 36px -8px rgba(80, 40, 70, 0.24), var(--glass-highlight);
+  --shadow-lg: 0 24px 54px -12px rgba(80, 40, 70, 0.3), var(--glass-highlight);
 
   /* Radius */
-  --radius-sm: 8px;
-  --radius: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
 
   /* Type */
   --font-sans: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
@@ -67,9 +78,18 @@
 [data-theme="dark"] {
   /* Background Colors */
   --bg: #1b1715;
-  --bg-secondary: #252019;
-  --card: #252019;
-  --card-hover: #2e2820;
+  --bg-secondary: rgba(255, 255, 255, 0.06);
+  --card: rgba(255, 255, 255, 0.08);
+  --card-hover: rgba(255, 255, 255, 0.13);
+  --card-solid: #2a2420;
+
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --aurora-1: rgba(208, 138, 156, 0.24);
+  --aurora-2: rgba(214, 177, 94, 0.2);
+  --aurora-3: rgba(125, 46, 66, 0.4);
+  --aurora-base: linear-gradient(135deg, #1f1a17 0%, #1b1715 55%, #171210 100%);
 
   /* Text Colors */
   --text: #f5efe7;
@@ -97,15 +117,15 @@
   --warning-light: #453820;
 
   /* Borders & Dividers */
-  --border: #3a332c;
-  --border-light: #252019;
-  --border-dark: #4f453a;
+  --border: rgba(255, 255, 255, 0.14);
+  --border-light: rgba(255, 255, 255, 0.07);
+  --border-dark: rgba(255, 255, 255, 0.26);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.55), var(--glass-highlight);
+  --shadow-md: 0 16px 40px -10px rgba(0, 0, 0, 0.6), var(--glass-highlight);
+  --shadow-lg: 0 26px 56px -14px rgba(0, 0, 0, 0.65), var(--glass-highlight);
 }
 
 /* Global Styles */
@@ -118,6 +138,8 @@
 
 body {
   background-color: var(--bg);
+  background-image: var(--aurora-base);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -361,5 +383,133 @@ a:hover {
 @media print {
   .quick-add-fab {
     display: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Glass design. Soft colored light sits behind everything (a fixed
+   "aurora"), and every surface that uses --card becomes frosted glass that
+   blurs it. The attribute selector catches the many inline-styled cards
+   without touching each component.
+   --------------------------------------------------------------------- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40vmax 40vmax at 8% 12%, var(--aurora-1), transparent 70%),
+    radial-gradient(45vmax 45vmax at 92% 20%, var(--aurora-3), transparent 70%),
+    radial-gradient(50vmax 50vmax at 60% 100%, var(--aurora-2), transparent 70%);
+}
+
+[style*="var(--card)"],
+[style*="var(--card-hover)"],
+.mobile-top-bar,
+.mobile-bottom-nav,
+.desktop-top-nav,
+.quick-add-sheet {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+}
+
+[style*="var(--card)"] {
+  border-color: var(--glass-border) !important;
+}
+
+/* Inputs and inner panels that used the flat page color become a lighter
+   frost, so nothing reads as a hole in the glass. */
+[style*="background: var(--bg);"],
+[style*="background: var(--bg-secondary)"] {
+  background: var(--bg-secondary) !important;
+}
+
+/* Menus, modals and sheets float above content, so they get a firmer glass. */
+.quick-add-sheet,
+[role="dialog"],
+[role="menu"],
+[role="listbox"] {
+  background: var(--card-solid);
+  background: color-mix(in srgb, var(--card-solid) 86%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg);
+}
+
+.quick-add-backdrop {
+  background: rgba(27, 23, 21, 0.4);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.desktop-top-nav {
+  background: var(--card);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-highlight),
+    0 8px 24px -16px rgba(60, 30, 50, 0.35);
+}
+
+.mobile-top-bar,
+.mobile-bottom-nav {
+  border-color: var(--glass-border);
+}
+
+.quick-add-fab {
+  box-shadow:
+    0 10px 28px -6px color-mix(in srgb, var(--primary) 55%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+input,
+select,
+textarea {
+  background-color: var(--bg-secondary);
+  border-color: var(--glass-border);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+thead {
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* People who ask for less transparency, and browsers without blur, get
+   solid surfaces so text never sits on a busy background. */
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  [data-theme="light"],
+  [data-theme="dark"] {
+    --card: var(--card-solid);
+    --card-hover: var(--card-solid);
+  }
+  body::before {
+    display: none;
+  }
+  * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root,
+  [data-theme="light"],
+  [data-theme="dark"] {
+    --card: var(--card-solid);
+    --card-hover: var(--card-solid);
+  }
+}
+
+@media print {
+  body::before {
+    display: none;
+  }
+  body {
+    background-image: none !important;
   }
 }
