@@ -75,3 +75,8 @@ Only if phase 1 is not enough. Switch `asdecimal=True` for the columns used in t
 ## Recommendation
 
 Do phase 1 on a branch of the database when convenient, because it is cheap and reversible. Skip phase 2 unless a real rounding bug shows up.
+
+
+## Status
+
+Phase 1 (column types and migration) is done on branch feature/exact-decimals and was tested against a scratch Postgres 16: row counts and sums matched, and downgrade restored double precision.

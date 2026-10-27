@@ -93,7 +93,7 @@ class Holding(db.Model):
 
     # Recurring investment (SIP) tracking — optional, only meaningful for
     # quantity-based types. sip_frequency: 'weekly' | 'monthly' | 'quarterly'.
-    sip_amount = db.Column(db.Float)
+    sip_amount = db.Column(db.Numeric(18, 4, asdecimal=False))
     sip_frequency = db.Column(db.String(16))
     sip_start_date = db.Column(db.Date)
 
@@ -142,10 +142,10 @@ class HoldingTransaction(db.Model):
     user_id = db.Column(UUID(as_uuid=True), nullable=False)
     transaction_type = db.Column(db.String(8), nullable=False)  # buy | sell
     transaction_date = db.Column(db.Date, nullable=False)
-    quantity = db.Column(db.Float, nullable=False)
-    price_per_unit = db.Column(db.Float, nullable=False)
+    quantity = db.Column(db.Numeric(24, 8, asdecimal=False), nullable=False)
+    price_per_unit = db.Column(db.Numeric(24, 8, asdecimal=False), nullable=False)
     currency = db.Column(db.String(8), nullable=False)
-    fees = db.Column(db.Float, nullable=False, default=0.0)
+    fees = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False, default=0.0)
     notes = db.Column(db.Text)
     tags = db.Column(JSONB)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
@@ -175,7 +175,7 @@ class HoldingValuation(db.Model):
     holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id"), nullable=False)
     user_id = db.Column(UUID(as_uuid=True), nullable=False)
     valuation_date = db.Column(db.Date, nullable=False)
-    value = db.Column(db.Float, nullable=False)
+    value = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
     currency = db.Column(db.String(8), nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
@@ -200,7 +200,7 @@ class PriceHistory(db.Model):
     asset_type = db.Column(db.String(32), nullable=False)
     symbol = db.Column(db.String(32), nullable=False)
     price_date = db.Column(db.Date, nullable=False)
-    price = db.Column(db.Float, nullable=False)
+    price = db.Column(db.Numeric(24, 8, asdecimal=False), nullable=False)
     currency = db.Column(db.String(8), nullable=False)
     source = db.Column(db.String(32))
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
@@ -246,11 +246,11 @@ class NetWorthSnapshot(db.Model):
     user_id = db.Column(UUID(as_uuid=True), nullable=True)
     household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
     snapshot_date = db.Column(db.Date, nullable=False)
-    total_net_worth = db.Column(db.Float, nullable=False)
-    total_stock_value = db.Column(db.Float, nullable=False, default=0.0)
-    total_property_value = db.Column(db.Float, nullable=False, default=0.0)
-    total_profit_loss = db.Column(db.Float, nullable=False, default=0.0)
-    total_liabilities = db.Column(db.Float, nullable=False, default=0.0)
+    total_net_worth = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
+    total_stock_value = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False, default=0.0)
+    total_property_value = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False, default=0.0)
+    total_profit_loss = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False, default=0.0)
+    total_liabilities = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False, default=0.0)
     by_asset_type = db.Column(JSONB, nullable=False, default=dict)
     currency = db.Column(db.String(8), nullable=False, default="USD")
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
@@ -356,7 +356,7 @@ class BudgetEntry(db.Model):
 
     entry_type = db.Column(db.String(8), nullable=False)  # 'income' | 'expense'
     entry_date = db.Column(db.Date, nullable=False)
-    amount = db.Column(db.Float, nullable=False)
+    amount = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
     currency = db.Column(db.String(8), nullable=False)
     category = db.Column(db.String(32), nullable=False)
     description = db.Column(db.Text)
@@ -430,7 +430,7 @@ class BudgetLimit(db.Model):
     household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id"), nullable=True)
 
     category = db.Column(db.String(32), nullable=False)
-    monthly_limit = db.Column(db.Float, nullable=False)
+    monthly_limit = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
     currency = db.Column(db.String(8), nullable=False)
     # When on, whatever was left unspent last month is added to this month's limit.
     rollover = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
@@ -538,7 +538,7 @@ class Goal(db.Model):
     user_id = db.Column(UUID(as_uuid=True), nullable=False)
 
     name = db.Column(db.String(120), nullable=False)
-    target_amount = db.Column(db.Float, nullable=False)
+    target_amount = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
     currency = db.Column(db.String(8), nullable=False)
     target_date = db.Column(db.Date, nullable=True)
 
@@ -596,10 +596,10 @@ class Liability(db.Model):
     name = db.Column(db.String(128), nullable=False)
     liability_type = db.Column(db.String(32), nullable=False)
     currency = db.Column(db.String(8), nullable=False)
-    current_balance = db.Column(db.Float, nullable=False)
-    original_amount = db.Column(db.Float)
+    current_balance = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
+    original_amount = db.Column(db.Numeric(18, 4, asdecimal=False))
     interest_rate = db.Column(db.Float)
-    monthly_payment = db.Column(db.Float)
+    monthly_payment = db.Column(db.Numeric(18, 4, asdecimal=False))
     payment_due_date = db.Column(db.Date)
     notes = db.Column(db.Text)
     is_private = db.Column(db.Boolean, nullable=False, default=False)

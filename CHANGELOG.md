@@ -1,5 +1,12 @@
 # Changelog
 
+## Exact decimals for money
+
+- Money columns (amounts, balances, quantities, prices, snapshot totals, goal targets, limits) are now stored as exact decimals in the database instead of floating point numbers, so sums such as 0.1 + 0.2 no longer drift.
+- The app still receives plain numbers, so nothing changes on screen.
+- Interest rates, exchange rates, allocation targets and alert thresholds stay as floats on purpose.
+- Migration `e7b1c4a98d32` converts existing rows with rounding to 4 decimals (8 for quantities and prices) and can be reversed. Back up the database before deploying.
+
 ## iOS and Android apps, ready to build
 
 - Added the iOS and Android app projects (Capacitor), with app icons, splash screens, notch-safe bars and a store checklist in `docs/app-stores.md`.
