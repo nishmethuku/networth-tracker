@@ -1,5 +1,13 @@
 # Changelog
 
+## Bank syncing groundwork (off until configured)
+
+- Added the provider-neutral base for syncing banks automatically: encrypted token storage, de-duplicated transaction import with category guesses, and routes to connect, pull and disconnect.
+- A Plaid provider and a fake provider for tests are included. Nothing is active until `SYNC_PROVIDER` is set.
+- New migration `f3c8a1d57b29` (linked connections table and an external id on budget entries).
+- "Delete all my data" and household deletion now cover linked banks. Data export lists them without tokens.
+- Setup steps and what remains are in `docs/bank-sync.md`.
+
 ## Exact decimals for money
 
 - Money columns (amounts, balances, quantities, prices, snapshot totals, goal targets, limits) are now stored as exact decimals in the database instead of floating point numbers, so sums such as 0.1 + 0.2 no longer drift.

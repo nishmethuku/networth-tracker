@@ -14,7 +14,7 @@ from backend import household_service, models
 MEMBERSHIP_MODEL_NAMES = {"HouseholdMember", "HouseholdInvite"}
 
 UNSHARE_MODEL_NAMES = (
-    "Holding", "NetWorthSnapshot", "BudgetEntry", "BudgetLimit", "BudgetCategory", "Account", "Liability", "Milestone",
+    "Holding", "NetWorthSnapshot", "BudgetEntry", "BudgetLimit", "BudgetCategory", "Account", "Liability", "Milestone", "LinkedConnection",
 )
 
 
