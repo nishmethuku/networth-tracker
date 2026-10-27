@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Net Worth</string>
+    <string name="title_activity_main">Net Worth</string>
+    <string name="package_name">com.nishmethuku.networth</string>
+    <string name="custom_url_scheme">com.nishmethuku.networth</string>
+</resources>

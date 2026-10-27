@@ -68,3 +68,17 @@ def test_production_with_frontend_url_does_not_warn(make_app, monkeypatch, caplo
     with caplog.at_level(logging.WARNING, logger="networth_tracker"):
         make_app()
     assert not any("FRONTEND_URL is not set" in r.getMessage() for r in caplog.records)
+
+
+def test_native_app_origins_are_allowed_in_production(monkeypatch):
+    monkeypatch.setenv("FLASK_ENV", "production")
+    monkeypatch.setenv("FRONTEND_URL", "https://example-frontend.test")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://fake:fake@localhost:5432/fake")
+    from backend.app import create_app
+
+    client = create_app().test_client()
+    for origin in ("capacitor://localhost", "https://localhost", "https://example-frontend.test"):
+        resp = client.get("/health", headers={"Origin": origin})
+        assert resp.headers.get("Access-Control-Allow-Origin") == origin, origin
+    other = client.get("/health", headers={"Origin": "https://evil.test"})
+    assert other.headers.get("Access-Control-Allow-Origin") is None

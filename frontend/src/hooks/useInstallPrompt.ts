@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isNativeApp } from "../utils/native";
 
 interface InstallEvent extends Event {
   prompt: () => Promise<void>;
@@ -24,6 +25,7 @@ if (typeof window !== "undefined") {
 
 export function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
+  if (isNativeApp()) return true;
   return window.matchMedia?.("(display-mode: standalone)").matches || (navigator as any).standalone === true;
 }
 

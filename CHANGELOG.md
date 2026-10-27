@@ -1,5 +1,12 @@
 # Changelog
 
+## iOS and Android apps, ready to build
+
+- Added the iOS and Android app projects (Capacitor), with app icons, splash screens, notch-safe bars and a store checklist in `docs/app-stores.md`.
+- The backend now accepts requests from the apps.
+- Inside the apps the "Install the app" prompt is hidden.
+- Publishing still needs an Apple Developer account and a Google Play account, which only the owner can create.
+
 ## Glass design
 
 - The whole app now uses a frosted glass look in both light and dark mode: translucent blurred cards, a glass navigation bar and bottom bar, frosted inputs and sheets, and soft wine and gold light behind everything.
