@@ -25,7 +25,7 @@ const reactRules = {
 };
 
 export default [
-  { ignores: ["dist/**", "dev-dist/**", "node_modules/**"] },
+  { ignores: ["dist/**", "dev-dist/**", "node_modules/**", "android/**", "ios/**"] },
   js.configs.recommended,
   {
     files: ["**/*.{js,jsx}"],

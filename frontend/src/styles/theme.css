@@ -513,3 +513,10 @@ thead {
     background-image: none !important;
   }
 }
+
+/* Inside the iOS and Android apps the page runs edge to edge, so keep the
+   bars clear of the notch and the home indicator. */
+.desktop-top-nav,
+.mobile-top-bar {
+  padding-top: env(safe-area-inset-top, 0px);
+}
