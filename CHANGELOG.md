@@ -1,5 +1,12 @@
 # Changelog
 
+## Smarter welcome steps for new accounts
+
+- The welcome window now asks what you want to do first: add an investment, import from a broker, connect a bank (only when bank syncing is on), track spending, or just explore.
+- Picking a country now suggests the matching display currency. A currency you choose yourself is never overridden.
+- The window is announced properly to screen readers, shows "Step 1 of 2", and closes with Escape.
+- It no longer breaks when the browser blocks storage.
+
 ## Connect a bank (Settings)
 
 - New "Connected banks" card in Settings: connect a bank through Plaid's sign-in window, see when each bank last synced, sync now, and disconnect.
