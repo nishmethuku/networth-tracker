@@ -88,6 +88,42 @@ def _get_jwks_client():
     return _jwks_client
 
 
+def _authenticated_at(payload):
+    """When this person last actually proved who they are (typed a password,
+    finished a Google sign-in, entered a 2FA code). Supabase lists every method
+    used in the session in the `amr` claim with a timestamp. Refreshing the
+    access token does not change these, so this is the real sign-in time, not
+    the token's issue time. None if the claim is missing or unreadable."""
+    stamps = []
+    for entry in payload.get("amr") or []:
+        if isinstance(entry, dict) and isinstance(entry.get("timestamp"), (int, float)) and not isinstance(entry.get("timestamp"), bool):
+            stamps.append(entry["timestamp"])
+    return max(stamps) if stamps else None
+
+
+def require_recent_auth(max_age_seconds=900):
+    """Use under @require_auth on dangerous actions (deleting data or the
+    account). A stolen or left-open session cannot do them unless the person
+    signed in within the last `max_age_seconds`. Fails closed: a token with no
+    readable sign-in time is treated as stale. Answers 403 with code
+    `recent_login_required` so the app can ask for a fresh sign-in."""
+
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            signed_in_at = g.get("auth_time")
+            if signed_in_at is None or time.time() - signed_in_at > max_age_seconds:
+                return (
+                    jsonify({"error": "For your security, sign in again to do this.", "code": "recent_login_required"}),
+                    403,
+                )
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 def _extract_token():
     header = request.headers.get("Authorization", "")
     if not header.startswith("Bearer "):
@@ -144,6 +180,7 @@ def require_auth(fn):
 
         g.user_id = payload["sub"]
         g.user_email = payload.get("email")
+        g.auth_time = _authenticated_at(payload)
         return fn(*args, **kwargs)
 
     return wrapper

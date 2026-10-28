@@ -16,6 +16,7 @@ Local:   TENANT_TEST_DATABASE_URL=postgresql://postgres@localhost:5544/scratch?h
 CI:      the backend-tenant-isolation job in .github/workflows/ci.yml
 """
 import os
+import time
 import uuid
 from urllib.parse import urlparse
 
@@ -36,6 +37,7 @@ pytestmark = pytest.mark.skipif(
 
 USER_A = str(uuid.UUID(int=0xA))
 USER_B = str(uuid.UUID(int=0xB))
+USER_C = str(uuid.UUID(int=0xC))
 MARKER = "ZZ-TENANT-A-PRIVATE"
 REFUSED = (403, 404)
 
@@ -60,9 +62,17 @@ def client():
 
     real_decode = auth.jwt.decode
 
+    users = {"token-a": USER_A, "token-b": USER_B, "token-c": USER_C, "token-c-stale": USER_C}
+
     def fake_decode(token, *args, **kwargs):
-        if token in ("token-a", "token-b"):
-            return {"sub": USER_A if token == "token-a" else USER_B, "email": f"{token}@example.com", "aal": "aal2"}
+        if token in users:
+            signed_in = int(time.time()) - (7200 if token.endswith("stale") else 30)
+            return {
+                "sub": users[token],
+                "email": f"{token}@example.com",
+                "aal": "aal2",
+                "amr": [{"method": "password", "timestamp": signed_in}],
+            }
         raise auth.jwt.InvalidTokenError("bad token")
 
     auth._get_jwks_client = lambda: _FakeJwks()
@@ -254,3 +264,61 @@ def test_requests_without_a_valid_token_are_rejected(client, world):
         assert call(client, None, "get", path).status_code == 401
         assert call(client, "forged-token", "get", path).status_code == 401
     assert call(client, None, "delete", "/account").status_code == 401
+
+
+def test_security_activity_is_private_and_records_sensitive_actions(client, world):
+    a = lambda method, path, body=None: call(client, "token-a", method, path, body)  # noqa: E731
+    b = lambda method, path, body=None: call(client, "token-b", method, path, body)  # noqa: E731
+
+    assert a("get", "/account/export").status_code == 200
+    r = a("get", "/account/security-activity")
+    assert r.status_code == 200
+    events = r.get_json()
+    assert [e["event_type"] for e in events][0] == "data.exported"
+    assert events[0]["label"] == "Downloaded a copy of your data"
+    assert "user_agent" in events[0] and "created_at" in events[0]
+
+    # Every row either person sees belongs to them, in the list and in the export.
+    from backend.models import AuditEvent
+
+    seen = []
+    for fetch, me in ((a, USER_A), (b, USER_B)):
+        seen += [(e["id"], me) for e in fetch("get", "/account/security-activity").get_json()]
+        seen += [(e["id"], me) for e in fetch("get", "/account/export").get_json()["security_activity"]]
+    owners = {row.id: str(row.user_id) for row in AuditEvent.query.all()}
+    for event_id, me in seen:
+        assert owners[event_id] == me
+    assert any(owner == USER_A for owner in owners.values())
+
+
+def test_the_security_log_has_no_edit_or_delete_route(client, world):
+    for method in ("put", "patch", "delete", "post"):
+        r = call(client, "token-a", method, "/account/security-activity", {"x": 1})
+        assert r.status_code in (404, 405), (method, r.status_code)
+
+
+def test_deleting_data_needs_a_recent_sign_in_and_stays_visible_in_the_log(client):
+    c = lambda method, path, body=None: call(client, "token-c", method, path, body)  # noqa: E731
+    stale = lambda method, path, body=None: call(client, "token-c-stale", method, path, body)  # noqa: E731
+
+    r = c("post", "/liabilities", {"liability_type": "mortgage", "name": "C's loan", "current_balance": 5})
+    assert r.status_code == 201
+
+    # A session that signed in two hours ago cannot wipe data or the account.
+    for method, path, confirm in (("delete", "/account/data", "DELETE"), ("delete", "/account", "DELETE ACCOUNT")):
+        r = stale(method, path, {"confirm": confirm})
+        assert r.status_code == 403 and r.get_json()["code"] == "recent_login_required", path
+    assert len(c("get", "/liabilities").get_json()) == 1
+
+    # A fresh sign-in can. The data goes, but the wipe itself is recorded.
+    assert c("delete", "/account/data", {"confirm": "DELETE"}).status_code == 200
+    assert c("get", "/liabilities").get_json() == []
+    types = [e["event_type"] for e in c("get", "/account/security-activity").get_json()]
+    assert types == ["data.deleted"]
+
+
+def test_bank_and_household_actions_are_recorded(client, world):
+    a = lambda method, path, body=None: call(client, "token-a", method, path, body)  # noqa: E731
+    assert a("delete", f"/sync/connections/{world['connection']}").status_code == 200
+    types = [e["event_type"] for e in a("get", "/account/security-activity").get_json()]
+    assert "bank.disconnected" in types

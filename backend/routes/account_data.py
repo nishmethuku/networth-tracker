@@ -13,7 +13,8 @@ from ..account_service import (
     export_user_data_csv_zip,
     restore_user_data,
 )
-from ..auth import require_auth
+from ..audit_service import list_events, record
+from ..auth import require_auth, require_recent_auth
 from ..unsubscribe_service import is_unsubscribed
 from ..unsubscribe_service import resubscribe as resubscribe_email
 from ..unsubscribe_service import unsubscribe as unsubscribe_email
@@ -38,6 +39,7 @@ def register(app, h):
     @app.route("/account/export", methods=["GET"])
     @require_auth
     def account_export():
+        record("data.exported", detail="JSON")
         return jsonify(export_user_data(g.user_id))
 
     @app.route("/account/export.zip", methods=["GET"])
@@ -46,6 +48,7 @@ def register(app, h):
         """Same data as /account/export, as a zip of one CSV per table — for
         a backup that opens directly in Excel/Sheets."""
         zip_bytes = export_user_data_csv_zip(g.user_id)
+        record("data.exported", detail="CSV zip")
         filename = f"networth-tracker-backup-{date.today().isoformat()}.zip"
         return Response(
             zip_bytes,
@@ -67,21 +70,25 @@ def register(app, h):
         if not isinstance(data, dict):
             return jsonify({"error": "Expected a JSON object (the file from Settings → Download as JSON)"}), 400
         result = restore_user_data(g.user_id, data)
+        record("data.restored")
         return jsonify(result), 200
 
     @app.route("/account/data", methods=["DELETE"])
     @require_auth
     @limiter.limit("5 per hour")
+    @require_recent_auth()
     def account_delete_data():
         data = request.get_json(silent=True) or {}
         if data.get("confirm") != "DELETE":
             return jsonify({"error": "Type DELETE to confirm this action"}), 400
         result = delete_all_user_data(g.user_id)
+        record("data.deleted")
         return jsonify(result)
 
     @app.route("/account", methods=["DELETE"])
     @require_auth
     @limiter.limit("3 per hour")
+    @require_recent_auth()
     def account_delete():
         data = request.get_json(silent=True) or {}
         if data.get("confirm") != "DELETE ACCOUNT":
@@ -92,6 +99,16 @@ def register(app, h):
             return jsonify({"error": str(exc)}), 503
         except RuntimeError as exc:
             return jsonify({"error": str(exc)}), 502
+
+    @app.route("/account/security-activity", methods=["GET"])
+    @require_auth
+    def account_security_activity():
+        """The signed-in person's own security log, newest first."""
+        try:
+            limit = int(request.args.get("limit", 50))
+        except ValueError:
+            limit = 50
+        return jsonify(list_events(g.user_id, limit))
 
     @app.route("/account/digest-subscription", methods=["GET"])
     @require_auth

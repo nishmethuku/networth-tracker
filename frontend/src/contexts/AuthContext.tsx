@@ -15,6 +15,8 @@ interface AuthContextValue {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Ends the session on every device, not just this one. */
+  signOutEverywhere: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   // Two-factor (TOTP) management -- the raw Supabase SDK sub-object,
@@ -108,6 +110,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("default_display_currency");
   }
 
+  async function signOutEverywhere() {
+    if (isDemoMode()) return signOut();
+    const { error } = await supabase.auth.signOut({ scope: "global" });
+    if (error) throw error;
+    queryClient.clear();
+    localStorage.removeItem("current_household_id");
+    localStorage.removeItem("default_display_currency");
+  }
+
   async function sendPasswordReset(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -130,6 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithEmail,
     signInWithGoogle,
     signOut,
+    signOutEverywhere,
     sendPasswordReset,
     updatePassword,
     mfa: supabase.auth.mfa,

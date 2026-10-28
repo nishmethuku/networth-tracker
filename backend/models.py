@@ -8,7 +8,7 @@ require_auth plus each route's own user_id/household_id query scoping is
 (see README for the full reasoning).
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -687,5 +687,36 @@ class LinkedConnection(db.Model):
             "status": self.status,
             "last_synced_at": self.last_synced_at.isoformat() if self.last_synced_at else None,
             "last_error": self.last_error,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class AuditEvent(db.Model):
+    """One entry in a person's security activity: something sensitive happened
+    to their account (data exported or deleted, a bank linked, a household
+    member added). Append-only from the app's point of view: nothing edits a
+    row, and each person can only ever read their own. The address is stored
+    coarsely (last part dropped) so the log helps spot a stranger without
+    keeping a precise location."""
+
+    __tablename__ = "audit_events"
+    __table_args__ = (db.Index("audit_events_user_created_idx", "user_id", "created_at"),)
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    event_type = db.Column(db.String(48), nullable=False)
+    detail = db.Column(db.String(200))
+    ip = db.Column(db.String(45))
+    user_agent = db.Column(db.String(200))
+    request_id = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "event_type": self.event_type,
+            "detail": self.detail,
+            "ip": self.ip,
+            "user_agent": self.user_agent,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

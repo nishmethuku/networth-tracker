@@ -657,6 +657,26 @@ export async function deleteAllAccountData() {
   return api.delete("/account/data", { confirm: "DELETE" });
 }
 
+export interface SecurityEvent {
+  id: number;
+  event_type: string;
+  label: string;
+  detail: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+/** The signed-in person's own security log, newest first. */
+export async function fetchSecurityActivity(): Promise<SecurityEvent[]> {
+  return api.get("/account/security-activity");
+}
+
+/** True when the server asked for a fresh sign-in before a destructive action. */
+export function isRecentLoginRequired(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 403 && (err.data as { code?: string } | undefined)?.code === "recent_login_required";
+}
+
 /** Deletes the signed-in person's data and their login (not a brokerage account label). */
 export async function deleteMyAccount() {
   return api.delete("/account", { confirm: "DELETE ACCOUNT" });

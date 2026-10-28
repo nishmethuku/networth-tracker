@@ -1,5 +1,13 @@
 # Changelog
 
+## Identity and account security
+
+- **Security activity.** Settings now shows a log of sensitive actions on your account: data downloads, restores and wipes, bank links and unlinks, and household invites, joins, leaves and removals. Each entry shows when it happened and from what kind of device. The log is private to you, cannot be edited or deleted through the app, and is included in your data export.
+- **Sign in again for destructive actions.** Deleting all your data or your account now needs a sign-in from the last 15 minutes, so an open laptop or a stolen session cannot wipe an account. The website explains this and offers a "Sign in again" button.
+- **Sign out of all devices** in Settings.
+- Added `SECURITY.md` and `/.well-known/security.txt` so anyone who finds a problem knows how to report it privately.
+- New tests: a third user with fresh and stale sign-ins, privacy of the log between two users, and no route to change the log.
+
 ## Security review
 
 - **Cross-user test.** A new test, run in CI against a real Postgres, signs in as a second user and tries to read, change, delete and link to the first user's data through every route that takes an id, plus every list and export. Everything is refused. It was checked by deliberately removing one owner check and watching the test fail.

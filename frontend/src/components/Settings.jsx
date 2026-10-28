@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import Card from "./Card";
 import TwoFactorCard from "./TwoFactorCard";
+import SecurityActivityCard from "./SecurityActivityCard";
 import ChangePasswordCard from "./ChangePasswordCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
@@ -20,6 +21,7 @@ import {
   restoreAccountData,
   deleteAllAccountData,
   deleteMyAccount,
+  isRecentLoginRequired,
   fetchDigestSubscription,
   setDigestSubscription,
   ApiError,
@@ -164,6 +166,9 @@ export default function Settings() {
     reader.readAsText(file);
   }
 
+  // Set when the server wants a fresh sign-in before a destructive action.
+  const [needsFreshLogin, setNeedsFreshLogin] = useState(false);
+
   const deleteMutation = useMutation({
     mutationFn: deleteAllAccountData,
     onSuccess: (result) => {
@@ -177,7 +182,10 @@ export default function Settings() {
       toast.success(`Deleted ${result.holdings_deleted} holdings and related data`);
       setConfirmText("");
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Delete failed"),
+    onError: (err) => {
+      if (isRecentLoginRequired(err)) return setNeedsFreshLogin(true);
+      toast.error(err instanceof ApiError ? err.message : "Delete failed");
+    },
   });
 
   const [accountConfirm, setAccountConfirm] = useState("");
@@ -188,7 +196,10 @@ export default function Settings() {
       toast.success("Your account was deleted");
       await signOut();
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not delete the account"),
+    onError: (err) => {
+      if (isRecentLoginRequired(err)) return setNeedsFreshLogin(true);
+      toast.error(err instanceof ApiError ? err.message : "Could not delete the account");
+    },
   });
 
   return (
@@ -228,6 +239,10 @@ export default function Settings() {
 
       <div style={sectionStyle}>
         <TwoFactorCard />
+      </div>
+
+      <div style={sectionStyle}>
+        <SecurityActivityCard />
       </div>
 
       <div style={sectionStyle}>
@@ -348,6 +363,29 @@ export default function Settings() {
 
       <div style={sectionStyle}>
         <Card title="Danger zone">
+          {needsFreshLogin && (
+            <div
+              role="alert"
+              style={{
+                border: "1px solid var(--warning, var(--border))",
+                borderRadius: "var(--radius)",
+                padding: "0.75rem 1rem",
+                marginTop: "0.5rem",
+                marginBottom: "0.5rem",
+                display: "flex",
+                gap: "0.75rem",
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ color: "var(--text)", fontSize: "0.875rem", flex: "1 1 14rem" }}>
+                For your security, sign in again to do this. It protects your data if someone borrows an open session.
+              </span>
+              <button onClick={signOut} style={buttonStyle}>
+                Sign in again
+              </button>
+            </div>
+          )}
           <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem", marginBottom: "1rem" }}>
             Permanently delete all your holdings, transactions, valuations, and alerts. Your login stays active — this only removes your
             financial data. <strong>This cannot be undone.</strong>
