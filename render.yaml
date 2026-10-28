@@ -28,6 +28,10 @@ services:
         sync: false # optional, only when AI_PROVIDER=openai. OPENAI_MODEL picks the model (default gpt-4o-mini).
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false # optional: lets "Delete my account" in Settings also remove the login. A powerful secret; never put it in the frontend.
+      - key: TRUSTED_PROXY_COUNT
+        sync: false # optional: how many proxies to trust in X-Forwarded-For when reading the visitor's address (default 2 in production).
+      - key: SUPABASE_JWT_ISSUER
+        sync: false # optional: only needed with a custom Supabase auth domain. Default is SUPABASE_URL + /auth/v1.
       - key: FRONTEND_URL
         sync: false # your Vercel deployment URL, e.g. https://networth-tracker.vercel.app
       - key: SENTRY_DSN

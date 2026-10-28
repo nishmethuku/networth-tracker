@@ -1,5 +1,15 @@
 # Changelog
 
+## Security review
+
+- **Cross-user test.** A new test, run in CI against a real Postgres, signs in as a second user and tries to read, change, delete and link to the first user's data through every route that takes an id, plus every list and export. Everything is refused. It was checked by deliberately removing one owner check and watching the test fail.
+- **Sign-in tokens.** The API now requires an expiry, subject, audience and issuer on every token and pins the issuer to this project. New tests use real signed tokens to try forged, expired, wrong-audience, wrong-issuer, `alg: none` and key-confusion tokens.
+- **Updated libraries with published security fixes:** PyJWT, Flask, Flask-Cors, requests and python-dotenv on the backend; react-router, zod and fast-uri on the website. Build-only tooling moved out of shipped dependencies.
+- **Content-Security-Policy on the website.** Scripts may run only from the site itself, one fingerprinted inline script and Plaid. Framing, plugins and outside form targets are blocked. A browser test loads the real pages under the exact policy.
+- **Rate limits now see the real visitor** behind Render's proxy (`TRUSTED_PROXY_COUNT`, default 2 in production) and cannot be dodged by sending a made-up address.
+- Removed `http://localhost` from the production cross-site allow-list.
+- New `docs/threat-model.md`, and `docs/security.md` updated with new gaps found.
+
 ## Smarter welcome steps for new accounts
 
 - The welcome window now asks what you want to do first: add an investment, import from a broker, connect a bank (only when bank syncing is on), track spending, or just explore.
