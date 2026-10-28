@@ -19,6 +19,7 @@ import {
   fetchAccountExportCsvZip,
   restoreAccountData,
   deleteAllAccountData,
+  deleteMyAccount,
   fetchDigestSubscription,
   setDigestSubscription,
   ApiError,
@@ -177,6 +178,17 @@ export default function Settings() {
       setConfirmText("");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Delete failed"),
+  });
+
+  const [accountConfirm, setAccountConfirm] = useState("");
+  const deleteAccountMutation = useMutation({
+    mutationFn: deleteMyAccount,
+    onSuccess: async () => {
+      queryClient.clear();
+      toast.success("Your account was deleted");
+      await signOut();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not delete the account"),
   });
 
   return (
@@ -372,6 +384,48 @@ export default function Settings() {
               {deleteMutation.isPending ? "Deleting…" : "Delete all my data"}
             </button>
           </div>
+
+          <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "1.25rem 0" }} />
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: 0, marginBottom: "1rem" }}>
+            Delete your account: removes all your data <strong>and your login</strong>. You will be signed out.{" "}
+            <strong>This cannot be undone.</strong>
+          </p>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              value={accountConfirm}
+              onChange={(e) => setAccountConfirm(e.target.value)}
+              placeholder="Type DELETE ACCOUNT to confirm"
+              aria-label="Type DELETE ACCOUNT to confirm"
+              style={{
+                padding: "0.5rem 0.75rem",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: "0.875rem",
+              }}
+            />
+            <button
+              onClick={() => deleteAccountMutation.mutate()}
+              disabled={accountConfirm !== "DELETE ACCOUNT" || deleteAccountMutation.isPending}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "var(--radius)",
+                border: "none",
+                background: "var(--danger)",
+                color: "var(--text-inverse)",
+                fontWeight: 600,
+                fontSize: "0.875rem",
+                cursor: accountConfirm === "DELETE ACCOUNT" ? "pointer" : "default",
+                opacity: accountConfirm === "DELETE ACCOUNT" ? 1 : 0.5,
+              }}
+            >
+              {deleteAccountMutation.isPending ? "Deleting…" : "Delete my account"}
+            </button>
+          </div>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginTop: "1rem", marginBottom: 0 }}>
+            <Link to="/privacy">Privacy policy</Link> · <Link to="/terms">Terms of use</Link>
+          </p>
         </Card>
       </div>
     </div>

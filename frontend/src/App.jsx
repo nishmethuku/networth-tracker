@@ -25,6 +25,8 @@ import MilestoneCelebration from "./components/MilestoneCelebration";
 // first paint). Everything else is route-split so the initial bundle only
 // ships what's needed to render the first screen.
 import Dashboard from "./components/Dashboard";
+const PrivacyPolicy = lazy(() => import("./components/PrivacyPolicy"));
+const TermsOfUse = lazy(() => import("./components/TermsOfUse"));
 const Portfolio = lazy(() => import("./components/Portfolio"));
 const HoldingDetail = lazy(() => import("./components/HoldingDetail"));
 const AddHolding = lazy(() => import("./components/AddHolding"));
@@ -468,6 +470,22 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route
+        path="/privacy"
+        element={
+          <Suspense fallback={null}>
+            <PrivacyPolicy />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/terms"
+        element={
+          <Suspense fallback={null}>
+            <TermsOfUse />
+          </Suspense>
+        }
+      />
       <Route
         path="/*"
         element={
