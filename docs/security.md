@@ -50,6 +50,7 @@ Written from the code as it stands. Each line below can be checked in the file n
 - Without `REDIS_URL`, rate limits are counted per server process, so the real limit is looser than it reads.
 - Two-step status is cached for up to five minutes, so a brand-new enrolment can take that long to apply to a token that is already open.
 - No independent security audit or penetration test has been done.
+- `npm audit` reports two moderate advisories in react-router 6 (an open redirect through backslashes in links, and a server-side rendering issue). The fix is a jump to version 7. Neither is reachable today: every link and redirect target in the app is a fixed internal path, and the app does not use server-side rendering. The upgrade is planned as its own change.
 - The Plaid and OpenAI integrations are tested with faked networks and need a run against their sandboxes.
 - The privacy policy and terms are plain-language drafts. Have a lawyer review them before any paid or commercial launch.
 - Free hosting tiers have no uptime guarantee (the backend sleeps when idle).
