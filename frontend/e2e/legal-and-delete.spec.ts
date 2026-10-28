@@ -37,3 +37,40 @@ for (const path of ["/privacy", "/terms"]) {
     });
   }
 }
+
+test("security activity lists recent actions and a stale sign-in is asked to sign in again", async ({ mockedPage: page }) => {
+  await page.route(`${API_BASE}/account/security-activity`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          id: 1,
+          event_type: "data.exported",
+          label: "Downloaded a copy of your data",
+          detail: "JSON",
+          ip: "203.0.113.0",
+          user_agent: null,
+          created_at: "2026-10-27T12:00:00Z",
+        },
+      ]),
+    }),
+  );
+  await page.route(`${API_BASE}/account/data`, (route) => {
+    if (route.request().method() !== "DELETE") return route.fallback();
+    return route.fulfill({
+      status: 403,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "For your security, sign in again to do this.", code: "recent_login_required" }),
+    });
+  });
+
+  await page.goto("/settings");
+  await expect(page.getByText("Downloaded a copy of your data (JSON)")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign out of all devices" })).toBeVisible();
+
+  await page.getByPlaceholder("Type DELETE to confirm").fill("DELETE");
+  await page.getByRole("button", { name: "Delete all my data" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "sign in again" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in again" })).toBeVisible();
+});

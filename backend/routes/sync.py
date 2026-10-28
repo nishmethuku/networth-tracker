@@ -2,6 +2,7 @@
 from flask import g, jsonify, request
 
 from .. import sync_service
+from ..audit_service import record
 from ..auth import require_auth
 from ..models import LinkedConnection
 
@@ -61,6 +62,7 @@ def register(app, h):
                 return jsonify({"error": "Bank syncing is not turned on."}), 404
             provider, vault = setup
             conn = sync_service.connect(provider, vault, g.user_id, household_id, public_token, data.get("institution_name"))
+            record("bank.connected", detail=conn.institution_name)
             return jsonify(conn.to_dict()), 201
         except sync_service.SyncError as exc:
             return jsonify({"error": str(exc)}), 503
@@ -88,4 +90,5 @@ def register(app, h):
         if not conn:
             return jsonify({"error": "Connection not found"}), 404
         sync_service.disconnect(conn)
+        record("bank.disconnected", detail=conn.institution_name)
         return jsonify(conn.to_dict())

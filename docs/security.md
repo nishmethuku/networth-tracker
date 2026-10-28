@@ -8,6 +8,9 @@ Written from the code as it stands. Each line below can be checked in the file n
 - Once someone turns on two-step sign-in, a password-only token no longer works for the API, not just for the login screen.
 - Postgres row rules are not the safety boundary, because the API connects directly. The boundary is `require_auth` plus a user or household filter on every query, and each household member has an owner, editor or viewer role (`backend/household_service.py`).
 - Private holdings are hidden from a shared household view at the query layer, not only in the screen.
+- Destructive actions (delete all data, delete the account) need a recent sign-in. The check reads the sign-in time that Supabase puts in the token's `amr` claim, so refreshing a token does not count as signing in again. If the sign-in is older than 15 minutes the API answers 403 with `recent_login_required` and the website asks the person to sign in again (`require_recent_auth` in `backend/auth.py`).
+- Sensitive actions (data export, restore and wipe, bank connect and disconnect, household invites, joins, leaves, removals and deletion) are written to a per-user security log. People read their own log in Settings, under Security activity. There is no route to edit or delete a log entry. Rows keep only a coarse IP (the last part removed), a short browser string and the request id, and the newest 500 per user are kept (`backend/audit_service.py`).
+- "Sign out of all devices" in Settings ends every session for the account, not just the current one.
 - `backend/test_tenant_isolation.py` runs against a real Postgres. One user creates data, then a second signed-in user tries every route that takes an id (read, change, delete, link) and every list and export. All of it must be refused and the first user's data must be unchanged. It runs in CI.
 
 ## Data protection
@@ -29,7 +32,7 @@ Written from the code as it stands. Each line below can be checked in the file n
 
 ## Your data, your control
 
-- Export everything as JSON or CSV, delete all data, or delete the account and login from Settings.
+- Export everything as JSON or CSV (the export includes your security log), delete all data, or delete the account and login from Settings.
 - Account deletion needs `SUPABASE_SERVICE_ROLE_KEY` on the backend. Without it the button reports that it is not set up and deletes nothing.
 
 ## AI and third parties
@@ -41,7 +44,9 @@ Written from the code as it stands. Each line below can be checked in the file n
 ## Honest gaps
 
 - Style rules still allow inline styles, because the interface sets many styles in code. Scripts are locked down; styles are not.
-- Joining a household from an invite trusts the email address in the sign-in token. That is only safe if Supabase is set to require email confirmation. Check Authentication, Sign In / Providers, Confirm email.
+- Joining a household from an invite trusts the email address in the sign-in token. That is only safe because Supabase requires email confirmation (checked in Authentication, Sign In / Providers). If that setting is ever turned off, this becomes an account-takeover path.
+- The security log is written by the application itself, so someone who gained database access could alter it. It is a tool for the account owner to spot surprises, not tamper-proof evidence.
+- A sign-in that is fresh enough for the 15 minute rule still counts if the session was stolen within that window.
 - Without `REDIS_URL`, rate limits are counted per server process, so the real limit is looser than it reads.
 - Two-step status is cached for up to five minutes, so a brand-new enrolment can take that long to apply to a token that is already open.
 - No independent security audit or penetration test has been done.

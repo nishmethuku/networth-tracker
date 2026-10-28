@@ -290,7 +290,8 @@ def test_export_excludes_deleted_holdings_and_transactions():
          patch("backend.account_service.BudgetLimit", _empty_cls()), \
          patch("backend.account_service.BudgetCategory", _empty_cls()), \
          patch("backend.account_service.PushSubscription", _empty_cls()), \
-         patch("backend.account_service.LinkedConnection", _empty_cls()):
+         patch("backend.account_service.LinkedConnection", _empty_cls()), \
+         patch("backend.account_service.AuditEvent", _empty_cls()):
 
         result = account_service.export_user_data("user-1")
 

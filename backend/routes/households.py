@@ -4,6 +4,7 @@ import os
 
 from flask import abort, g, jsonify, request
 
+from ..audit_service import record
 from ..auth import require_auth
 from ..household_service import (
     accept_invite,
@@ -75,6 +76,7 @@ def register(app, h):
         if role not in ("editor", "viewer"):
             return jsonify({"error": "role must be 'editor' or 'viewer'"}), 400
         invite = create_invite(household_id, g.user_id, email, role=role)
+        record("household.invited", detail=f"{email} as {role}")
         return jsonify(invite.to_dict()), 201
 
     @app.route("/invites", methods=["GET"])
@@ -91,6 +93,7 @@ def register(app, h):
             return jsonify({"error": str(e)}), 400
         except PermissionError as e:
             return jsonify({"error": str(e)}), 403
+        record("household.joined")
         return jsonify(invite.to_dict())
 
     @app.route("/households/<uuid:household_id>/leave", methods=["POST"])
@@ -100,6 +103,7 @@ def register(app, h):
             leave_household(str(household_id), g.user_id)
         except PermissionError as e:
             return jsonify({"error": str(e)}), 403
+        record("household.left")
         return jsonify({"message": "Left household"})
 
     @app.route("/households/<uuid:household_id>/members/<uuid:target_user_id>", methods=["DELETE"])
@@ -109,6 +113,7 @@ def register(app, h):
             remove_member(str(household_id), g.user_id, str(target_user_id))
         except PermissionError as e:
             return jsonify({"error": str(e)}), 403
+        record("household.member_removed")
         return jsonify({"message": "Member removed"})
 
     @app.route("/households/<uuid:household_id>", methods=["DELETE"])
@@ -123,4 +128,5 @@ def register(app, h):
             return jsonify({"error": str(e)}), 404
         except PermissionError as e:
             return jsonify({"error": str(e)}), 403
+        record("household.deleted")
         return jsonify({"message": "Household deleted"})

@@ -21,6 +21,7 @@ import requests
 from .models import (
     Account,
     AllocationTarget,
+    AuditEvent,
     BudgetCategory,
     BudgetEntry,
     BudgetLimit,
@@ -69,10 +70,12 @@ def export_user_data(user_id) -> Dict:
     push_subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
     # Which banks are linked (never the stored tokens: to_dict leaves them out).
     linked_connections = LinkedConnection.query.filter_by(user_id=user_id).all()
+    security_activity = sorted(AuditEvent.query.filter_by(user_id=user_id).all(), key=lambda e: e.created_at)
 
     return {
         "holdings": [h.to_dict() for h in holdings],
         "linked_connections": [c.to_dict() for c in linked_connections],
+        "security_activity": [e.to_dict() for e in security_activity],
         "transactions": [t.to_dict() for t in transactions],
         "valuations": [v.to_dict() for v in valuations],
         "alerts": [a.to_dict() for a in alerts],
@@ -154,6 +157,9 @@ def delete_all_user_data(user_id) -> Dict:
     push_subscriptions_count = PushSubscription.query.filter_by(user_id=user_id).delete()
     # Linked banks go too, so no provider token outlives the account.
     linked_connections_count = LinkedConnection.query.filter_by(user_id=user_id).delete()
+    # The security log is the person's own data too. The route records a fresh
+    # "deleted all your data" entry after this, so the wipe itself stays visible.
+    security_activity_count = AuditEvent.query.filter_by(user_id=user_id).delete()
 
     db.session.commit()
 
@@ -171,6 +177,7 @@ def delete_all_user_data(user_id) -> Dict:
         "budget_categories_deleted": budget_categories_count,
         "push_subscriptions_deleted": push_subscriptions_count,
         "linked_connections_deleted": linked_connections_count,
+        "security_activity_deleted": security_activity_count,
     }
 
 
