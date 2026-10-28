@@ -1,5 +1,11 @@
 # Changelog
 
+## Connect a bank (Settings)
+
+- New "Connected banks" card in Settings: connect a bank through Plaid's sign-in window, see when each bank last synced, sync now, and disconnect.
+- New transactions are added to Expenses and never duplicated. The card stays hidden until bank syncing is switched on in the backend, and in demo mode.
+- Your bank password never reaches this app. Currently pointed at Plaid's fake Sandbox banks.
+
 ## Investor-ready pass: AI provider choice, account deletion, privacy and terms
 
 - **OpenAI support.** The AI features can now run on OpenAI by setting `AI_PROVIDER=openai` and `OPENAI_API_KEY` (model set with `OPENAI_MODEL`). Gemini stays the default and nothing changes unless the setting is switched.

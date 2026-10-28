@@ -876,3 +876,24 @@ export async function deleteHousehold(householdId: string) {
 
 export { api } from "./client";
 export { ApiError } from "./client";
+
+/** Bank syncing: is it turned on, and which banks are linked. */
+export async function fetchSyncStatus() {
+  return api.get("/sync/status");
+}
+
+export async function createSyncLinkToken() {
+  return api.post("/sync/link-token", {});
+}
+
+export async function exchangeSyncToken({ publicToken, institutionName }: { publicToken: string; institutionName?: string }) {
+  return api.post("/sync/exchange", { public_token: publicToken, institution_name: institutionName });
+}
+
+export async function pullSyncConnection(id: number) {
+  return api.post(`/sync/connections/${id}/pull`, {}, 60000);
+}
+
+export async function disconnectSyncConnection(id: number) {
+  return api.delete(`/sync/connections/${id}`);
+}

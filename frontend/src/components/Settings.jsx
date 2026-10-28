@@ -11,6 +11,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import { BACKUP_KEY } from "../utils/backupReminder";
 import InstallAppCard from "./InstallAppCard";
+import ConnectedBanks from "./ConnectedBanks";
 import DataChecksCard from "./DataChecksCard";
 import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
 import {
@@ -211,6 +212,10 @@ export default function Settings() {
 
       <div style={sectionStyle}>
         <InstallAppCard />
+      </div>
+
+      <div style={sectionStyle}>
+        <ConnectedBanks />
       </div>
 
       <div style={sectionStyle}>
