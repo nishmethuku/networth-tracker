@@ -10,7 +10,7 @@ A full-stack family net worth tracker: real transaction-based portfolio accounti
 - **Frontend**: React 18, TypeScript (incremental — API layer + utils are `.ts`; components are `.jsx`, converting one at a time), Vite (route-level code-splitting + PWA plugin), React Router, TanStack Query, Recharts, framer-motion, react-hook-form + zod, react-i18next
 - **Backend**: Flask, SQLAlchemy, Flask-Migrate (Alembic), Flask-Limiter
 - **Database & Auth**: Supabase (Postgres + Auth — email/password and Google OAuth)
-- **AI**: Google Gemini, chosen for its free tier (copilot chat, AI-narrated digest, allocation advisor, transaction categorizer, spreadsheet/bank-statement import, natural-language search) — fully optional, degrades to a clean "not configured" response (or a friendly quota-exceeded message) without ever hard-failing a request
+- **AI**: Google Gemini by default (chosen for its free tier) or OpenAI by setting `AI_PROVIDER=openai` with `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) (copilot chat, AI-narrated digest, allocation advisor, transaction categorizer, spreadsheet/bank-statement import, natural-language search) — fully optional, degrades to a clean "not configured" response (or a friendly quota-exceeded message) without ever hard-failing a request
 - **Live/historical prices**: Finnhub (US live), Yahoo Finance (historical + NSE fallback, unofficial/keyless), NSE libraries + mftool (India), CoinGecko (crypto), metals-api.com (gold/silver/platinum), frankfurter.app (FX)
 - **Email**: Resend (weekly digest, price alerts, milestone celebrations)
 - **Tooling**: ESLint (flat config, typescript-eslint for `.ts`) + Prettier, `tsc --noEmit` for type checking, pytest + Vitest for unit/component tests, Playwright for real-browser E2E tests (network + auth mocked, no secrets needed), Locust for load testing (see [LOAD_TEST_RESULTS.md](./LOAD_TEST_RESULTS.md)), GitHub Actions CI on every push/PR
@@ -319,3 +319,9 @@ The backup covers the `public` schema only. **`auth.users` rows are not included
 ## License
 
 MIT
+
+## More documentation
+
+- [Security and privacy overview](docs/security.md)
+- [Automatic bank syncing](docs/bank-sync.md)
+- [iOS and Android apps](docs/app-stores.md)

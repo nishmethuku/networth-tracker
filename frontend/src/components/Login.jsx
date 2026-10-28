@@ -510,6 +510,9 @@ export default function Login() {
             </p>
           </>
         )}
+        <p style={{ textAlign: "center", fontSize: "0.8125rem", color: "var(--text-muted)", margin: "1.25rem 0 0" }}>
+          By continuing you agree to the <a href="/terms">terms</a> and <a href="/privacy">privacy policy</a>.
+        </p>
       </div>
     </div>
   );
