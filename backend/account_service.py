@@ -11,9 +11,12 @@ now.
 """
 import csv
 import io
+import os
 import zipfile
 from datetime import date
 from typing import Dict
+
+import requests
 
 from .models import (
     Account,
@@ -447,3 +450,33 @@ def restore_user_data(user_id, data: Dict) -> Dict:
         "budget_entries_restored": budget_entries_restored,
         "skipped": skipped,
     }
+
+
+class AccountDeletionUnavailable(RuntimeError):
+    """The server is not set up to remove logins (no Supabase service key)."""
+
+
+def delete_account(user_id) -> Dict:
+    """Removes everything the user stored, then their login itself.
+
+    Needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. When either is missing
+    nothing is deleted, so a half-configured server never strands someone with
+    no data and a login they cannot remove. If the login removal fails after
+    the data is gone, the error says so and the call can simply be repeated."""
+    base = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not base or not key:
+        raise AccountDeletionUnavailable("Deleting the account is not set up on this server yet.")
+    summary = delete_all_user_data(user_id)
+    try:
+        resp = requests.delete(
+            f"{base.rstrip('/')}/auth/v1/admin/users/{user_id}",
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+            timeout=20,
+        )
+    except requests.RequestException as exc:
+        raise RuntimeError("Your data was deleted, but removing the login failed. Try again.") from exc
+    if resp.status_code not in (200, 204, 404):
+        raise RuntimeError("Your data was deleted, but removing the login failed. Try again.")
+    summary["login_deleted"] = True
+    return summary

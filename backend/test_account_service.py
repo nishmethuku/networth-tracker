@@ -85,3 +85,56 @@ def test_write_csv_uses_union_of_keys_across_heterogeneous_rows():
     assert "quantity" in header
     parsed = _parse(text)
     assert parsed[1]["quantity"] == ""  # missing field renders as blank, not an error
+
+
+def test_delete_account_needs_the_service_key_and_deletes_nothing_without_it(monkeypatch):
+    from backend import account_service
+
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    called = []
+    monkeypatch.setattr(account_service, "delete_all_user_data", lambda uid: called.append(uid) or {})
+    import pytest
+
+    with pytest.raises(account_service.AccountDeletionUnavailable):
+        account_service.delete_account("u1")
+    assert called == []
+
+
+def test_delete_account_removes_data_then_the_login(monkeypatch):
+    from backend import account_service
+
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co/")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-key")
+    order = []
+    monkeypatch.setattr(account_service, "delete_all_user_data", lambda uid: order.append("data") or {"holdings_deleted": 1})
+
+    class R:
+        status_code = 200
+
+    def fake_delete(url, headers=None, timeout=None):
+        order.append(url)
+        assert headers["apikey"] == "service-key"
+        return R()
+
+    monkeypatch.setattr(account_service.requests, "delete", fake_delete)
+    result = account_service.delete_account("u1")
+    assert order == ["data", "https://x.supabase.co/auth/v1/admin/users/u1"]
+    assert result["login_deleted"] is True and result["holdings_deleted"] == 1
+
+
+def test_delete_account_reports_a_failed_login_removal(monkeypatch):
+    import pytest
+
+    from backend import account_service
+
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "k")
+    monkeypatch.setattr(account_service, "delete_all_user_data", lambda uid: {})
+
+    class R:
+        status_code = 500
+
+    monkeypatch.setattr(account_service.requests, "delete", lambda *a, **k: R())
+    with pytest.raises(RuntimeError, match="login failed"):
+        account_service.delete_account("u1")

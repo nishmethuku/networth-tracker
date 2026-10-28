@@ -657,6 +657,11 @@ export async function deleteAllAccountData() {
   return api.delete("/account/data", { confirm: "DELETE" });
 }
 
+/** Deletes the signed-in person's data and their login (not a brokerage account label). */
+export async function deleteMyAccount() {
+  return api.delete("/account", { confirm: "DELETE ACCOUNT" });
+}
+
 export async function fetchDigestSubscription(): Promise<{ subscribed: boolean }> {
   return api.get("/account/digest-subscription");
 }

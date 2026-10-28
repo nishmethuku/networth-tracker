@@ -22,6 +22,12 @@ services:
         sync: false # free key from resend.com, for digest/alert/milestone emails
       - key: GEMINI_API_KEY
         sync: false # optional, free — powers the AI copilot chat, digest narrative, allocation advisor, categorizer, and search. Get one at aistudio.google.com
+      - key: AI_PROVIDER
+        sync: false # optional: "gemini" (default) or "openai"
+      - key: OPENAI_API_KEY
+        sync: false # optional, only when AI_PROVIDER=openai. OPENAI_MODEL picks the model (default gpt-4o-mini).
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false # optional: lets "Delete my account" in Settings also remove the login. A powerful secret; never put it in the frontend.
       - key: FRONTEND_URL
         sync: false # your Vercel deployment URL, e.g. https://networth-tracker.vercel.app
       - key: SENTRY_DSN

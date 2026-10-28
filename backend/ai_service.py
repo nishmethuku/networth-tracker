@@ -29,9 +29,13 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 
+from . import openai_provider
+
 logger = logging.getLogger(__name__)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+# Which model provider answers: "gemini" (default) or "openai". See openai_provider.py.
+AI_PROVIDER = (os.environ.get("AI_PROVIDER") or "gemini").strip().lower()
 # Gemini's free-tier Flash endpoint occasionally returns a transient
 # 500/503/504 under load ("please try again later") with no client-side
 # cause — every retrying call below gets one automatic retry for exactly
@@ -80,6 +84,8 @@ _client: Optional["genai.Client"] = None
 
 
 def is_configured() -> bool:
+    if AI_PROVIDER == "openai":
+        return openai_provider.is_configured()
     return bool(GEMINI_API_KEY)
 
 
@@ -153,6 +159,11 @@ def generate_text(prompt: str, system: Optional[str] = None, max_tokens: int = 1
     module (and by smart_import_service, which needs a raw completion
     outside the specific helpers below) so the SDK-specific call shape
     lives in exactly one place."""
+    if AI_PROVIDER == "openai":
+        try:
+            return openai_provider.generate_text(prompt, system=system, max_tokens=max_tokens)
+        except openai_provider.OpenAIQuotaError as e:
+            raise QuotaExceededError(str(e)) from e
     client = get_client()
     if not client:
         return None
@@ -201,6 +212,13 @@ def chat_stream(messages: List[Dict], portfolio_snapshot: Dict):
     RuntimeError if AI isn't configured — callers should check
     is_configured() first to return a clean 503 rather than let this raise
     mid-stream."""
+    if AI_PROVIDER == "openai":
+        system = COPILOT_SYSTEM_PROMPT + "\n\nPortfolio snapshot (JSON):\n" + json.dumps(portfolio_snapshot)
+        try:
+            yield from openai_provider.stream_chat(messages, system)
+        except openai_provider.OpenAIError as e:
+            raise RuntimeError(str(e)) from e
+        return
     client = get_client()
     if not client:
         raise RuntimeError("AI features are not configured (GEMINI_API_KEY not set)")

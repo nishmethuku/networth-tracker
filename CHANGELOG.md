@@ -1,5 +1,12 @@
 # Changelog
 
+## Investor-ready pass: AI provider choice, account deletion, privacy and terms
+
+- **OpenAI support.** The AI features can now run on OpenAI by setting `AI_PROVIDER=openai` and `OPENAI_API_KEY` (model set with `OPENAI_MODEL`). Gemini stays the default and nothing changes unless the setting is switched.
+- **Delete my account.** Settings can now delete the whole account, including the login, with a typed confirmation. It needs `SUPABASE_SERVICE_ROLE_KEY` on the backend and deletes nothing when that is missing. App stores require this.
+- **Privacy policy and terms of use** pages at `/privacy` and `/terms`, linked from sign-in and Settings.
+- **Security overview** in `docs/security.md`, written from the code, including an honest list of gaps.
+
 ## Bank syncing groundwork (off until configured)
 
 - Added the provider-neutral base for syncing banks automatically: encrypted token storage, de-duplicated transaction import with category guesses, and routes to connect, pull and disconnect.

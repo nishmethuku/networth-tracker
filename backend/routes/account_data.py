@@ -5,7 +5,14 @@ from datetime import date
 
 from flask import Response, g, jsonify, request
 
-from ..account_service import delete_all_user_data, export_user_data, export_user_data_csv_zip, restore_user_data
+from ..account_service import (
+    AccountDeletionUnavailable,
+    delete_account,
+    delete_all_user_data,
+    export_user_data,
+    export_user_data_csv_zip,
+    restore_user_data,
+)
 from ..auth import require_auth
 from ..unsubscribe_service import is_unsubscribed
 from ..unsubscribe_service import resubscribe as resubscribe_email
@@ -71,6 +78,20 @@ def register(app, h):
             return jsonify({"error": "Type DELETE to confirm this action"}), 400
         result = delete_all_user_data(g.user_id)
         return jsonify(result)
+
+    @app.route("/account", methods=["DELETE"])
+    @require_auth
+    @limiter.limit("3 per hour")
+    def account_delete():
+        data = request.get_json(silent=True) or {}
+        if data.get("confirm") != "DELETE ACCOUNT":
+            return jsonify({"error": "Type DELETE ACCOUNT to confirm this action"}), 400
+        try:
+            return jsonify(delete_account(g.user_id))
+        except AccountDeletionUnavailable as exc:
+            return jsonify({"error": str(exc)}), 503
+        except RuntimeError as exc:
+            return jsonify({"error": str(exc)}), 502
 
     @app.route("/account/digest-subscription", methods=["GET"])
     @require_auth
