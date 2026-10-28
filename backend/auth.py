@@ -28,6 +28,17 @@ from sqlalchemy import text
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 
+
+def _expected_issuer():
+    """Supabase stamps every access token with iss = <project url>/auth/v1.
+    Pinning it means a validly signed token from some other Supabase project
+    (or any other issuer that shared a key) is not accepted here. Set
+    SUPABASE_JWT_ISSUER to override if a custom auth domain is ever used."""
+    override = os.environ.get("SUPABASE_JWT_ISSUER")
+    if override:
+        return override
+    return f"{SUPABASE_URL.rstrip('/')}/auth/v1" if SUPABASE_URL else None
+
 _jwks_client = None
 
 # {user_id: (has_factor, timestamp)} -- same in-memory TTL cache pattern as
@@ -107,8 +118,13 @@ def require_auth(fn):
             payload = jwt.decode(
                 token,
                 signing_key.key,
+                # Asymmetric algorithms only: never HS256 (a public key used as an
+                # HMAC secret) and never "none". exp, sub, aud and iss must all be
+                # present, not merely valid if present.
                 algorithms=["ES256", "RS256"],
                 audience="authenticated",
+                issuer=_expected_issuer(),
+                options={"require": ["exp", "sub", "aud", "iss"]},
             )
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token expired"}), 401

@@ -80,5 +80,6 @@ def test_native_app_origins_are_allowed_in_production(monkeypatch):
     for origin in ("capacitor://localhost", "https://localhost", "https://example-frontend.test"):
         resp = client.get("/health", headers={"Origin": origin})
         assert resp.headers.get("Access-Control-Allow-Origin") == origin, origin
-    other = client.get("/health", headers={"Origin": "https://evil.test"})
-    assert other.headers.get("Access-Control-Allow-Origin") is None
+    for stranger in ("https://evil.test", "http://localhost", "http://localhost:3000", "null"):
+        other = client.get("/health", headers={"Origin": stranger})
+        assert other.headers.get("Access-Control-Allow-Origin") is None, stranger

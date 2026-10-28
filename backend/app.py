@@ -12,6 +12,7 @@ from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
 from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configured before any local module import below, since several of them
 # (utils.py in particular) log at import time — e.g. whether mftool
@@ -124,6 +125,20 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8MB — plenty for a personal spreadsheet
 
+    # Behind Render's proxy, request.remote_addr is the proxy, not the visitor,
+    # so every user would share one rate-limit bucket. Render appends its own
+    # entries to the END of X-Forwarded-For and keeps whatever the caller sent at
+    # the front, so only the last few entries can be trusted. TRUSTED_PROXY_COUNT
+    # says how many from the right to count (default 2 in production, 0 locally).
+    # If the header is shorter than that, the address is left untouched.
+    default_proxies = "2" if os.environ.get("FLASK_ENV") == "production" else "0"
+    try:
+        trusted_proxies = max(0, int(os.environ.get("TRUSTED_PROXY_COUNT", default_proxies)))
+    except ValueError:
+        trusted_proxies = 0
+    if trusted_proxies:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=trusted_proxies)
+
     db.init_app(app)
     Migrate(app, db)
 
@@ -138,7 +153,7 @@ def create_app():
             )
         # The iOS and Android apps load the site from these built-in addresses,
         # so the browser rules must let them call the API as well.
-        native_origins = ["capacitor://localhost", "https://localhost", "http://localhost"]
+        native_origins = ["capacitor://localhost", "https://localhost"]
         CORS(app, origins=[os.environ.get("FRONTEND_URL", "*"), *native_origins], expose_headers=["X-Request-ID"])
     else:
         CORS(app, expose_headers=["X-Request-ID"])
