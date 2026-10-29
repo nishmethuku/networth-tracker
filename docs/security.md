@@ -27,7 +27,7 @@ Written from the code as it stands. Each line below can be checked in the file n
 - Upload size capped at 8 MB.
 - The API sends `X-Frame-Options: DENY`, `nosniff`, a strict referrer policy and `Content-Security-Policy: default-src 'none'`. The website sends the same family of headers plus HSTS and a Content-Security-Policy that allows scripts only from the site itself, one fingerprinted inline script and Plaid, and forbids framing, plugins and outside form targets (`frontend/vercel.json`). A browser test loads the real pages under that exact policy and fails on any violation.
 - Cross-site access is limited to the configured website address and the mobile apps' built-in addresses (`capacitor://localhost` and `https://localhost`).
-- Known-vulnerability scans (`pip-audit`, `npm audit`) are clean for the backend and have no high or critical findings for the website's shipped code.
+- Known-vulnerability scans (`pip-audit`, `npm audit`) are clean for the backend and have no high or critical findings for the website's shipped code. They run on every push, pull request and weekly (`.github/workflows/security.yml`), alongside CodeQL static analysis and a secret scan (gitleaks) over the full history. Dependabot opens update pull requests (`.github/dependabot.yml`).
 - Errors sent to the browser are cleaned so internal details do not leak, and each carries a request id for support.
 
 ## Your data, your control
