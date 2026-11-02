@@ -14,6 +14,7 @@ import EditEntryModal from "./budget/EditEntryModal";
 import ExpenseInsights from "./budget/ExpenseInsights";
 import SpendCalendar from "./expenses/SpendCalendar";
 import CategoryChanges from "./expenses/CategoryChanges";
+import CategoryManager from "./expenses/CategoryManager";
 import SafeToSpend from "./expenses/SafeToSpend";
 import RecurringSuggestions from "./expenses/RecurringSuggestions";
 import SuggestedLimits from "./expenses/SuggestedLimits";
@@ -395,6 +396,8 @@ export default function Expenses() {
           </button>
         )}
       </div>
+
+      <CategoryManager categories={categories} />
 
       <div
         style={{

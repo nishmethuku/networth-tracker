@@ -1,5 +1,14 @@
 # Changelog
 
+## Categories, subcategories and full expense editing
+
+- **Categories moved out of the add form.** The Expenses page has a new Categories and subcategories card. You can add, rename, move and remove categories, and add, rename, move and remove the subcategories inside them, for both expenses and income. The built-in categories stay fixed. The add form no longer has a "new category" box and links to the card instead.
+- **Renames carry through.** Renaming a category updates the entries and the spending limit that used it, and any subcategories inside it. Removing a category can move its entries to another category first.
+- **Category and subcategory everywhere.** The quick "+ Expense" dialog, the full add form and the edit dialog each show a Category dropdown and a Subcategory dropdown.
+- **Edit every field of an entry.** The edit dialog now changes type (income or expense), amount, currency, category, subcategory, date, note, repeat, private, and the account it was paid from, the loan it pays down or the account it was deposited into. Changing the amount, the account or the type puts the old amount back in the old account or card and applies the new one.
+- **Fixed: More menu hidden behind page cards** on the top bar.
+- **Fixed: long category names.** A name over 32 characters could be created but crashed when used on an entry. Names are now limited to 32 characters.
+
 ## Identity and account security
 
 - **Security activity.** Settings now shows a log of sensitive actions on your account: data downloads, restores and wipes, bank links and unlinks, and household invites, joins, leaves and removals. Each entry shows when it happened and from what kind of device. The log is private to you, cannot be edited or deleted through the app, and is included in your data export.

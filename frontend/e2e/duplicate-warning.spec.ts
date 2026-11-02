@@ -35,7 +35,7 @@ test("quick add warns about a likely duplicate, then lets you save anyway", asyn
   await page.keyboard.type("12.5");
   // A note you have used before brings its usual category along.
   await dialog.getByLabel(/Note/).fill("Lunch");
-  await expect(dialog.getByLabel("Category")).toHaveValue("food");
+  await expect(dialog.getByLabel("Category", { exact: true })).toHaveValue("food");
 
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("already logged");

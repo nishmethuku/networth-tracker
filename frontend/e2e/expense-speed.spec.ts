@@ -78,7 +78,7 @@ test("quick add offers your frequent expenses as one-tap buttons", async ({ mock
   await expect(dialog.getByText(/spent today/i)).toBeVisible();
   await dialog.getByRole("button", { name: /^coffee ·/i }).click();
   await expect(dialog.getByLabel(/Amount/)).toHaveValue("6");
-  await expect(dialog.getByLabel("Category")).toHaveValue("food");
+  await expect(dialog.getByLabel("Category", { exact: true })).toHaveValue("food");
   await expect(dialog.getByLabel(/Note/)).toHaveValue("Coffee");
   // Gas was logged only once, so it is not offered.
   await expect(dialog.getByRole("button", { name: /gas/i })).toHaveCount(0);

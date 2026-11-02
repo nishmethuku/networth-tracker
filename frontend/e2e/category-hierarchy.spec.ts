@@ -52,10 +52,11 @@ test("subcategories group under their parent with a total and expand to show the
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(part).toContainText("$180.00");
 
-  // The category dropdown on the Expenses page lists the subcategory right after its parent.
+  // The add form on the Expenses page shows the category and its subcategory as two dropdowns.
   await page.goto("/expenses");
-  await expect(page.locator("#budget-category option", { hasText: "Utilities › Cellphone" })).toHaveCount(1);
-  const options = await page.locator("#budget-category option").allTextContents();
-  const i = options.findIndex((t) => /utilities/i.test(t));
-  expect(options[i + 1]).toMatch(/utilities › cellphone/i);
+  await page.locator("#budget-category").selectOption("utilities");
+  await expect(page.locator("#budget-subcategory option", { hasText: "Cellphone" })).toHaveCount(1);
+  await expect(page.locator("#budget-subcategory")).toBeEnabled();
+  await page.locator("#budget-category").selectOption("housing");
+  await expect(page.locator("#budget-subcategory")).toBeDisabled();
 });

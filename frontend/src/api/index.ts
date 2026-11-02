@@ -707,12 +707,24 @@ export async function fetchBudgetCategories({ householdId }: { householdId?: str
   return api.get(endpoint);
 }
 
-export async function createBudgetCategory(payload: { entry_type: string; name: string; household_id?: string | null }) {
+export async function createBudgetCategory(payload: {
+  entry_type: string;
+  name: string;
+  household_id?: string | null;
+  parent?: string | null;
+}) {
   return api.post("/budget/categories", payload);
 }
 
-export async function deleteBudgetCategory(id: number | string) {
-  await api.delete(`/budget/categories/${id}`);
+/** Rename a custom category and/or move it under another one (parent: null puts it at the top level). */
+export async function updateBudgetCategory(id: number | string, payload: { name?: string; parent?: string | null }) {
+  return api.put(`/budget/categories/${id}`, payload);
+}
+
+/** With `moveTo`, entries and the spending limit that used the category move to that category first. */
+export async function deleteBudgetCategory(id: number | string, opts: { moveTo?: string } = {}) {
+  const query = opts.moveTo ? `?move_to=${encodeURIComponent(opts.moveTo)}` : "";
+  await api.delete(`/budget/categories/${id}${query}`);
 }
 
 export interface BudgetEntryFilters {

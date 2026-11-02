@@ -36,7 +36,7 @@ test("an expense saved without a connection is kept and sent when it comes back"
   await page.keyboard.press("e");
   const dialog = page.getByRole("dialog", { name: "Add expense" });
   await dialog.getByLabel("Amount").fill("7.25");
-  await dialog.getByLabel("Category").selectOption("food");
+  await dialog.getByLabel("Category", { exact: true }).selectOption("food");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
 
   await expect(page.getByText(/saved on this device/i)).toBeVisible();
