@@ -28,12 +28,18 @@ export default function CategoryPicker({ idPrefix, names, parents, value, onChan
           onChange={(e) => onChange(e.target.value, "category")}
           style={fieldStyle}
         >
+          {tops.length === 0 && <option value="">No categories yet</option>}
           {tops.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
         </select>
+        {tops.length === 0 && (
+          <a href="/expenses#manage-categories" style={{ fontSize: "0.75rem" }}>
+            Add a category in Categories
+          </a>
+        )}
       </div>
       <div>
         <label htmlFor={`${idPrefix}-subcategory`} style={labelStyle}>

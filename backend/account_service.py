@@ -18,11 +18,13 @@ from typing import Dict
 
 import requests
 
+from .budget_service import ensure_seeded
 from .models import (
     Account,
     AllocationTarget,
     AuditEvent,
     BudgetCategory,
+    BudgetCategorySeed,
     BudgetEntry,
     BudgetLimit,
     Goal,
@@ -149,6 +151,7 @@ def delete_all_user_data(user_id) -> Dict:
     budget_entries_count = BudgetEntry.query.filter_by(user_id=user_id).delete()
     budget_limits_count = BudgetLimit.query.filter_by(user_id=user_id).delete()
     budget_categories_count = BudgetCategory.query.filter_by(user_id=user_id).delete()
+    BudgetCategorySeed.query.filter_by(user_id=user_id, household_id=None).delete()
     accounts_count = Account.query.filter_by(user_id=user_id).delete()
     # No DB-level FK to anything that cascades here (push_subscriptions
     # only has a bare user_id, same as alerts/milestones above) -- without
@@ -394,11 +397,18 @@ def restore_user_data(user_id, data: Dict) -> Dict:
         allocation_targets_restored += 1
 
     budget_categories_restored = 0
-    for row in data.get("budget_categories", []):
-        if not row.get("entry_type") or not row.get("name"):
+    categories_rows = [r for r in data.get("budget_categories", [])]
+    if categories_rows:
+        ensure_seeded(user_id, None)
+    have = {(c.entry_type, c.name.lower()) for c in BudgetCategory.query.filter_by(user_id=user_id, household_id=None).all()} if categories_rows else set()
+    for row in categories_rows:
+        if row.get("entry_type") not in ("income", "expense") or not row.get("name"):
             _skip("budget_categories")
             continue
-        db.session.add(BudgetCategory(user_id=user_id, household_id=None, entry_type=row["entry_type"], name=row["name"]))
+        if (row["entry_type"], row["name"].lower()) in have:
+            continue  # already there (the defaults, or restored twice)
+        have.add((row["entry_type"], row["name"].lower()))
+        db.session.add(BudgetCategory(user_id=user_id, household_id=None, entry_type=row["entry_type"], name=row["name"][:32], parent=row.get("parent")))
         budget_categories_restored += 1
 
     budget_limits_restored = 0

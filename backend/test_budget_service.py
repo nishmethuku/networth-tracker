@@ -248,7 +248,9 @@ def _fake_category(name, parent=None):
 def _create(name, parent, custom_rows):
     from unittest.mock import patch as _patch
 
-    with _patch.object(budget_service, "_custom_categories_query", return_value=_FakeQuery(custom_rows)), \
+    rows = [_fake_category("utilities"), *custom_rows]
+    with _patch.object(budget_service, "ensure_seeded"), \
+         _patch.object(budget_service, "_custom_categories_query", return_value=_FakeQuery(rows)), \
          _patch.object(budget_service.db.session, "add"), _patch.object(budget_service.db.session, "commit"), \
          _patch.object(budget_service.BudgetCategory, "to_dict", lambda self: {"name": self.name, "parent": self.parent}):
         return budget_service.create_category("u1", "expense", name, parent=parent)

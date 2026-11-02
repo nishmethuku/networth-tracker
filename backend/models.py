@@ -492,6 +492,22 @@ class BudgetCategory(db.Model):
         }
 
 
+class BudgetCategorySeed(db.Model):
+    """Records that the default categories were copied into one person's (or one
+    household's) own category list, so each is now a normal row they can rename,
+    move or remove. One row per scope and entry type; absent means "not copied yet"."""
+    __tablename__ = "budget_category_seeds"
+    __table_args__ = (db.UniqueConstraint("scope_key", "entry_type", name="budget_category_seeds_scope_type_uq"),)
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    household_id = db.Column(UUID(as_uuid=True), db.ForeignKey("households.id", ondelete="CASCADE"), nullable=True)
+    # The household id, or "user:<id>" for a person's own list.
+    scope_key = db.Column(db.String(64), nullable=False)
+    entry_type = db.Column(db.String(8), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+
 class Account(db.Model):
     """A user-registered account name (a brokerage, a bank account, a
     person's name -- whatever label holdings get grouped under), separate

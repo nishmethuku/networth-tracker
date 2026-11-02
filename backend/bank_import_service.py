@@ -15,7 +15,7 @@ import pandas as pd
 import pdfplumber
 
 from . import ai_service
-from .budget_service import EXPENSE_CATEGORIES, INCOME_CATEGORIES, category_exists
+from .budget_service import EXPENSE_CATEGORIES, INCOME_CATEGORIES, category_exists, list_categories, resolve_category
 from .models import BudgetEntry, db
 
 MAX_ROWS_TO_SEND = 300  # keeps the prompt bounded for unusually long statements
@@ -64,6 +64,13 @@ def extract_statement_text(file_bytes: bytes, filename: str) -> str:
     return _extract_from_tabular(file_bytes, filename)
 
 
+def bank_import_system_prompt(expense_categories=None, income_categories=None) -> str:
+    """The AI instructions, listing this person's own categories (the defaults if none are given)."""
+    return BANK_IMPORT_SYSTEM_PROMPT.replace(
+        ", ".join(EXPENSE_CATEGORIES), ", ".join(expense_categories or EXPENSE_CATEGORIES), 1
+    ).replace(", ".join(INCOME_CATEGORIES), ", ".join(income_categories or INCOME_CATEGORIES), 1)
+
+
 BANK_IMPORT_SYSTEM_PROMPT = f"""You read a bank or credit card statement (CSV, Excel, or text/table extracted
 from a PDF) and extract every real transaction, categorizing each one.
 
@@ -99,7 +106,7 @@ Rules:
 """
 
 
-def parse_statement(file_bytes: bytes, filename: str) -> Dict:
+def parse_statement(file_bytes: bytes, filename: str, user_id=None, household_id=None) -> Dict:
     if not ai_service.is_configured():
         return {"configured": False, "rows": [], "warnings": []}
 
@@ -111,8 +118,14 @@ def parse_statement(file_bytes: bytes, filename: str) -> Dict:
     if not statement_text.strip():
         return {"configured": True, "rows": [], "warnings": ["The file appears to be empty or unreadable."]}
 
+    expense_categories = income_categories = None
+    if user_id or household_id:
+        mine = list_categories(user_id, household_id)
+        expense_categories, income_categories = mine["expense"] or None, mine["income"] or None
     try:
-        raw = ai_service.generate_text(statement_text, system=BANK_IMPORT_SYSTEM_PROMPT, max_tokens=4096)
+        raw = ai_service.generate_text(
+            statement_text, system=bank_import_system_prompt(expense_categories, income_categories), max_tokens=4096
+        )
     except ai_service.QuotaExceededError:
         return {
             "configured": True, "rows": [], "quota_exceeded": True,
@@ -133,9 +146,14 @@ def parse_statement(file_bytes: bytes, filename: str) -> Dict:
         if not isinstance(row, dict) or row.get("direction") not in ("debit", "credit"):
             warnings.append(f"Skipped a row with an unrecognized direction: {row}")
             continue
-        valid_categories = EXPENSE_CATEGORIES if row["direction"] == "debit" else INCOME_CATEGORIES
+        valid_categories = (expense_categories or EXPENSE_CATEGORIES) if row["direction"] == "debit" else (income_categories or INCOME_CATEGORIES)
         if row.get("category") not in valid_categories:
-            row["category"] = "other_expense" if row["direction"] == "debit" else "other_income"
+            guess = "other_expense" if row["direction"] == "debit" else "other_income"
+            row["category"] = (
+                resolve_category(guess, "expense" if row["direction"] == "debit" else "income", user_id, household_id)
+                if (user_id or household_id)
+                else guess
+            )
         row.setdefault("date", date.today().isoformat())
         validated_rows.append(row)
 

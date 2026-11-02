@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Protocol
 import requests
 from cryptography.fernet import Fernet, InvalidToken
 
+from .budget_service import resolve_category
 from .models import BudgetEntry, LinkedConnection, db
 
 logger = logging.getLogger("networth_tracker")
@@ -254,7 +255,7 @@ def import_transactions(user_id, household_id, txs: List[ExternalTransaction]) -
                 entry_date=t.date,
                 amount=round(abs(t.amount), 2),
                 currency=t.currency or "USD",
-                category=guess_category(t.description, entry_type),
+                category=resolve_category(guess_category(t.description, entry_type), entry_type, user_id, household_id),
                 description=(t.description or "")[:200] or None,
                 external_id=t.external_id,
             )

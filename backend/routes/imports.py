@@ -101,7 +101,7 @@ def register(app, h):
         if not file.filename.lower().endswith((".xlsx", ".xls", ".csv", ".pdf")):
             return jsonify({"error": "Only .xlsx, .xls, .csv, or .pdf files are supported"}), 400
 
-        result = parse_statement(file.read(), file.filename)
+        result = parse_statement(file.read(), file.filename, g.user_id, household_id)
         return jsonify(result)
 
     @app.route("/import/bank-statement-confirm", methods=["POST"])

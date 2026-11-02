@@ -33,7 +33,7 @@ def make_category(client, name, parent=None, entry_type="expense"):
 
 
 def custom(client, entry_type="expense"):
-    return {c["name"]: c for c in a(client, "get", "/budget/categories").get_json()["custom"][entry_type]}
+    return {c["name"]: c for c in a(client, "get", "/budget/categories").get_json()["items"][entry_type]}
 
 
 def entry(client, **fields):
@@ -151,6 +151,79 @@ def test_someone_else_cannot_rename_or_delete_my_category(client):
     assert b(client, "put", f"/budget/categories/{cat['id']}", {"name": "Taken"}).status_code in (403, 404)
     assert b(client, "delete", f"/budget/categories/{cat['id']}").status_code in (403, 404)
     assert "Mine only" in custom(client)
+
+
+# ---- built-in categories are ordinary rows ----
+
+
+def test_a_new_account_starts_with_the_defaults_as_editable_rows(client):
+    items = a(client, "get", "/budget/categories").get_json()["items"]
+    expense = {c["name"]: c for c in items["expense"]}
+    income = {c["name"]: c for c in items["income"]}
+    assert "food" in expense and "paycheck" in income
+    assert all(c["id"] for c in items["expense"] + items["income"])
+    # asking again does not add them a second time
+    again = a(client, "get", "/budget/categories").get_json()["items"]
+    assert [c["name"] for c in again["expense"]].count("food") == 1
+
+
+def test_a_default_can_be_renamed_and_its_entries_and_limit_follow(client):
+    food = custom(client)["food"]
+    entry(client, category="food", amount=9)
+    assert a(client, "post", "/budget/limits", {"category": "food", "monthly_limit": 100}).status_code == 201
+    r = a(client, "put", f"/budget/categories/{food['id']}", {"name": "Groceries"})
+    assert r.status_code == 200
+    assert "food" not in custom(client) and "Groceries" in custom(client)
+    assert "Groceries" in {e["category"] for e in a(client, "get", "/budget/entries").get_json()}
+    assert "Groceries" in {row["category"] for row in a(client, "get", "/budget/limits").get_json()}
+    # a name that was freed can be used again, and entries can use the new name
+    assert entry(client, category="Groceries", amount=1)["category"] == "Groceries"
+
+
+def test_a_default_can_be_removed_with_its_entries_moved(client):
+    shopping = custom(client)["shopping"]
+    make_category(client, "Everything else")
+    entry(client, category="shopping", amount=4)
+    r = a(client, "delete", f"/budget/categories/{shopping['id']}?move_to=Everything else")
+    assert r.status_code == 200
+    assert "shopping" not in custom(client)
+    assert "shopping" not in {e["category"] for e in a(client, "get", "/budget/entries").get_json()}
+    # removed means gone for good: it does not come back by itself
+    assert "shopping" not in custom(client)
+    # and new entries can no longer use it
+    bad = a(client, "post", "/budget/entries", {"entry_type": "expense", "category": "shopping", "entry_date": "2026-01-05", "amount": 1})
+    assert bad.status_code == 400
+
+
+def test_restore_defaults_adds_back_only_what_is_missing(client):
+    target = custom(client)["transport"]
+    assert a(client, "delete", f"/budget/categories/{target['id']}").status_code == 200
+    assert "transport" not in custom(client)
+    r = a(client, "post", "/budget/categories/restore-defaults", {"entry_type": "expense"})
+    assert r.status_code == 200 and "transport" in r.get_json()["added"]
+    assert "transport" in custom(client)
+    again = a(client, "post", "/budget/categories/restore-defaults", {"entry_type": "expense"})
+    assert again.get_json()["added"] == []
+    assert a(client, "post", "/budget/categories/restore-defaults", {"entry_type": "nope"}).status_code == 400
+
+
+def test_one_persons_changes_to_defaults_never_touch_another_person(client):
+    mine = custom(client)["housing"]
+    assert a(client, "put", f"/budget/categories/{mine['id']}", {"name": "Rent and bills"}).status_code == 200
+    theirs = {c["name"] for c in b(client, "get", "/budget/categories").get_json()["items"]["expense"]}
+    assert "housing" in theirs and "Rent and bills" not in theirs
+    assert b(client, "put", f"/budget/categories/{mine['id']}", {"name": "Taken"}).status_code in (403, 404)
+    assert b(client, "delete", f"/budget/categories/{mine['id']}").status_code in (403, 404)
+
+
+def test_removing_every_category_is_allowed_and_leaves_a_clean_empty_list(client):
+    for c in list(custom(client).values()):
+        assert a(client, "delete", f"/budget/categories/{c['id']}").status_code == 200
+    body = a(client, "get", "/budget/categories").get_json()
+    assert body["expense"] == [] and body["items"]["expense"] == []
+    assert a(client, "post", "/budget/entries", {"entry_type": "expense", "category": "food", "entry_date": "2026-01-05", "amount": 1}).status_code == 400
+    assert a(client, "post", "/budget/categories/restore-defaults", {"entry_type": "expense"}).status_code == 200
+    assert "food" in custom(client)
 
 
 # ---- editing an entry ----

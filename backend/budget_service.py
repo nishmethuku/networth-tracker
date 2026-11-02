@@ -4,13 +4,14 @@ holdings_service — this never touches net worth, so there's no
 double-counting risk between "money you logged as spent" and "a cash
 holding you track separately."
 """
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from . import sip_service
-from .models import BudgetCategory, BudgetEntry, BudgetLimit, db
+from .models import BudgetCategory, BudgetCategorySeed, BudgetEntry, BudgetLimit, db
 
 INCOME_CATEGORIES = ["paycheck", "bonus", "interest", "gift", "other_income"]
 EXPENSE_CATEGORIES = [
@@ -277,48 +278,107 @@ def delete_limit(limit_id, user_id=None, household_id=None) -> bool:
     return True
 
 
+def _default_names(entry_type):
+    return INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
+
+
+def _scope_key(user_id, household_id):
+    return str(household_id) if household_id else f"user:{user_id}"
+
+
 def _custom_categories_query(entry_type, user_id, household_id=None):
     query = BudgetCategory.query.filter_by(entry_type=entry_type)
     return query.filter_by(household_id=household_id) if household_id else query.filter_by(user_id=user_id, household_id=None)
 
 
+def _add_default_rows(entry_type, user_id, household_id, only_missing=False):
+    """Inserts the default categories for one type. Dated long ago, in order, so they list first."""
+    have = {c.name.lower() for c in _custom_categories_query(entry_type, user_id, household_id).all()} if only_missing else set()
+    start = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    added = []
+    for i, name in enumerate(_default_names(entry_type)):
+        if name.lower() in have:
+            continue
+        db.session.add(BudgetCategory(
+            user_id=user_id, household_id=household_id, entry_type=entry_type, name=name, created_at=start + timedelta(seconds=i),
+        ))
+        added.append(name)
+    return added
+
+
+def ensure_seeded(user_id, household_id=None) -> None:
+    """The first time someone's categories are used, copies the defaults into their own list so
+    every category (default or not) is an ordinary row they can rename, move or remove.
+    Safe to call any time; does nothing once done."""
+    if user_id is None and household_id is None:
+        return
+    key = _scope_key(user_id, household_id)
+    for entry_type in ("income", "expense"):
+        if BudgetCategorySeed.query.filter_by(scope_key=key, entry_type=entry_type).first():
+            continue
+        try:
+            db.session.add(BudgetCategorySeed(user_id=user_id, household_id=household_id, scope_key=key, entry_type=entry_type))
+            db.session.flush()
+        except IntegrityError:
+            # Another request got there first.
+            db.session.rollback()
+            continue
+        _add_default_rows(entry_type, user_id, household_id, only_missing=True)
+        db.session.commit()
+
+
+def restore_default_categories(user_id, entry_type, household_id=None) -> List[str]:
+    """Adds back any default category the person removed or renamed. Returns the names added."""
+    if entry_type not in ("income", "expense"):
+        raise ValueError("entry_type must be 'income' or 'expense'")
+    ensure_seeded(user_id, household_id)
+    added = _add_default_rows(entry_type, user_id, household_id, only_missing=True)
+    db.session.commit()
+    return added
+
+
 def list_categories(user_id, household_id=None) -> Dict:
-    """The fixed presets plus any custom categories for this scope,
-    in creation order after the presets -- matches how the Category
-    dropdown is built (presets first, then whatever's been added).
+    """This scope's categories, in order. Everything is an editable row, defaults included.
     `parents` maps a subcategory's name to the category it sits in."""
-    income_rows = _custom_categories_query("income", user_id, household_id).order_by(BudgetCategory.created_at).all()
-    expense_rows = _custom_categories_query("expense", user_id, household_id).order_by(BudgetCategory.created_at).all()
+    ensure_seeded(user_id, household_id)
+    order = (BudgetCategory.created_at, BudgetCategory.id)
+    income_rows = _custom_categories_query("income", user_id, household_id).order_by(*order).all()
+    expense_rows = _custom_categories_query("expense", user_id, household_id).order_by(*order).all()
+
+    def items(rows):
+        return [{"id": c.id, "name": c.name, "parent": c.parent} for c in rows]
+
     return {
-        "income": INCOME_CATEGORIES + [c.name for c in income_rows],
-        "expense": EXPENSE_CATEGORIES + [c.name for c in expense_rows],
+        "income": [c.name for c in income_rows],
+        "expense": [c.name for c in expense_rows],
         "parents": {
             "income": {c.name: c.parent for c in income_rows if c.parent},
             "expense": {c.name: c.parent for c in expense_rows if c.parent},
         },
-        # The custom ones with their ids, so they can be renamed, moved or deleted.
-        "custom": {
-            "income": [{"id": c.id, "name": c.name, "parent": c.parent} for c in income_rows],
-            "expense": [{"id": c.id, "name": c.name, "parent": c.parent} for c in expense_rows],
-        },
+        "items": {"income": items(income_rows), "expense": items(expense_rows)},
     }
 
 
 def category_exists(category: str, entry_type: str, user_id, household_id=None) -> bool:
-    """Whether `category` is usable for a new/updated entry -- either one
-    of the fixed presets, or a custom category already created in this
-    scope. Case-sensitive: a custom category's name is stored and matched
-    verbatim, same as any other user-entered string in this app."""
-    presets = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
-    if category in presets:
-        return True
+    """Whether `category` is in this person's (or household's) list for that entry type.
+    Case-sensitive: a name is stored and matched verbatim."""
     if user_id is None and household_id is None:
-        # No real scope to have created a custom category in -- skip the
-        # DB round trip rather than querying a scope that can't match
-        # anything (also keeps this callable in a pure/no-DB context,
-        # e.g. a unit test asserting a category is rejected).
+        # No real scope to look in -- skip the DB round trip.
         return False
+    ensure_seeded(user_id, household_id)
     return _custom_categories_query(entry_type, user_id, household_id).filter_by(name=category).first() is not None
+
+
+def resolve_category(guess: str, entry_type: str, user_id, household_id=None) -> str:
+    """For automatic categorizing (bank sync, statement import): the guess if this person still has
+    that category, else their "other" category, else their first one, else the guess unchanged."""
+    if category_exists(guess, entry_type, user_id, household_id):
+        return guess
+    fallback = "other_income" if entry_type == "income" else "other_expense"
+    if category_exists(fallback, entry_type, user_id, household_id):
+        return fallback
+    first = _custom_categories_query(entry_type, user_id, household_id).order_by(BudgetCategory.created_at, BudgetCategory.id).first()
+    return first.name if first else guess
 
 
 def create_category(user_id, entry_type: str, name: str, household_id=None, parent: Optional[str] = None) -> Dict:
@@ -330,21 +390,18 @@ def create_category(user_id, entry_type: str, name: str, household_id=None, pare
     if len(name) > MAX_CATEGORY_NAME:
         raise ValueError(f"name must be {MAX_CATEGORY_NAME} characters or fewer")
 
-    presets = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
-    existing_names = {n.lower() for n in presets} | {
-        c.name.lower() for c in _custom_categories_query(entry_type, user_id, household_id).all()
-    }
-    if name.lower() in existing_names:
+    ensure_seeded(user_id, household_id)
+    custom = {c.name: c for c in _custom_categories_query(entry_type, user_id, household_id).all()}
+    if name.lower() in {n.lower() for n in custom}:
         raise ValueError(f"'{name}' already exists")
 
     parent = (parent or "").strip() or None
     if parent:
         if parent.lower() == name.lower():
             raise ValueError("A category cannot be inside itself")
-        custom = {c.name: c for c in _custom_categories_query(entry_type, user_id, household_id).all()}
-        if parent not in presets and parent not in custom:
+        if parent not in custom:
             raise ValueError(f"'{parent}' isn't a known {entry_type} category")
-        if parent in custom and custom[parent].parent:
+        if custom[parent].parent:
             raise ValueError("Categories can only be nested one level deep")
 
     category = BudgetCategory(user_id=user_id, household_id=household_id, entry_type=entry_type, name=name, parent=parent)
@@ -376,16 +433,15 @@ def _rename_in_use(entry_type, old, new, user_id, household_id):
 
 
 def update_category(category_id, user_id=None, household_id=None, name=_UNSET, parent=_UNSET) -> Dict:
-    """Renames a custom category and/or moves it under another one (or back to the top level).
+    """Renames a category and/or moves it under another one (or back to the top level).
 
     A rename carries through: entries, spending limits and subcategories that used the old
-    name follow it, so nothing is left pointing at a name that no longer exists. Only custom
-    categories can change; the built-in ones are fixed."""
+    name follow it, so nothing is left pointing at a name that no longer exists. Every
+    category can change, including the ones that came as defaults."""
     category = _scope_filter(BudgetCategory.query.filter_by(id=category_id), user_id, household_id).first()
     if not category:
         raise LookupError("Category not found")
     entry_type = category.entry_type
-    presets = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
     custom = {c.name: c for c in _custom_categories_query(entry_type, user_id, household_id).all()}
     old_name = category.name
 
@@ -396,7 +452,7 @@ def update_category(category_id, user_id=None, household_id=None, name=_UNSET, p
             raise ValueError("name is required")
         if len(new_name) > MAX_CATEGORY_NAME:
             raise ValueError(f"name must be {MAX_CATEGORY_NAME} characters or fewer")
-        taken = {n.lower() for n in presets} | {n.lower() for n in custom if n != old_name}
+        taken = {n.lower() for n in custom if n != old_name}
         if new_name.lower() in taken:
             raise ValueError(f"'{new_name}' already exists")
 
@@ -406,9 +462,9 @@ def update_category(category_id, user_id=None, household_id=None, name=_UNSET, p
     if new_parent:
         if new_parent.lower() == new_name.lower() or new_parent == old_name:
             raise ValueError("A category cannot be inside itself")
-        if new_parent not in presets and new_parent not in custom:
+        if new_parent not in custom:
             raise ValueError(f"'{new_parent}' isn't a known {entry_type} category")
-        if new_parent in custom and custom[new_parent].parent:
+        if custom[new_parent].parent:
             raise ValueError("Categories can only be nested one level deep")
         if any(c.parent == old_name for c in custom.values()):
             raise ValueError("This category has subcategories, so it cannot go inside another one")
@@ -425,7 +481,7 @@ def update_category(category_id, user_id=None, household_id=None, name=_UNSET, p
 
 
 def delete_category(category_id, user_id=None, household_id=None, move_to: Optional[str] = None) -> bool:
-    """Deletes a custom category. By default, entries already using its name keep it (they
+    """Deletes a category. By default, entries already using its name keep it (they
     just stop being offered for new entries). With `move_to`, those entries and the spending
     limit move to another category first."""
     category = _scope_filter(BudgetCategory.query.filter_by(id=category_id), user_id, household_id).first()

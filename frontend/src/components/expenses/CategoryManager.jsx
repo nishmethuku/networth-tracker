@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Card from "../Card";
 import { useToast } from "../../contexts/ToastContext";
 import { useHousehold } from "../../contexts/HouseholdContext";
-import { createBudgetCategory, updateBudgetCategory, deleteBudgetCategory, ApiError } from "../../api";
+import { createBudgetCategory, updateBudgetCategory, deleteBudgetCategory, restoreDefaultCategories, ApiError } from "../../api";
 import { getBudgetCategoryLabel } from "../../constants/enums";
 import { orderCategoryOptions } from "../../utils/categoryTree";
 
@@ -38,7 +38,7 @@ const tabStyle = (active) => ({
 
 /**
  * Add, rename, move and remove categories and the subcategories inside them.
- * The built-in categories are fixed; the ones you add are fully editable.
+ * Every category is editable, including the ones the app started you with.
  */
 export default function CategoryManager({ categories }) {
   const queryClient = useQueryClient();
@@ -67,9 +67,9 @@ export default function CategoryManager({ categories }) {
 
   const names = categories?.[entryType] || [];
   const parents = categories?.parents?.[entryType];
-  const customByName = useMemo(() => {
+  const itemByName = useMemo(() => {
     const map = new Map();
-    for (const c of categories?.custom?.[entryType] || []) map.set(c.name, c);
+    for (const c of categories?.items?.[entryType] || []) map.set(c.name, c);
     return map;
   }, [categories, entryType]);
   const options = useMemo(() => orderCategoryOptions(names, parents, getBudgetCategoryLabel), [names, parents]);
@@ -95,8 +95,22 @@ export default function CategoryManager({ categories }) {
     onError: fail("Could not add the category"),
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: () => restoreDefaultCategories({ entry_type: entryType, household_id: currentHouseholdId }),
+    onSuccess: (result) => {
+      refresh();
+      const added = result?.added || [];
+      toast.success(
+        added.length ? `Added back ${added.map(getBudgetCategoryLabel).join(", ")}` : "Nothing to add back. You already have every default",
+      );
+    },
+    onError: fail("Could not restore the default categories"),
+  });
+
   const saveMutation = useMutation({
-    mutationFn: ({ id, name, parent }) => updateBudgetCategory(id, { name, parent: parent || null }),
+    // Only send the name when it was changed, so saving never renames "housing" to "Housing" by accident.
+    mutationFn: ({ id, name, label, parent }) =>
+      updateBudgetCategory(id, { ...(name.trim() !== label ? { name: name.trim() } : {}), parent: parent || null }),
     onSuccess: (saved) => {
       refresh();
       setEditing(null);
@@ -237,7 +251,7 @@ export default function CategoryManager({ categories }) {
   }
 
   function renderRow(o, isChild) {
-    const custom = customByName.get(o.value);
+    const custom = itemByName.get(o.value);
     const isEditing = editing && custom && editing.id === custom.id;
     const isDeleting = deleting && custom && deleting.id === custom.id;
     const row = { name: o.value, label: getBudgetCategoryLabel(o.value) };
@@ -248,7 +262,6 @@ export default function CategoryManager({ categories }) {
             {isChild ? "↳ " : ""}
             {row.label}
           </span>
-          {!custom && <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Built in</span>}
           {custom && !isEditing && !isDeleting && (
             <>
               <button
@@ -258,7 +271,7 @@ export default function CategoryManager({ categories }) {
                 onClick={() => {
                   setAdding(null);
                   setDeleting(null);
-                  setEditing({ id: custom.id, name: custom.name, parent: custom.parent || "" });
+                  setEditing({ id: custom.id, name: row.label, label: row.label, parent: custom.parent || "" });
                 }}
               >
                 Rename or move
@@ -336,6 +349,20 @@ export default function CategoryManager({ categories }) {
                 + Add category
               </button>
             )}
+
+            {tops.length === 0 && (
+              <p style={{ margin: "0.75rem 0 0", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+                You have no {entryType} categories. Add one, or bring the defaults back.
+              </p>
+            )}
+            <button
+              type="button"
+              style={{ ...smallButton, marginLeft: "0.5rem" }}
+              disabled={restoreMutation.isPending}
+              onClick={() => restoreMutation.mutate()}
+            >
+              {restoreMutation.isPending ? "Restoring…" : "Restore default categories"}
+            </button>
 
             <ul
               aria-label={`${entryType === "expense" ? "Expense" : "Income"} categories`}
