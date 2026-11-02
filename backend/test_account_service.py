@@ -22,6 +22,10 @@ EXEMPT_MODEL_NAMES = {
     # Membership, not financial data -- handled by household_service's own
     # leave/remove flow instead.
     "HouseholdMember",
+    # An internal marker ("this person's default categories were copied in"), not
+    # data about the person. The categories themselves are exported; the marker is
+    # still removed by delete_all_user_data so a wiped account starts fresh.
+    "BudgetCategorySeed",
 }
 # Deliberately not covered by delete_all_user_data specifically (still
 # expected in export_user_data) -- they cascade-delete at the DB level via

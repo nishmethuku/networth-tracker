@@ -11,7 +11,10 @@ from backend import household_service, models
 # household, not financial data, so they get deleted outright instead
 # (see the two HouseholdInvite/HouseholdMember .delete() calls right after
 # the unshare loop in household_service.delete_household).
-MEMBERSHIP_MODEL_NAMES = {"HouseholdMember", "HouseholdInvite"}
+# BudgetCategorySeed is also exempt: it is only a marker that a household's
+# category list has been created. It stays with the household while members come
+# and go, and the database removes it with the household (ON DELETE CASCADE).
+MEMBERSHIP_MODEL_NAMES = {"HouseholdMember", "HouseholdInvite", "BudgetCategorySeed"}
 
 UNSHARE_MODEL_NAMES = (
     "Holding", "NetWorthSnapshot", "BudgetEntry", "BudgetLimit", "BudgetCategory", "Account", "Liability", "Milestone", "LinkedConnection",

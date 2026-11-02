@@ -17,45 +17,53 @@ const PRESETS = [
 ];
 const INCOME = ["paycheck", "bonus", "interest", "gift", "other_income"];
 
-/** A small stateful stand-in for the categories API, so a whole add, rename, move, remove flow can run. */
-async function mockCategories(page: any, custom: Cat[], calls: { method: string; url: string; body: any }[]) {
+/** A small stateful stand-in for the categories API, so a whole add, rename, move, remove flow can run.
+ * Like the real server, the built-in categories are ordinary rows. */
+async function mockCategories(page: any, extra: Cat[], calls: { method: string; url: string; body: any }[]) {
   let nextId = 100;
+  const all: Cat[] = [...PRESETS.map((name, i) => ({ id: 1000 + i, name, parent: null })), ...extra];
+  const income: Cat[] = INCOME.map((name, i) => ({ id: 2000 + i, name, parent: null }));
   await page.route(`${API_BASE}/budget/categories**`, async (route: any) => {
     const req = route.request();
     const method = req.method();
     const url = req.url();
     const body = method === "GET" || method === "DELETE" ? null : req.postDataJSON();
     if (method !== "GET") calls.push({ method, url, body });
+    if (url.includes("restore-defaults")) {
+      const added = PRESETS.filter((n) => !all.some((c) => c.name === n));
+      added.forEach((name, i) => all.push({ id: 3000 + i, name, parent: null }));
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ added }) });
+    }
     const id = Number(url.match(/categories\/(\d+)/)?.[1]);
     if (method === "POST") {
       const created = { id: nextId++, name: body.name, parent: body.parent ?? null };
-      custom.push(created);
+      all.push(created);
       return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ ...created, entry_type: "expense" }) });
     }
     if (method === "PUT") {
-      const row = custom.find((c) => c.id === id)!;
+      const row = all.find((c) => c.id === id)!;
       const old = row.name;
       if ("name" in body) row.name = body.name;
       if ("parent" in body) row.parent = body.parent;
-      for (const c of custom) if (c.parent === old) c.parent = row.name;
+      for (const c of all) if (c.parent === old) c.parent = row.name;
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(row) });
     }
     if (method === "DELETE") {
-      const at = custom.findIndex((c) => c.id === id);
-      const [gone] = custom.splice(at, 1);
-      for (const c of custom) if (c.parent === gone.name) c.parent = null;
+      const at = all.findIndex((c) => c.id === id);
+      const [gone] = all.splice(at, 1);
+      for (const c of all) if (c.parent === gone.name) c.parent = null;
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ message: "Category deleted" }) });
     }
     const parents: Record<string, string> = {};
-    for (const c of custom) if (c.parent) parents[c.name] = c.parent;
+    for (const c of all) if (c.parent) parents[c.name] = c.parent;
     return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        income: INCOME,
-        expense: [...PRESETS, ...custom.map((c) => c.name)],
+        income: income.map((c) => c.name),
+        expense: all.map((c) => c.name),
         parents: { income: {}, expense: parents },
-        custom: { income: [], expense: custom },
+        items: { income, expense: all },
       }),
     });
   });
@@ -70,7 +78,7 @@ test("add, rename, move and remove categories and subcategories from the Expense
   await page.goto("/expenses");
   await page.getByRole("button", { name: "Manage categories" }).click();
   const list = page.getByRole("list", { name: "Expense categories" });
-  await expect(list.getByText("Built in").first()).toBeVisible();
+  await expect(list.getByText("Built in")).toHaveCount(0);
 
   // Add a category.
   await page.getByRole("button", { name: "+ Add category" }).click();
@@ -101,9 +109,9 @@ test("add, rename, move and remove categories and subcategories from the Expense
   await expect.poll(() => calls[calls.length - 1]?.body).toMatchObject({ parent: "healthcare" });
   await expect(list.getByRole("listitem").filter({ hasText: "↳ Vet" })).toBeVisible();
 
-  // A category that holds subcategories stays at the top level.
-  await page.getByRole("button", { name: "Edit Healthcare" }).count(); // built in: no edit button
-  await expect(page.getByRole("button", { name: "Edit Healthcare" })).toHaveCount(0);
+  // The categories the app started with can be edited and removed too.
+  await expect(page.getByRole("button", { name: "Edit Healthcare" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove Healthcare" })).toBeVisible();
 
   // Remove with "move entries to".
   await page.getByRole("button", { name: "Remove Pet care" }).click();
@@ -112,6 +120,40 @@ test("add, rename, move and remove categories and subcategories from the Expense
   await expect(list.getByText("Pet care", { exact: true })).toHaveCount(0);
   await expect.poll(() => calls[calls.length - 1]?.method).toBe("DELETE");
   await expect.poll(() => calls[calls.length - 1]?.url).toContain("move_to=other_expense");
+});
+
+test("a built-in category can be renamed, left unchanged, removed and restored", async ({ mockedPage: page }) => {
+  await mockBackend(page);
+  const calls: { method: string; url: string; body: any }[] = [];
+  await mockCategories(page, [], calls);
+  await page.goto("/expenses");
+  await page.getByRole("button", { name: "Manage categories" }).click();
+  const list = page.getByRole("list", { name: "Expense categories" });
+
+  // Saving without touching the name does not rename it (Food is stored as "food").
+  await page.getByRole("button", { name: "Edit Food" }).click();
+  await expect(page.getByLabel("Name for Food")).toHaveValue("Food");
+  await page.getByLabel("Put Food inside").selectOption("housing");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect.poll(() => calls[calls.length - 1]?.body).toEqual({ parent: "housing" });
+  await page.getByRole("button", { name: "Edit Food" }).click();
+  await page.getByLabel("Put Food inside").selectOption("");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+
+  // Rename a built-in one.
+  await page.getByRole("button", { name: "Edit Housing" }).click();
+  await page.getByLabel("Name for Housing").fill("Rent and bills");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(list.getByText("Rent and bills", { exact: true })).toBeVisible();
+  await expect.poll(() => calls[calls.length - 1]?.body).toMatchObject({ name: "Rent and bills" });
+
+  // Remove one, then bring the defaults back.
+  await page.getByRole("button", { name: "Remove Shopping" }).click();
+  await page.getByRole("group", { name: "Remove Shopping" }).getByRole("button", { name: "Remove" }).click();
+  await expect(list.getByText("Shopping", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Restore default categories" }).click();
+  await expect(list.getByText("Shopping", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Added back .*Shopping/)).toBeVisible();
 });
 
 test("the add form no longer creates categories and links to the manager", async ({ mockedPage: page }) => {

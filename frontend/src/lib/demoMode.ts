@@ -502,6 +502,12 @@ const EMPTY_BUDGET_CATEGORIES = {
     "insurance",
     "other_expense",
   ],
+  parents: { income: {}, expense: {} },
+  items: { income: [] as any[], expense: [] as any[] },
+};
+EMPTY_BUDGET_CATEGORIES.items = {
+  income: EMPTY_BUDGET_CATEGORIES.income.map((name, i) => ({ id: i + 1, name, parent: null })),
+  expense: EMPTY_BUDGET_CATEGORIES.expense.map((name, i) => ({ id: i + 101, name, parent: null })),
 };
 
 /** Answers a GET from the sample data. Unknown endpoints get an empty list,

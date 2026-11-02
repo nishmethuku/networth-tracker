@@ -47,6 +47,18 @@ def _minimal_pdf(text_lines):
     return pdf
 
 
+@pytest.fixture(autouse=True)
+def _default_categories_only(monkeypatch):
+    """Category lists now live in the database. These unit tests have no database, so the
+    check is answered from the built-in defaults, which is what a new account starts with."""
+    from backend import budget_service
+
+    def fake_exists(category, entry_type, user_id, household_id=None):
+        return category in budget_service._default_names(entry_type)
+
+    monkeypatch.setattr("backend.bank_import_service.category_exists", fake_exists)
+
+
 def test_validate_row_debit_maps_to_expense():
     row = {"date": "2026-01-15", "description": "NETFLIX.COM", "amount": 15.99, "direction": "debit", "category": "entertainment"}
     normalized = _validate_row(row)

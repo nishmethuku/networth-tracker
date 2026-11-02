@@ -19,6 +19,7 @@ from ..budget_service import (
     get_year,
     list_categories,
     log_due_recurring,
+    restore_default_categories,
     set_limit,
     update_category,
 )
@@ -112,6 +113,19 @@ def register(app, h):
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         return jsonify(category), 201
+
+    @app.route("/budget/categories/restore-defaults", methods=["POST"])
+    @require_auth
+    def budget_categories_restore_defaults():
+        """Adds back any default category (Housing, Food, Paycheck...) that was removed or renamed."""
+        data = request.get_json(force=True)
+        household_id = data.get("household_id")
+        validate_household_id_for_write(household_id)
+        try:
+            added = restore_default_categories(g.user_id, data.get("entry_type"), household_id)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify({"added": added})
 
     def authorized_custom_category(category_id):
         """The category row, after checking the caller may change it."""

@@ -716,7 +716,12 @@ export async function createBudgetCategory(payload: {
   return api.post("/budget/categories", payload);
 }
 
-/** Rename a custom category and/or move it under another one (parent: null puts it at the top level). */
+/** Adds back any default category the person removed. Resolves to the names added. */
+export async function restoreDefaultCategories(payload: { entry_type: string; household_id?: string | null }) {
+  return api.post("/budget/categories/restore-defaults", payload);
+}
+
+/** Rename a category and/or move it under another one (parent: null puts it at the top level). */
 export async function updateBudgetCategory(id: number | string, payload: { name?: string; parent?: string | null }) {
   return api.put(`/budget/categories/${id}`, payload);
 }

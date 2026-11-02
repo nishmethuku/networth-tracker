@@ -1,8 +1,16 @@
 # Changelog
 
+## Fully customizable categories
+
+- **Nothing is fixed any more.** The categories the app starts you with (housing, food, paycheck and the rest) are now ordinary categories in your own list. You can rename them, move them inside another category, or remove them, just like the ones you add. Renaming or removing one carries its entries and spending limit along, as before.
+- **Restore default categories** adds back any default you removed, without touching anything else.
+- **Your list is yours alone.** Changing a default for your account, or for a household, never changes anyone else's.
+- Bank sync and statement import now file transactions under the categories you actually have, and fall back to your "other" category, or your first one, if you removed the usual match.
+- Existing accounts look the same as before: the defaults are copied into your list the first time you open it, after your own categories are kept.
+
 ## Categories, subcategories and full expense editing
 
-- **Categories moved out of the add form.** The Expenses page has a new Categories and subcategories card. You can add, rename, move and remove categories, and add, rename, move and remove the subcategories inside them, for both expenses and income. The built-in categories stay fixed. The add form no longer has a "new category" box and links to the card instead.
+- **Categories moved out of the add form.** The Expenses page has a new Categories and subcategories card. You can add, rename, move and remove categories, and add, rename, move and remove the subcategories inside them, for both expenses and income. The add form no longer has a "new category" box and links to the card instead.
 - **Renames carry through.** Renaming a category updates the entries and the spending limit that used it, and any subcategories inside it. Removing a category can move its entries to another category first.
 - **Category and subcategory everywhere.** The quick "+ Expense" dialog, the full add form and the edit dialog each show a Category dropdown and a Subcategory dropdown.
 - **Edit every field of an entry.** The edit dialog now changes type (income or expense), amount, currency, category, subcategory, date, note, repeat, private, and the account it was paid from, the loan it pays down or the account it was deposited into. Changing the amount, the account or the type puts the old amount back in the old account or card and applies the new one.
