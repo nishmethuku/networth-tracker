@@ -16,6 +16,7 @@ import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
 import { orderCategoryOptions } from "../utils/categoryTree";
+import CategoryPicker from "./budget/CategoryPicker";
 import { frequentExpenses } from "../utils/frequentExpenses";
 import { monthOf, monthTotals } from "../utils/entryGroups";
 import { enqueuePending, loadPending, shouldQueue } from "../utils/pendingExpenses";
@@ -456,25 +457,19 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
             </div>
 
             <div style={{ display: "grid", gap: "0.75rem", marginTop: "0.75rem" }}>
-              <div>
-                <label htmlFor="qa-category" style={labelStyle}>
-                  Category
-                </label>
-                <select
-                  id="qa-category"
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(10rem, 1fr))", gap: "0.75rem" }}>
+                <CategoryPicker
+                  idPrefix="qa"
+                  names={categories?.expense || []}
+                  parents={categories?.parents?.expense}
                   value={category}
-                  onChange={(e) => {
+                  onChange={(next) => {
                     categoryTouched.current = true;
-                    setCategory(e.target.value);
+                    setCategory(next);
                   }}
-                  style={fieldStyle}
-                >
-                  {options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                  fieldStyle={fieldStyle}
+                  labelStyle={labelStyle}
+                />
               </div>
 
               <div>

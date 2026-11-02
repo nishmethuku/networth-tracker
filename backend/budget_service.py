@@ -18,6 +18,10 @@ EXPENSE_CATEGORIES = [
     "entertainment", "shopping", "education", "insurance", "other_expense",
 ]
 
+# Entries and limits store the category name in a 32-character column, so a longer
+# category name could be created but never used.
+MAX_CATEGORY_NAME = 32
+
 # Multiplier to normalize a recurring amount at this frequency to a
 # monthly-equivalent figure, for the Subscriptions & Bills total.
 _MONTHLY_EQUIVALENT = {"weekly": 52 / 12, "monthly": 1.0, "quarterly": 1 / 3, "yearly": 1 / 12}
@@ -292,6 +296,11 @@ def list_categories(user_id, household_id=None) -> Dict:
             "income": {c.name: c.parent for c in income_rows if c.parent},
             "expense": {c.name: c.parent for c in expense_rows if c.parent},
         },
+        # The custom ones with their ids, so they can be renamed, moved or deleted.
+        "custom": {
+            "income": [{"id": c.id, "name": c.name, "parent": c.parent} for c in income_rows],
+            "expense": [{"id": c.id, "name": c.name, "parent": c.parent} for c in expense_rows],
+        },
     }
 
 
@@ -318,8 +327,8 @@ def create_category(user_id, entry_type: str, name: str, household_id=None, pare
     name = (name or "").strip()
     if not name:
         raise ValueError("name is required")
-    if len(name) > 64:
-        raise ValueError("name must be 64 characters or fewer")
+    if len(name) > MAX_CATEGORY_NAME:
+        raise ValueError(f"name must be {MAX_CATEGORY_NAME} characters or fewer")
 
     presets = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
     existing_names = {n.lower() for n in presets} | {
@@ -344,15 +353,91 @@ def create_category(user_id, entry_type: str, name: str, household_id=None, pare
     return category.to_dict()
 
 
-def delete_category(category_id, user_id=None, household_id=None) -> bool:
-    """Deleting a category doesn't touch entries already using its name --
-    they keep displaying it, same as deleting a holding doesn't rewrite
-    its historical transactions. It just stops being offered for new ones."""
-    query = BudgetCategory.query.filter_by(id=category_id)
-    query = query.filter_by(household_id=household_id) if household_id else query.filter_by(user_id=user_id, household_id=None)
-    category = query.first()
+_UNSET = object()
+
+
+def _scope_filter(query, user_id, household_id):
+    """Limits a BudgetEntry/BudgetLimit query to one person's own rows or one household's."""
+    return query.filter_by(household_id=household_id) if household_id else query.filter_by(user_id=user_id, household_id=None)
+
+
+def _rename_in_use(entry_type, old, new, user_id, household_id):
+    """Points every entry (and, for expenses, the spending limit) that used `old` at `new`."""
+    entries = _scope_filter(BudgetEntry.query.filter_by(entry_type=entry_type, category=old), user_id, household_id)
+    entries.update({"category": new}, synchronize_session=False)
+    if entry_type != "expense":
+        return
+    limits = _scope_filter(BudgetLimit.query.filter_by(category=old), user_id, household_id)
+    if _scope_filter(BudgetLimit.query.filter_by(category=new), user_id, household_id).first():
+        # The destination already has its own limit; keep that one.
+        limits.delete(synchronize_session=False)
+    else:
+        limits.update({"category": new}, synchronize_session=False)
+
+
+def update_category(category_id, user_id=None, household_id=None, name=_UNSET, parent=_UNSET) -> Dict:
+    """Renames a custom category and/or moves it under another one (or back to the top level).
+
+    A rename carries through: entries, spending limits and subcategories that used the old
+    name follow it, so nothing is left pointing at a name that no longer exists. Only custom
+    categories can change; the built-in ones are fixed."""
+    category = _scope_filter(BudgetCategory.query.filter_by(id=category_id), user_id, household_id).first()
+    if not category:
+        raise LookupError("Category not found")
+    entry_type = category.entry_type
+    presets = INCOME_CATEGORIES if entry_type == "income" else EXPENSE_CATEGORIES
+    custom = {c.name: c for c in _custom_categories_query(entry_type, user_id, household_id).all()}
+    old_name = category.name
+
+    new_name = old_name
+    if name is not _UNSET:
+        new_name = (name or "").strip()
+        if not new_name:
+            raise ValueError("name is required")
+        if len(new_name) > MAX_CATEGORY_NAME:
+            raise ValueError(f"name must be {MAX_CATEGORY_NAME} characters or fewer")
+        taken = {n.lower() for n in presets} | {n.lower() for n in custom if n != old_name}
+        if new_name.lower() in taken:
+            raise ValueError(f"'{new_name}' already exists")
+
+    new_parent = category.parent
+    if parent is not _UNSET:
+        new_parent = (parent or "").strip() or None
+    if new_parent:
+        if new_parent.lower() == new_name.lower() or new_parent == old_name:
+            raise ValueError("A category cannot be inside itself")
+        if new_parent not in presets and new_parent not in custom:
+            raise ValueError(f"'{new_parent}' isn't a known {entry_type} category")
+        if new_parent in custom and custom[new_parent].parent:
+            raise ValueError("Categories can only be nested one level deep")
+        if any(c.parent == old_name for c in custom.values()):
+            raise ValueError("This category has subcategories, so it cannot go inside another one")
+
+    category.name = new_name
+    category.parent = new_parent
+    if new_name != old_name:
+        for child in custom.values():
+            if child.parent == old_name:
+                child.parent = new_name
+        _rename_in_use(entry_type, old_name, new_name, user_id, household_id)
+    db.session.commit()
+    return category.to_dict()
+
+
+def delete_category(category_id, user_id=None, household_id=None, move_to: Optional[str] = None) -> bool:
+    """Deletes a custom category. By default, entries already using its name keep it (they
+    just stop being offered for new entries). With `move_to`, those entries and the spending
+    limit move to another category first."""
+    category = _scope_filter(BudgetCategory.query.filter_by(id=category_id), user_id, household_id).first()
     if not category:
         return False
+    move_to = (move_to or "").strip() or None
+    if move_to:
+        if move_to == category.name:
+            raise ValueError("Pick a different category to move the entries to")
+        if not category_exists(move_to, category.entry_type, user_id, household_id):
+            raise ValueError(f"'{move_to}' isn't a known {category.entry_type} category")
+        _rename_in_use(category.entry_type, category.name, move_to, user_id, household_id)
     # Subcategories of a deleted category move up to the top level instead of disappearing.
     children = _custom_categories_query(category.entry_type, user_id, household_id).filter_by(parent=category.name).all()
     for child in children:

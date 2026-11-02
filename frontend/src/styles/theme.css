@@ -404,6 +404,13 @@ body::before {
     radial-gradient(50vmax 50vmax at 60% 100%, var(--aurora-2), transparent 70%);
 }
 
+/* Every glass card is its own layer. Without a layer order here, cards further down the page
+   paint over the open "More" menu in the top bar. */
+.desktop-top-nav {
+  position: relative;
+  z-index: 60;
+}
+
 [style*="var(--card)"],
 [style*="var(--card-hover)"],
 .mobile-top-bar,

@@ -24,7 +24,7 @@ test("the E key and the floating button open a quick expense form that saves in 
   // The amount is focused, so typing goes straight in.
   await expect(dialog.locator("#qa-amount")).toBeFocused();
   await page.keyboard.type("12.50");
-  await dialog.getByLabel("Category").selectOption("food");
+  await dialog.getByLabel("Category", { exact: true }).selectOption("food");
   await dialog.getByLabel(/Note/).fill("Lunch");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
 
@@ -35,7 +35,7 @@ test("the E key and the floating button open a quick expense form that saves in 
 
   // Second time: the floating button opens it and remembers the last category.
   await page.getByRole("button", { name: /add expense/i }).click();
-  await expect(page.getByRole("dialog", { name: "Add expense" }).getByLabel("Category")).toHaveValue("food");
+  await expect(page.getByRole("dialog", { name: "Add expense" }).getByLabel("Category", { exact: true })).toHaveValue("food");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Add expense" })).toBeHidden();
 });

@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import NumericInput from "../NumericInput";
 import { useToast } from "../../contexts/ToastContext";
-import { useHousehold } from "../../contexts/HouseholdContext";
-import { createBudgetCategory, createBudgetEntry, fetchHoldings, fetchLiabilities, ApiError } from "../../api";
-import { getBudgetCategoryLabel, getAssetTypeLabel, CURRENCIES } from "../../constants/enums";
+import { createBudgetEntry, fetchHoldings, fetchLiabilities, ApiError } from "../../api";
+import { getAssetTypeLabel, CURRENCIES } from "../../constants/enums";
 import { formatCurrencyForDisplay, todayISO } from "../../utils/formatters";
-import { orderCategoryOptions } from "../../utils/categoryTree";
+import CategoryPicker from "./CategoryPicker";
 
 const RECURRING_FREQUENCIES = [
   { value: "weekly", label: "Weekly" },
@@ -31,9 +29,6 @@ const inputStyle = {
 export default function AddEntryForm({ categories, currency }) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { currentHouseholdId } = useHousehold();
-  const [addingCategory, setAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
   const { register, control, watch, setValue, handleSubmit, reset } = useForm({
     defaultValues: {
       entry_type: "expense",
@@ -56,13 +51,9 @@ export default function AddEntryForm({ categories, currency }) {
     () => (entryType === "income" ? categories?.income || [] : categories?.expense || []),
     [entryType, categories],
   );
-  const parentMap = categories?.parents?.[entryType] || {};
-  const orderedOptions = useMemo(
-    () => orderCategoryOptions(categoryOptions, parentMap, getBudgetCategoryLabel),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [categoryOptions, categories, entryType],
-  );
-  const [newCategoryParent, setNewCategoryParent] = useState("");
+  const parentMap = categories?.parents?.[entryType];
+  // The category is set by the picker below; this makes sure the form still submits it.
+  register("category");
 
   // Regression: defaultValues.category was captured once at mount
   // (categories?.expense?.[0]) -- if the categories query hadn't
@@ -188,25 +179,6 @@ export default function AddEntryForm({ categories, currency }) {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add entry"),
   });
 
-  const createCategoryMutation = useMutation({
-    mutationFn: () =>
-      createBudgetCategory({
-        entry_type: entryType,
-        name: newCategoryName.trim(),
-        household_id: currentHouseholdId,
-        ...(newCategoryParent ? { parent: newCategoryParent } : {}),
-      }),
-    onSuccess: (category) => {
-      queryClient.invalidateQueries({ queryKey: ["budget-categories"] });
-      setValue("category", category.name);
-      setAddingCategory(false);
-      setNewCategoryName("");
-      setNewCategoryParent("");
-      toast.success(`"${category.name}" category added`);
-    },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add category"),
-  });
-
   return (
     <form onSubmit={handleSubmit((data) => mutation.mutate(data))}>
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
@@ -254,104 +226,15 @@ export default function AddEntryForm({ categories, currency }) {
           </label>
           <NumericInput id="budget-amount" control={control} name="amount" style={inputStyle} />
         </div>
-        <div>
-          <label
-            htmlFor="budget-category"
-            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
-          >
-            Category
-          </label>
-          <select
-            id="budget-category"
-            {...register("category")}
-            value={addingCategory ? "__new__" : categoryValue}
-            onChange={(e) => {
-              if (e.target.value === "__new__") {
-                setAddingCategory(true);
-                return;
-              }
-              setValue("category", e.target.value);
-            }}
-            style={inputStyle}
-          >
-            {orderedOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-            <option value="__new__">+ New category…</option>
-          </select>
-          {addingCategory && (
-            <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.4rem" }}>
-              <input
-                autoFocus
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                placeholder="e.g., Pet care"
-                aria-label="New category name"
-                style={{ ...inputStyle, flex: 1 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (newCategoryName.trim()) createCategoryMutation.mutate();
-                  }
-                }}
-              />
-              <select
-                aria-label="Put the new category inside"
-                value={newCategoryParent}
-                onChange={(e) => setNewCategoryParent(e.target.value)}
-                style={{ ...inputStyle, flex: "0 1 9rem" }}
-              >
-                <option value="">Top level</option>
-                {orderedOptions
-                  .filter((o) => !o.parent)
-                  .map((o) => (
-                    <option key={o.value} value={o.value}>
-                      Inside {o.label}
-                    </option>
-                  ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => newCategoryName.trim() && createCategoryMutation.mutate()}
-                disabled={createCategoryMutation.isPending || !newCategoryName.trim()}
-                style={{
-                  padding: "0.5rem 0.75rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "none",
-                  background: "var(--primary)",
-                  color: "var(--text-inverse)",
-                  cursor: "pointer",
-                  fontSize: "0.8125rem",
-                  fontWeight: 600,
-                  opacity: createCategoryMutation.isPending || !newCategoryName.trim() ? 0.6 : 1,
-                }}
-              >
-                {createCategoryMutation.isPending ? "Adding…" : "Add"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAddingCategory(false);
-                  setNewCategoryName("");
-                  setValue("category", categoryOptions[0] || "");
-                }}
-                style={{
-                  padding: "0.5rem 0.75rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border)",
-                  background: "var(--card)",
-                  color: "var(--text-secondary)",
-                  cursor: "pointer",
-                  fontSize: "0.8125rem",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
+        <CategoryPicker
+          idPrefix="budget"
+          names={categoryOptions}
+          parents={parentMap}
+          value={categoryValue}
+          onChange={(next) => setValue("category", next)}
+          fieldStyle={inputStyle}
+          labelStyle={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+        />
         <div>
           <label
             htmlFor="budget-entry-date"
@@ -454,6 +337,10 @@ export default function AddEntryForm({ categories, currency }) {
           </div>
         )}
       </div>
+
+      <p style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem" }}>
+        <a href="#manage-categories">Add, rename or remove categories and subcategories</a>
+      </p>
 
       <div style={{ marginTop: "0.75rem" }}>
         <label

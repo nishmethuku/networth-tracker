@@ -20,6 +20,7 @@ from ..budget_service import (
     list_categories,
     log_due_recurring,
     set_limit,
+    update_category,
 )
 from ..holdings_service import (
     build_deposit_valuation,
@@ -112,15 +113,48 @@ def register(app, h):
             return jsonify({"error": str(e)}), 400
         return jsonify(category), 201
 
-    @app.route("/budget/categories/<int:category_id>", methods=["DELETE"])
-    @require_auth
-    def budget_categories_delete(category_id):
+    def authorized_custom_category(category_id):
+        """The category row, after checking the caller may change it."""
         category = BudgetCategory.query.get_or_404(category_id)
         if category.household_id:
             validate_household_id_for_write(str(category.household_id))
         elif str(category.user_id) != str(g.user_id):
             abort(403)
-        delete_category(category_id, g.user_id, str(category.household_id) if category.household_id else None)
+        return category
+
+    @app.route("/budget/categories/<int:category_id>", methods=["PUT"])
+    @require_auth
+    def budget_categories_update(category_id):
+        category = authorized_custom_category(category_id)
+        data = request.get_json(force=True)
+        changes = {}
+        if "name" in data:
+            changes["name"] = data["name"]
+        if "parent" in data:
+            changes["parent"] = data["parent"]
+        try:
+            updated = update_category(
+                category_id, g.user_id, str(category.household_id) if category.household_id else None, **changes
+            )
+        except ValueError as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 400
+        return jsonify(updated)
+
+    @app.route("/budget/categories/<int:category_id>", methods=["DELETE"])
+    @require_auth
+    def budget_categories_delete(category_id):
+        category = authorized_custom_category(category_id)
+        try:
+            delete_category(
+                category_id,
+                g.user_id,
+                str(category.household_id) if category.household_id else None,
+                move_to=request.args.get("move_to"),
+            )
+        except ValueError as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 400
         return jsonify({"message": "Category deleted"}), 200
 
     @app.route("/budget/entries", methods=["GET"])
@@ -261,65 +295,201 @@ def register(app, h):
             "deposit_target": deposit_valuation.to_dict() if deposit_valuation else None,
         }), 201
 
+    def _id_or_none(value):
+        if value in (None, "", 0, "0"):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            raise ValueError("That account is not valid")
+
+    def _put_back(entry, amount, currency, acting_user_id):
+        """Undoes what the entry did to an account or card, using the amounts it had when it was logged."""
+        done = {}
+        if entry.entry_type == "expense":
+            if entry.charged_liability_id:
+                card = get_authorized_liability(entry.charged_liability_id, require_write=True)
+                reverse_charge(card, amount, currency)
+                done["charged_liability"] = card.to_dict()
+            if entry.linked_liability_id:
+                loan = get_authorized_liability(entry.linked_liability_id, require_write=True)
+                reverse_payment(loan, amount, currency)
+                done["linked_liability"] = loan.to_dict()
+            if entry.funding_holding_id:
+                source = get_authorized_holding(entry.funding_holding_id, require_write=True)
+                valuations = HoldingValuation.query.filter_by(holding_id=source.id).all()
+                refund = build_deposit_valuation(
+                    source, valuations, amount, currency, date.today(), acting_user_id, notes="Put back after editing an expense"
+                )
+                db.session.add(refund)
+                done["funding_source"] = refund.to_dict()
+        elif entry.deposit_target_holding_id:
+            target = get_authorized_holding(entry.deposit_target_holding_id, require_write=True)
+            if target.asset_type == "cash":
+                valuations = HoldingValuation.query.filter_by(holding_id=target.id).all()
+                draw = build_funding_valuation(target, valuations, amount, currency, date.today(), acting_user_id)
+                db.session.add(draw)
+                done["deposit_target"] = draw.to_dict()
+        entry.charged_liability_id = None
+        entry.linked_liability_id = None
+        entry.funding_holding_id = None
+        entry.deposit_target_holding_id = None
+        return done
+
     @app.route("/budget/entries/<int:entry_id>", methods=["PUT"])
     @require_auth
     def update_budget_entry(entry_id):
         entry = get_authorized_budget_entry(entry_id, require_write=True)
         data = request.get_json(force=True)
-        old_amount, old_currency = entry.amount, entry.currency
+        old_amount, old_currency, old_type = entry.amount, entry.currency, entry.entry_type
+        household = str(entry.household_id) if entry.household_id else None
 
-        if "entry_date" in data:
-            entry.entry_date = date.fromisoformat(data["entry_date"])
-        if "amount" in data:
-            entry.amount = safe_float(data["amount"])
-        if "currency" in data:
-            entry.currency = data["currency"]
-        if "category" in data:
-            if not category_exists(data["category"], entry.entry_type, g.user_id, str(entry.household_id) if entry.household_id else None):
-                return jsonify({"error": f"'{data['category']}' isn't a known {entry.entry_type} category"}), 400
-            entry.category = data["category"]
+        new_type = data.get("entry_type", old_type)
+        if new_type not in ("income", "expense"):
+            return jsonify({"error": "entry_type must be 'income' or 'expense'"}), 400
+        type_changed = new_type != old_type
+
+        new_category = data.get("category", entry.category)
+        if ("category" in data or type_changed) and not category_exists(new_category, new_type, g.user_id, household):
+            if type_changed and "category" not in data:
+                return jsonify({"error": f"Pick a {new_type} category for this entry"}), 400
+            return jsonify({"error": f"'{new_category}' isn't a known {new_type} category"}), 400
+
+        if "recurring_frequency" in data and data["recurring_frequency"]:
+            if data["recurring_frequency"] not in ("weekly", "monthly", "quarterly", "yearly"):
+                return jsonify({"error": "recurring_frequency must be weekly, monthly, quarterly, or yearly"}), 400
+        try:
+            new_date = date.fromisoformat(data["entry_date"]) if "entry_date" in data else entry.entry_date
+        except (TypeError, ValueError):
+            return jsonify({"error": "entry_date must be a valid date (YYYY-MM-DD)"}), 400
+        new_amount = safe_float(data["amount"]) if "amount" in data else old_amount
+        if "amount" in data and not (new_amount and new_amount > 0):
+            return jsonify({"error": "amount must be greater than zero"}), 400
+        new_currency = data.get("currency", old_currency)
+
+        # Which accounts the entry should touch afterwards. A key left out keeps what it had
+        # (unless the entry changes type, which drops them).
+        current = {
+            "funding": entry.funding_holding_id,
+            "charge": entry.charged_liability_id,
+            "loan": entry.linked_liability_id,
+            "deposit": entry.deposit_target_holding_id,
+        }
+        try:
+            wanted = dict(current) if not type_changed else {k: None for k in current}
+            if "funding_source_holding_id" in data:
+                wanted["funding"] = _id_or_none(data["funding_source_holding_id"])
+            if "charge_liability_id" in data:
+                wanted["charge"] = _id_or_none(data["charge_liability_id"])
+            if "linked_liability_id" in data:
+                wanted["loan"] = _id_or_none(data["linked_liability_id"])
+            if "deposit_target_holding_id" in data:
+                wanted["deposit"] = _id_or_none(data["deposit_target_holding_id"])
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        if new_type == "expense":
+            wanted["deposit"] = None
+        else:
+            wanted["funding"] = wanted["charge"] = wanted["loan"] = None
+        links_changed = wanted != current
+
+        if links_changed:
+            if wanted["charge"] and (wanted["loan"] or wanted["funding"]):
+                return jsonify({"error": "Pick one place to pay from: a cash account or a credit card"}), 400
+            try:
+                # Authorize everything first so a bad id answers cleanly before anything changes.
+                new_loan = get_authorized_liability(wanted["loan"], require_write=True) if wanted["loan"] else None
+                if new_loan and new_loan.liability_type in CHARGEABLE_TYPES:
+                    return jsonify({"error": "Record credit card payments from the Liabilities page so they are not counted as spending twice"}), 400
+                new_card = get_authorized_liability(wanted["charge"], require_write=True) if wanted["charge"] else None
+                if new_card and new_card.liability_type not in CHARGEABLE_TYPES:
+                    return jsonify({"error": "Only a credit card or line of credit can be charged"}), 400
+                new_source = get_authorized_holding(wanted["funding"], require_write=True) if wanted["funding"] else None
+                new_target = get_authorized_holding(wanted["deposit"], require_write=True) if wanted["deposit"] else None
+            except HTTPException:
+                db.session.rollback()
+                return jsonify({"error": "You cannot use that account"}), 403
+
+        adjusted = {}
+        try:
+            if links_changed:
+                # Put back what the entry did with its old amount, then do the new thing with the new amount.
+                adjusted.update({f"put_back_{k}": v for k, v in _put_back(entry, old_amount, old_currency, g.user_id).items()})
+                entry.entry_type = new_type
+                entry.amount = new_amount
+                entry.currency = new_currency
+                entry.entry_date = new_date
+                if new_loan:
+                    entry.linked_liability_id = new_loan.id
+                    adjusted["linked_liability"] = apply_payment(new_loan, new_amount, new_currency).to_dict()
+                if new_card:
+                    entry.charged_liability_id = new_card.id
+                    adjusted["charged_liability"] = apply_charge(new_card, new_amount, new_currency).to_dict()
+                if new_source:
+                    valuations = HoldingValuation.query.filter_by(holding_id=new_source.id).all()
+                    valuation = build_funding_valuation(new_source, valuations, new_amount, new_currency, new_date, g.user_id)
+                    db.session.add(valuation)
+                    entry.funding_holding_id = new_source.id
+                    adjusted["funding_source"] = valuation.to_dict()
+                if new_target:
+                    entry.deposit_target_holding_id = new_target.id
+                    if new_target.asset_type == "cash":
+                        valuations = HoldingValuation.query.filter_by(holding_id=new_target.id).all()
+                        valuation = build_deposit_valuation(new_target, valuations, new_amount, new_currency, new_date, g.user_id)
+                        db.session.add(valuation)
+                        adjusted["deposit_target"] = valuation.to_dict()
+            else:
+                entry.entry_type = new_type
+                entry.amount = new_amount
+                entry.currency = new_currency
+                entry.entry_date = new_date
+                # Changing the amount or currency of an entry that moved a card, a loan or a
+                # cash account moves that balance by the difference.
+                if new_amount != old_amount or new_currency != old_currency:
+                    if entry.charged_liability_id:
+                        card = get_authorized_liability(entry.charged_liability_id, require_write=True)
+                        adjust_for_edit(card, old_amount, old_currency, new_amount, new_currency, "charge")
+                        adjusted["charged_liability"] = card.to_dict()
+                    if entry.linked_liability_id:
+                        loan = get_authorized_liability(entry.linked_liability_id, require_write=True)
+                        adjust_for_edit(loan, old_amount, old_currency, new_amount, new_currency, "payment")
+                        adjusted["linked_liability"] = loan.to_dict()
+                    cash_id = entry.funding_holding_id or (
+                        entry.deposit_target_holding_id if entry.entry_type == "income" else None
+                    )
+                    if cash_id:
+                        source = get_authorized_holding(cash_id, require_write=True)
+                        if entry.funding_holding_id or source.asset_type == "cash":
+                            old_in_holding = price_service.convert(old_amount, old_currency, source.currency)
+                            new_in_holding = price_service.convert(new_amount, new_currency, source.currency)
+                            delta = new_in_holding - old_in_holding
+                            if entry.entry_type == "income":
+                                delta = -delta  # more income puts more money in
+                            if abs(delta) > 0.004:
+                                valuations = HoldingValuation.query.filter_by(holding_id=source.id).all()
+                                builder = build_funding_valuation if delta > 0 else build_deposit_valuation
+                                kwargs = {} if delta > 0 else {"notes": "Adjusted after editing an entry"}
+                                valuation = builder(source, valuations, abs(delta), source.currency, date.today(), g.user_id, **kwargs)
+                                db.session.add(valuation)
+                                adjusted["funding_source" if entry.funding_holding_id else "deposit_target"] = valuation.to_dict()
+        except HTTPException:
+            db.session.rollback()
+            return jsonify({"error": "You can no longer change the account this was paid from"}), 403
+        except ValueError as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 400
+
+        entry.category = new_category
         if "description" in data:
-            entry.description = data["description"]
+            entry.description = data["description"] or None
         if "is_private" in data:
             entry.is_private = bool(data["is_private"])
         if "is_recurring" in data:
             entry.is_recurring = bool(data["is_recurring"])
         if "recurring_frequency" in data:
-            if data["recurring_frequency"] and data["recurring_frequency"] not in ("weekly", "monthly", "quarterly", "yearly"):
-                return jsonify({"error": "recurring_frequency must be weekly, monthly, quarterly, or yearly"}), 400
-            entry.recurring_frequency = data["recurring_frequency"]
-
-        # Changing the amount or currency of an expense that was paid from a
-        # card, a loan or a cash account moves that balance by the difference.
-        adjusted = {}
-        if entry.entry_type == "expense" and (entry.amount != old_amount or entry.currency != old_currency):
-            try:
-                if entry.charged_liability_id:
-                    card = get_authorized_liability(entry.charged_liability_id, require_write=True)
-                    adjust_for_edit(card, old_amount, old_currency, entry.amount, entry.currency, "charge")
-                    adjusted["charged_liability"] = card.to_dict()
-                if entry.linked_liability_id:
-                    loan = get_authorized_liability(entry.linked_liability_id, require_write=True)
-                    adjust_for_edit(loan, old_amount, old_currency, entry.amount, entry.currency, "payment")
-                    adjusted["linked_liability"] = loan.to_dict()
-                if entry.funding_holding_id:
-                    source = get_authorized_holding(entry.funding_holding_id, require_write=True)
-                    old_in_holding = price_service.convert(old_amount, old_currency, source.currency)
-                    new_in_holding = price_service.convert(entry.amount, entry.currency, source.currency)
-                    delta = new_in_holding - old_in_holding
-                    if abs(delta) > 0.004:
-                        valuations = HoldingValuation.query.filter_by(holding_id=source.id).all()
-                        builder = build_funding_valuation if delta > 0 else build_deposit_valuation
-                        kwargs = {} if delta > 0 else {"notes": "Adjusted after editing an expense"}
-                        valuation = builder(source, valuations, abs(delta), source.currency, date.today(), g.user_id, **kwargs)
-                        db.session.add(valuation)
-                        adjusted["funding_source"] = valuation.to_dict()
-            except HTTPException:
-                db.session.rollback()
-                return jsonify({"error": "You can no longer change the account this was paid from"}), 403
-            except ValueError as e:
-                db.session.rollback()
-                return jsonify({"error": str(e)}), 400
+            entry.recurring_frequency = data["recurring_frequency"] or None
+        if not entry.is_recurring:
+            entry.recurring_frequency = None
 
         db.session.commit()
         return jsonify({**entry.to_dict(), **adjusted})
