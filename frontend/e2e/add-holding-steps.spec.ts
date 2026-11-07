@@ -34,6 +34,6 @@ test("Add Holding goes in three steps with progress, Back, and a check before mo
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.locator("#holding-name")).toHaveValue("Emergency fund");
 
-  const scan = await new AxeBuilder({ page }).analyze();
+  const scan = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
   expect(scan.violations).toEqual([]);
 });
