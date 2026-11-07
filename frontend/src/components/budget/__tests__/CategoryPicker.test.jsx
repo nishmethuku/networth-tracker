@@ -44,4 +44,38 @@ describe("CategoryPicker", () => {
     fireEvent.change(screen.getByLabelText("Subcategory"), { target: { value: "" } });
     expect(onChange).toHaveBeenLastCalledWith("utilities", "subcategory");
   });
+
+  describe("search box", () => {
+    const many = Array.from({ length: 14 }, (_, i) => `Group ${i + 1}`).concat(["Pet care"]);
+    const renderMany = (onChange = vi.fn(), value = "Group 1") => {
+      render(<CategoryPicker idPrefix="m" names={many} parents={{}} value={value} onChange={onChange} />);
+      return onChange;
+    };
+
+    it("does not appear for a short list", () => {
+      renderPicker("housing");
+      expect(screen.queryByLabelText("Search categories")).toBeNull();
+    });
+
+    it("filters the dropdown as you type and keeps the picked category", () => {
+      renderMany();
+      fireEvent.change(screen.getByLabelText("Search categories"), { target: { value: "pet" } });
+      const options = [...screen.getByLabelText("Category").querySelectorAll("option")].map((o) => o.value);
+      expect(options).toEqual(["Group 1", "Pet care"]);
+    });
+
+    it("picks the first match on Enter", () => {
+      const onChange = renderMany();
+      const box = screen.getByLabelText("Search categories");
+      fireEvent.change(box, { target: { value: "pet" } });
+      fireEvent.keyDown(box, { key: "Enter" });
+      expect(onChange).toHaveBeenCalledWith("Pet care", "category");
+    });
+
+    it("says when nothing matches", () => {
+      renderMany();
+      fireEvent.change(screen.getByLabelText("Search categories"), { target: { value: "zzz" } });
+      expect(screen.getByText(/No category matches/)).toBeInTheDocument();
+    });
+  });
 });
