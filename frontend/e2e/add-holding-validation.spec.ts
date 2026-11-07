@@ -5,6 +5,7 @@ test("Add Holding: a field shows a green checkmark once valid and touched, red e
 }) => {
   await page.goto("/add-holding");
   await page.locator("#holding-asset-type").selectOption("cash");
+  await page.locator("#holding-country").selectOption("United States");
   await page.getByRole("button", { name: "Next" }).click();
 
   const nameField = page.locator("#holding-name");

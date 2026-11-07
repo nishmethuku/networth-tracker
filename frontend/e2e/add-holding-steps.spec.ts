@@ -12,7 +12,11 @@ test("Add Holding goes in three steps with progress, Back, and a check before mo
   await expect(page.getByRole("button", { name: "Back" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Add Holding" })).toHaveCount(0);
 
+  // Step 1 cannot be skipped without a country.
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.locator("#holding-date")).toBeHidden();
   await page.locator("#holding-asset-type").selectOption("cash");
+  await page.locator("#holding-country").selectOption("United States");
   await page.getByRole("button", { name: "Next" }).click();
 
   // Step 2: it cannot be skipped while a required field is empty.
