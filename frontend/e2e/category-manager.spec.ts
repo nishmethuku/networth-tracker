@@ -83,14 +83,14 @@ test("add, rename, move and remove categories and subcategories from the Expense
   // Add a category.
   await page.getByRole("button", { name: "+ Add category" }).click();
   await page.getByLabel("New category name").fill("Pets");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Add category", exact: true }).click();
   await expect(list.getByText("Pets", { exact: true })).toBeVisible();
   await expect.poll(() => calls[calls.length - 1]?.body).toMatchObject({ entry_type: "expense", name: "Pets" });
 
   // Add a subcategory inside it.
   await page.getByRole("button", { name: "Add a subcategory inside Pets" }).click();
   await page.getByLabel("New subcategory name inside Pets").fill("Vet");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Add subcategory", exact: true }).click();
   await expect(list.getByText("↳ Vet")).toBeVisible();
   await expect.poll(() => calls[calls.length - 1]?.body).toMatchObject({ name: "Vet", parent: "Pets" });
 

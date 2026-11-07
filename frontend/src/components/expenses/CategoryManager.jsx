@@ -159,7 +159,7 @@ export default function CategoryManager({ categories }) {
         disabled={!addName.trim() || addMutation.isPending}
         style={{ ...primaryButton, opacity: addName.trim() ? 1 : 0.6 }}
       >
-        {addMutation.isPending ? "Adding…" : "Add"}
+        {addMutation.isPending ? "Adding…" : adding?.parent ? "Add subcategory" : "Add category"}
       </button>
       <button type="button" onClick={() => setAdding(null)} style={smallButton}>
         Cancel
