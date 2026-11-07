@@ -112,6 +112,86 @@ function fieldStyle(touched, hasError) {
   return inputStyle;
 }
 
+const visuallyHidden = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+};
+
+const STEPS = ["Type", "Details", "Extras"];
+// The fields each step owns, so "Next" only checks what is on screen.
+const STEP_FIELDS = {
+  1: ["assetType", "country", "currency"],
+  2: [
+    "symbol",
+    "name",
+    "account",
+    "institution",
+    "interest_rate",
+    "maturity_date",
+    "date",
+    "quantity",
+    "price_per_unit",
+    "value",
+    "funding_source_holding_id",
+  ],
+};
+
+/** Numbered circles joined by lines: finished steps show a check, the current one is filled. */
+function StepIndicator({ step }) {
+  return (
+    <ol aria-label="Progress" style={{ display: "flex", alignItems: "center", listStyle: "none", padding: 0, margin: "0 0 2rem" }}>
+      {STEPS.map((label, i) => {
+        const n = i + 1;
+        const done = n < step;
+        const current = n === step;
+        return (
+          <li
+            key={label}
+            aria-current={current ? "step" : undefined}
+            style={{ display: "flex", alignItems: "center", flex: n < STEPS.length ? 1 : "0 0 auto" }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  fontSize: "0.875rem",
+                  background: done || current ? "var(--primary)" : "var(--bg-secondary)",
+                  color: done || current ? "var(--text-inverse)" : "var(--text-muted)",
+                }}
+              >
+                {done ? "✓" : n}
+              </span>
+              <span
+                style={{ fontSize: "0.875rem", fontWeight: current ? 600 : 500, color: current ? "var(--text)" : "var(--text-secondary)" }}
+              >
+                <span style={visuallyHidden}>{done ? "Done: " : current ? "Current step: " : "Step: "}</span>
+                {label}
+              </span>
+            </span>
+            {n < STEPS.length && (
+              <span
+                aria-hidden="true"
+                style={{ flex: 1, height: 2, margin: "0 0.75rem", background: done ? "var(--primary)" : "var(--border)" }}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export default function AddHolding() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -121,6 +201,7 @@ export default function AddHolding() {
     register,
     control,
     handleSubmit,
+    trigger,
     watch,
     setValue,
     formState: { errors, touchedFields, isSubmitting },
@@ -152,6 +233,7 @@ export default function AddHolding() {
     },
   });
 
+  const [step, setStep] = useState(1);
   const assetType = watch("assetType");
   const country = watch("country");
   const currency = watch("currency");
@@ -314,6 +396,20 @@ export default function AddHolding() {
     createHoldingMutation.mutate(data);
   }
 
+  async function goNext() {
+    if (await trigger(STEP_FIELDS[step])) setStep((s) => Math.min(s + 1, STEPS.length));
+  }
+
+  // Move focus to the new step's heading so keyboard and screen reader users land in the right place.
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    document.getElementById(`holding-step-${step}`)?.focus();
+  }, [step]);
+
   const submitting = isSubmitting || createHoldingMutation.isPending;
 
   return (
@@ -326,9 +422,26 @@ export default function AddHolding() {
         ))}
       </datalist>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        <div style={sectionStyle}>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>
+      <StepIndicator step={step} />
+
+      <form
+        onSubmit={(e) => {
+          // Enter on an early step moves forward instead of saving half a form.
+          if (step < STEPS.length) {
+            e.preventDefault();
+            goNext();
+            return;
+          }
+          return handleSubmit(onSubmit)(e);
+        }}
+        noValidate
+      >
+        <div style={sectionStyle} hidden={step !== 1}>
+          <h3
+            id="holding-step-1"
+            tabIndex={-1}
+            style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}
+          >
             What are you adding?
           </h3>
           <div style={{ display: "grid", gap: "1.5rem" }}>
@@ -390,8 +503,14 @@ export default function AddHolding() {
           </div>
         </div>
 
-        <div style={sectionStyle}>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>Details</h3>
+        <div style={sectionStyle} hidden={step !== 2}>
+          <h3
+            id="holding-step-2"
+            tabIndex={-1}
+            style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}
+          >
+            Details
+          </h3>
 
           {QUANTITY_BASED_SET.has(assetType) && assetType !== "commodity" && (
             <div style={{ position: "relative", marginBottom: "1.5rem" }}>
@@ -619,8 +738,14 @@ export default function AddHolding() {
           )}
         </div>
 
-        <div>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}>Optional</h3>
+        <div hidden={step !== 3}>
+          <h3
+            id="holding-step-3"
+            tabIndex={-1}
+            style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.75rem", color: "var(--text-secondary)" }}
+          >
+            Optional
+          </h3>
           <div style={{ display: "grid", gap: "1.5rem", marginBottom: "2rem" }}>
             <div>
               <label htmlFor="holding-notes" style={labelStyle}>
@@ -682,24 +807,65 @@ export default function AddHolding() {
               </div>
             )}
           </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            style={{
-              width: "100%",
-              padding: "1.125rem",
-              borderRadius: "var(--radius)",
-              border: "none",
-              background: submitting ? "var(--bg-secondary)" : "var(--primary)",
-              color: submitting ? "var(--text-muted)" : "var(--text-inverse)",
-              cursor: submitting ? "not-allowed" : "pointer",
-              fontWeight: 600,
-              fontSize: "1rem",
-            }}
-          >
-            {submitting ? "Adding..." : "Add Holding"}
-          </button>
+        <div style={{ display: "flex", gap: "0.75rem", marginTop: "2rem" }}>
+          {step > 1 && (
+            <button
+              type="button"
+              onClick={() => setStep((s) => Math.max(s - 1, 1))}
+              style={{
+                flex: "0 0 auto",
+                padding: "1.125rem 1.5rem",
+                borderRadius: "var(--radius)",
+                border: "1px solid var(--border)",
+                background: "var(--card)",
+                color: "var(--text)",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: "1rem",
+              }}
+            >
+              Back
+            </button>
+          )}
+          {step < STEPS.length ? (
+            <button
+              type="button"
+              onClick={goNext}
+              style={{
+                flex: 1,
+                padding: "1.125rem",
+                borderRadius: "var(--radius)",
+                border: "none",
+                background: "var(--primary)",
+                color: "var(--text-inverse)",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: "1rem",
+              }}
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                flex: 1,
+                padding: "1.125rem",
+                borderRadius: "var(--radius)",
+                border: "none",
+                background: submitting ? "var(--bg-secondary)" : "var(--primary)",
+                color: submitting ? "var(--text-muted)" : "var(--text-inverse)",
+                cursor: submitting ? "not-allowed" : "pointer",
+                fontWeight: 600,
+                fontSize: "1rem",
+              }}
+            >
+              {submitting ? "Adding..." : "Add Holding"}
+            </button>
+          )}
         </div>
       </form>
     </div>
