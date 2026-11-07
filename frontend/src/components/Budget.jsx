@@ -294,7 +294,7 @@ function SpendingLimitsCard({ currency, limitStatus }) {
                         fontSize: "0.7rem",
                         background: "transparent",
                         border: "1px solid var(--border)",
-                        color: "var(--text-muted)",
+                        color: "var(--danger)",
                         padding: "0.15rem 0.4rem",
                         borderRadius: "var(--radius-sm)",
                         cursor: "pointer",

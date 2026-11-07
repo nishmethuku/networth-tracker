@@ -16,7 +16,7 @@ const MENU_LINKS = [
   { to: "/liabilities", labelKey: "nav.liabilities", icon: "🏦" },
   { to: "/insights", labelKey: "nav.insights", icon: "📈" },
   { to: "/import", labelKey: "nav.importCsv", icon: "📥" },
-  { to: "/import-bank-statement", label: "Import Bank Statement (AI)", icon: "✨" },
+  { to: "/import-bank-statement", label: "Import statement", icon: "✨" },
   { to: "/alerts", labelKey: "nav.alerts", icon: "🔔" },
   { to: "/tax-summary", labelKey: "nav.taxSummary", icon: "🧾" },
   { to: "/allocation-advisor", labelKey: "nav.allocationAdvisor", icon: "⚖️" },
