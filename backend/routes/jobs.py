@@ -8,6 +8,7 @@ from flask import jsonify, request
 
 from ..alert_service import check_all_alerts
 from ..digest_service import build_weekly_digest
+from ..liability_service import catch_up_all
 from ..monthly_report_service import build_monthly_report
 from ..snapshot_service import snapshot_all_users
 from ..unsubscribe_service import unsubscribe as unsubscribe_email
@@ -80,6 +81,16 @@ def register(app, h):
         # defense in depth against interpolating any externally-influenced
         # string straight into an HTML response.
         return f"<p>{html.escape(email)} has been unsubscribed from the weekly net worth digest.</p>", 200
+
+    @app.route("/internal/update-liabilities", methods=["POST"])
+    @limiter.limit("10 per minute")
+    def trigger_update_liabilities():
+        """Called daily by a GitHub Actions cron workflow: applies any monthly
+        loan update (interest and EMI) that has come due. Safe to run twice."""
+        provided = request.headers.get("X-Snapshot-Secret")
+        if not SNAPSHOT_SECRET or not provided or not hmac.compare_digest(provided, SNAPSHOT_SECRET):
+            return jsonify({"error": "Unauthorized"}), 401
+        return jsonify(catch_up_all()), 200
 
     @app.route("/internal/check-alerts", methods=["POST"])
     @limiter.limit("10 per minute")

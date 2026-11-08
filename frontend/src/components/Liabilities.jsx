@@ -15,6 +15,7 @@ import {
   deleteLiability,
   recordLiabilityPayment,
   fetchHoldings,
+  fetchLiabilitySchedule,
   ApiError,
 } from "../api";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent, todayISO } from "../utils/formatters";
@@ -54,6 +55,8 @@ const emptyForm = {
   interest_rate: "",
   monthly_payment: "",
   payment_due_date: "",
+  remaining_months: "",
+  auto_update: false,
   notes: "",
 };
 
@@ -71,6 +74,8 @@ export function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
       interest_rate: form.interest_rate === "" ? null : parseFloat(form.interest_rate),
       monthly_payment: form.monthly_payment === "" ? null : parseFloat(form.monthly_payment),
       payment_due_date: form.payment_due_date || null,
+      remaining_months: form.remaining_months === "" ? null : parseInt(form.remaining_months, 10),
+      auto_update: form.auto_update,
       notes: form.notes || null,
     });
   }
@@ -194,6 +199,32 @@ export function LiabilityForm({ initial, onSubmit, onCancel, submitting }) {
             style={inputStyle}
           />
         </div>
+        <div>
+          <label style={labelStyle} htmlFor="liability-remaining-months">
+            Remaining months (optional)
+          </label>
+          <input
+            id="liability-remaining-months"
+            type="number"
+            step="1"
+            min="1"
+            value={form.remaining_months}
+            onChange={(e) => setForm({ ...form, remaining_months: e.target.value })}
+            style={inputStyle}
+          />
+        </div>
+      </div>
+      <div style={{ marginBottom: "1rem" }}>
+        <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", color: "var(--text)", fontSize: "0.875rem" }}>
+          <input type="checkbox" checked={form.auto_update} onChange={(e) => setForm({ ...form, auto_update: e.target.checked })} />
+          Update the balance automatically each month
+        </label>
+        {form.auto_update && (
+          <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
+            Needs the interest rate and remaining months. Leave the monthly payment blank and it is worked out for you (EMI). Each month the
+            interest is added to the balance and the payment is taken off, starting on the due date.
+          </p>
+        )}
       </div>
       <div style={{ marginBottom: "1rem" }}>
         <label style={labelStyle} htmlFor="liability-notes">
@@ -475,9 +506,63 @@ function RecordPaymentForm({ liability, onDone }) {
   );
 }
 
+function ScheduleView({ liability }) {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["liability-schedule", liability.id, liability.currentBalance, liability.remainingMonths, liability.monthlyPayment],
+    queryFn: () => fetchLiabilitySchedule(liability.id),
+  });
+  if (isLoading) return <p style={{ color: "var(--text-muted)", marginTop: "0.75rem" }}>Loading schedule…</p>;
+  if (isError)
+    return (
+      <p role="alert" style={{ color: "var(--danger)", marginTop: "0.75rem" }}>
+        {error instanceof ApiError ? error.message : "Could not load the schedule"}
+      </p>
+    );
+  const money = (v) => formatCurrencyForDisplay(v, liability.currency, { includeCode: false, alwaysCents: true });
+  return (
+    <div style={{ marginTop: "0.75rem" }}>
+      <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "0.5rem" }}>
+        {money(data.monthly_payment)} a month · {money(data.total_interest)} total interest · {money(data.total_paid)} total paid
+      </p>
+      <div style={{ maxHeight: 320, overflow: "auto", border: "1px solid var(--border-light)", borderRadius: "var(--radius)" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8125rem" }}>
+          <thead>
+            <tr style={{ textAlign: "right", color: "var(--text-muted)" }}>
+              <th scope="col" style={{ textAlign: "left", padding: "0.4rem" }}>
+                Date
+              </th>
+              <th scope="col" style={{ padding: "0.4rem" }}>
+                Interest
+              </th>
+              <th scope="col" style={{ padding: "0.4rem" }}>
+                Principal
+              </th>
+              <th scope="col" style={{ padding: "0.4rem" }}>
+                Balance
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((r) => (
+              <tr key={r.month} style={{ textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text)" }}>
+                <td style={{ textAlign: "left", padding: "0.3rem 0.4rem" }}>{r.date || `Month ${r.month}`}</td>
+                <td style={{ padding: "0.3rem 0.4rem" }}>{money(r.interest)}</td>
+                <td style={{ padding: "0.3rem 0.4rem" }}>{money(r.principal)}</td>
+                <td style={{ padding: "0.3rem 0.4rem" }}>{money(r.balance)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
   const [showCalc, setShowCalc] = useState(false);
   const [showPay, setShowPay] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const canSchedule = liability.interestRate != null && !!liability.remainingMonths;
   const progressPct =
     liability.originalAmount && liability.originalAmount > 0
       ? Math.max(0, Math.min(100, 100 - (liability.currentBalance / liability.originalAmount) * 100))
@@ -498,6 +583,11 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
               ` · ${formatCurrencyForDisplay(liability.monthlyPayment, liability.currency, { includeCode: false })}/mo`}
             {liability.paymentDueDate && ` · due ${liability.paymentDueDate}`}
           </div>
+          {liability.autoUpdate && liability.nextAutoDate && (
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+              Updates automatically · next on {liability.nextAutoDate} · {liability.remainingMonths} months left
+            </div>
+          )}
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--danger)", fontSize: "1.0625rem" }}>
@@ -548,6 +638,23 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
         >
           {showCalc ? "Hide payoff calculator" : "Payoff calculator"}
         </button>
+        {canSchedule && (
+          <button
+            onClick={() => setShowSchedule((v) => !v)}
+            aria-expanded={showSchedule}
+            style={{
+              fontSize: "0.8125rem",
+              color: "var(--primary)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              fontWeight: 500,
+            }}
+          >
+            {showSchedule ? "Hide schedule" : "Payment schedule"}
+          </button>
+        )}
         <button
           onClick={() => onEdit(liability)}
           style={{
@@ -579,6 +686,7 @@ function LiabilityRow({ liability, displayCurrency, onEdit, onDelete }) {
       </div>
       {showPay && <RecordPaymentForm liability={liability} onDone={() => setShowPay(false)} />}
       {showCalc && <PayoffCalculator liability={liability} />}
+      {showSchedule && <ScheduleView liability={liability} />}
     </div>
   );
 }
@@ -696,6 +804,8 @@ export default function Liabilities() {
                       interest_rate: editing.interestRate != null ? String(editing.interestRate) : "",
                       monthly_payment: editing.monthlyPayment != null ? String(editing.monthlyPayment) : "",
                       payment_due_date: editing.paymentDueDate || "",
+                      remaining_months: editing.remainingMonths != null ? String(editing.remainingMonths) : "",
+                      auto_update: !!editing.autoUpdate,
                       notes: editing.notes || "",
                     }
                   : null

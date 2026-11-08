@@ -578,6 +578,17 @@ export async function fetchLiabilities({ householdId, currency = "USD" }: Liabil
   return (data || []).map(mapLiability);
 }
 
+export interface LiabilitySchedule {
+  monthly_payment: number;
+  total_interest: number;
+  total_paid: number;
+  rows: { month: number; date: string | null; interest: number; principal: number; payment: number; balance: number }[];
+}
+
+export async function fetchLiabilitySchedule(id: number): Promise<LiabilitySchedule> {
+  return api.get(`/liabilities/${id}/schedule`);
+}
+
 export async function createLiability(payload: any) {
   const data = await api.post("/liabilities", payload);
   return mapLiability(data);

@@ -580,6 +580,9 @@ export interface Liability {
   interestRate: number | null;
   monthlyPayment: number | null;
   paymentDueDate: string | null;
+  autoUpdate: boolean;
+  remainingMonths: number | null;
+  nextAutoDate: string | null;
   notes: string;
   isPrivate: boolean;
   createdAt: string;
@@ -600,6 +603,9 @@ export function mapLiability(l: any): Liability | null {
     interestRate: l.interest_rate != null ? safeNumber(l.interest_rate) : null,
     monthlyPayment: l.monthly_payment != null ? safeNumber(l.monthly_payment) : null,
     paymentDueDate: l.payment_due_date ?? null,
+    autoUpdate: !!l.auto_update,
+    remainingMonths: l.remaining_months ?? null,
+    nextAutoDate: l.next_auto_date ?? null,
     notes: l.notes ?? "",
     isPrivate: !!l.is_private,
     createdAt: l.created_at ?? "",

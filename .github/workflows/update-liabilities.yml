@@ -1,0 +1,37 @@
+name: Update Loan Balances
+
+# Runs daily and hits the backend's /internal/update-liabilities endpoint,
+# which applies each loan's monthly interest and EMI once it is due.
+# Requires the same two repo secrets as the other internal-cron workflows:
+#   BACKEND_URL      your exact Render address, e.g. https://networth-tracker-backend-xxxx.onrender.com (no trailing slash)
+#   SNAPSHOT_SECRET   must match the backend's SNAPSHOT_SECRET env var
+
+on:
+  schedule:
+    - cron: "15 3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  update-liabilities:
+    runs-on: ubuntu-latest
+    steps:
+      # Render's free tier spins the backend down after 15 min idle, so a
+      # scheduled run is often waking a cold instance -- pay that cold-start
+      # cost (up to ~100s) with a cheap GET first rather than risking the
+      # actual trigger below getting cut off mid-wake (see daily-snapshot.yml
+      # for the full story; this endpoint isn't retried on failure the way
+      # that one is, since sending duplicate alert emails on a lost-response
+      # retry would be worse than just failing this run).
+      - name: Wake up backend
+        run: curl -s -o /dev/null --max-time 120 "${{ secrets.BACKEND_URL }}/" || true
+      - name: Update loan balances
+        run: |
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 250 -X POST \
+            "${{ secrets.BACKEND_URL }}/internal/update-liabilities" \
+            -H "X-Snapshot-Secret: ${{ secrets.SNAPSHOT_SECRET }}")
+          echo "Response ($status):"
+          cat /tmp/response.json
+          if [ "$status" != "200" ]; then
+            echo "Alert check request failed with status $status"
+            exit 1
+          fi

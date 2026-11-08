@@ -1,5 +1,11 @@
 # Changelog
 
+## Loan balances update themselves each month
+
+- **Automatic monthly updates (EMI method).** On a liability, enter the balance, the interest rate and the remaining months, then tick "Update the balance automatically each month". If you leave the monthly payment blank, the app works out the EMI for you. Each month the interest (balance times rate divided by 12) is added and the payment is taken off, until the loan reaches zero.
+- **Payment schedule.** A new "Payment schedule" button shows every remaining month with interest, principal and balance, plus total interest.
+- **No missed months.** A daily job applies any month that came due, and opening the Liabilities page catches up too. A month is never applied twice. Automatic updates do not take money out of your bank accounts. Use "Record payment" if you also want that.
+
 ## Counts at the top of each Portfolio section
 
 - **Cash & Bank Accounts** now says how many accounts you have, and how many are in each bank (for example "Accounts 4" and "Ally: 2 · Chase: 2"). The other sections show how many holdings they have. The numbers follow the account filter.
