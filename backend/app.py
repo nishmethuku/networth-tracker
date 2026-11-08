@@ -656,7 +656,7 @@ def create_app():
         get_authorized_holding(holding_id)
         vals = (
             HoldingValuation.query.filter_by(holding_id=holding_id)
-            .order_by(HoldingValuation.valuation_date.desc())
+            .order_by(HoldingValuation.valuation_date.desc(), HoldingValuation.id.desc())
             .all()
         )
         return jsonify([v.to_dict() for v in vals])

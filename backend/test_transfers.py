@@ -1,4 +1,6 @@
 """Transfers between two cash accounts, against a REAL Postgres (local-only guard)."""
+from datetime import date
+
 import pytest
 
 from backend import test_tenant_isolation as tenant
@@ -11,6 +13,15 @@ pytestmark = pytest.mark.skipif(
     not DB_URL or not _is_local(DB_URL),
     reason="set TENANT_TEST_DATABASE_URL to a local Postgres to run these tests",
 )
+
+
+def cash_account_today(client, name, amount):
+    """Opening balance dated today, as when a person adds an account in the app."""
+    r = a(client, "post", "/holdings", {"asset_type": "cash", "name": name, "country": "United States", "account": "Bank", "currency": "USD"})
+    hid = r.get_json()["id"]
+    r = a(client, "post", f"/holdings/{hid}/valuations", {"valuation_date": date.today().isoformat(), "value": amount})
+    assert r.status_code == 201, r.get_json()
+    return hid
 
 
 def move(client, src, dst, amount, **extra):
@@ -68,3 +79,14 @@ def test_card_payment_from_savings_lowers_the_savings_balance(client):
     assert balance(client, savings) == 850
     owed = next(x for x in a(client, "get", "/liabilities").get_json() if x["id"] == card)["current_balance"]
     assert owed == 250
+
+
+def test_two_debits_on_the_same_day_both_come_out_of_the_balance(client):
+    # A card payment and then a transfer, both dated today, from the same account: the second must
+    # start from the balance the first left, not from the older opening balance.
+    savings, other = cash_account_today(client, "Day Savings", 1000), cash_account_today(client, "Day Checking", 500)
+    card = a(client, "post", "/liabilities", {"name": "Day Visa", "liability_type": "credit_card", "currency": "USD", "current_balance": 400}).get_json()["id"]
+    assert a(client, "post", f"/liabilities/{card}/payments", {"amount": 150, "funding_source_holding_id": savings}).status_code == 201
+    assert move(client, savings, other, 200).status_code == 201
+    assert balance(client, savings) == 650
+    assert balance(client, other) == 700

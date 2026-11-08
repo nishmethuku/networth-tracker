@@ -124,6 +124,13 @@ def calculate_holding_metrics(
     }
 
 
+def valuation_order(v: HoldingValuation):
+    """Oldest-to-newest order of balance entries. Several can share a date (a card payment and a
+    transfer on the same day), so ties go to the one recorded last; without this the 'latest balance'
+    depended on database row order and a second same-day debit started from a stale balance."""
+    return (v.valuation_date, v.id or 0)
+
+
 def calculate_valuation_metrics(holding: Holding, valuations: List[HoldingValuation]) -> Dict:
     """
     Metrics for a non-tradeable holding (real_estate/fixed_deposit/ppf/epf/
@@ -136,7 +143,7 @@ def calculate_valuation_metrics(holding: Holding, valuations: List[HoldingValuat
     if not valuations:
         return {"current_value": 0.0, "first_value": 0.0, "gain": 0.0, "history": []}
 
-    ordered = sorted(valuations, key=lambda v: v.valuation_date)
+    ordered = sorted(valuations, key=valuation_order)
     first_value = ordered[0].value
     current_value = ordered[-1].value
     sign = -1 if holding.asset_type == "loan" else 1
@@ -188,7 +195,7 @@ def build_funding_valuation(
     # the same "seed a new account at 0" convention used when the account
     # itself doesn't exist yet (see smart_import_service.py).
     prior = [v for v in existing_valuations if v.valuation_date <= on_date]
-    baseline = max(prior, key=lambda v: v.valuation_date).value if prior else 0.0
+    baseline = max(prior, key=valuation_order).value if prior else 0.0
     converted_amount = price_service.convert(amount, amount_currency, source_holding.currency)
 
     return HoldingValuation(
@@ -229,7 +236,7 @@ def build_deposit_valuation(
     # Same "balance as of on_date, not the latest overall" reasoning as
     # build_funding_valuation above.
     prior = [v for v in existing_valuations if v.valuation_date <= on_date]
-    starting_value = max(prior, key=lambda v: v.valuation_date).value if prior else 0.0
+    starting_value = max(prior, key=valuation_order).value if prior else 0.0
     converted_amount = price_service.convert(amount, amount_currency, target_holding.currency)
 
     return HoldingValuation(
@@ -579,7 +586,7 @@ def get_monthly_net_flow(
         holding = holdings_by_id.get(holding_id)
         if not holding:
             continue
-        ordered = sorted(vals, key=lambda v: v.valuation_date)
+        ordered = sorted(vals, key=valuation_order)
         sign = -1 if holding.asset_type == "loan" else 1
         for prev, curr in zip(ordered, ordered[1:]):
             delta = price_service.convert(curr.value - prev.value, curr.currency, display_currency)
