@@ -54,7 +54,7 @@ describe("groupLots", () => {
     expect(g[0].displayValue).toBe(8000);
     expect(g[0].displayTotalGain).toBe(4000);
     expect(g[0].lots).toHaveLength(2);
-    expect(g[0].xirr).not.toBeNull();
+    expect((g[0] as any).xirr).not.toBeNull();
   });
 
   it("keeps different stocks separate", () => {
