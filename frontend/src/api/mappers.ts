@@ -42,6 +42,7 @@ export interface Holding {
   totalGain: number | null;
   displayTotalGain: number | null;
   xirr: number | null;
+  cashFlows: { date: string; amount: number }[];
   incomeReceived: number | null;
   displayIncomeReceived: number | null;
 
@@ -98,6 +99,7 @@ export function mapHolding(h: any): Holding | null {
     totalGain: h.total_gain != null ? safeNumber(h.total_gain) : null,
     displayTotalGain: h.display_total_gain != null ? safeNumber(h.display_total_gain) : null,
     xirr: h.xirr != null ? safeNumber(h.xirr) : null,
+    cashFlows: Array.isArray(h.cash_flows) ? h.cash_flows.map((c: [string, number]) => ({ date: c[0], amount: safeNumber(c[1]) })) : [],
     incomeReceived: h.income_received != null ? safeNumber(h.income_received) : null,
     displayIncomeReceived: h.display_income_received != null ? safeNumber(h.display_income_received) : null,
 

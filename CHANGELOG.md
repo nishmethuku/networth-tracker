@@ -1,5 +1,10 @@
 # Changelog
 
+## One row per stock, with the purchases underneath
+
+- If you bought the same stock several times, the Portfolio now shows **one row** with the total quantity, average cost, cost, value and gain. Click the arrow (or "Show purchases") to see each purchase.
+- The **XIRR** on that row is worked out from every purchase date together, so a lot bought years ago and a lot bought last month each count for the time they were actually held. It is not an average of the separate lots. The "Overall XIRR" line above the table is calculated the same way.
+
 ## Edit buttons, totals for every section, and a simpler "Where your money is"
 
 - **Edit** now exists on history rows (real estate, cash and so on), on goals, on spending limits, and on price alerts. You no longer have to delete and add again to fix a number.

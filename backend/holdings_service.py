@@ -350,6 +350,12 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
             metrics = calculate_holding_metrics(
                 h, transactions, current_price=price_cache.get((h.asset_type, h.symbol, h.currency))
             )
+            # Dated buy/sell flows in the display currency, so the app can pool several lots of the
+            # same stock and compute one true XIRR over all of their purchase dates.
+            metrics["cash_flows"] = [
+                [flow_date.isoformat(), price_service.convert(amount, h.currency, display_currency)]
+                for flow_date, amount in _transaction_cash_flows(transactions)
+            ]
         else:
             valuations = valuations_by_holding.get(h.id, [])
             metrics = calculate_valuation_metrics(h, valuations)
@@ -402,6 +408,7 @@ SUMMARY_FIELDS = (
     "realized_gain", "unrealized_gain", "display_realized_gain", "display_unrealized_gain",
     "total_gain", "display_total_gain", "xirr", "income_received", "display_income_received",
     "first_value", "gain", "display_gain", "cost_basis", "display_cost_basis", "display_first_value",
+    "cash_flows",
 )
 
 
