@@ -1,5 +1,9 @@
 # Changelog
 
+## Fix: two same-day payments from one account
+
+- **A second payment or transfer on the same day now comes out of the right balance.** When an account had more than one balance entry on the same date (for example a card payment and then a transfer), the next debit could start from an older balance and give back money that had already been paid out. The latest entry of the day now always wins.
+
 ## Card payments must name an account, and clearer holding cards on phones
 
 - **Paying a card bill now asks which account paid.** With more than one cash account, the form no longer quietly picks "not from an account". Choose the account (or "Not from an account") before the payment can be saved, so the money always comes out of the right balance.
