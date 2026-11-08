@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform } from "framer-motion";
 import { formatCurrencyForDisplay, formatPercent, safeNumber } from "../utils/formatters";
 import { isQuantityBased } from "../constants/enums";
 import { holdingGrowthPct } from "../utils/holdingReturns";
@@ -21,11 +21,17 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
   // desktop table so a near-zero cost basis shows "n/a" here too, instead
   // of a meaningless six-figure percentage.
   const growthPct = holdingGrowthPct(h);
+  // The card is see-through, so the red Delete layer underneath must stay invisible until the card is
+  // actually dragged; otherwise it tints the whole card pink and washes out the text.
+  const dragX = useMotionValue(0);
+  const deleteOpacity = useTransform(dragX, [-12, 0], [1, 0]);
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: "var(--radius)" }}>
-      <div
+      <motion.div
+        aria-hidden="true"
         style={{
+          opacity: deleteOpacity,
           position: "absolute",
           inset: 0,
           display: "flex",
@@ -36,7 +42,7 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
         }}
       >
         <span style={{ color: "var(--text-inverse)", fontWeight: 600, fontSize: "0.875rem" }}>Delete</span>
-      </div>
+      </motion.div>
       <motion.div
         drag="x"
         dragConstraints={{ left: -96, right: 0 }}
@@ -46,6 +52,7 @@ export default function HoldingCard({ holding: h, onOpen, onDelete, currency }) 
         }}
         onClick={onOpen}
         style={{
+          x: dragX,
           position: "relative",
           background: "var(--card)",
           border: "1px solid var(--border)",

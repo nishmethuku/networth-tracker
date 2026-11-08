@@ -1,5 +1,10 @@
 # Changelog
 
+## Card payments must name an account, and clearer holding cards on phones
+
+- **Paying a card bill now asks which account paid.** With more than one cash account, the form no longer quietly picks "not from an account". Choose the account (or "Not from an account") before the payment can be saved, so the money always comes out of the right balance.
+- **Holding cards on phones are readable again.** A hidden red Delete layer was showing through the see-through card and tinting it pink, which washed out the text. It now appears only while you swipe.
+
 ## Transfers between accounts, and expenses by card or account
 
 - **Move money between your cash accounts.** On the Accounts page, pick where the money leaves and where it goes. One balance goes down, the other goes up, and it is never counted as spending or income. Recent transfers are listed, and each one can be undone, which puts the money back.
