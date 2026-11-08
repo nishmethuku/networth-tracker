@@ -197,3 +197,16 @@ def test_a_date_that_could_be_read_two_ways_gets_a_warning_but_iso_does_not():
     assert iso["warnings"] == []
     clear = parse_simple_csv(header + "Cash,Chase,,Checking,,25/11/2026,,5000,USD,United States\n")
     assert clear["warnings"] == []
+
+
+def test_every_holding_type_name_shown_in_the_app_is_accepted_in_a_csv():
+    """The exact names in the Add Holding dropdown must work as the CSV Holding Type."""
+    app_labels = {
+        "Stocks": "stock", "Mutual Funds": "mutual_fund", "Crypto": "crypto", "Gold & Metals": "commodity",
+        "Real Estate": "real_estate", "Fixed Deposits": "fixed_deposit", "PPF": "ppf", "EPF": "epf",
+        "Retirals": "retirals", "Cash & Bank Accounts": "cash", "Loans": "loan", "Credit Given": "credit",
+    }
+    from backend.simple_csv_import_service import ASSET_TYPE_ALIASES
+
+    for label, expected in app_labels.items():
+        assert ASSET_TYPE_ALIASES.get(label.lower()) == expected, label

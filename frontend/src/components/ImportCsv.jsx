@@ -132,8 +132,9 @@ export default function ImportCsv() {
         </div>
         <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.25rem" }}>
           <li>
-            <strong style={{ color: "var(--text)" }}>Holding Type</strong> — Stocks, Mutual Fund, Precious Metals, Real Estate, Cash, Fixed
-            Deposit, PPF, EPF, Retirals, Loan, Credit, or Crypto. Left blank, defaults to Stocks.
+            <strong style={{ color: "var(--text)" }}>Holding Type</strong> — Stocks, Mutual Funds, Crypto, Gold & Metals, Real Estate, Fixed
+            Deposits, PPF, EPF, Retirals, Cash & Bank Accounts, Loans, or Credit Given (the same names as Add Holding). Left blank, defaults
+            to Stocks.
           </li>
           <li>
             <strong style={{ color: "var(--text)" }}>Source</strong> — the cash account tied to the transaction (a bank/cash account). For a

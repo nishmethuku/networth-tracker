@@ -43,6 +43,7 @@ describe("groupBuyValueAndGain", () => {
     ];
     const result = groupBuyValueAndGain(holdings);
     expect(result.buyValue).toBe(1000); // only the first holding's buy value, not padded with a 0 for the second
+    expect(result.gainAmount).toBe(250); // the unknown holding's 500 is not counted as profit
   });
 
   it("returns null buyValue/gainAmount when nothing in the group has a known buy value", () => {
