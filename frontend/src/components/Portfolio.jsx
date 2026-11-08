@@ -726,6 +726,15 @@ export default function Portfolio() {
                     fontSize: "0.8125rem",
                   }}
                 >
+                  <span data-testid={`count-${type}`} style={{ color: "var(--text-secondary)" }}>
+                    {type === "cash" ? "Accounts" : "Holdings"}{" "}
+                    <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>{displayedHoldings.length}</strong>
+                  </span>
+                  {accounts.length > 1 && !selectedAccount && (
+                    <span style={{ color: "var(--text-secondary)" }}>
+                      {accounts.map((a) => `${a}: ${displayedHoldings.filter((h) => h.account === a).length}`).join(" · ")}
+                    </span>
+                  )}
                   <span style={{ color: "var(--text-secondary)" }}>
                     Total cost{" "}
                     <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>

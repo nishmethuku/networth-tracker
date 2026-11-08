@@ -1,5 +1,9 @@
 # Changelog
 
+## Counts at the top of each Portfolio section
+
+- **Cash & Bank Accounts** now says how many accounts you have, and how many are in each bank (for example "Accounts 4" and "Ally: 2 · Chase: 2"). The other sections show how many holdings they have. The numbers follow the account filter.
+
 ## Color schemes, and one date format everywhere
 
 - **Pick your color scheme.** Settings, then Display, now has six color schemes: Wine (the original), Ocean, Forest, Violet, Sunset and Graphite. Each one works in light and dark mode, is remembered on your device, and is checked for readable text.
