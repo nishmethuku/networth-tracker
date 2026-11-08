@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import Card from "./Card";
@@ -21,6 +21,7 @@ import { formatCurrencyForDisplay, formatCurrencyCompact, formatPercent, todayIS
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { CURRENCIES, LIABILITY_TYPE_OPTIONS, getLiabilityTypeLabel } from "../constants/enums";
 import { projectPayoff, monthsToPayoff } from "../utils/debtPayoff";
+import { refreshMoneyViews } from "../utils/refreshMoneyViews";
 
 const inputStyle = {
   width: "100%",
@@ -31,6 +32,7 @@ const inputStyle = {
   color: "var(--text)",
   fontSize: "0.9375rem",
 };
+const LAST_SOURCE_KEY = "nw.lastPaymentSource";
 const labelStyle = { fontSize: "0.8125rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.35rem" };
 
 const LIABILITY_ICONS = {
@@ -317,11 +319,26 @@ function RecordPaymentForm({ liability, onDone }) {
   const [amount, setAmount] = useState(liability.monthlyPayment ? String(liability.monthlyPayment) : "");
   const [date, setDate] = useState(todayISO());
   const [source, setSource] = useState("");
+  const sourceTouched = useRef(false);
 
   const { data: cashHoldings } = useQuery({
     queryKey: ["holdings", "cash"],
     queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
   });
+
+  // Start from the account used last time, or the only cash account there is, so a bill payment
+  // takes the money out of an account unless the person says otherwise.
+  useEffect(() => {
+    if (!cashHoldings || sourceTouched.current || source) return;
+    let remembered = "";
+    try {
+      remembered = localStorage.getItem(LAST_SOURCE_KEY) || "";
+    } catch {
+      /* storage can be blocked */
+    }
+    const pick = cashHoldings.find((c) => String(c.id) === remembered) || (cashHoldings.length === 1 ? cashHoldings[0] : null);
+    if (pick) setSource(String(pick.id));
+  }, [cashHoldings, source]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -332,15 +349,17 @@ function RecordPaymentForm({ liability, onDone }) {
         ...(source ? { funding_source_holding_id: Number(source) } : {}),
       }),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["liabilities"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      if (result.fundingSource) {
-        queryClient.invalidateQueries({ queryKey: ["holdings"] });
-        queryClient.invalidateQueries({ queryKey: ["holding", String(result.fundingSource.holdingId)] });
-        queryClient.invalidateQueries({ queryKey: ["holding-valuations", String(result.fundingSource.holdingId)] });
+      refreshMoneyViews(queryClient);
+      try {
+        localStorage.setItem(LAST_SOURCE_KEY, source);
+      } catch {
+        /* storage can be blocked */
       }
+      const account = result.fundingSource
+        ? ` The account you paid from is now ${formatCurrencyForDisplay(result.fundingSource.newBalance, result.fundingSource.currency, { includeCode: false })}.`
+        : "";
       toast.success(
-        `Payment recorded. ${liability.name} is now ${formatCurrencyForDisplay(result.liability.currentBalance, liability.currency, { includeCode: false })}`,
+        `Payment recorded. ${liability.name} is now ${formatCurrencyForDisplay(result.liability.currentBalance, liability.currency, { includeCode: false })}.${account}`,
       );
       onDone();
     },
@@ -391,8 +410,16 @@ function RecordPaymentForm({ liability, onDone }) {
           <label htmlFor={`${idBase}-source`} style={labelStyle}>
             Paid from
           </label>
-          <select id={`${idBase}-source`} value={source} onChange={(e) => setSource(e.target.value)} style={inputStyle}>
-            <option value="">— none (just lower the balance) —</option>
+          <select
+            id={`${idBase}-source`}
+            value={source}
+            onChange={(e) => {
+              sourceTouched.current = true;
+              setSource(e.target.value);
+            }}
+            style={inputStyle}
+          >
+            <option value="">Not from an account (only lower the balance)</option>
             {(cashHoldings || []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -404,8 +431,12 @@ function RecordPaymentForm({ liability, onDone }) {
       </div>
       <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.6rem 0 0" }}>
         This lowers the balance
-        {source ? " and takes the money out of the account you picked" : ""}. It is not added to Budget expenses, so spending is not counted
-        twice.
+        {source ? (
+          " and takes the money out of the account you picked"
+        ) : (
+          <strong style={{ color: "var(--warning)" }}>, but no account is debited. Pick one above to take the money out of it</strong>
+        )}
+        . It is not added to Budget expenses, so spending is not counted twice.
       </p>
       <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem" }}>
         <button

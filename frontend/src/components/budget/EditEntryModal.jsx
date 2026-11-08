@@ -5,6 +5,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { getAssetTypeLabel, CURRENCIES } from "../../constants/enums";
 import { todayISO } from "../../utils/formatters";
 import CategoryPicker from "./CategoryPicker";
+import { refreshMoneyViews } from "../../utils/refreshMoneyViews";
 
 const field = {
   width: "100%",
@@ -87,18 +88,7 @@ export default function EditEntryModal({ entry, categories, onClose }) {
   const mutation = useMutation({
     mutationFn: (payload) => updateBudgetEntry(entry.id, payload),
     onSuccess: () => {
-      for (const key of [
-        "budget-entries",
-        "budget-summary",
-        "budget-subscriptions",
-        "liabilities",
-        "holdings",
-        "holding",
-        "holding-valuations",
-        "dashboard",
-      ]) {
-        queryClient.invalidateQueries({ queryKey: [key] });
-      }
+      refreshMoneyViews(queryClient);
       toast.success("Entry updated");
       onClose();
     },

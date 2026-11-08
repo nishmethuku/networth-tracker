@@ -7,6 +7,7 @@ import { createBudgetEntry, fetchHoldings, fetchLiabilities, ApiError } from "..
 import { getAssetTypeLabel, CURRENCIES } from "../../constants/enums";
 import { formatCurrencyForDisplay, todayISO } from "../../utils/formatters";
 import CategoryPicker from "./CategoryPicker";
+import { refreshMoneyViews } from "../../utils/refreshMoneyViews";
 
 const RECURRING_FREQUENCIES = [
   { value: "weekly", label: "Weekly" },
@@ -124,9 +125,7 @@ export default function AddEntryForm({ categories, currency }) {
           : {}),
       }),
     onSuccess: (entry) => {
-      queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["budget-subscriptions"] });
+      refreshMoneyViews(queryClient);
       if (entry.fundingSource) {
         // String(...): matches HoldingDetail's useParams()-keyed (string) cache.
         queryClient.invalidateQueries({ queryKey: ["holding", String(entry.fundingSource.holdingId)] });

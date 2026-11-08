@@ -20,6 +20,19 @@ function renderPercentLabel({ cx, cy, midAngle, innerRadius, outerRadius, percen
   );
 }
 
+/** One slice per stock (or asset): several lots or accounts of the same symbol add up to a single slice. */
+export function combineHoldingSlices(holdings) {
+  const byLabel = new Map();
+  for (const h of holdings) {
+    const label = h.symbol || h.name;
+    byLabel.set(label, (byLabel.get(label) || 0) + (h.displayValue || 0));
+  }
+  return [...byLabel.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .filter((d) => d.value > 0)
+    .sort((a, b) => b.value - a.value);
+}
+
 const VIEW_DATA_KEYS = { type: "assetType", country: "country", currency: "currency" };
 
 export default function AllocationDonut({ allocationByType, allocationByCountry, allocationByCurrency, holdings, currency }) {
@@ -33,10 +46,7 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
     if (!drill || !holdings) return null;
     const field = VIEW_DATA_KEYS[drill.level];
     const matching = holdings.filter((h) => h[field] === drill.key);
-    return matching
-      .map((h) => ({ label: h.symbol || h.name, value: h.displayValue }))
-      .filter((d) => d.value > 0)
-      .sort((a, b) => b.value - a.value);
+    return combineHoldingSlices(matching);
   }, [drill, holdings]);
 
   const data = drillData || topLevelData;
