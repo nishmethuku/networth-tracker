@@ -1,5 +1,11 @@
 # Changelog
 
+## Edit buttons, totals for every section, and a simpler "Where your money is"
+
+- **Edit** now exists on history rows (real estate, cash and so on), on goals, on spending limits, and on price alerts. You no longer have to delete and add again to fix a number.
+- **Real estate, fixed deposit, PPF and EPF sections** now show their count and total value at the top, like the other sections.
+- **"Where your money is"** is now a plain list: each type with its amount, its percent, a thin bar, and a total. No donut chart.
+
 ## Edit a value in the history
 
 - On a holding that is tracked by value (real estate, cash, retirals and so on), each row in Value History now has an **Edit** button, so a wrong date or value can be fixed without deleting the row and adding it again.

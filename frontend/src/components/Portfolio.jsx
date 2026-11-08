@@ -713,7 +713,7 @@ export default function Portfolio() {
                 )}
               </div>
 
-              {accounts.length > 0 && (
+              {(accounts.length > 0 || displayedHoldings.length > 0) && (
                 <div
                   style={{
                     display: "flex",

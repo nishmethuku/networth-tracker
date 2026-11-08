@@ -298,6 +298,10 @@ export async function createAlert(payload: any) {
   return mapAlert(data);
 }
 
+export async function updateAlert(id: number | string, payload: { threshold: number }) {
+  return api.put(`/alerts/${id}`, payload);
+}
+
 export async function deleteAlert(id: number | string) {
   await api.delete(`/alerts/${id}`);
 }

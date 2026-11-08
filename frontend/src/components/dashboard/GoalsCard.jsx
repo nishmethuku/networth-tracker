@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Card from "../Card";
 import EmptyState from "../EmptyState";
 import { useToast } from "../../contexts/ToastContext";
-import { fetchGoals, createGoal, deleteGoal, ApiError } from "../../api";
+import { fetchGoals, createGoal, updateGoal, deleteGoal, ApiError } from "../../api";
 import { formatCurrencyForDisplay } from "../../utils/formatters";
 import { CURRENCIES } from "../../constants/enums";
 import { goalEta } from "../../utils/goalEta";
@@ -31,7 +31,7 @@ function daysRemaining(targetDate) {
   return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
 
-function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete }) {
+function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete, onEdit }) {
   const sameCurrency = goal.currency === displayCurrency;
   const pct = sameCurrency && goal.targetAmount > 0 ? Math.min(100, (currentNetWorth / goal.targetAmount) * 100) : null;
   const remaining = sameCurrency ? Math.max(0, goal.targetAmount - currentNetWorth) : null;
@@ -50,6 +50,21 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete }) 
           <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
             {formatCurrencyForDisplay(goal.targetAmount, goal.currency, { includeCode: false })}
           </span>
+          <button
+            aria-label={`Edit goal ${goal.name}`}
+            onClick={() => onEdit(goal)}
+            style={{
+              fontSize: "0.7rem",
+              background: "transparent",
+              border: "1px solid var(--border)",
+              color: "var(--text)",
+              padding: "0.1rem 0.4rem",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+            }}
+          >
+            Edit
+          </button>
           <button
             aria-label="Delete goal"
             onClick={() => onDelete(goal.id)}
@@ -119,25 +134,32 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete }) 
   );
 }
 
-function AddGoalForm({ onDone, defaultCurrency }) {
+function AddGoalForm({ onDone, defaultCurrency, goal }) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [form, setForm] = useState({ name: "", target_amount: "", currency: defaultCurrency, target_date: "" });
+  const editing = !!goal;
+  const [form, setForm] = useState(
+    editing
+      ? { name: goal.name, target_amount: String(goal.targetAmount), currency: goal.currency, target_date: goal.targetDate || "" }
+      : { name: "", target_amount: "", currency: defaultCurrency, target_date: "" },
+  );
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createGoal({
+    mutationFn: () => {
+      const payload = {
         name: form.name,
         target_amount: parseFloat(form.target_amount),
         currency: form.currency,
         target_date: form.target_date || null,
-      }),
+      };
+      return editing ? updateGoal(goal.id, payload) : createGoal(payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
-      toast.success("Goal added");
+      toast.success(editing ? "Goal updated" : "Goal added");
       onDone();
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add goal"),
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : editing ? "Failed to update goal" : "Failed to add goal"),
   });
 
   function handleSubmit(e) {
@@ -213,8 +235,25 @@ function AddGoalForm({ onDone, defaultCurrency }) {
           fontSize: "0.8125rem",
         }}
       >
-        {mutation.isPending ? "Adding…" : "Add goal"}
+        {mutation.isPending ? "Saving…" : editing ? "Save changes" : "Add goal"}
       </button>
+      {editing && (
+        <button
+          type="button"
+          onClick={onDone}
+          style={{
+            padding: "0.5rem 0.75rem",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            color: "var(--text)",
+            cursor: "pointer",
+            fontSize: "0.8125rem",
+          }}
+        >
+          Cancel
+        </button>
+      )}
     </form>
   );
 }
@@ -223,6 +262,7 @@ export default function GoalsCard({ currentNetWorth, displayCurrency, history })
   const queryClient = useQueryClient();
   const toast = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(null);
 
   const { data: goals, isLoading } = useQuery({ queryKey: ["goals"], queryFn: fetchGoals });
 
@@ -250,6 +290,10 @@ export default function GoalsCard({ currentNetWorth, displayCurrency, history })
               displayCurrency={displayCurrency}
               history={history}
               onDelete={(id) => deleteMutation.mutate(id)}
+              onEdit={(g) => {
+                setShowForm(false);
+                setEditingGoal(g);
+              }}
             />
           ))}
         </div>
@@ -261,7 +305,9 @@ export default function GoalsCard({ currentNetWorth, displayCurrency, history })
         </Link>{" "}
         to see where you could be in 10 or 20 years and when you could reach financial independence.
       </p>
-      {showForm ? (
+      {editingGoal ? (
+        <AddGoalForm key={editingGoal.id} goal={editingGoal} defaultCurrency={displayCurrency} onDone={() => setEditingGoal(null)} />
+      ) : showForm ? (
         <AddGoalForm defaultCurrency={displayCurrency} onDone={() => setShowForm(false)} />
       ) : (
         <button

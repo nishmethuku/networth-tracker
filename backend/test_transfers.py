@@ -111,3 +111,15 @@ def test_other_user_cannot_edit_a_valuation_row(client):
     vid = a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["id"]
     assert b(client, "put", f"/valuations/{vid}", {"value": 1}).status_code in (403, 404)
     assert a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["value"] == 500
+
+
+def test_alert_target_can_be_edited_and_goal_edit_is_owner_only(client):
+    from backend.test_categories_and_entry_edit import b
+
+    r = a(client, "post", "/alerts", {"alert_type": "net_worth_above", "threshold": 1000, "currency": "USD"})
+    assert r.status_code == 201, r.get_json()
+    aid = r.get_json()["id"]
+    r = a(client, "put", f"/alerts/{aid}", {"threshold": 2500})
+    assert r.status_code == 200 and r.get_json()["threshold"] == 2500
+    assert a(client, "put", f"/alerts/{aid}", {"threshold": 0}).status_code == 400
+    assert b(client, "put", f"/alerts/{aid}", {"threshold": 5}).status_code in (403, 404)

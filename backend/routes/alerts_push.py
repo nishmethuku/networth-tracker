@@ -67,6 +67,23 @@ def register(app, h):
         db.session.commit()
         return jsonify(alert.to_dict()), 201
 
+    @app.route("/alerts/<int:alert_id>", methods=["PUT"])
+    @require_auth
+    def update_alert(alert_id):
+        """Changes an alert's target. A triggered alert becomes active again."""
+        alert = PriceAlert.query.get_or_404(alert_id)
+        if str(alert.user_id) != str(g.user_id):
+            abort(403)
+        data = request.get_json(force=True)
+        threshold = safe_float(data.get("threshold"))
+        if not threshold or threshold <= 0:
+            return jsonify({"error": "threshold must be greater than 0"}), 400
+        alert.threshold = threshold
+        alert.status = "active"
+        alert.triggered_at = None
+        db.session.commit()
+        return jsonify(alert.to_dict())
+
     @app.route("/alerts/<int:alert_id>", methods=["DELETE"])
     @require_auth
     def delete_alert(alert_id):

@@ -1,24 +1,10 @@
 import { useMemo, useState } from "react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { formatCurrencyCompact } from "../../utils/formatters";
+import { formatCurrencyForDisplay } from "../../utils/formatters";
 import { getAssetTypeLabel } from "../../constants/enums";
 
 // A coordinated jewel-tone set (wine/gold/teal/etc.) that reads as
 // deliberately designed rather than a default rainbow of primaries.
 const COLORS = ["#7D2E42", "#B4872E", "#3F7D6B", "#5B6E9C", "#A6564B", "#6B7D3F", "#8A5A9C", "#4A8FA8", "#C77B4A", "#7D4A6E"];
-
-const RADIAN = Math.PI / 180;
-function renderPercentLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }) {
-  if (percent < 0.04) return null; // skip slivers too thin to hold readable text
-  const radius = innerRadius + (outerRadius - innerRadius) / 2;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  return (
-    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
-      {`${Math.round(percent * 100)}%`}
-    </text>
-  );
-}
 
 /** One slice per stock (or asset): several lots or accounts of the same symbol add up to a single slice. */
 export function combineHoldingSlices(holdings) {
@@ -117,59 +103,34 @@ export default function AllocationDonut({ allocationByType, allocationByCountry,
         </div>
       </div>
 
-      <div style={{ width: "100%", height: 260 }}>
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="label"
-              cx="50%"
-              cy="50%"
-              innerRadius={55}
-              outerRadius={95}
-              paddingAngle={3}
-              label={renderPercentLabel}
-              labelLine={false}
-              onClick={handleSliceClick}
-              isAnimationActive={true}
-              cursor={drillData ? "default" : "pointer"}
+      <ul style={{ listStyle: "none", margin: 0, padding: 0 }} aria-label="Where your money is">
+        {data.map((entry, index) => {
+          const pct = total > 0 ? (entry.value / total) * 100 : 0;
+          return (
+            <li
+              key={entry.label}
+              style={{ padding: "0.5rem 0", borderBottom: "1px solid var(--border-light)", cursor: drillData ? "default" : "pointer" }}
+              onClick={() => handleSliceClick(entry)}
             >
-              {data.map((entry, index) => (
-                <Cell key={entry.label} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(v, name) => [
-                `${formatCurrencyCompact(v, currency)} (${total > 0 ? Math.round((v / total) * 100) : 0}%)`,
-                labelFor(name),
-              ]}
-              contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", justifyContent: "center", marginTop: "0.25rem" }}>
-        {data.map((entry, index) => (
-          <div
-            key={entry.label}
-            onClick={() => handleSliceClick(entry)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              fontSize: "0.8125rem",
-              cursor: drillData ? "default" : "pointer",
-            }}
-          >
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[index % COLORS.length] }} />
-            <span>{labelFor(entry.label)}</span>
-            {/* The slice itself skips its label below 4% to avoid unreadable
-                clutter, and there's no hover on mobile anyway — the legend
-                is every category's one guaranteed place to show a percent. */}
-            <span style={{ color: "var(--text-muted)" }}>{total > 0 ? Math.round((entry.value / total) * 100) : 0}%</span>
-          </div>
-        ))}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", fontSize: "0.875rem" }}>
+                <span style={{ color: "var(--text)", fontWeight: 600 }}>{labelFor(entry.label)}</span>
+                <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
+                  {formatCurrencyForDisplay(entry.value, currency, { includeCode: false })}{" "}
+                  <span style={{ color: "var(--text-muted)" }}>· {pct < 1 && pct > 0 ? "<1" : Math.round(pct)}%</span>
+                </span>
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: "var(--bg-secondary)", overflow: "hidden", marginTop: "0.35rem" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: COLORS[index % COLORS.length], borderRadius: 3 }} />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", fontWeight: 700, paddingTop: "0.6rem" }}>
+        <span style={{ color: "var(--text)" }}>Total</span>
+        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
+          {formatCurrencyForDisplay(total, currency, { includeCode: false })}
+        </span>
       </div>
     </div>
   );
