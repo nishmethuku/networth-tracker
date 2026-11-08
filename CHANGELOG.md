@@ -1,5 +1,9 @@
 # Changelog
 
+## Fix: net worth history chart
+
+- The net worth history chart and its "rebuild history" button were failing with an error on the live site. Both work again.
+
 ## Loan balances update themselves each month
 
 - **Automatic monthly updates (EMI method).** On a liability, enter the balance, the interest rate and the remaining months, then tick "Update the balance automatically each month". If you leave the monthly payment blank, the app works out the EMI for you. Each month the interest (balance times rate divided by 12) is added and the payment is taken off, until the loan reaches zero.

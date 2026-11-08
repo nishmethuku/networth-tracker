@@ -45,7 +45,7 @@ def register(app, h):
         converts to ?currency= (default USD) before returning — otherwise a
         user on a non-USD display currency would see raw USD figures under
         their currency's symbol, off by the exchange rate."""
-        from .models import NetWorthSnapshot
+        from ..models import NetWorthSnapshot
 
         household_id_param = request.args.get("household_id")
         display_currency = request.args.get("currency", "USD").upper()
@@ -80,7 +80,7 @@ def register(app, h):
         transactions and historical prices. Body {"apply": false} (the
         default) only previews; {"apply": true} saves. Never overwrites an
         existing snapshot."""
-        from .history_rebuild_service import rebuild_history
+        from ..history_rebuild_service import rebuild_history
 
         data = request.get_json(silent=True) or {}
         result = rebuild_history(g.user_id, apply=bool(data.get("apply")))
