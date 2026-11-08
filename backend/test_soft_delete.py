@@ -284,6 +284,7 @@ def test_export_excludes_deleted_holdings_and_transactions():
          patch("backend.account_service.NetWorthSnapshot", _empty_cls()), \
          patch("backend.account_service.Account", _empty_cls()), \
          patch("backend.account_service.Liability", _empty_cls()), \
+         patch("backend.account_service.AccountTransfer", _empty_cls()), \
          patch("backend.account_service.Goal", _empty_cls()), \
          patch("backend.account_service.AllocationTarget", _empty_cls()), \
          patch("backend.account_service.BudgetEntry", _empty_cls()), \

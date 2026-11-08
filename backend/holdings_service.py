@@ -159,6 +159,7 @@ def build_funding_valuation(
     amount_currency: str,
     on_date: date,
     acting_user_id,
+    notes: str = "Used to fund a purchase",
 ) -> HoldingValuation:
     """
     Build (uncommitted) the valuation entry that records spending money out
@@ -196,7 +197,7 @@ def build_funding_valuation(
         valuation_date=on_date,
         value=baseline - converted_amount,
         currency=source_holding.currency,
-        notes="Used to fund a purchase",
+        notes=notes,
     )
 
 

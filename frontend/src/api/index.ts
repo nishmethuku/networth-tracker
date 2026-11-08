@@ -934,3 +934,36 @@ export async function pullSyncConnection(id: number) {
 export async function disconnectSyncConnection(id: number) {
   return api.delete(`/sync/connections/${id}`);
 }
+
+export interface AccountTransfer {
+  id: number;
+  from_holding_id: number | null;
+  to_holding_id: number | null;
+  from_name: string;
+  to_name: string;
+  amount: number;
+  currency: string;
+  transfer_date: string;
+  note: string | null;
+}
+
+/** The person's recent transfers between their own cash accounts, newest first. */
+export async function fetchTransfers(): Promise<AccountTransfer[]> {
+  return (await api.get("/transfers")) || [];
+}
+
+/** Moves money from one cash account to another. It is not an expense or income. */
+export async function createTransfer(payload: {
+  from_holding_id: number | string;
+  to_holding_id: number | string;
+  amount: number;
+  transfer_date?: string;
+  note?: string;
+}) {
+  return api.post("/transfers", payload);
+}
+
+/** Puts the money back where it came from and removes the record. */
+export async function deleteTransfer(id: number | string) {
+  return api.delete(`/transfers/${id}`);
+}
