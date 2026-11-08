@@ -123,3 +123,12 @@ def test_alert_target_can_be_edited_and_goal_edit_is_owner_only(client):
     assert r.status_code == 200 and r.get_json()["threshold"] == 2500
     assert a(client, "put", f"/alerts/{aid}", {"threshold": 0}).status_code == 400
     assert b(client, "put", f"/alerts/{aid}", {"threshold": 5}).status_code in (403, 404)
+
+def test_account_less_holdings_can_be_created_without_an_account(client):
+    for kind in ("real_estate", "fixed_deposit", "ppf", "epf"):
+        r = a(client, "post", "/holdings", {"asset_type": kind, "name": f"No Acct {kind}", "country": "India", "account": "", "currency": "INR"})
+        assert r.status_code == 201, (kind, r.get_json())
+    # A stock still needs an account.
+    r = a(client, "post", "/holdings", {"asset_type": "stock", "name": "X", "symbol": "X", "country": "United States", "account": "", "currency": "USD"})
+    assert r.status_code == 400
+    assert "account" in r.get_json()["error"]

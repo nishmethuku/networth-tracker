@@ -344,7 +344,12 @@ def create_app():
         household_id = data.get("household_id")
         validate_household_id_for_write(household_id)
 
-        required = ("asset_type", "name", "country", "account", "currency")
+        # Real estate, fixed deposits, PPF and EPF do not sit in an account,
+        # so the form sends a blank one; it must not count as missing.
+        account_less = data.get("asset_type") in ("real_estate", "fixed_deposit", "ppf", "epf")
+        if account_less and not data.get("account"):
+            data["account"] = ""
+        required = ("asset_type", "name", "country", "currency") + (() if account_less else ("account",))
         missing = [f for f in required if not data.get(f)]
         if missing:
             return jsonify({"error": f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} required"}), 400

@@ -10,6 +10,10 @@
 
 - On a holding that is tracked by value (real estate, cash, retirals and so on), each row in Value History now has an **Edit** button, so a wrong date or value can be fixed without deleting the row and adding it again.
 
+## Fix: "account is required" when adding real estate
+
+- Adding real estate, a fixed deposit, PPF or EPF failed with "account is required". These do not sit in an account, so they now save without one.
+
 ## Free live prices for gold, silver and platinum
 
 - Live metal prices no longer need a paid price key. They now come from a free source, priced per troy ounce and converted to your currency. If a paid key is ever set, it is still used first.
