@@ -540,6 +540,8 @@ METALS_API_KEY = os.environ.get("METALS_API_KEY")
 
 # metals-api.com symbol for each supported commodity
 METAL_SYMBOLS = {"gold": "XAU", "silver": "XAG", "platinum": "XPT"}
+# Free keyless fallback: Yahoo futures tickers (USD per troy ounce)
+METAL_YAHOO_TICKERS = {"XAU": "GC=F", "XAG": "SI=F", "XPT": "PL=F"}
 
 
 def get_crypto_price(coingecko_id: str, currency: str = "usd"):
@@ -598,14 +600,11 @@ def get_crypto_historical_price(coingecko_id: str, target_date: date, currency: 
 
 def get_metal_price(metal: str, currency: str = "USD"):
     """
-    Live price for one troy ounce of gold/silver/platinum, via metals-api.com.
-    Requires METALS_API_KEY (free tier). Returns None if the key isn't set
-    or the request fails — callers should treat that as "price unavailable",
+    Live price for one troy ounce of gold/silver/platinum. Uses metals-api.com
+    when METALS_API_KEY is set, otherwise the free Yahoo futures price.
+    Returns None if the request fails — callers should treat that as "price unavailable",
     same as an unconfigured FINNHUB_API_KEY.
     """
-    if not METALS_API_KEY:
-        return None
-
     symbol = METAL_SYMBOLS.get((metal or "").strip().lower())
     if not symbol:
         return None
@@ -617,6 +616,19 @@ def get_metal_price(metal: str, currency: str = "USD"):
         cached_price, cached_time = _PRICE_CACHE[cache_key]
         if current_time - cached_time < _CACHE_TTL:
             return cached_price
+
+    if not METALS_API_KEY:
+        # No paid key: use the free Yahoo futures price (USD per troy ounce)
+        # and convert to the requested currency.
+        usd = get_historical_price_from_yahoo(METAL_YAHOO_TICKERS[symbol], date.today())
+        if not usd:
+            return None
+        rate = get_exchange_rate("USD", currency) if currency != "USD" else 1.0
+        if not rate:
+            return None
+        price = float(usd) * float(rate)
+        _PRICE_CACHE[cache_key] = (price, current_time)
+        return price
 
     try:
         response = requests.get(
