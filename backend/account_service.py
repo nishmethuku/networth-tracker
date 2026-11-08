@@ -21,10 +21,10 @@ import requests
 from .budget_service import ensure_seeded
 from .models import (
     Account,
+    AccountTransfer,
     AllocationTarget,
     AuditEvent,
     BudgetCategory,
-    AccountTransfer,
     BudgetCategorySeed,
     BudgetEntry,
     BudgetLimit,

@@ -7,7 +7,17 @@ test("moving money between two cash accounts sends one transfer and lists it wit
   await mockBackend(page);
   let sent: any = null;
   let undone = false;
-  const record = { id: 3, from_holding_id: 8, to_holding_id: 9, from_name: "Checking", to_name: "Savings", amount: 75, currency: "USD", transfer_date: "2026-11-01", note: null };
+  const record = {
+    id: 3,
+    from_holding_id: 8,
+    to_holding_id: 9,
+    from_name: "Checking",
+    to_name: "Savings",
+    amount: 75,
+    currency: "USD",
+    transfer_date: "2026-11-01",
+    note: null,
+  };
   await page.route(`${API_BASE}/holdings**`, (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([checking, savings]) }),
   );

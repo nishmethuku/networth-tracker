@@ -8,7 +8,16 @@ import ErrorState from "./ErrorState";
 import AddEntryForm from "./budget/AddEntryForm";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { fetchHoldings, fetchLiabilities, fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, updateBudgetEntry, ApiError } from "../api";
+import {
+  fetchHoldings,
+  fetchLiabilities,
+  fetchBudgetCategories,
+  fetchBudgetEntries,
+  deleteBudgetEntry,
+  createBudgetEntry,
+  updateBudgetEntry,
+  ApiError,
+} from "../api";
 import { orderCategoryOptions } from "../utils/categoryTree";
 import EditEntryModal from "./budget/EditEntryModal";
 import ExpenseInsights from "./budget/ExpenseInsights";
@@ -643,7 +652,9 @@ export default function Expenses() {
       ) : isError ? (
         <ErrorState error={error instanceof ApiError ? error.message : "Failed to load expenses"} onRetry={refetch} />
       ) : days.length === 0 ? (
-        <EmptyState message={search || categoryFilter || paidWith ? "No entries match that search." : `Nothing logged in ${monthLabel(month)} yet.`} />
+        <EmptyState
+          message={search || categoryFilter || paidWith ? "No entries match that search." : `Nothing logged in ${monthLabel(month)} yet.`}
+        />
       ) : sortBiggest ? (
         <Card title="Biggest first">{flat.map(renderRow)}</Card>
       ) : (

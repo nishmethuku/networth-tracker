@@ -16,15 +16,22 @@ const e = (id: number, amount: number, description: string, extra: Record<string
   created_at: "2026-01-01T00:00:00Z",
   ...extra,
 });
-const rows = [
-  e(1, 5, "Snack", { charged_liability_id: 5 }),
-  e(2, 50, "Dinner", { funding_holding_id: 9 }),
-  e(3, 500, "Flight", {}),
-];
+const rows = [e(1, 5, "Snack", { charged_liability_id: 5 }), e(2, 50, "Dinner", { funding_holding_id: 9 }), e(3, 500, "Flight", {})];
 const savings = { ...sampleHolding, id: 9, asset_type: "cash", symbol: null, name: "Savings", account: "Chase", quantity: null };
 const visa = {
-  id: 5, user_id: "x", household_id: null, name: "Visa", liability_type: "credit_card", currency: "USD", current_balance: 800,
-  original_amount: null, interest_rate: 20, notes: null, is_private: false, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+  id: 5,
+  user_id: "x",
+  household_id: null,
+  name: "Visa",
+  liability_type: "credit_card",
+  currency: "USD",
+  current_balance: 800,
+  original_amount: null,
+  interest_rate: 20,
+  notes: null,
+  is_private: false,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
 };
 
 test("list expenses by the card or account they were paid from", async ({ mockedPage: page }) => {
