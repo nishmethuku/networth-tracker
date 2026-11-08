@@ -1,5 +1,9 @@
 # Changelog
 
+## Fix: "account is required" when adding real estate
+
+- Adding real estate, a fixed deposit, PPF or EPF failed with "account is required". These do not sit in an account, so they now save without one.
+
 ## Free live prices for gold, silver and platinum
 
 - Live metal prices no longer need a paid price key. They now come from a free source, priced per troy ounce and converted to your currency. If a paid key is ever set, it is still used first.
