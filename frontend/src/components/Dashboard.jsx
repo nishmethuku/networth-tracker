@@ -397,6 +397,23 @@ export default function Dashboard() {
               marginBottom: "1.5rem",
             }}
           >
+            {/* Where your money is: a plain list by type/country/currency, first so the numbers are near the top */}
+            {show("allocation") && (
+              <Card title={t("dashboard.whereYourMoneyIs")}>
+                <ErrorBoundary mode="section" fallbackMessage="The allocation chart couldn't load.">
+                  <ChartBoundary>
+                    <AllocationDonut
+                      allocationByType={dashboard.allocationByType}
+                      allocationByCountry={dashboard.allocationByCountry}
+                      allocationByCurrency={dashboard.allocationByCurrency}
+                      holdings={holdings}
+                      currency={currency}
+                    />
+                  </ChartBoundary>
+                </ErrorBoundary>
+              </Card>
+            )}
+
             {/* Net worth over time */}
             {show("chart") && (
               <Card title={t("dashboard.netWorthOverTime")}>
@@ -432,23 +449,6 @@ export default function Dashboard() {
                       Download history (CSV)
                     </button>
                   )}
-                </ErrorBoundary>
-              </Card>
-            )}
-
-            {/* Allocation donut, drillable by type/country */}
-            {show("allocation") && (
-              <Card title={t("dashboard.whereYourMoneyIs")}>
-                <ErrorBoundary mode="section" fallbackMessage="The allocation chart couldn't load.">
-                  <ChartBoundary>
-                    <AllocationDonut
-                      allocationByType={dashboard.allocationByType}
-                      allocationByCountry={dashboard.allocationByCountry}
-                      allocationByCurrency={dashboard.allocationByCurrency}
-                      holdings={holdings}
-                      currency={currency}
-                    />
-                  </ChartBoundary>
                 </ErrorBoundary>
               </Card>
             )}

@@ -4,7 +4,7 @@
 
 - **Edit** now exists on history rows (real estate, cash and so on), on goals, on spending limits, and on price alerts. You no longer have to delete and add again to fix a number.
 - **Real estate, fixed deposit, PPF and EPF sections** now show their count and total value at the top, like the other sections.
-- **"Where your money is"** is now a plain list: each type with its amount, its percent, a thin bar, and a total. No donut chart.
+- **"Where your money is"** is now a plain list: each type with its amount, its percent, a thin bar, and a total. No donut chart. It now sits first on the Net Worth page, above the history chart.
 
 ## Edit a value in the history
 
