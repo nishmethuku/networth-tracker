@@ -90,3 +90,24 @@ def test_two_debits_on_the_same_day_both_come_out_of_the_balance(client):
     assert move(client, savings, other, 200).status_code == 201
     assert balance(client, savings) == 650
     assert balance(client, other) == 700
+
+
+def test_valuation_row_can_be_edited(client):
+    hid = cash_account_today(client, "Edit Row", 500)
+    vals = a(client, "get", f"/holdings/{hid}/valuations").get_json()
+    vid = vals[0]["id"]
+    r = a(client, "put", f"/valuations/{vid}", {"value": 650, "valuation_date": date.today().isoformat()})
+    assert r.status_code == 200, r.get_json()
+    assert r.get_json()["value"] == 650
+    assert a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["value"] == 650
+    assert a(client, "put", f"/valuations/{vid}", {"valuation_date": "nope"}).status_code == 400
+    assert a(client, "put", f"/valuations/{vid}", {"value": ""}).status_code == 400
+
+
+def test_other_user_cannot_edit_a_valuation_row(client):
+    from backend.test_categories_and_entry_edit import b
+
+    hid = cash_account_today(client, "Not Yours", 500)
+    vid = a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["id"]
+    assert b(client, "put", f"/valuations/{vid}", {"value": 1}).status_code in (403, 404)
+    assert a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["value"] == 500

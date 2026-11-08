@@ -29,6 +29,7 @@ def test_route_table_is_complete(app):
         "/dashboard",
         "/holdings",
         "/budget/entries",
+        "/valuations/<int:valuation_id>",
         "/budget/year",
         "/budget/recurring/log-due",
         "/liabilities/<int:liability_id>/payments",

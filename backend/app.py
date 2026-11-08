@@ -681,6 +681,27 @@ def create_app():
         db.session.commit()
         return jsonify(val.to_dict()), 201
 
+    @app.route("/valuations/<int:valuation_id>", methods=["PUT"])
+    @require_auth
+    def update_valuation(valuation_id):
+        """Fixes a wrong date or value on an existing history row."""
+        val = HoldingValuation.query.get_or_404(valuation_id)
+        get_authorized_holding(val.holding_id, require_write=True)
+        data = request.get_json(force=True)
+        if "valuation_date" in data:
+            try:
+                val.valuation_date = date.fromisoformat(data["valuation_date"])
+            except (TypeError, ValueError):
+                return jsonify({"error": "valuation_date must be YYYY-MM-DD"}), 400
+        if "value" in data:
+            if data["value"] in (None, ""):
+                return jsonify({"error": "value is required"}), 400
+            val.value = safe_float(data["value"])
+        if "notes" in data:
+            val.notes = data["notes"]
+        db.session.commit()
+        return jsonify(val.to_dict())
+
     @app.route("/valuations/<int:valuation_id>", methods=["DELETE"])
     @require_auth
     def delete_valuation(valuation_id):

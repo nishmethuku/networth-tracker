@@ -20,6 +20,7 @@ import {
   createValuation,
   deleteTransaction,
   deleteValuation,
+  updateValuation,
   ApiError,
 } from "../api";
 import { formatCurrencyForDisplay, formatPercent, safeNumber, formatDateISO, todayISO } from "../utils/formatters";
@@ -36,12 +37,17 @@ const inputStyle = {
   fontSize: "0.875rem",
 };
 
-function AddValuationForm({ holding, onDone }) {
+function AddValuationForm({ holding, onDone, valuation }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ valuation_date: todayISO(), value: "" });
+  const editing = !!valuation;
+  const [form, setForm] = useState(
+    editing
+      ? { valuation_date: String(valuation.valuationDate).slice(0, 10), value: String(valuation.value) }
+      : { valuation_date: todayISO(), value: "" },
+  );
 
   const mutation = useMutation({
-    mutationFn: (payload) => createValuation(holding.id, payload),
+    mutationFn: (payload) => (editing ? updateValuation(valuation.id, payload) : createValuation(holding.id, payload)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holding", String(holding.id)] });
       queryClient.invalidateQueries({ queryKey: ["holding-valuations", String(holding.id)] });
@@ -108,8 +114,25 @@ function AddValuationForm({ holding, onDone }) {
           fontWeight: 600,
         }}
       >
-        {mutation.isPending ? "Saving..." : "Add Update"}
+        {mutation.isPending ? "Saving..." : editing ? "Save changes" : "Add Update"}
       </button>
+      {editing && (
+        <button
+          type="button"
+          onClick={onDone}
+          style={{
+            padding: "0.625rem 1.25rem",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            color: "var(--text)",
+            cursor: "pointer",
+            fontWeight: 500,
+          }}
+        >
+          Cancel
+        </button>
+      )}
     </form>
   );
 }
@@ -253,6 +276,8 @@ export default function HoldingDetail() {
     },
   });
 
+  const [editingVal, setEditingVal] = useState(null);
+
   const deleteValMutation = useMutation({
     mutationFn: deleteValuation,
     onSuccess: () => {
@@ -378,7 +403,10 @@ export default function HoldingDetail() {
             {quantityBased ? "Transaction History" : "Value History"}
           </h2>
           <button
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => {
+              setEditingVal(null);
+              setShowAddForm(!showAddForm);
+            }}
             style={{
               padding: "0.5rem 1rem",
               borderRadius: "var(--radius)",
@@ -401,6 +429,12 @@ export default function HoldingDetail() {
             ) : (
               <AddValuationForm holding={holding} onDone={() => setShowAddForm(false)} />
             )}
+          </Card>
+        )}
+
+        {editingVal && !quantityBased && (
+          <Card title="Edit entry">
+            <AddValuationForm key={editingVal.id} holding={holding} valuation={editingVal} onDone={() => setEditingVal(null)} />
           </Card>
         )}
 
@@ -519,7 +553,24 @@ export default function HoldingDetail() {
                         <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                           {formatCurrencyForDisplay(v.value, v.currency)}
                         </td>
-                        <td style={{ padding: "0.6rem" }}>
+                        <td style={{ padding: "0.6rem", whiteSpace: "nowrap" }}>
+                          <button
+                            onClick={() => {
+                              setShowAddForm(false);
+                              setEditingVal(v);
+                            }}
+                            aria-label={`Edit entry from ${formatDateISO(v.valuationDate)}`}
+                            style={{
+                              fontSize: "0.75rem",
+                              marginRight: "0.5rem",
+                              background: "var(--card)",
+                              color: "var(--text)",
+                              border: "1px solid var(--border)",
+                              padding: "0.3rem 0.6rem",
+                            }}
+                          >
+                            Edit
+                          </button>
                           <button
                             onClick={() => deleteValMutation.mutate(v.id)}
                             style={{
