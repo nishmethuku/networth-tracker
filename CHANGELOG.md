@@ -1,5 +1,9 @@
 # Changelog
 
+## Gold and metals use the value you enter (no live prices)
+
+- **Gold & Metals are no longer priced live.** Like real estate, they are worth the units times the price you entered, so the total matches what you typed. To change the value, edit the entry. This stays until live prices are switched back on.
+
 ## Fix: "account is required" when adding real estate
 
 - Adding real estate, a fixed deposit, PPF or EPF failed with "account is required". These do not sit in an account, so they now save without one.
