@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchAlerts, createAlert, deleteAlert, fetchHoldings, ApiError } from "../api";
+import { fetchAlerts, createAlert, updateAlert, deleteAlert, fetchHoldings, ApiError } from "../api";
 import Card from "./Card";
 import PushNotificationCard from "./PushNotificationCard";
 import LoadingState from "./LoadingState";
@@ -41,6 +41,16 @@ export default function Alerts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
       setForm({ kind: "price", holdingId: "", direction: "above", threshold: "", currency: "USD" });
+    },
+  });
+
+  const [editingAlert, setEditingAlert] = useState(null);
+  const [editThreshold, setEditThreshold] = useState("");
+  const editMutation = useMutation({
+    mutationFn: ({ id, threshold }) => updateAlert(id, { threshold }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["alerts"] });
+      setEditingAlert(null);
     },
   });
 
@@ -206,12 +216,64 @@ export default function Alerts() {
                     <strong>{a.symbol || "Net Worth"}</strong> {a.alertType.replaceAll("_", " ")} {a.threshold.toLocaleString()}{" "}
                     {a.currency}
                   </span>
-                  <button
-                    onClick={() => deleteMutation.mutate(a.id)}
-                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "var(--text-inverse)", padding: "0.4rem 0.75rem" }}
-                  >
-                    Delete
-                  </button>
+                  <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    {editingAlert === a.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const t = parseFloat(editThreshold);
+                          if (t > 0) editMutation.mutate({ id: a.id, threshold: t });
+                        }}
+                        style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+                      >
+                        <input
+                          aria-label="New alert target"
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={editThreshold}
+                          onChange={(e) => setEditThreshold(e.target.value)}
+                          style={{ ...inputStyle, width: "130px", padding: "0.4rem 0.6rem" }}
+                          required
+                        />
+                        <button
+                          type="submit"
+                          disabled={editMutation.isPending}
+                          style={{ fontSize: "0.8125rem", padding: "0.4rem 0.75rem" }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingAlert(null)}
+                          style={{ fontSize: "0.8125rem", padding: "0.4rem 0.75rem" }}
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingAlert(a.id);
+                          setEditThreshold(String(a.threshold));
+                        }}
+                        style={{ fontSize: "0.8125rem", padding: "0.4rem 0.75rem" }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteMutation.mutate(a.id)}
+                      style={{
+                        fontSize: "0.8125rem",
+                        background: "var(--danger)",
+                        color: "var(--text-inverse)",
+                        padding: "0.4rem 0.75rem",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </span>
                 </div>
               </Card>
             ))}
@@ -230,12 +292,64 @@ export default function Alerts() {
                     <strong>{a.symbol || "Net Worth"}</strong> {a.alertType.replaceAll("_", " ")} {a.threshold.toLocaleString()}{" "}
                     {a.currency}
                   </span>
-                  <button
-                    onClick={() => deleteMutation.mutate(a.id)}
-                    style={{ fontSize: "0.8125rem", background: "var(--danger)", color: "var(--text-inverse)", padding: "0.4rem 0.75rem" }}
-                  >
-                    Delete
-                  </button>
+                  <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    {editingAlert === a.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const t = parseFloat(editThreshold);
+                          if (t > 0) editMutation.mutate({ id: a.id, threshold: t });
+                        }}
+                        style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+                      >
+                        <input
+                          aria-label="New alert target"
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={editThreshold}
+                          onChange={(e) => setEditThreshold(e.target.value)}
+                          style={{ ...inputStyle, width: "130px", padding: "0.4rem 0.6rem" }}
+                          required
+                        />
+                        <button
+                          type="submit"
+                          disabled={editMutation.isPending}
+                          style={{ fontSize: "0.8125rem", padding: "0.4rem 0.75rem" }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingAlert(null)}
+                          style={{ fontSize: "0.8125rem", padding: "0.4rem 0.75rem" }}
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingAlert(a.id);
+                          setEditThreshold(String(a.threshold));
+                        }}
+                        style={{ fontSize: "0.8125rem", padding: "0.4rem 0.75rem" }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteMutation.mutate(a.id)}
+                      style={{
+                        fontSize: "0.8125rem",
+                        background: "var(--danger)",
+                        color: "var(--text-inverse)",
+                        padding: "0.4rem 0.75rem",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </span>
                 </div>
               </Card>
             ))}

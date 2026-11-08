@@ -14,6 +14,8 @@ import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatPercent, safeNumber, todayISO } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
+import { groupLots } from "../utils/groupHoldings";
+import { pooledXirr } from "../utils/xirr";
 import { holdingGrowthPct as gainPct, groupBuyValueAndGain, computeGroupedReturn } from "../utils/holdingReturns";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
@@ -106,15 +108,29 @@ function fresh(h) {
 function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sortKey, sortDir, onSort }) {
   const quantityBased = isQuantityBased(assetType);
   const isMobile = useIsMobile();
-  const sorted = sortHoldings(holdings, sortKey, sortDir);
-  // One overall figure for the whole group, so several lots of the same stock read as one position.
-  const overall = quantityBased && holdings.length > 1 ? computeGroupedReturn(holdings) : null;
+  const [expanded, setExpanded] = useState({});
+  // Several lots of the same stock read as one position; the individual lots open underneath.
+  const positions = quantityBased ? groupLots(holdings) : holdings;
+  const sorted = sortHoldings(positions, sortKey, sortDir);
+  const toggle = (key) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
+  const keyOf = (h) => `${h.symbol || h.name}|${h.currency}`;
+  // One overall figure for the whole group: pooled over every dated purchase, not an average of per-lot XIRRs.
+  let overall = null;
+  if (quantityBased && holdings.length > 1) {
+    const flows = holdings.flatMap((h) => h.cashFlows || []);
+    const totalValue = holdings.reduce((s, h) => s + (h.displayValue || 0), 0);
+    const pooled = pooledXirr(flows, totalValue);
+    overall = pooled != null ? { returnPct: pooled * 100, isXirr: true } : computeGroupedReturn(holdings);
+  }
   const overallLine =
     overall && overall.returnPct != null ? (
       <div data-testid="overall-return" style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
         Overall {overall.isXirr ? "XIRR" : "return"}:{" "}
         <strong style={{ color: overall.returnPct >= 0 ? "var(--success)" : "var(--danger)" }}>{formatPercent(overall.returnPct)}</strong>
-        <span style={{ color: "var(--text-muted)" }}> across {holdings.length} holdings</span>
+        <span style={{ color: "var(--text-muted)" }}>
+          {" "}
+          across {positions.length} {positions.length === 1 ? "stock" : "stocks"} ({holdings.length} purchases)
+        </span>
       </div>
     ) : null;
 
@@ -122,9 +138,29 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
         {overallLine}
-        {sorted.map((h) => (
-          <HoldingCard key={h.id} holding={h} currency={currency} onOpen={() => navigate(`/portfolio/${h.id}`)} onDelete={onDelete} />
-        ))}
+        {sorted.map((h) => {
+          const multi = quantityBased && h.lots && h.lots.length > 1;
+          const key = keyOf(h);
+          if (!multi) {
+            return (
+              <HoldingCard key={h.id} holding={h} currency={currency} onOpen={() => navigate(`/portfolio/${h.id}`)} onDelete={onDelete} />
+            );
+          }
+          return (
+            <div key={key} style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+              <HoldingCard holding={h} currency={currency} onOpen={() => toggle(key)} onDelete={() => {}} />
+              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", paddingLeft: "0.5rem" }}>
+                {h.lots.length} purchases · tap to {expanded[key] ? "hide" : "show"}
+              </div>
+              {expanded[key] &&
+                h.lots.map((l) => (
+                  <div key={l.id} style={{ marginLeft: "0.75rem" }}>
+                    <HoldingCard holding={l} currency={currency} onOpen={() => navigate(`/portfolio/${l.id}`)} onDelete={onDelete} />
+                  </div>
+                ))}
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -174,108 +210,148 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
           </tr>
         </thead>
         <tbody>
-          {sorted.map((h) => {
-            const gain = quantityBased ? h.displayTotalGain : h.displayGain;
-            const positive = safeNumber(gain) >= 0;
-            return (
-              <tr
-                key={h.id}
-                className="portfolio-row"
-                style={{ borderBottom: "1px solid var(--border-light)", cursor: "pointer" }}
-                onClick={() => navigate(`/portfolio/${h.id}`)}
-              >
-                <td style={{ padding: "0.75rem 0.5rem" }}>
-                  <div style={{ fontWeight: 600 }}>{h.symbol || h.name}</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    {h.country}
-                    {h.account ? ` • ${h.account}` : ""}
-                  </div>
-                  {!quantityBased && fresh(h) && (
-                    <div style={{ fontSize: "0.75rem", color: fresh(h).stale ? "var(--danger)" : "var(--text-muted)" }}>
-                      {fresh(h).text}
+          {sorted.flatMap((pos) => {
+            const multi = quantityBased && pos.lots && pos.lots.length > 1;
+            const key = keyOf(pos);
+            const rows = multi && expanded[key] ? [pos, ...pos.lots.map((l) => ({ ...l, __lot: true }))] : [pos];
+            return rows.map((h) => {
+              const isSummary = multi && h === pos;
+              const isLot = h.__lot;
+              const gain = quantityBased ? h.displayTotalGain : h.displayGain;
+              const positive = safeNumber(gain) >= 0;
+              return (
+                <tr
+                  key={isLot ? `lot-${h.id}` : isSummary ? key : h.id}
+                  className="portfolio-row"
+                  style={{
+                    borderBottom: "1px solid var(--border-light)",
+                    cursor: "pointer",
+                    background: isLot ? "var(--bg-secondary)" : undefined,
+                  }}
+                  onClick={() => (isSummary ? toggle(key) : navigate(`/portfolio/${h.id}`))}
+                >
+                  <td style={{ padding: "0.75rem 0.5rem" }}>
+                    <div style={{ fontWeight: 600, paddingLeft: isLot ? "1.25rem" : 0 }}>
+                      {isSummary && (
+                        <span aria-hidden="true" style={{ display: "inline-block", width: "1.25rem", color: "var(--text-muted)" }}>
+                          {expanded[key] ? "▾" : "▸"}
+                        </span>
+                      )}
+                      {isLot ? "Purchase" : h.symbol || h.name}
+                      {isSummary && <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> ({pos.lots.length})</span>}
                     </div>
-                  )}
-                </td>
-                {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
-                    {h.quantity != null ? h.quantity.toFixed(4) : "—"}
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      {h.country}
+                      {h.account ? ` • ${h.account}` : ""}
+                    </div>
+                    {!quantityBased && fresh(h) && (
+                      <div style={{ fontSize: "0.75rem", color: fresh(h).stale ? "var(--danger)" : "var(--text-muted)" }}>
+                        {fresh(h).text}
+                      </div>
+                    )}
                   </td>
-                )}
-                {/* Avg Cost, Cost Basis, and Current Price all render in the
+                  {quantityBased && (
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
+                      {h.quantity != null ? h.quantity.toFixed(4) : "—"}
+                    </td>
+                  )}
+                  {/* Avg Cost, Cost Basis, and Current Price all render in the
                     selected display currency, matching Value/Gain in the same
                     row -- showing a holding's own native currency here while
                     Value/Gain used the display currency mixed ₹ and $ in the
                     same row for an NSE stock being viewed in USD. */}
-                {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
-                    {h.quantity && h.displayCostBasis != null
-                      ? formatCurrencyForDisplay(h.displayCostBasis / h.quantity, currency, { includeCode: false })
-                      : "—"}
+                  {quantityBased && (
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
+                      {h.quantity && h.displayCostBasis != null
+                        ? formatCurrencyForDisplay(h.displayCostBasis / h.quantity, currency, { includeCode: false })
+                        : "—"}
+                    </td>
+                  )}
+                  {quantityBased && (
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
+                      {h.displayCostBasis != null ? formatCurrencyForDisplay(h.displayCostBasis, currency, { includeCode: false }) : "—"}
+                    </td>
+                  )}
+                  {quantityBased && (
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 500 }}>
+                      {h.quantity && h.displayValue != null
+                        ? formatCurrencyForDisplay(h.displayValue / h.quantity, currency, { includeCode: false })
+                        : "—"}
+                    </td>
+                  )}
+                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+                    {formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}
                   </td>
-                )}
-                {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
-                    {h.displayCostBasis != null ? formatCurrencyForDisplay(h.displayCostBasis, currency, { includeCode: false }) : "—"}
-                  </td>
-                )}
-                {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 500 }}>
-                    {h.quantity && h.displayValue != null
-                      ? formatCurrencyForDisplay(h.displayValue / h.quantity, currency, { includeCode: false })
-                      : "—"}
-                  </td>
-                )}
-                <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-                  {formatCurrencyForDisplay(h.displayValue, currency, { includeCode: false })}
-                </td>
-                <td style={{ padding: "0.75rem 0.5rem", color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
-                  {/* display currency, matching the Value cell right above -- gain used to render in
+                  <td style={{ padding: "0.75rem 0.5rem", color: positive ? "var(--success)" : "var(--danger)", fontWeight: 600 }}>
+                    {/* display currency, matching the Value cell right above -- gain used to render in
                       the holding's own currency, mismatching the Value cell next to it and sorting
                       wrong across a mixed-currency portfolio (an INR gain would outrank a USD one). */}
-                  {gain != null ? `${positive ? "+" : ""}${formatCurrencyForDisplay(gain, currency, { includeCode: false })}` : "—"}
-                </td>
-                {quantityBased && (
-                  <td style={{ padding: "0.75rem 0.5rem", color: h.xirr != null && h.xirr >= 0 ? "var(--success)" : "var(--danger)" }}>
-                    {h.xirr != null ? formatPercent(h.xirr * 100) : "—"}
+                    {gain != null ? `${positive ? "+" : ""}${formatCurrencyForDisplay(gain, currency, { includeCode: false })}` : "—"}
                   </td>
-                )}
-                {quantityBased && (
-                  <td
-                    style={{ padding: "0.75rem 0.5rem", color: gainPct(h) != null && gainPct(h) >= 0 ? "var(--success)" : "var(--danger)" }}
-                  >
-                    {gainPct(h) != null ? formatPercent(gainPct(h)) : "—"}
+                  {quantityBased && (
+                    <td style={{ padding: "0.75rem 0.5rem", color: h.xirr != null && h.xirr >= 0 ? "var(--success)" : "var(--danger)" }}>
+                      {h.xirr != null ? formatPercent(h.xirr * 100) : "—"}
+                    </td>
+                  )}
+                  {quantityBased && (
+                    <td
+                      style={{
+                        padding: "0.75rem 0.5rem",
+                        color: gainPct(h) != null && gainPct(h) >= 0 ? "var(--success)" : "var(--danger)",
+                      }}
+                    >
+                      {gainPct(h) != null ? formatPercent(gainPct(h)) : "—"}
+                    </td>
+                  )}
+                  <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                    {isSummary ? (
+                      <button
+                        className="portfolio-row-action"
+                        onClick={() => toggle(key)}
+                        style={{
+                          fontSize: "0.8125rem",
+                          background: "transparent",
+                          border: "1px solid var(--border)",
+                          color: "var(--text)",
+                          padding: "0.35rem 0.75rem",
+                        }}
+                      >
+                        {expanded[key] ? "Hide" : "Show"} purchases
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="portfolio-row-action"
+                          onClick={() => navigate(`/portfolio/${h.id}`)}
+                          style={{
+                            fontSize: "0.8125rem",
+                            background: "transparent",
+                            border: "1px solid var(--border)",
+                            color: "var(--text)",
+                            padding: "0.35rem 0.75rem",
+                            marginRight: "0.4rem",
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="portfolio-row-action"
+                          onClick={() => onDelete(h)}
+                          style={{
+                            fontSize: "0.8125rem",
+                            background: "var(--danger)",
+                            color: "var(--text-inverse)",
+                            padding: "0.35rem 0.75rem",
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </td>
-                )}
-                <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
-                  <button
-                    className="portfolio-row-action"
-                    onClick={() => navigate(`/portfolio/${h.id}`)}
-                    style={{
-                      fontSize: "0.8125rem",
-                      background: "transparent",
-                      border: "1px solid var(--border)",
-                      color: "var(--text)",
-                      padding: "0.35rem 0.75rem",
-                      marginRight: "0.4rem",
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="portfolio-row-action"
-                    onClick={() => onDelete(h)}
-                    style={{
-                      fontSize: "0.8125rem",
-                      background: "var(--danger)",
-                      color: "var(--text-inverse)",
-                      padding: "0.35rem 0.75rem",
-                    }}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            );
+                </tr>
+              );
+            });
           })}
         </tbody>
       </table>
@@ -713,7 +789,7 @@ export default function Portfolio() {
                 )}
               </div>
 
-              {accounts.length > 0 && (
+              {(accounts.length > 0 || displayedHoldings.length > 0) && (
                 <div
                   style={{
                     display: "flex",

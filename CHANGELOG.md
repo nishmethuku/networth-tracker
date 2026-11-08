@@ -1,5 +1,19 @@
 # Changelog
 
+## One row per stock, with the purchases underneath
+
+- If you bought the same stock several times, the Portfolio now shows **one row** with the total quantity, average cost, cost, value and gain. Click the arrow (or "Show purchases") to see each purchase.
+- The **XIRR** on that row is worked out from every purchase date together, so a lot bought years ago and a lot bought last month each count for the time they were actually held. It is not an average of the separate lots. The "Overall XIRR" line above the table is calculated the same way.
+
+## Edit buttons, totals for every section, and a simpler "Where your money is"
+
+- **Edit** now exists on history rows (real estate, cash and so on), on goals, on spending limits, and on price alerts. You no longer have to delete and add again to fix a number.
+- **Real estate, fixed deposit, PPF and EPF sections** now show their count and total value at the top, like the other sections.
+- **"Where your money is"** is now a plain list: each type with its amount, its percent, a thin bar, and a total. No donut chart. It now sits first on the Net Worth page, above the history chart.
+
+## Edit a value in the history
+
+- On a holding that is tracked by value (real estate, cash, retirals and so on), each row in Value History now has an **Edit** button, so a wrong date or value can be fixed without deleting the row and adding it again.
 ## Gold and metals use the value you enter (no live prices)
 
 - **Gold & Metals are no longer priced live.** Like real estate, they are worth the units times the price you entered, so the total matches what you typed. To change the value, edit the entry. This stays until live prices are switched back on.

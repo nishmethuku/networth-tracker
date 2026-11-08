@@ -29,3 +29,27 @@ test("the Cash & Bank section says how many accounts there are, and how many in 
   await expect(page.getByText("Ally: 2 · Chase: 2")).toBeVisible();
   await expect(page.getByTestId("count-stock")).toContainText("Holdings 1");
 });
+
+test("a section with no accounts (real estate) still shows its count and total value", async ({ mockedPage: page }) => {
+  await mockBackend(page, {
+    dashboard: populatedDashboard,
+    holdings: [
+      sampleHolding,
+      {
+        ...sampleHolding,
+        id: 21,
+        asset_type: "real_estate",
+        symbol: null,
+        name: "Home",
+        account: "",
+        quantity: null,
+        current_value: 450000,
+      },
+    ],
+  });
+  await page.goto("/portfolio");
+  const skip = page.getByRole("button", { name: "Skip" });
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+  await expect(page.getByTestId("count-real_estate")).toContainText("Holdings 1");
+  await expect(page.getByText("Current value").first()).toBeVisible();
+});

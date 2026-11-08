@@ -162,6 +162,11 @@ export async function createValuation(holdingId: number | string, payload: any) 
   return mapValuation(data);
 }
 
+export async function updateValuation(id: number | string, payload: { valuation_date?: string; value?: number; notes?: string | null }) {
+  const data = await api.put(`/valuations/${id}`, payload);
+  return mapValuation(data);
+}
+
 export async function deleteValuation(id: number | string) {
   await api.delete(`/valuations/${id}`);
 }
@@ -291,6 +296,10 @@ export async function fetchAlerts() {
 export async function createAlert(payload: any) {
   const data = await api.post("/alerts", payload);
   return mapAlert(data);
+}
+
+export async function updateAlert(id: number | string, payload: { threshold: number }) {
+  return api.put(`/alerts/${id}`, payload);
 }
 
 export async function deleteAlert(id: number | string) {

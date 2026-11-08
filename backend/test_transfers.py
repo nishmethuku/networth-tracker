@@ -92,6 +92,38 @@ def test_two_debits_on_the_same_day_both_come_out_of_the_balance(client):
     assert balance(client, other) == 700
 
 
+def test_valuation_row_can_be_edited(client):
+    hid = cash_account_today(client, "Edit Row", 500)
+    vals = a(client, "get", f"/holdings/{hid}/valuations").get_json()
+    vid = vals[0]["id"]
+    r = a(client, "put", f"/valuations/{vid}", {"value": 650, "valuation_date": date.today().isoformat()})
+    assert r.status_code == 200, r.get_json()
+    assert r.get_json()["value"] == 650
+    assert a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["value"] == 650
+    assert a(client, "put", f"/valuations/{vid}", {"valuation_date": "nope"}).status_code == 400
+    assert a(client, "put", f"/valuations/{vid}", {"value": ""}).status_code == 400
+
+
+def test_other_user_cannot_edit_a_valuation_row(client):
+    from backend.test_categories_and_entry_edit import b
+
+    hid = cash_account_today(client, "Not Yours", 500)
+    vid = a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["id"]
+    assert b(client, "put", f"/valuations/{vid}", {"value": 1}).status_code in (403, 404)
+    assert a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["value"] == 500
+
+
+def test_alert_target_can_be_edited_and_goal_edit_is_owner_only(client):
+    from backend.test_categories_and_entry_edit import b
+
+    r = a(client, "post", "/alerts", {"alert_type": "net_worth_above", "threshold": 1000, "currency": "USD"})
+    assert r.status_code == 201, r.get_json()
+    aid = r.get_json()["id"]
+    r = a(client, "put", f"/alerts/{aid}", {"threshold": 2500})
+    assert r.status_code == 200 and r.get_json()["threshold"] == 2500
+    assert a(client, "put", f"/alerts/{aid}", {"threshold": 0}).status_code == 400
+    assert b(client, "put", f"/alerts/{aid}", {"threshold": 5}).status_code in (403, 404)
+
 def test_account_less_holdings_can_be_created_without_an_account(client):
     for kind in ("real_estate", "fixed_deposit", "ppf", "epf"):
         r = a(client, "post", "/holdings", {"asset_type": kind, "name": f"No Acct {kind}", "country": "India", "account": "", "currency": "INR"})

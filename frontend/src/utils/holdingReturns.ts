@@ -87,9 +87,14 @@ export function groupBuyValueAndGain(holdings: HoldingLike[]): BuyValueAndGain {
   let buyValue: number | null = null;
   let value = 0;
   for (const h of holdings) {
-    value += h.displayValue || 0;
     const bv = holdingBuyValue(h);
-    if (bv != null) buyValue = (buyValue ?? 0) + bv;
+    // Only holdings with a known buy value count toward the gain, on both
+    // sides: otherwise one with no buy value adds its whole worth to "value"
+    // and shows up as pure profit.
+    if (bv != null) {
+      buyValue = (buyValue ?? 0) + bv;
+      value += h.displayValue || 0;
+    }
   }
   return { buyValue, gainAmount: buyValue != null ? value - buyValue : null };
 }

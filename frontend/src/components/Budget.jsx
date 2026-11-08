@@ -238,6 +238,21 @@ function SpendingLimitsCard({ currency, limitStatus }) {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to set limit"),
   });
 
+  const [editingLimit, setEditingLimit] = useState(null);
+  const [editAmount, setEditAmount] = useState("");
+  const editMutation = useMutation({
+    // Setting a limit for a category that already has one replaces it.
+    mutationFn: ({ limit, amount }) =>
+      createBudgetLimit({ category: limit.category, monthly_limit: parseFloat(amount), currency: limit.currency }),
+    onSuccess: (limit) => {
+      queryClient.invalidateQueries({ queryKey: ["budget-limits"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      toast.success(`Limit updated for ${getBudgetCategoryLabel(limit.category)}`);
+      setEditingLimit(null);
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to update limit"),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: deleteBudgetLimit,
     onSuccess: () => {
@@ -287,6 +302,55 @@ function SpendingLimitsCard({ currency, limitStatus }) {
                         {formatCurrencyForDisplay(limit.monthlyLimit, currency, { alwaysCents: true })}{" "}
                         <span style={{ color: barColor }}>({Math.round(percent)}%)</span>
                       </span>
+                    )}
+                    {editingLimit === limit.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (editAmount) editMutation.mutate({ limit, amount: editAmount });
+                        }}
+                        style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+                      >
+                        <input
+                          aria-label={`New monthly limit for ${getBudgetCategoryLabel(limit.category)}`}
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          style={{ ...inputStyle, width: "100px", padding: "0.2rem 0.4rem" }}
+                          required
+                        />
+                        <button type="submit" disabled={editMutation.isPending} style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem" }}>
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingLimit(null)}
+                          style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem" }}
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingLimit(limit.id);
+                          setEditAmount(String(limit.monthlyLimit));
+                        }}
+                        aria-label={`Edit limit for ${getBudgetCategoryLabel(limit.category)}`}
+                        style={{
+                          fontSize: "0.7rem",
+                          background: "transparent",
+                          border: "1px solid var(--border)",
+                          color: "var(--text)",
+                          padding: "0.15rem 0.4rem",
+                          borderRadius: "var(--radius-sm)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Edit
+                      </button>
                     )}
                     <button
                       onClick={() => deleteMutation.mutate(limit.id)}

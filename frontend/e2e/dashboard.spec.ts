@@ -12,7 +12,7 @@ test.describe("Dashboard", () => {
 
     // Total Net Worth card
     await expect(page.getByText("Total Net Worth")).toBeVisible();
-    await expect(page.getByText(/\$1\.5K|\$1,500/)).toBeVisible();
+    await expect(page.getByText(/\$1\.5K|\$1,500/).first()).toBeVisible();
 
     // The holding shows up somewhere on the page (allocation breakdown / movers)
     await expect(page.getByText("AAPL").first()).toBeVisible();
