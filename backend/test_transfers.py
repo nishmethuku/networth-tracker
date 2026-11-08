@@ -90,3 +90,13 @@ def test_two_debits_on_the_same_day_both_come_out_of_the_balance(client):
     assert move(client, savings, other, 200).status_code == 201
     assert balance(client, savings) == 650
     assert balance(client, other) == 700
+
+
+def test_account_less_holdings_can_be_created_without_an_account(client):
+    for kind in ("real_estate", "fixed_deposit", "ppf", "epf"):
+        r = a(client, "post", "/holdings", {"asset_type": kind, "name": f"No Acct {kind}", "country": "India", "account": "", "currency": "INR"})
+        assert r.status_code == 201, (kind, r.get_json())
+    # A stock still needs an account.
+    r = a(client, "post", "/holdings", {"asset_type": "stock", "name": "X", "symbol": "X", "country": "United States", "account": "", "currency": "USD"})
+    assert r.status_code == 400
+    assert "account" in r.get_json()["error"]
