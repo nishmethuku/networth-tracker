@@ -14,6 +14,9 @@
 ## Edit a value in the history
 
 - On a holding that is tracked by value (real estate, cash, retirals and so on), each row in Value History now has an **Edit** button, so a wrong date or value can be fixed without deleting the row and adding it again.
+## Gold and metals use the value you enter (no live prices)
+
+- **Gold & Metals are no longer priced live.** Like real estate, they are worth the units times the price you entered, so the total matches what you typed. To change the value, edit the entry. This stays until live prices are switched back on.
 
 ## Fix: "account is required" when adding real estate
 

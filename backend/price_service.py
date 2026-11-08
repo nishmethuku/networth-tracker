@@ -20,7 +20,6 @@ from .utils import (
     get_historical_price_from_finnhub,
     get_historical_price_from_nsepy,
     get_historical_price_from_yahoo,
-    get_metal_price,
 )
 from .utils import (
     get_exchange_rate as _fetch_exchange_rate,
@@ -40,8 +39,9 @@ def get_current_price(asset_type: str, symbol: str, currency: str = "USD") -> Op
         return get_current_stock_price(symbol, asset_type=asset_type)
     if asset_type == "crypto":
         return get_crypto_price(symbol, currency=currency.lower())
-    if asset_type == "commodity":
-        return get_metal_price(symbol, currency=currency)
+    # Gold, silver and other metals are deliberately NOT priced live: they are valued at what
+    # the person entered (units x price), the same way real estate is. Returning None makes the
+    # holding fall back to its own entered price.
     return None
 
 
@@ -104,14 +104,6 @@ def _get_mftool_historical_nav(scheme_code: str, target_date: date) -> Optional[
         return None
 
 
-# Commodity holdings store 'gold'/'silver'/'platinum' (matching metals-api.com's
-# symbol keys for live pricing) — these are NOT valid Yahoo tickers. 'GOLD' in
-# particular silently resolves to an unrelated penny stock (Gold.com, Inc.),
-# not the price of gold, so this mapping to real futures tickers is required
-# for correctness, not just a nicety.
-COMMODITY_YAHOO_TICKERS = {"gold": "GC=F", "silver": "SI=F", "platinum": "PL=F"}
-
-
 def get_historical_price(asset_type: str, symbol: str, target_date: date, currency: str = "USD") -> Optional[float]:
     """
     Historical price on a specific date, DB-cached. Crypto (CoinGecko),
@@ -123,6 +115,8 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
     free tier (verified 2026-08-13) and is a last-resort fallback only.
     Returns None if nothing works, and the frontend offers manual entry.
     """
+    if asset_type == "commodity":
+        return None  # metals are valued at the entered price, not a market price
     cached = PriceHistory.query.filter_by(
         asset_type=asset_type, symbol=symbol, price_date=target_date, currency=currency
     ).first()
@@ -137,8 +131,8 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
     elif asset_type == "mutual_fund":
         price = _get_mftool_historical_nav(symbol, target_date)
         source = "mftool"
-    elif asset_type in ("stock", "commodity"):
-        yahoo_symbol = COMMODITY_YAHOO_TICKERS.get(symbol.lower(), symbol) if asset_type == "commodity" else symbol
+    elif asset_type == "stock":
+        yahoo_symbol = symbol
         price = get_historical_price_from_yahoo(yahoo_symbol, target_date)
         source = "yahoo"
         if price is None and (symbol.upper().endswith(".NS") or symbol.upper().endswith(".NSE")):
