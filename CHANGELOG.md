@@ -1,5 +1,11 @@
 # Changelog
 
+## Color schemes, and one date format everywhere
+
+- **Pick your color scheme.** Settings, then Display, now has six color schemes: Wine (the original), Ocean, Forest, Violet, Sunset and Graphite. Each one works in light and dark mode, is remembered on your device, and is checked for readable text.
+- **Dates are year-month-day everywhere,** including the time stamps in Security activity.
+- **CSV import warns about dates it could read two ways.** A date like 11/8/2026 is read day first (11 August), so the import now tells you how it was read and suggests writing yyyy-mm-dd.
+
 ## Fix: two same-day payments from one account
 
 - **A second payment or transfer on the same day now comes out of the right balance.** When an account had more than one balance entry on the same date (for example a card payment and then a transfer), the next debit could start from an older balance and give back money that had already been paid out. The latest entry of the day now always wins.

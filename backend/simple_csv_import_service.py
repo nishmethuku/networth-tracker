@@ -27,6 +27,7 @@ the current total value in "Transaction price".
 """
 import csv
 import io
+import re
 from datetime import date, datetime
 from typing import Dict, Optional
 
@@ -129,6 +130,16 @@ def _parse_date(raw: str) -> Optional[date]:
     return None
 
 
+_AMBIGUOUS_DATE = re.compile(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$")
+
+
+def _is_ambiguous_date(raw: str) -> bool:
+    """A numeric day/month date where both parts could be a month (7/8/2020): it parses, but whether it
+    means 7 Aug or 8 Jul depends on the writer, so the person is told how it was read."""
+    m = _AMBIGUOUS_DATE.match((raw or "").strip().split(" ")[0])
+    return bool(m) and int(m.group(1)) <= 12 and int(m.group(2)) <= 12 and m.group(1) != m.group(2)
+
+
 def _parse_number(raw) -> Optional[float]:
     if raw is None:
         return None
@@ -164,6 +175,7 @@ def parse_simple_csv(csv_text: str) -> Dict:
 
     rows = []
     errors = []
+    warnings = []
     for i, raw_row in enumerate(reader, start=2):
         try:
             def get(field):
@@ -192,6 +204,12 @@ def parse_simple_csv(csv_text: str) -> Dict:
             if not transaction_date:
                 errors.append(f"Row {i}: couldn't parse date '{get('date')}'")
                 continue
+
+            if _is_ambiguous_date(get("date")):
+                warnings.append(
+                    f"Row {i}: the date '{get('date')}' was read as {transaction_date.isoformat()} (day first). "
+                    "Write dates as yyyy-mm-dd to avoid mix-ups."
+                )
 
             investment = get("investment")
             if not investment:
@@ -244,4 +262,4 @@ def parse_simple_csv(csv_text: str) -> Dict:
         except Exception as e:
             errors.append(f"Row {i}: {e}")
 
-    return {"rows": rows, "errors": errors}
+    return {"rows": rows, "errors": errors, "warnings": warnings}

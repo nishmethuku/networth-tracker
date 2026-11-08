@@ -8,6 +8,9 @@
         var t = localStorage.getItem("theme");
         if (t !== "dark" && t !== "light") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         document.documentElement.setAttribute("data-theme", t);
+        var pal = localStorage.getItem("palette");
+        if (["wine", "ocean", "forest", "violet", "sunset", "graphite"].indexOf(pal) === -1) pal = "wine";
+        document.documentElement.setAttribute("data-palette", pal);
       } catch (e) {}
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />

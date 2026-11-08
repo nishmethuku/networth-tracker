@@ -9,6 +9,7 @@ import SecurityActivityCard from "./SecurityActivityCard";
 import ChangePasswordCard from "./ChangePasswordCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
+import { PALETTES } from "../utils/theme";
 import { useToast } from "../contexts/ToastContext";
 import { BACKUP_KEY } from "../utils/backupReminder";
 import InstallAppCard from "./InstallAppCard";
@@ -73,7 +74,7 @@ function downloadJson(data, filename) {
 
 export default function Settings() {
   const { user, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, palette, setPalette } = useTheme();
   const { t, i18n } = useTranslation();
   const [currency, setCurrency] = useDisplayCurrencyPreference();
   const toast = useToast();
@@ -252,6 +253,44 @@ export default function Settings() {
             <button onClick={toggleTheme} style={buttonStyle}>
               {theme === "dark" ? "☀️ Switch to light" : "🌙 Switch to dark"}
             </button>
+          </div>
+          <div style={{ ...rowStyle, flexWrap: "wrap", gap: "0.75rem" }}>
+            <span id="palette-label" style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+              Color scheme
+            </span>
+            <div role="radiogroup" aria-labelledby="palette-label" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              {PALETTES.map((p) => {
+                const selected = palette === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setPalette(p.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      padding: "0.35rem 0.7rem",
+                      borderRadius: "var(--radius-sm)",
+                      border: selected ? "2px solid var(--primary)" : "1px solid var(--border)",
+                      background: "var(--card)",
+                      color: "var(--text)",
+                      cursor: "pointer",
+                      fontSize: "0.8125rem",
+                      fontWeight: selected ? 700 : 500,
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{ width: 14, height: 14, borderRadius: "50%", background: p.swatch, display: "inline-block" }}
+                    />
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div style={rowStyle}>
             <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{t("settings.language")}</span>
