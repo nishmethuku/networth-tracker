@@ -310,6 +310,10 @@ def restore_user_data(user_id, data: Dict) -> Dict:
             current_balance=safe_float(row["current_balance"]),
             original_amount=safe_float(row["original_amount"]) if row.get("original_amount") is not None else None,
             interest_rate=safe_float(row["interest_rate"]) if row.get("interest_rate") is not None else None,
+            monthly_payment=safe_float(row["monthly_payment"]) if row.get("monthly_payment") is not None else None,
+            auto_update=bool(row.get("auto_update", False)),
+            remaining_months=row.get("remaining_months"),
+            next_auto_date=_parse_date(row.get("next_auto_date")),
             notes=row.get("notes"),
             is_private=bool(row.get("is_private", False)),
         )

@@ -11,7 +11,12 @@ from ..holdings_service import (
 )
 from ..liability_service import (
     LIABILITY_TYPES,
+    add_months,
+    amortization_schedule,
     apply_payment,
+    auto_update_problem,
+    calculate_emi,
+    catch_up,
     list_liabilities_with_display,
 )
 from ..models import (
@@ -33,6 +38,33 @@ SNAPSHOT_SECRET = os.environ.get("SNAPSHOT_SECRET")
 DIGEST_SECRET = os.environ.get("DIGEST_SECRET") or SNAPSHOT_SECRET
 
 logger = logging.getLogger("networth_tracker")
+
+
+def _apply_auto_fields(liability, data):
+    """Reads auto_update / remaining_months from a request. Returns an error string or None."""
+    if "remaining_months" in data:
+        raw = data["remaining_months"]
+        try:
+            liability.remaining_months = int(raw) if raw not in (None, "") else None
+        except (TypeError, ValueError):
+            return "remaining_months must be a whole number"
+    if "auto_update" in data:
+        liability.auto_update = bool(data["auto_update"])
+    if liability.auto_update:
+        if (not liability.monthly_payment) and liability.interest_rate is not None and liability.remaining_months:
+            liability.monthly_payment = calculate_emi(
+                liability.current_balance, liability.interest_rate, liability.remaining_months
+            )
+        problem = auto_update_problem(liability)
+        if problem:
+            return problem
+        if not liability.next_auto_date or "payment_due_date" in data:
+            today = date.today()
+            due = liability.payment_due_date
+            liability.next_auto_date = due if due and due > today else add_months(today, 1, due.day if due else None)
+    else:
+        liability.next_auto_date = None
+    return None
 
 
 def register(app, h):
@@ -74,6 +106,9 @@ def register(app, h):
             notes=data.get("notes"),
             is_private=bool(data.get("is_private", False)),
         )
+        error = _apply_auto_fields(liability, data)
+        if error:
+            return jsonify({"error": error}), 400
         db.session.add(liability)
         db.session.commit()
         return jsonify(liability.to_dict()), 201
@@ -84,6 +119,8 @@ def register(app, h):
         household_id_param = request.args.get("household_id")
         display_currency = request.args.get("currency", "USD").upper()
         liabilities = scoped_liabilities_query(household_id_param).order_by(Liability.created_at.desc()).all()
+        if any(catch_up(li) for li in liabilities):
+            db.session.commit()
         return jsonify(list_liabilities_with_display(liabilities, display_currency=display_currency))
 
     @app.route("/liabilities/<int:liability_id>", methods=["PUT"])
@@ -122,9 +159,33 @@ def register(app, h):
                 return jsonify({"error": "payment_due_date must be YYYY-MM-DD"}), 400
         if "is_private" in data:
             liability.is_private = bool(data["is_private"])
+        error = _apply_auto_fields(liability, data)
+        if error:
+            db.session.rollback()
+            return jsonify({"error": error}), 400
 
         db.session.commit()
         return jsonify(liability.to_dict())
+
+    @app.route("/liabilities/<int:liability_id>/schedule", methods=["GET"])
+    @require_auth
+    def get_liability_schedule(liability_id):
+        liability = get_authorized_liability(liability_id)
+        months = liability.remaining_months
+        if liability.interest_rate is None or not months or months <= 0:
+            return jsonify({"error": "Add an interest rate and remaining months to see a schedule"}), 400
+        payment = liability.monthly_payment or calculate_emi(liability.current_balance, liability.interest_rate, months)
+        first = liability.next_auto_date or add_months(date.today(), 1)
+        anchor = liability.payment_due_date.day if liability.payment_due_date else first.day
+        rows = amortization_schedule(liability.current_balance, liability.interest_rate, payment, months, first, anchor)
+        return jsonify(
+            {
+                "monthly_payment": payment,
+                "total_interest": round(sum(r["interest"] for r in rows), 2),
+                "total_paid": round(sum(r["payment"] for r in rows), 2),
+                "rows": rows,
+            }
+        )
 
     @app.route("/liabilities/<int:liability_id>/payments", methods=["POST"])
     @require_auth

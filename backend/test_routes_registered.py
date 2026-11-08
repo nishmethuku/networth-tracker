@@ -32,6 +32,8 @@ def test_route_table_is_complete(app):
         "/budget/year",
         "/budget/recurring/log-due",
         "/liabilities/<int:liability_id>/payments",
+        "/liabilities/<int:liability_id>/schedule",
+        "/internal/update-liabilities",
         "/households",
         "/goals",
         "/api/ai/chat",

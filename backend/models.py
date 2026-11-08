@@ -657,6 +657,11 @@ class Liability(db.Model):
     payment_due_date = db.Column(db.Date)
     notes = db.Column(db.Text)
     is_private = db.Column(db.Boolean, nullable=False, default=False)
+    # Automatic monthly update (EMI method): interest is added and the
+    # payment is taken off once a month until the loan is paid off.
+    auto_update = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    remaining_months = db.Column(db.Integer)
+    next_auto_date = db.Column(db.Date)
 
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
     updated_at = db.Column(
@@ -668,6 +673,9 @@ class Liability(db.Model):
             "id": self.id,
             "user_id": str(self.user_id),
             "household_id": str(self.household_id) if self.household_id else None,
+            "auto_update": bool(self.auto_update),
+            "remaining_months": self.remaining_months,
+            "next_auto_date": self.next_auto_date.isoformat() if self.next_auto_date else None,
             "name": self.name,
             "liability_type": self.liability_type,
             "currency": self.currency,
