@@ -32,6 +32,7 @@ import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
 import { groupByDay, monthOf, monthTotals, shiftMonth } from "../utils/entryGroups";
+import { refreshMoneyViews } from "../utils/refreshMoneyViews";
 
 function lastDayOf(month) {
   const [y, m] = month.split("-").map(Number);
@@ -149,7 +150,7 @@ export default function Expenses() {
         ...(currentHouseholdId ? { household_id: currentHouseholdId } : {}),
       }),
     onSuccess: () => {
-      for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"]) queryClient.invalidateQueries({ queryKey: [key] });
+      refreshMoneyViews(queryClient);
       toast.success("Entry restored");
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not restore the entry"),
@@ -159,7 +160,7 @@ export default function Expenses() {
     // An expense that was paid from a card or account gives that money back when deleted.
     mutationFn: (e) => deleteBudgetEntry(e.id, { reverse: !!(e.chargedLiabilityId || e.fundingHoldingId || e.linkedLiabilityId) }),
     onSuccess: (_data, e) => {
-      for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"]) queryClient.invalidateQueries({ queryKey: [key] });
+      refreshMoneyViews(queryClient);
       const back = e.chargedLiabilityId || e.fundingHoldingId || e.linkedLiabilityId;
       toast.success(back ? "Entry deleted and the money put back" : "Entry deleted", 6000, {
         label: "Undo",
@@ -240,7 +241,7 @@ export default function Expenses() {
         chosen.map((e) => deleteBudgetEntry(e.id, { reverse: !!(e.chargedLiabilityId || e.fundingHoldingId || e.linkedLiabilityId) })),
       ),
     onSuccess: () => {
-      for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"]) queryClient.invalidateQueries({ queryKey: [key] });
+      refreshMoneyViews(queryClient);
       toast.success(`Deleted ${chosen.length} ${chosen.length === 1 ? "entry" : "entries"}`);
       leaveSelectMode();
     },

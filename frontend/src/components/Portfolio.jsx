@@ -14,7 +14,7 @@ import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatPercent, safeNumber, todayISO } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
-import { holdingGrowthPct as gainPct, groupBuyValueAndGain } from "../utils/holdingReturns";
+import { holdingGrowthPct as gainPct, groupBuyValueAndGain, computeGroupedReturn } from "../utils/holdingReturns";
 
 const CURRENCIES = ["USD", "INR", "AUD"];
 
@@ -107,10 +107,21 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
   const quantityBased = isQuantityBased(assetType);
   const isMobile = useIsMobile();
   const sorted = sortHoldings(holdings, sortKey, sortDir);
+  // One overall figure for the whole group, so several lots of the same stock read as one position.
+  const overall = quantityBased && holdings.length > 1 ? computeGroupedReturn(holdings) : null;
+  const overallLine =
+    overall && overall.returnPct != null ? (
+      <div data-testid="overall-return" style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+        Overall {overall.isXirr ? "XIRR" : "return"}:{" "}
+        <strong style={{ color: overall.returnPct >= 0 ? "var(--success)" : "var(--danger)" }}>{formatPercent(overall.returnPct)}</strong>
+        <span style={{ color: "var(--text-muted)" }}> across {holdings.length} holdings</span>
+      </div>
+    ) : null;
 
   if (isMobile) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+        {overallLine}
         {sorted.map((h) => (
           <HoldingCard key={h.id} holding={h} currency={currency} onOpen={() => navigate(`/portfolio/${h.id}`)} onDelete={onDelete} />
         ))}
@@ -120,6 +131,7 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
 
   return (
     <div style={{ overflowX: "auto" }}>
+      {overallLine}
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
         <thead>
           <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}>

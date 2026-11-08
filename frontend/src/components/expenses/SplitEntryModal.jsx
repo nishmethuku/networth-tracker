@@ -7,6 +7,7 @@ import { getBudgetCategoryLabel } from "../../constants/enums";
 import { orderCategoryOptions } from "../../utils/categoryTree";
 import { planSplit, remainder } from "../../utils/splitExpense";
 import { formatCurrencyForDisplay } from "../../utils/formatters";
+import { refreshMoneyViews } from "../../utils/refreshMoneyViews";
 
 const field = {
   padding: "0.6rem 0.75rem",
@@ -68,12 +69,12 @@ export default function SplitEntryModal({ entry, categories, onClose }) {
       await updateBudgetEntry(entry.id, { amount: plan.keep.amount, category: plan.keep.category });
     },
     onSuccess: () => {
-      for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"]) queryClient.invalidateQueries({ queryKey: [key] });
+      refreshMoneyViews(queryClient);
       toast.success("Expense split");
       onClose();
     },
     onError: (err) => {
-      for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"]) queryClient.invalidateQueries({ queryKey: [key] });
+      refreshMoneyViews(queryClient);
       setError(err instanceof ApiError ? err.message : "Could not split the expense. Check your list before trying again.");
     },
   });

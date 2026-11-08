@@ -24,6 +24,7 @@ import { limitWarning } from "../utils/limitWarning";
 import { findDuplicate } from "../utils/duplicateCheck";
 import { parseQuickEntry } from "../utils/quickEntryParser";
 import { buildExpensePayload, loadLast, saveLast, validateQuickAdd, yesterdayOf } from "../utils/quickAdd";
+import { refreshMoneyViews } from "../utils/refreshMoneyViews";
 
 const fieldStyle = {
   width: "100%",
@@ -189,9 +190,7 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
   const mutation = useMutation({
     mutationFn: (payload) => createBudgetEntry(payload),
     onSuccess: (entry) => {
-      for (const key of ["budget-entries", "budget-summary", "budget-subscriptions", "liabilities", "holdings", "dashboard"]) {
-        queryClient.invalidateQueries({ queryKey: [key] });
-      }
+      refreshMoneyViews(queryClient);
       saveLast({ category, paidFrom });
       if (entry.entryDate?.slice(0, 7) === monthOf(todayISO())) {
         queryClient
@@ -223,8 +222,7 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
         onClick: () =>
           deleteBudgetEntry(entry.id, { reverse: true })
             .then(() => {
-              for (const key of ["budget-entries", "budget-summary", "liabilities", "holdings"])
-                queryClient.invalidateQueries({ queryKey: [key] });
+              refreshMoneyViews(queryClient);
               toast.success("Expense removed");
             })
             .catch(() => toast.error("Could not undo that expense")),
