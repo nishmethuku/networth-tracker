@@ -14,6 +14,7 @@ from . import (
     milestones,
     search,
     sync,
+    transfers,
 )
 
 
@@ -32,3 +33,4 @@ def register_all(app, h):
     account_data.register(app, h)
     budget.register(app, h)
     sync.register(app, h)
+    transfers.register(app, h)

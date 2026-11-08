@@ -541,6 +541,7 @@ export function demoGet(endpoint: string): any {
   }
   if (path === "/net-worth-history") return netWorthHistory();
   if (path === "/income-summary") return incomeSummary();
+  if (path === "/transfers") return [];
   if (path === "/liabilities") {
     return [
       {

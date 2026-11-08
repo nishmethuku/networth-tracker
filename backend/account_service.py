@@ -24,6 +24,7 @@ from .models import (
     AllocationTarget,
     AuditEvent,
     BudgetCategory,
+    AccountTransfer,
     BudgetCategorySeed,
     BudgetEntry,
     BudgetLimit,
@@ -67,6 +68,7 @@ def export_user_data(user_id) -> Dict:
     budget_categories = BudgetCategory.query.filter_by(user_id=user_id).all()
     accounts = Account.query.filter_by(user_id=user_id).all()
     liabilities = Liability.query.filter_by(user_id=user_id).all()
+    transfers = AccountTransfer.query.filter_by(user_id=user_id).all()
     goals = Goal.query.filter_by(user_id=user_id).all()
     allocation_targets = AllocationTarget.query.filter_by(user_id=user_id).all()
     push_subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
@@ -88,6 +90,7 @@ def export_user_data(user_id) -> Dict:
         "budget_limits": [limit.to_dict() for limit in budget_limits],
         "budget_categories": [c.to_dict() for c in budget_categories],
         "liabilities": [liability.to_dict() for liability in liabilities],
+        "account_transfers": [t.to_dict() for t in transfers],
         "goals": [g.to_dict() for g in goals],
         "allocation_targets": [t.to_dict() for t in allocation_targets],
         "push_subscriptions": [p.to_dict() for p in push_subscriptions],
@@ -146,6 +149,7 @@ def delete_all_user_data(user_id) -> Dict:
     # that were never actually cleared.
     snapshots_count = NetWorthSnapshot.query.filter_by(user_id=user_id).delete()
     liabilities_count = Liability.query.filter_by(user_id=user_id).delete()
+    AccountTransfer.query.filter_by(user_id=user_id).delete()
     goals_count = Goal.query.filter_by(user_id=user_id).delete()
     allocation_targets_count = AllocationTarget.query.filter_by(user_id=user_id).delete()
     budget_entries_count = BudgetEntry.query.filter_by(user_id=user_id).delete()

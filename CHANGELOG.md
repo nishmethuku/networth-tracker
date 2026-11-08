@@ -1,5 +1,11 @@
 # Changelog
 
+## Transfers between accounts, and expenses by card or account
+
+- **Move money between your cash accounts.** On the Accounts page, pick where the money leaves and where it goes. One balance goes down, the other goes up, and it is never counted as spending or income. Recent transfers are listed, and each one can be undone, which puts the money back.
+- **Filter expenses by what paid for them.** A new "Paid from" filter on the Expenses page lists only the expenses charged to one card or paid from one account, or the ones not tied to any account.
+- Transfers are included in "Download my data" and removed by "Delete all my data".
+
 ## Fully customizable categories
 
 - **Nothing is fixed any more.** The categories the app starts you with (housing, food, paycheck and the rest) are now ordinary categories in your own list. You can rename them, move them inside another category, or remove them, just like the ones you add. Renaming or removing one carries its entries and spending limit along, as before.

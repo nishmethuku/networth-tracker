@@ -4,6 +4,7 @@ import Card from "./Card";
 import EmptyState from "./EmptyState";
 import LoadingState from "./LoadingState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import TransferMoney from "./TransferMoney";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -119,6 +120,8 @@ export default function Accounts() {
         importing or adding a holding to it — remove an empty one that's no longer used, or delete an account and every holding in it at
         once.
       </p>
+
+      <TransferMoney />
 
       <Card>
         {!accounts || accounts.length === 0 ? (

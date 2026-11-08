@@ -15,6 +15,7 @@ const KEYS = [
   "net-worth-history",
   "monthly-flow",
   "emergency-fund",
+  "transfers",
 ];
 
 /** Call after adding, editing, deleting, undoing or splitting an entry so nothing on screen goes stale. */

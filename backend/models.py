@@ -508,6 +508,40 @@ class BudgetCategorySeed(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
 
+class AccountTransfer(db.Model):
+    """A record that money moved from one cash account to another. The two balances are changed
+    by ordinary valuation rows; this row is the receipt, so the move shows up as a transfer
+    and is never counted as spending or income."""
+    __tablename__ = "account_transfers"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False, index=True)
+    from_holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id", ondelete="SET NULL"), nullable=True)
+    to_holding_id = db.Column(db.BigInteger, db.ForeignKey("holdings.id", ondelete="SET NULL"), nullable=True)
+    # Names as they were, so the history still reads after an account is renamed or deleted.
+    from_name = db.Column(db.String(128), nullable=False)
+    to_name = db.Column(db.String(128), nullable=False)
+    amount = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
+    currency = db.Column(db.String(8), nullable=False)
+    transfer_date = db.Column(db.Date, nullable=False)
+    note = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "from_holding_id": self.from_holding_id,
+            "to_holding_id": self.to_holding_id,
+            "from_name": self.from_name,
+            "to_name": self.to_name,
+            "amount": self.amount,
+            "currency": self.currency,
+            "transfer_date": self.transfer_date.isoformat(),
+            "note": self.note,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class Account(db.Model):
     """A user-registered account name (a brokerage, a bank account, a
     person's name -- whatever label holdings get grouped under), separate

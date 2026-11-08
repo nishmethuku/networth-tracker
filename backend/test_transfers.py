@@ -1,0 +1,58 @@
+"""Transfers between two cash accounts, against a REAL Postgres (local-only guard)."""
+import pytest
+
+from backend import test_tenant_isolation as tenant
+from backend.test_categories_and_entry_edit import a, b, balance, cash_account
+from backend.test_tenant_isolation import DB_URL, _is_local
+
+client = tenant.client
+
+pytestmark = pytest.mark.skipif(
+    not DB_URL or not _is_local(DB_URL),
+    reason="set TENANT_TEST_DATABASE_URL to a local Postgres to run these tests",
+)
+
+
+def move(client, src, dst, amount, **extra):
+    return a(client, "post", "/transfers", {"from_holding_id": src, "to_holding_id": dst, "amount": amount, **extra})
+
+
+def test_transfer_moves_money_and_can_be_undone(client):
+    src, dst = cash_account(client, "T Checking", 500), cash_account(client, "T Savings", 100)
+    r = move(client, src, dst, 150, note="rainy day")
+    assert r.status_code == 201, r.get_json()
+    tid = r.get_json()["transfer"]["id"]
+    assert balance(client, src) == 350
+    assert balance(client, dst) == 250
+    listed = a(client, "get", "/transfers").get_json()
+    assert any(t["id"] == tid and t["from_name"] == "T Checking" and t["to_name"] == "T Savings" for t in listed)
+    # Not spending or income.
+    entries = a(client, "get", "/budget/entries").get_json()
+    rows = entries["items"] if isinstance(entries, dict) and "items" in entries else entries
+    assert not any(e.get("amount") == 150 for e in rows)
+    assert a(client, "delete", f"/transfers/{tid}").status_code == 200
+    assert balance(client, src) == 500
+    assert balance(client, dst) == 100
+    assert not any(t["id"] == tid for t in a(client, "get", "/transfers").get_json())
+
+
+def test_transfer_validation(client):
+    src, dst = cash_account(client, "V One", 100), cash_account(client, "V Two", 0)
+    assert move(client, src, src, 5).status_code == 400
+    assert move(client, src, dst, 0).status_code == 400
+    assert move(client, src, dst, -3).status_code == 400
+    assert move(client, src, dst, 5, transfer_date="2999-01-01").status_code == 400
+    assert a(client, "post", "/transfers", {"from_holding_id": src, "amount": 5}).status_code == 400
+    stock = a(client, "post", "/holdings", {"asset_type": "stock", "name": "Zed", "country": "United States", "account": "Brokerage", "currency": "USD", "ticker": "ZED"})
+    if stock.status_code == 201:
+        assert move(client, src, stock.get_json()["id"], 5).status_code == 400
+    assert balance(client, src) == 100
+
+
+def test_other_user_cannot_use_or_undo_a_transfer(client):
+    src, dst = cash_account(client, "P One", 100), cash_account(client, "P Two", 0)
+    tid = move(client, src, dst, 40).get_json()["transfer"]["id"]
+    assert b(client, "get", "/transfers").get_json() == []
+    assert b(client, "delete", f"/transfers/{tid}").status_code in (403, 404)
+    assert b(client, "post", "/transfers", {"from_holding_id": src, "to_holding_id": dst, "amount": 1}).status_code in (403, 404)
+    assert balance(client, src) == 60

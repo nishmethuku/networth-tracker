@@ -8,7 +8,7 @@ import ErrorState from "./ErrorState";
 import AddEntryForm from "./budget/AddEntryForm";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, updateBudgetEntry, ApiError } from "../api";
+import { fetchHoldings, fetchLiabilities, fetchBudgetCategories, fetchBudgetEntries, deleteBudgetEntry, createBudgetEntry, updateBudgetEntry, ApiError } from "../api";
 import { orderCategoryOptions } from "../utils/categoryTree";
 import EditEntryModal from "./budget/EditEntryModal";
 import ExpenseInsights from "./budget/ExpenseInsights";
@@ -79,6 +79,8 @@ export default function Expenses() {
   const [month, setMonth] = useState(thisMonth);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  // "" = all, "h:<id>" = paid from that cash account, "l:<id>" = charged to that card, "none" = no account.
+  const [paidWith, setPaidWith] = useState("");
   const [editing, setEditing] = useState(null);
   const [splitting, setSplitting] = useState(null);
   const isMobile = useIsMobile();
@@ -191,11 +193,34 @@ export default function Expenses() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Could not repeat the entry"),
   });
 
+  const { data: cashAccounts } = useQuery({
+    queryKey: ["holdings", "cash"],
+    queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
+  });
+  const { data: cards } = useQuery({
+    queryKey: ["liabilities", "cards", currentHouseholdId],
+    queryFn: () => fetchLiabilities({ householdId: currentHouseholdId }),
+  });
+  const paidWithChoices = useMemo(
+    () => [
+      ...(cashAccounts || []).map((c) => ({ value: `h:${c.id}`, label: c.name })),
+      ...(cards || []).filter((l) => l.liabilityType === "credit_card").map((l) => ({ value: `l:${l.id}`, label: l.name })),
+    ],
+    [cashAccounts, cards],
+  );
+
   const source = allMonths && search ? recent : entries;
   const visible = useMemo(() => {
-    const found = filterByAmount(filterEntries(source, search, categoryFilter, getBudgetCategoryLabel), minAmt, maxAmt);
+    let found = filterByAmount(filterEntries(source, search, categoryFilter, getBudgetCategoryLabel), minAmt, maxAmt);
+    if (paidWith) {
+      found = found.filter((e) => {
+        if (paidWith === "none") return !e.fundingHoldingId && !e.chargedLiabilityId;
+        const id = Number(paidWith.slice(2));
+        return paidWith.startsWith("h:") ? e.fundingHoldingId === id : e.chargedLiabilityId === id;
+      });
+    }
     return day ? found.filter((e) => e.entryDate === day) : found;
-  }, [source, search, categoryFilter, day, minAmt, maxAmt]);
+  }, [source, search, categoryFilter, paidWith, day, minAmt, maxAmt]);
   const days = useMemo(
     () => groupByDay(visible, allMonths && search ? null : month, currency),
     [visible, month, currency, allMonths, search],
@@ -515,6 +540,15 @@ export default function Expenses() {
               </option>
             ))}
           </select>
+          <select aria-label="Filter by paid from" value={paidWith} onChange={(e) => setPaidWith(e.target.value)} style={selectStyle}>
+            <option value="">All accounts and cards</option>
+            {paidWithChoices.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+            <option value="none">Not tied to an account</option>
+          </select>
           <input
             type="number"
             inputMode="decimal"
@@ -609,7 +643,7 @@ export default function Expenses() {
       ) : isError ? (
         <ErrorState error={error instanceof ApiError ? error.message : "Failed to load expenses"} onRetry={refetch} />
       ) : days.length === 0 ? (
-        <EmptyState message={search || categoryFilter ? "No entries match that search." : `Nothing logged in ${monthLabel(month)} yet.`} />
+        <EmptyState message={search || categoryFilter || paidWith ? "No entries match that search." : `Nothing logged in ${monthLabel(month)} yet.`} />
       ) : sortBiggest ? (
         <Card title="Biggest first">{flat.map(renderRow)}</Card>
       ) : (
