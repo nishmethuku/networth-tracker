@@ -346,12 +346,12 @@ function RecordPaymentForm({ liability, onDone }) {
         amount: parseFloat(amount),
         payment_date: date,
         currency: liability.currency,
-        ...(source ? { funding_source_holding_id: Number(source) } : {}),
+        ...(source && source !== "none" ? { funding_source_holding_id: Number(source) } : {}),
       }),
     onSuccess: (result) => {
       refreshMoneyViews(queryClient);
       try {
-        localStorage.setItem(LAST_SOURCE_KEY, source);
+        if (source && source !== "none") localStorage.setItem(LAST_SOURCE_KEY, source);
       } catch {
         /* storage can be blocked */
       }
@@ -366,7 +366,10 @@ function RecordPaymentForm({ liability, onDone }) {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to record payment"),
   });
 
-  const valid = parseFloat(amount) > 0;
+  // With cash accounts to choose from, the person must say which one paid (or that none did), so a
+  // payment is never recorded against no account by accident.
+  const mustChoose = (cashHoldings || []).length > 0 && source === "";
+  const valid = parseFloat(amount) > 0 && !mustChoose;
   const idBase = `pay-${liability.id}`;
 
   return (
@@ -419,7 +422,10 @@ function RecordPaymentForm({ liability, onDone }) {
             }}
             style={inputStyle}
           >
-            <option value="">Not from an account (only lower the balance)</option>
+            <option value="" disabled>
+              Choose an account
+            </option>
+            <option value="none">Not from an account (only lower the balance)</option>
             {(cashHoldings || []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -431,7 +437,9 @@ function RecordPaymentForm({ liability, onDone }) {
       </div>
       <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.6rem 0 0" }}>
         This lowers the balance
-        {source ? (
+        {source === "" ? (
+          ". Choose which account the money came from"
+        ) : source !== "none" ? (
           " and takes the money out of the account you picked"
         ) : (
           <strong style={{ color: "var(--warning)" }}>, but no account is debited. Pick one above to take the money out of it</strong>

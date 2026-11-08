@@ -56,3 +56,15 @@ def test_other_user_cannot_use_or_undo_a_transfer(client):
     assert b(client, "delete", f"/transfers/{tid}").status_code in (403, 404)
     assert b(client, "post", "/transfers", {"from_holding_id": src, "to_holding_id": dst, "amount": 1}).status_code in (403, 404)
     assert balance(client, src) == 60
+
+
+def test_card_payment_from_savings_lowers_the_savings_balance(client):
+    savings = cash_account(client, "Pay Savings", 1000)
+    r = a(client, "post", "/liabilities", {"name": "Pay Visa", "liability_type": "credit_card", "currency": "USD", "current_balance": 400})
+    assert r.status_code == 201, r.get_json()
+    card = r.get_json()["id"]
+    r = a(client, "post", f"/liabilities/{card}/payments", {"amount": 150, "funding_source_holding_id": savings})
+    assert r.status_code == 201, r.get_json()
+    assert balance(client, savings) == 850
+    owed = next(x for x in a(client, "get", "/liabilities").get_json() if x["id"] == card)["current_balance"]
+    assert owed == 250
