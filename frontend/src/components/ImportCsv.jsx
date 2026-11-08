@@ -31,6 +31,7 @@ export default function ImportCsv() {
     onSuccess: (result) => {
       setRows(result.rows.map((r, i) => ({ ...r, _key: i })));
       setErrors(result.errors || []);
+      (result.warnings || []).forEach((w) => toast.info(w, 12000));
       const defaults = {};
       result.rows.forEach((_, i) => {
         defaults[i] = true;
@@ -144,7 +145,8 @@ export default function ImportCsv() {
             whatever you use). Created automatically if it doesn't already exist.
           </li>
           <li>
-            Dates should be yyyy-mm-dd (2020-08-07 = 7 Aug 2020) — other common formats like dd/mm/yyyy are also accepted, read day-first.
+            Write dates as yyyy-mm-dd (2020-08-07 is 7 Aug 2020). Other formats like dd/mm/yyyy are read day-first, and you will be warned
+            when a date could be read two ways.
           </li>
           <li>
             For Real Estate, Fixed Deposit, PPF, EPF, Retirals, Cash, Loan, or Credit — things you don't buy/sell in units — leave

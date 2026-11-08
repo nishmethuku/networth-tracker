@@ -1,9 +1,11 @@
-import { initialTheme, type Theme } from "../utils/theme";
+import { initialPalette, initialTheme, type PaletteId, type Theme } from "../utils/theme";
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 interface ThemeContextValue {
   theme: Theme;
   toggleTheme: () => void;
+  palette: PaletteId;
+  setPalette: (palette: PaletteId) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -19,6 +21,29 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     return initialTheme(saved, typeof window !== "undefined" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches);
   });
+
+  const [palette, setPaletteState] = useState<PaletteId>(() => {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("palette");
+    } catch {
+      /* storage blocked */
+    }
+    return initialPalette(saved);
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-palette", palette);
+  }, [palette]);
+
+  const setPalette = (next: PaletteId) => {
+    setPaletteState(next);
+    try {
+      localStorage.setItem("palette", next);
+    } catch {
+      /* storage blocked */
+    }
+  };
 
   // Apply theme to document root
   useEffect(() => {
@@ -38,7 +63,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{ theme, toggleTheme, palette, setPalette }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextValue {

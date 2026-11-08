@@ -186,3 +186,14 @@ def test_excel_style_dd_mon_yyyy_date_parses():
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
+
+
+def test_a_date_that_could_be_read_two_ways_gets_a_warning_but_iso_does_not():
+    header = "Holding Type,Holding Account,Source,Investment,Transaction,Transaction Date,Transaction Units,Transaction price,Currency,Country\n"
+    ambiguous = parse_simple_csv(header + "Cash,Chase,,Checking,,11/8/2026,,5000,USD,United States\n")
+    assert ambiguous["errors"] == []
+    assert len(ambiguous["warnings"]) == 1 and "2026-08-11" in ambiguous["warnings"][0]
+    iso = parse_simple_csv(header + "Cash,Chase,,Checking,,2026-11-08,,5000,USD,United States\n")
+    assert iso["warnings"] == []
+    clear = parse_simple_csv(header + "Cash,Chase,,Checking,,25/11/2026,,5000,USD,United States\n")
+    assert clear["warnings"] == []
