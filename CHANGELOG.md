@@ -4,7 +4,6 @@
 
 - New transaction types **Stock split** (enter the ratio, 2 for a 2-for-1 split) and **Bonus shares** (enter the free shares received). Your share count goes up, your total cost stays the same, so the average cost per share drops. No money is counted as moving.
 - Tax lots keep their original purchase date through a split, and bonus shares count as zero-cost shares from their own date. Charts of past value use the new share count so a split does not make the past look smaller.
-- Database: run `supabase/migrations/0007_split_bonus_types.sql` once.
 
 ## Delete for good
 
