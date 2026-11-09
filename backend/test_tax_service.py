@@ -148,3 +148,26 @@ def test_estimate_tax_liability_unknown_country_returns_none():
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
+
+
+def test_split_keeps_holding_period_and_fifo_gain():
+    txs = [
+        _tx("buy", date(2023, 1, 1), 10, 100, tx_id=1),
+        _tx("split", date(2023, 6, 1), 2, 0, tx_id=2),
+        _tx("sell", date(2024, 3, 1), 20, 80, tx_id=3),
+    ]
+    splits = _fifo_holding_period_splits(txs)
+    assert splits == [{"short_term_qty": 0.0, "long_term_qty": 20.0}]
+    events, _ = _lot_matched_realized_events(txs, "fifo")
+    assert events[0]["amount"] == 600  # (80 - 50) * 20
+
+
+def test_bonus_shares_have_zero_cost_and_own_holding_date():
+    txs = [
+        _tx("buy", date(2023, 1, 1), 10, 100, tx_id=1),
+        _tx("bonus", date(2024, 1, 10), 10, 0, tx_id=2),
+        _tx("sell", date(2024, 2, 1), 10, 100, tx_id=3),
+    ]
+    events, splits = _lot_matched_realized_events(txs, "lifo")
+    assert events[0]["amount"] == 1000  # sells the free shares first
+    assert splits[0]["short_term_qty"] == 10

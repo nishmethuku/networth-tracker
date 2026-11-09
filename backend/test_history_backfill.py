@@ -93,3 +93,13 @@ def test_earliest_activity():
     h = HoldingRecord("stock", "X", "USD", transactions=[(date(2025, 5, 1), "buy", 1)], valuations=[(date(2024, 1, 1), 1, "USD")])
     assert earliest_activity([h]) == date(2024, 1, 1)
     assert earliest_activity([]) is None
+
+
+def test_net_quantity_scales_for_later_split_to_match_adjusted_prices():
+    from datetime import date as d
+    from backend.history_backfill import net_quantity_on
+    txs = [(d(2024, 1, 1), "buy", 10), (d(2024, 6, 1), "split", 2)]
+    assert net_quantity_on(txs, d(2024, 3, 1)) == 20
+    assert net_quantity_on(txs, d(2024, 7, 1)) == 20
+    bonus = [(d(2024, 1, 1), "buy", 10), (d(2024, 6, 1), "bonus", 10)]
+    assert net_quantity_on(bonus, d(2024, 3, 1)) == 20

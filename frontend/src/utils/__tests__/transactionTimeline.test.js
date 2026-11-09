@@ -34,4 +34,17 @@ describe("computeTransactionTimeline", () => {
     const timeline = computeTransactionTimeline(transactions);
     expect(timeline[2].cumulativeRealizedGain).toBeCloseTo(250);
   });
+
+  it("split multiplies shares and bonus adds shares without changing cost", () => {
+    const transactions = [
+      { id: 1, transactionType: "buy", transactionDate: "2024-01-01", quantity: 10, pricePerUnit: 100, fees: 0 },
+      { id: 2, transactionType: "split", transactionDate: "2024-02-01", quantity: 2, pricePerUnit: 0, fees: 0 },
+      { id: 3, transactionType: "bonus", transactionDate: "2024-03-01", quantity: 5, pricePerUnit: 0, fees: 0 },
+    ];
+    const timeline = computeTransactionTimeline(transactions);
+    expect(timeline[2].quantityAfter).toBe(20);
+    expect(timeline[3].quantityAfter).toBe(25);
+    expect(timeline[3].costBasisAfter).toBeCloseTo(1000);
+    expect(timeline[3].avgCostAfter).toBeCloseTo(40);
+  });
 });

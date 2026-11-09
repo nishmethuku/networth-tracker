@@ -16,6 +16,7 @@ import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
+import { isShareChangeTransactionType, describeShareChange } from "../constants/enums";
 
 const VIRTUALIZE_THRESHOLD = 50;
 
@@ -307,12 +308,16 @@ export default function Transactions() {
                     >
                       {t.transactionType}
                     </td>
-                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</td>
                     <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
-                      {formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
+                      {isShareChangeTransactionType(t.transactionType) ? describeShareChange(t) : t.quantity.toFixed(4)}
+                    </td>
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
+                      {isShareChangeTransactionType(t.transactionType) ? "-" : formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
                     </td>
                     <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-                      {formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
+                      {isShareChangeTransactionType(t.transactionType)
+                        ? "-"
+                        : formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
                     </td>
                     <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }}>
                       <button

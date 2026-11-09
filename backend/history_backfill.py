@@ -24,7 +24,7 @@ class HoldingRecord:
     asset_type: str
     symbol: Optional[str]
     currency: str
-    # (date, "buy" | "sell", quantity)
+    # (date, "buy" | "sell" | "split" | "bonus", quantity)
     transactions: list = field(default_factory=list)
     # (date, value, currency)
     valuations: list = field(default_factory=list)
@@ -37,16 +37,32 @@ RateFn = Callable[[str, str, date], Optional[float]]
 
 
 def net_quantity_on(transactions, on_date: date) -> float:
-    """Units held at the end of on_date: buys add, sells subtract."""
+    """Units held at the end of on_date, expressed in today's share terms.
+
+    Buys add, sells subtract, a split multiplies and a bonus adds free shares.
+    Historical prices from the price source are already adjusted for later
+    splits and bonuses, so the count held on an older date is scaled up by
+    every split or bonus that happened after it. Otherwise a 2-for-1 split
+    would make the past look like half as much money."""
     qty = 0.0
-    for tx_date, tx_type, quantity in transactions:
-        if tx_date > on_date:
-            continue
+    qty_on_date = 0.0
+    later_factor = 1.0
+    for tx_date, tx_type, quantity in sorted(transactions, key=lambda t: t[0]):
+        before = qty
         if tx_type == "buy":
             qty += quantity
         elif tx_type == "sell":
             qty -= quantity
-    return max(qty, 0.0)
+        elif tx_type == "split":
+            if quantity > 0:
+                qty *= quantity
+        elif tx_type == "bonus":
+            qty += quantity
+        if tx_date <= on_date:
+            qty_on_date = qty
+        elif tx_type in ("split", "bonus") and before > 0:
+            later_factor *= qty / before
+    return max(qty_on_date * later_factor, 0.0)
 
 
 def valuation_on(valuations, on_date: date):

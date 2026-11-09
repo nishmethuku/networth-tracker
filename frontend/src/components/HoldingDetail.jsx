@@ -25,6 +25,7 @@ import {
 } from "../api";
 import { formatCurrencyForDisplay, formatPercent, safeNumber, formatDateISO, todayISO } from "../utils/formatters";
 import { getAssetTypeLabel, isQuantityBased } from "../constants/enums";
+import { isShareChangeTransactionType, describeShareChange } from "../constants/enums";
 import { computeTransactionTimeline } from "../utils/transactionTimeline";
 import { RETURN_RANGES, computePeriodReturn } from "../utils/periodReturn";
 
@@ -481,12 +482,14 @@ export default function HoldingDetail() {
                             >
                               {t.transactionType}
                             </td>
-                            <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</td>
                             <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>
-                              {formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
+                              {isShareChangeTransactionType(t.transactionType) ? describeShareChange(t) : t.quantity.toFixed(4)}
                             </td>
                             <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>
-                              {formatCurrencyForDisplay(t.fees, t.currency)}
+                              {isShareChangeTransactionType(t.transactionType) ? "-" : formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
+                            </td>
+                            <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)" }}>
+                              {isShareChangeTransactionType(t.transactionType) ? "-" : formatCurrencyForDisplay(t.fees, t.currency)}
                             </td>
                             <td style={{ padding: "0.6rem", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
                               {running ? formatCurrencyForDisplay(running.costBasisAfter, t.currency) : "—"}

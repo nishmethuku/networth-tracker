@@ -43,6 +43,10 @@ export function computeTransactionTimeline(transactions: TransactionLike[]): Rec
       cumulativeRealizedGain += eventGain;
       totalCost -= avgCost * sellQty;
       quantity -= sellQty;
+    } else if (t.transactionType === "split") {
+      if (t.quantity > 0) quantity *= t.quantity;
+    } else if (t.transactionType === "bonus") {
+      quantity += t.quantity;
     }
     byId[t.id] = {
       quantityAfter: quantity,

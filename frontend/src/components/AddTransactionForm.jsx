@@ -4,7 +4,7 @@ import { useToast } from "../contexts/ToastContext";
 import TagSuggestionCard from "./ai/TagSuggestionCard";
 import { fetchHoldings, createTransaction, priceLookup } from "../api";
 import { formatCurrencyForDisplay, todayISO } from "../utils/formatters";
-import { TRANSACTION_TYPES, isIncomeTransactionType } from "../constants/enums";
+import { TRANSACTION_TYPES, isIncomeTransactionType, isShareChangeTransactionType, quantityLabelFor } from "../constants/enums";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -76,6 +76,7 @@ export default function AddTransactionForm({ holding, onDone, initialType = "buy
   }
 
   const isIncome = isIncomeTransactionType(form.transaction_type);
+  const isShareChange = isShareChangeTransactionType(form.transaction_type);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -83,8 +84,8 @@ export default function AddTransactionForm({ holding, onDone, initialType = "buy
       transaction_type: form.transaction_type,
       transaction_date: form.transaction_date,
       quantity: isIncome ? 1 : parseFloat(form.quantity),
-      price_per_unit: parseFloat(form.price_per_unit),
-      fees: parseFloat(form.fees || 0),
+      price_per_unit: isShareChange ? 0 : parseFloat(form.price_per_unit),
+      fees: isShareChange ? 0 : parseFloat(form.fees || 0),
       currency: holding.currency,
       ...(form.transaction_type === "buy" && form.funding_source_holding_id
         ? { funding_source_holding_id: Number(form.funding_source_holding_id) }
@@ -164,7 +165,7 @@ export default function AddTransactionForm({ holding, onDone, initialType = "buy
             htmlFor="tx-quantity"
             style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
           >
-            Quantity
+            {quantityLabelFor(form.transaction_type)}
           </label>
           <input
             id="tx-quantity"
@@ -178,51 +179,58 @@ export default function AddTransactionForm({ holding, onDone, initialType = "buy
           />
         </div>
       )}
-      <div>
-        <label
-          htmlFor="tx-price"
-          style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
-        >
-          {isIncome ? "Amount" : "Price / unit"}
-        </label>
-        <div style={{ display: "flex", gap: "0.35rem" }}>
+      {!isShareChange && (
+        <div>
+          <label
+            htmlFor="tx-price"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
+            {isIncome ? "Amount" : "Price / unit"}
+          </label>
+          <div style={{ display: "flex", gap: "0.35rem" }}>
+            <input
+              id="tx-price"
+              type="number"
+              step="any"
+              min="0"
+              value={form.price_per_unit}
+              onChange={(e) => setForm({ ...form, price_per_unit: e.target.value })}
+              style={{ ...inputStyle, flex: 1 }}
+              required
+            />
+            {!isIncome && holding.symbol && (
+              <button
+                type="button"
+                onClick={handleFetchPrice}
+                disabled={fetchingPrice}
+                style={{ fontSize: "0.75rem", padding: "0 0.5rem" }}
+                title="Fetch historical price for this date"
+              >
+                {fetchingPrice ? "..." : "Fetch"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {!isShareChange && (
+        <div>
+          <label
+            htmlFor="tx-fees"
+            style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}
+          >
+            Fees
+          </label>
           <input
-            id="tx-price"
+            id="tx-fees"
             type="number"
             step="any"
             min="0"
-            value={form.price_per_unit}
-            onChange={(e) => setForm({ ...form, price_per_unit: e.target.value })}
-            style={{ ...inputStyle, flex: 1 }}
-            required
+            value={form.fees}
+            onChange={(e) => setForm({ ...form, fees: e.target.value })}
+            style={inputStyle}
           />
-          {!isIncome && holding.symbol && (
-            <button
-              type="button"
-              onClick={handleFetchPrice}
-              disabled={fetchingPrice}
-              style={{ fontSize: "0.75rem", padding: "0 0.5rem" }}
-              title="Fetch historical price for this date"
-            >
-              {fetchingPrice ? "..." : "Fetch"}
-            </button>
-          )}
         </div>
-      </div>
-      <div>
-        <label htmlFor="tx-fees" style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.25rem" }}>
-          Fees
-        </label>
-        <input
-          id="tx-fees"
-          type="number"
-          step="any"
-          min="0"
-          value={form.fees}
-          onChange={(e) => setForm({ ...form, fees: e.target.value })}
-          style={inputStyle}
-        />
-      </div>
+      )}
       {form.transaction_type === "buy" && cashHoldings?.length > 0 && (
         <div>
           <label
