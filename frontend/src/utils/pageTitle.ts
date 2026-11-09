@@ -18,6 +18,7 @@ const TITLES: Record<string, string> = {
   "/review": "Year in Review",
   "/settings": "Settings",
   "/help": "Help",
+  "/start": "Add your first holding",
   "/household": "Household",
   "/accounts": "Accounts",
 };

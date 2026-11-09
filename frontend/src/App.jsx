@@ -40,6 +40,7 @@ const WhatIf = lazy(() => import("./components/WhatIf"));
 const Income = lazy(() => import("./components/Income"));
 const Settings = lazy(() => import("./components/Settings"));
 const Help = lazy(() => import("./components/Help"));
+const GuidedSetup = lazy(() => import("./components/GuidedSetup"));
 const Budget = lazy(() => import("./components/Budget"));
 const Expenses = lazy(() => import("./components/Expenses"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
@@ -454,6 +455,7 @@ function AppShell() {
               <Route path="income" element={<Income />} />
               <Route path="settings" element={<Settings />} />
               <Route path="help" element={<Help />} />
+              <Route path="start" element={<GuidedSetup />} />
               <Route path="review" element={<YearInReview />} />
               <Route path="household" element={<Household />} />
               <Route path="accounts" element={<Accounts />} />

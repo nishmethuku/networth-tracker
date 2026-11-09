@@ -1,5 +1,9 @@
 # Changelog
 
+## Guided first holding
+
+- New **Add your first holding** page (linked from the empty Dashboard and Portfolio). Pick one of four plain choices, a stock, gold or silver, a bank account, or property/FD/PPF/EPF, then fill only a few boxes.
+
 ## India tax rules and Sensex
 
 - The India tax estimate now uses the current listed-equity rules: 20% on gains from holdings sold within a year, 12.5% on longer holdings, with the first Rs 1.25 lakh of long-term gains each financial year tax-free.
