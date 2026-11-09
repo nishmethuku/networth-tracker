@@ -70,6 +70,20 @@ def compute_position(transactions: List[HoldingTransaction]) -> Dict:
     }
 
 
+def sells_more_than_held(transactions: List[HoldingTransaction]) -> bool:
+    """True when, walking the ledger in date order, any sell is larger than what was held at that
+    point. compute_position quietly clamps such a sell, which hides a typo like 999 instead of 9."""
+    quantity = 0.0
+    for t in sorted(transactions, key=lambda t: (t.transaction_date, t.id or 0)):
+        if t.transaction_type == "buy":
+            quantity += t.quantity
+        elif t.transaction_type == "sell":
+            if t.quantity > quantity + 1e-9:
+                return True
+            quantity -= t.quantity
+    return False
+
+
 def _transaction_cash_flows(transactions: List[HoldingTransaction]):
     """Every transaction as a dated, signed cash flow for XIRR: a buy is
     money leaving the investor (negative); a sell or a dividend/interest

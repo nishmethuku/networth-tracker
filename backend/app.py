@@ -39,6 +39,7 @@ from .holdings_service import (
     build_dashboard,
     build_funding_valuation,
     list_holdings_with_metrics,
+    sells_more_than_held,
     to_summary,
 )
 from .household_service import (
@@ -533,6 +534,12 @@ def create_app():
             fees=safe_float(data.get("fees", 0)),
             notes=data.get("notes"),
         )
+        if tx.transaction_type == "sell":
+            existing = HoldingTransaction.query.filter(
+                HoldingTransaction.holding_id == holding_id, HoldingTransaction.deleted_at.is_(None)
+            ).all()
+            if sells_more_than_held(existing + [tx]):
+                return jsonify({"error": "You are selling more than you hold on that date. Check the quantity and the date."}), 400
         db.session.add(tx)
 
         funding_valuation = None
@@ -574,6 +581,13 @@ def create_app():
             tx.notes = data["notes"]
         if "tags" in data:
             tx.tags = data["tags"]
+        if tx.transaction_type == "sell":
+            ledger = HoldingTransaction.query.filter(
+                HoldingTransaction.holding_id == tx.holding_id, HoldingTransaction.deleted_at.is_(None)
+            ).all()
+            if sells_more_than_held(ledger):
+                db.session.rollback()
+                return jsonify({"error": "You are selling more than you hold on that date. Check the quantity and the date."}), 400
         db.session.commit()
         return jsonify(tx.to_dict())
 
