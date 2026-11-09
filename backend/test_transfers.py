@@ -161,3 +161,13 @@ def test_cannot_move_or_pay_more_than_the_account_holds(client):
     card = a(client, "post", "/liabilities", {"name": "Small Visa", "liability_type": "credit_card", "currency": "USD", "current_balance": 400}).get_json()["id"]
     assert a(client, "post", f"/liabilities/{card}/payments", {"amount": 300, "funding_source_holding_id": src}).status_code == 400
     assert a(client, "post", f"/liabilities/{card}/payments", {"amount": 30, "funding_source_holding_id": dst}).status_code == 201
+
+
+def test_transfer_can_be_cleared_after_one_of_its_accounts_is_deleted(client):
+    src, dst = cash_account_today(client, "Gone Checking", 300), cash_account_today(client, "Gone Savings", 20)
+    tid = move(client, src, dst, 100).get_json()["transfer"]["id"]
+    assert a(client, "delete", f"/holdings/{src}").status_code == 200
+    r = a(client, "delete", f"/transfers/{tid}")
+    assert r.status_code == 200, r.get_json()
+    assert all(t["id"] != tid for t in a(client, "get", "/transfers").get_json())
+    assert balance(client, dst) == 120

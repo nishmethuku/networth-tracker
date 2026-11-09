@@ -5,7 +5,7 @@ from flask import g, jsonify, request
 
 from ..auth import require_auth
 from ..holdings_service import build_deposit_valuation, build_funding_valuation
-from ..models import AccountTransfer, HoldingValuation, db
+from ..models import AccountTransfer, Holding, HoldingValuation, db
 from ..services import safe_float
 
 
@@ -96,7 +96,15 @@ def register(app, h):
         record = AccountTransfer.query.get_or_404(transfer_id)
         if str(record.user_id) != str(g.user_id):
             return jsonify({"error": "Forbidden"}), 403
-        if not record.from_holding_id or not record.to_holding_id:
+        # An account removed by the user is only soft-deleted, so its id is still on the record.
+        # With either account gone there is nothing to move back, so just clear the entry.
+        def _gone(holding_id):
+            if not holding_id:
+                return True
+            holding = Holding.query.get(holding_id)
+            return holding is None or holding.deleted_at is not None
+
+        if _gone(record.from_holding_id) or _gone(record.to_holding_id):
             db.session.delete(record)
             db.session.commit()
             return jsonify({"message": "Transfer removed. One of its accounts no longer exists, so no balance was changed"}), 200
