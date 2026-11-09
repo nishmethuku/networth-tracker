@@ -10,16 +10,15 @@ import EmptyState from "./EmptyState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import HoldingCard from "./HoldingCard";
 import HoldingTypeGuide from "./HoldingTypeGuide";
+import RecentlyDeleted from "./RecentlyDeleted";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
-import { formatCurrencyForDisplay, formatPercent, safeNumber, todayISO } from "../utils/formatters";
-import { ASSET_TYPE_OPTIONS, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
+import { formatCurrencyForDisplay, formatDateISO, formatPercent, safeNumber, todayISO } from "../utils/formatters";
+import { ASSET_TYPE_OPTIONS, CURRENCIES, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 import { groupLots } from "../utils/groupHoldings";
 import { pooledXirr } from "../utils/xirr";
 import { holdingGrowthPct as gainPct, groupBuyValueAndGain, computeGroupedReturn } from "../utils/holdingReturns";
-
-const CURRENCIES = ["USD", "INR", "AUD"];
 
 /** Applies an AI-generated filter spec (see backend/ai_service.py's
  * SEARCH_SYSTEM_PROMPT for the exact shape) against already-loaded holdings. */
@@ -100,6 +99,12 @@ function SortableHeader({ label, sortKey, currentSort, currentDir, onSort, hint 
       </button>
     </th>
   );
+}
+
+/** The date a purchase was made, from its first dated cash flow (shown on each lot row). */
+function lotDate(h) {
+  const first = (h.cashFlows || []).map((c) => c.date).sort()[0];
+  return first ? formatDateISO(first) : "";
 }
 
 function fresh(h) {
@@ -238,7 +243,7 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
                           {expanded[key] ? "▾" : "▸"}
                         </span>
                       )}
-                      {isLot ? "Purchase" : h.symbol || h.name}
+                      {isLot ? `Purchase${lotDate(h) ? ` · ${lotDate(h)}` : ""}` : h.symbol || h.name}
                       {isSummary && <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> ({pos.lots.length})</span>}
                     </div>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
@@ -321,6 +326,22 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
                       </button>
                     ) : (
                       <>
+                        {isLot && (
+                          <button
+                            className="portfolio-row-action"
+                            onClick={() => navigate(`/portfolio/${h.id}?sell=1`)}
+                            style={{
+                              fontSize: "0.8125rem",
+                              background: "transparent",
+                              border: "1px solid var(--border)",
+                              color: "var(--text)",
+                              padding: "0.35rem 0.75rem",
+                              marginRight: "0.4rem",
+                            }}
+                          >
+                            Sell
+                          </button>
+                        )}
                         <button
                           className="portfolio-row-action"
                           onClick={() => navigate(`/portfolio/${h.id}`)}
@@ -868,6 +889,7 @@ export default function Portfolio() {
           );
         })
       )}
+      <RecentlyDeleted />
     </div>
   );
 }

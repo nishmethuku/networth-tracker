@@ -70,6 +70,32 @@ export async function deleteHolding(id: number | string) {
   await api.delete(`/holdings/${id}`);
 }
 
+export interface DeletedHolding {
+  id: number;
+  name: string;
+  symbol: string | null;
+  assetType: string;
+  account: string;
+  deletedAt: string;
+}
+
+/** Holdings deleted in the last 30 days, newest first, so a mistake can be undone. */
+export async function fetchDeletedHoldings(): Promise<DeletedHolding[]> {
+  const rows = (await api.get("/holdings/deleted")) || [];
+  return rows.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    symbol: r.symbol ?? null,
+    assetType: r.asset_type,
+    account: r.account ?? "",
+    deletedAt: r.deleted_at,
+  }));
+}
+
+export async function restoreHolding(id: number | string) {
+  return api.post(`/holdings/${id}/restore`, {});
+}
+
 /**
  * Transactions (buy/sell ledger for stock/mutual_fund/crypto/commodity)
  */

@@ -32,6 +32,7 @@ import ProjectionCard from "./dashboard/ProjectionCard";
 import NeedsAttentionCard from "./dashboard/NeedsAttentionCard";
 import WelcomeBackCard from "./dashboard/WelcomeBackCard";
 import GettingStartedCard from "./dashboard/GettingStartedCard";
+import { CURRENCIES } from "../constants/enums";
 import HoldingTypeGuide from "./HoldingTypeGuide";
 import WhatMovedCard from "./dashboard/WhatMovedCard";
 import SpendingCard from "./dashboard/SpendingCard";
@@ -47,7 +48,6 @@ import { formatCurrencyCompact, formatPercent, todayISO } from "../utils/formatt
 import { netWorthChange } from "../utils/netWorthChange";
 import { groupBuyValueAndGain } from "../utils/holdingReturns";
 
-const CURRENCIES = ["USD", "INR", "AUD"];
 const CONCENTRATION_THRESHOLD_PCT = 25;
 const BENCHMARKS = [
   { value: "SPY", label: "S&P 500 (SPY)" },

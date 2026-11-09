@@ -171,3 +171,26 @@ def test_transfer_can_be_cleared_after_one_of_its_accounts_is_deleted(client):
     assert r.status_code == 200, r.get_json()
     assert all(t["id"] != tid for t in a(client, "get", "/transfers").get_json())
     assert balance(client, dst) == 120
+
+
+def test_deleted_holding_can_be_restored_with_its_purchases(client):
+    from backend.test_categories_and_entry_edit import b
+
+    hid = a(client, "post", "/holdings", {"asset_type": "stock", "symbol": "MSFT", "name": "Restore Me", "country": "United States", "account": "Broker", "currency": "USD"}).get_json()["id"]
+    keep = {"transaction_type": "buy", "transaction_date": "2025-01-02", "quantity": 10, "price_per_unit": 100, "currency": "USD"}
+    first = a(client, "post", f"/holdings/{hid}/transactions", keep).get_json()["id"]
+    second = a(client, "post", f"/holdings/{hid}/transactions", {**keep, "quantity": 5}).get_json()["id"]
+    assert a(client, "delete", f"/transactions/{second}").status_code == 200  # removed on its own earlier
+    assert a(client, "delete", f"/holdings/{hid}").status_code == 200
+    assert a(client, "get", f"/holdings/{hid}").status_code == 404
+
+    deleted = a(client, "get", "/holdings/deleted").get_json()
+    assert hid in [d["id"] for d in deleted]
+    assert b(client, "post", f"/holdings/{hid}/restore").status_code in (403, 404)
+
+    assert a(client, "post", f"/holdings/{hid}/restore").status_code == 200
+    back = a(client, "get", f"/holdings/{hid}").get_json()
+    assert back["quantity"] == 10  # the earlier-deleted purchase stays deleted
+    assert hid not in [d["id"] for d in a(client, "get", "/holdings/deleted").get_json()]
+    assert a(client, "post", f"/holdings/{hid}/restore").status_code == 400
+    assert first

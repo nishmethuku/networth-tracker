@@ -1,5 +1,14 @@
 # Changelog
 
+## Indian number format, restore deleted holdings, more currencies, Help
+
+- **Rupee amounts** now group the Indian way (2,12,50,000) and totals show as lakhs and crores (₹2.13 Cr).
+- **Recently deleted:** at the bottom of Portfolio, holdings deleted in the last 30 days can be restored with their purchases.
+- **Gold and metals reminder:** the "Needs your attention" card now reminds you when a hand-entered gold price is over 90 days old.
+- **Each purchase row** now shows its purchase date and has a **Sell** button that opens the sale form.
+- **GBP, EUR and CAD** are now available everywhere a currency can be picked, and in CSV imports.
+- **Help page** (the ? icon) answers common questions. Set `VITE_SUPPORT_EMAIL` on Vercel to add a "Send a message" link.
+
 ## Faster first load, a guide for new people, grouped export, and an overspend warning
 
 - **The server is kept awake.** A light check every 10 minutes stops the free server from sleeping, so the first page no longer waits around 40 seconds.

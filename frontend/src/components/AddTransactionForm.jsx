@@ -22,11 +22,11 @@ const inputStyle = {
  * holding picked from a dropdown instead. Same component, same mutation,
  * same funding-source/price-fetch behavior either way.
  */
-export default function AddTransactionForm({ holding, onDone }) {
+export default function AddTransactionForm({ holding, onDone, initialType = "buy" }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [form, setForm] = useState({
-    transaction_type: "buy",
+    transaction_type: initialType,
     transaction_date: todayISO(),
     quantity: "",
     price_per_unit: "",

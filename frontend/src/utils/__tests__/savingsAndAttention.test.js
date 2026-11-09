@@ -65,3 +65,24 @@ describe("needsAttention", () => {
     expect(needsAttention(null, now)).toEqual([]);
   });
 });
+
+describe("needsAttention for hand-priced gold", () => {
+  const now = new Date("2026-10-22T12:00:00Z");
+  it("reminds about gold whose price was last entered over 90 days ago", () => {
+    const items = needsAttention(
+      [{ id: 1, label: "Gold", quantityBased: true, handPriced: true, currentPrice: 2000, updatedAt: "2026-05-01T00:00:00Z" }],
+      now,
+    );
+    expect(items.map((i) => i.id)).toEqual(["stale"]);
+  });
+  it("stays quiet for recently updated gold and for live-priced stocks", () => {
+    const items = needsAttention(
+      [
+        { id: 1, label: "Gold", quantityBased: true, handPriced: true, currentPrice: 2000, updatedAt: "2026-10-01T00:00:00Z" },
+        { id: 2, label: "AAPL", quantityBased: true, currentPrice: 200, updatedAt: "2020-01-01T00:00:00Z" },
+      ],
+      now,
+    );
+    expect(items).toEqual([]);
+  });
+});

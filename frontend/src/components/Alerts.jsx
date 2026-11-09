@@ -155,6 +155,9 @@ export default function Alerts() {
               <option value="USD">USD</option>
               <option value="INR">INR</option>
               <option value="AUD">AUD</option>
+              <option value="GBP">GBP</option>
+              <option value="EUR">EUR</option>
+              <option value="CAD">CAD</option>
             </select>
           )}
 

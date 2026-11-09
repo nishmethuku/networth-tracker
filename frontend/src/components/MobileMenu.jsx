@@ -26,6 +26,7 @@ const MENU_LINKS = [
   { to: "/review", labelKey: "nav.review", icon: "🎉" },
   { to: "/household", labelKey: "nav.household", icon: "👪" },
   { to: "/accounts", labelKey: "nav.accounts", icon: "🏷️" },
+  { to: "/help", label: "Help", icon: "❓" },
   { to: "/settings", labelKey: "nav.settings", icon: "⚙️" },
 ];
 

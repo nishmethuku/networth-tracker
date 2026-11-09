@@ -6,7 +6,7 @@ import { isPrivacyOn, MASK } from "./privacy";
  * this file only formats already-known-currency values for display.
  */
 
-export type Currency = "USD" | "INR" | "AUD";
+export type Currency = "USD" | "INR" | "AUD" | "GBP" | "EUR" | "CAD";
 
 export function safeNumber(value: unknown): number {
   if (value === null || value === undefined) return 0;
@@ -48,7 +48,15 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
   AUD: "$",
   INR: "₹",
+  GBP: "£",
+  EUR: "€",
+  CAD: "C$",
 };
+
+/** Rupee amounts group as 12,34,567 (lakhs and crores), the way people in India read them. */
+function localeFor(currency: string): string {
+  return currency === "INR" ? "en-IN" : "en-US";
+}
 
 /** Map countries to their native currency (for labeling, not conversion) */
 export function currencyForCountry(country: string): Currency {
@@ -77,7 +85,7 @@ export function formatCurrencyForDisplay(
   const rounded = keepCents ? Math.round(abs * 100) / 100 : Math.round(abs);
   const symbol = CURRENCY_SYMBOLS[currency] || "$";
   const digits = keepCents ? 2 : 0;
-  const body = rounded.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const body = rounded.toLocaleString(localeFor(currency), { minimumFractionDigits: digits, maximumFractionDigits: digits });
   // Sign from the rounded value, so a tiny negative that rounds to zero
   // never renders as "-$0".
   const base = `${raw < 0 && rounded > 0 ? "-" : ""}${symbol}${body}`;
@@ -95,7 +103,12 @@ export function formatCurrencyCompact(value: unknown, currency: string = "USD"):
   const absNum = Math.abs(num);
   let formatted: string;
 
-  if (absNum >= 1000000) {
+  if (currency === "INR" && absNum >= 100000) {
+    // Lakhs and crores: 1 lakh = 1,00,000 and 1 crore = 1,00,00,000.
+    const crores = absNum >= 10000000;
+    const scaled = (absNum / (crores ? 10000000 : 100000)).toFixed(2).replace(/\.?0+$/, "");
+    formatted = `${scaled}${crores ? " Cr" : " L"}`;
+  } else if (absNum >= 1000000) {
     // One decimal of precision, not whole millions -- rounding to whole
     // millions overstates/understates by up to $500K, e.g. $1,786,100
     // ("$1.8M") used to round to "$2M", a ~12% error. Trim a trailing
@@ -111,7 +124,7 @@ export function formatCurrencyCompact(value: unknown, currency: string = "USD"):
     // "$1") for a real, tiny balance, so keep the cents.
     formatted = Math.abs(safeNumber(value)).toFixed(2);
   } else {
-    formatted = absNum.toLocaleString("en-US");
+    formatted = absNum.toLocaleString(localeFor(currency));
   }
 
   const sign = safeNumber(value) < 0 && formatted !== "0" ? "-" : "";
