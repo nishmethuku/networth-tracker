@@ -4,6 +4,7 @@ test.describe("Dashboard", () => {
   test("shows an empty state for a brand-new account with no holdings", async ({ mockedPage: page }) => {
     await page.goto("/");
     await expect(page.getByText(/no holdings yet/i)).toBeVisible();
+    await expect(page.getByText(/not sure what to enter/i)).toBeVisible();
   });
 
   test("renders net worth and a holding once there's real data", async ({ mockedPage: page }) => {
