@@ -135,3 +135,17 @@ def test_account_less_holdings_can_be_created_without_an_account(client):
     r = a(client, "post", "/holdings", {"asset_type": "stock", "name": "X", "symbol": "X", "country": "United States", "account": "", "currency": "USD"})
     assert r.status_code == 400
     assert "account" in r.get_json()["error"]
+
+
+def test_cannot_sell_more_than_is_held(client):
+    hid = a(client, "post", "/holdings", {"asset_type": "stock", "symbol": "MSFT", "name": "Oversell", "country": "United States", "account": "Broker", "currency": "USD"}).get_json()["id"]
+    buy = {"transaction_type": "buy", "transaction_date": "2025-01-02", "quantity": 10, "price_per_unit": 100, "currency": "USD"}
+    assert a(client, "post", f"/holdings/{hid}/transactions", buy).status_code == 201
+    sell = {**buy, "transaction_type": "sell", "transaction_date": "2025-06-02", "quantity": 999}
+    assert a(client, "post", f"/holdings/{hid}/transactions", sell).status_code == 400
+    ok = a(client, "post", f"/holdings/{hid}/transactions", {**sell, "quantity": 4})
+    assert ok.status_code == 201
+    tid = ok.get_json()["id"]
+    assert a(client, "put", f"/transactions/{tid}", {"quantity": 999}).status_code == 400
+    assert a(client, "put", f"/transactions/{tid}", {"quantity": 10}).status_code == 200
+    assert a(client, "get", f"/holdings/{hid}").get_json()["quantity"] == 0

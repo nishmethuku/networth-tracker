@@ -18,6 +18,7 @@ from backend.holdings_service import (
     compute_position,
     get_monthly_net_flow,
     list_holdings_with_metrics,
+    sells_more_than_held,
 )
 from backend.models import Holding, HoldingTransaction, HoldingValuation
 
@@ -807,3 +808,14 @@ def test_list_holdings_with_metrics_exposes_display_gain_for_valuation_based():
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
+
+
+def test_sells_more_than_held_flags_only_real_oversells():
+    buy = _tx("buy", date(2025, 1, 1), 10, 100, tx_id=1)
+    ok_sell = _tx("sell", date(2025, 2, 1), 10, 120, tx_id=2)
+    too_big = _tx("sell", date(2025, 2, 1), 11, 120, tx_id=3)
+    early_sell = _tx("sell", date(2024, 12, 1), 1, 120, tx_id=4)
+    assert sells_more_than_held([buy, ok_sell]) is False
+    assert sells_more_than_held([buy, too_big]) is True
+    # Selling before the buy happened means nothing was held yet.
+    assert sells_more_than_held([buy, early_sell]) is True
