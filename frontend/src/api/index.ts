@@ -92,6 +92,10 @@ export async function fetchDeletedHoldings(): Promise<DeletedHolding[]> {
   }));
 }
 
+export async function deleteHoldingForever(id: number | string) {
+  await api.delete(`/holdings/${id}/permanent`);
+}
+
 export async function restoreHolding(id: number | string) {
   return api.post(`/holdings/${id}/restore`, {});
 }

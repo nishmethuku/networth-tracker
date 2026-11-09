@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchDeletedHoldings, restoreHolding } from "../api";
+import { useState } from "react";
+import { fetchDeletedHoldings, restoreHolding, deleteHoldingForever } from "../api";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import { useToast } from "../contexts/ToastContext";
 import { getAssetTypeLabel } from "../constants/enums";
 import { formatDateISO } from "../utils/formatters";
@@ -8,6 +10,7 @@ import { formatDateISO } from "../utils/formatters";
 export default function RecentlyDeleted() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [forever, setForever] = useState(null);
   const { data: rows } = useQuery({ queryKey: ["holdings", "deleted"], queryFn: fetchDeletedHoldings, staleTime: 1000 * 30 });
 
   const restore = useMutation({
@@ -18,6 +21,16 @@ export default function RecentlyDeleted() {
       toast.success("Restored");
     },
     onError: (e) => toast.error(e?.message || "Could not restore this holding"),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id) => deleteHoldingForever(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["holdings", "deleted"] });
+      setForever(null);
+      toast.success("Deleted for good");
+    },
+    onError: (e) => toast.error(e?.message || "Could not delete this holding"),
   });
 
   if (!rows || rows.length === 0) return null;
@@ -47,9 +60,28 @@ export default function RecentlyDeleted() {
             >
               Restore
             </button>
+            <button
+              onClick={() => setForever(r)}
+              style={{
+                fontSize: "0.8125rem",
+                background: "transparent",
+                border: "1px solid var(--border)",
+                color: "var(--danger)",
+                padding: "0.35rem 0.75rem",
+              }}
+            >
+              Delete for good
+            </button>
           </li>
         ))}
       </ul>
+      <ConfirmDeleteModal
+        isOpen={!!forever}
+        title="Delete for good?"
+        assetName={forever ? forever.symbol || forever.name : ""}
+        onConfirm={() => remove.mutate(forever.id)}
+        onCancel={() => setForever(null)}
+      />
     </details>
   );
 }
