@@ -103,6 +103,17 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     return { day, month };
   }, [recent, currency]);
 
+  // Warn (not block) when a cash account would go below zero: expenses are allowed to, since a
+  // recorded balance can be out of date, but it is usually a typo in the amount.
+  const overspend = useMemo(() => {
+    const spend = Number(amount);
+    if (!paidFrom || paidFrom.startsWith("card:") || !(spend > 0)) return null;
+    const account = (cashHoldings || []).find((c) => String(c.id) === paidFrom);
+    if (!account || account.currency !== currency) return null;
+    const balance = account.currentValue;
+    return typeof balance === "number" && spend > balance ? { name: account.name, balance, currency: account.currency } : null;
+  }, [amount, paidFrom, cashHoldings, currency]);
+
   const cards = useMemo(
     () => (liabilities || []).filter((l) => l.liabilityType === "credit_card" || l.liabilityType === "line_of_credit"),
     [liabilities],
@@ -515,6 +526,12 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
                       </option>
                     ))}
                   </select>
+                  {overspend && (
+                    <p role="status" style={{ margin: "0.375rem 0 0", fontSize: "0.8125rem", color: "var(--danger)" }}>
+                      {overspend.name} only holds {formatCurrencyForDisplay(overspend.balance, overspend.currency, { includeCode: false })}.
+                      This would make it negative. Check the amount, or update that balance first.
+                    </p>
+                  )}
                 </div>
               )}
 

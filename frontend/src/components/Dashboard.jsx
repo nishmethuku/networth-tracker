@@ -32,6 +32,7 @@ import ProjectionCard from "./dashboard/ProjectionCard";
 import NeedsAttentionCard from "./dashboard/NeedsAttentionCard";
 import WelcomeBackCard from "./dashboard/WelcomeBackCard";
 import GettingStartedCard from "./dashboard/GettingStartedCard";
+import HoldingTypeGuide from "./HoldingTypeGuide";
 import WhatMovedCard from "./dashboard/WhatMovedCard";
 import SpendingCard from "./dashboard/SpendingCard";
 import ComingUpCard from "./dashboard/ComingUpCard";
@@ -266,7 +267,10 @@ export default function Dashboard() {
       </div>
 
       {!hasAnyData ? (
-        <EmptyState message="No holdings yet. Add your first one from the Portfolio page." />
+        <>
+          <EmptyState message="No holdings yet. Add your first one from the Portfolio page." />
+          <HoldingTypeGuide />
+        </>
       ) : (
         <>
           {/* Top cards */}

@@ -1,5 +1,12 @@
 # Changelog
 
+## Faster first load, a guide for new people, grouped export, and an overspend warning
+
+- **The server is kept awake.** A light check every 10 minutes stops the free server from sleeping, so the first page no longer waits around 40 seconds.
+- **"Not sure what to enter?"** A list on the empty Net Worth and Portfolio pages explains what to type for every holding type, with examples.
+- **Export CSV** now has one row per stock, like the screen, with XIRR and the number of purchases.
+- **Overspend warning:** when you log an expense paid from a cash account that does not hold enough, the form says so before you save. It is a warning, not a block, because a recorded balance can be out of date.
+
 ## One row per stock, with the purchases underneath
 
 - If you bought the same stock several times, the Portfolio now shows **one row** with the total quantity, average cost, cost, value and gain. Click the arrow (or "Show purchases") to see each purchase.

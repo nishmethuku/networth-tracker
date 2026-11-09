@@ -9,6 +9,7 @@ import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import HoldingCard from "./HoldingCard";
+import HoldingTypeGuide from "./HoldingTypeGuide";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -474,8 +475,15 @@ export default function Portfolio() {
       `Current Price (${currency})`,
       `Value (${currency})`,
       "Gain %",
+      "XIRR %",
+      "Purchases",
     ];
-    const rows = filteredHoldings.map((h) => {
+    // One row per stock, as on screen: same-stock purchases are combined, other types stay as they are.
+    const exportRows = [
+      ...groupLots(filteredHoldings.filter((h) => isQuantityBased(h.assetType))),
+      ...filteredHoldings.filter((h) => !isQuantityBased(h.assetType)),
+    ];
+    const rows = exportRows.map((h) => {
       const pct = gainPct(h);
       const avgCost = h.quantity > 0 ? h.displayCostBasis / h.quantity : "";
       const curPrice = h.quantity > 0 ? h.displayValue / h.quantity : "";
@@ -492,6 +500,8 @@ export default function Portfolio() {
         curPrice !== "" ? curPrice.toFixed(4) : "",
         h.displayValue?.toFixed(2) ?? "",
         pct != null ? pct.toFixed(2) + "%" : "n/a",
+        h.xirr != null ? (h.xirr * 100).toFixed(2) + "%" : "",
+        h.lots ? h.lots.length : isQuantityBased(h.assetType) ? 1 : "",
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(",");
@@ -724,25 +734,28 @@ export default function Portfolio() {
       ) : orderedTypes.length === 0 && holdings && holdings.length > 0 ? (
         <EmptyState message="No holdings match the current filter." />
       ) : orderedTypes.length === 0 ? (
-        <EmptyState
-          message="No holdings yet. Add your first one!"
-          action={
-            <button
-              onClick={() => navigate("/add-holding")}
-              style={{
-                padding: "0.75rem 1.5rem",
-                borderRadius: "var(--radius)",
-                border: "none",
-                background: "var(--primary)",
-                color: "var(--text-inverse)",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              Add Holding
-            </button>
-          }
-        />
+        <>
+          <EmptyState
+            message="No holdings yet. Add your first one!"
+            action={
+              <button
+                onClick={() => navigate("/add-holding")}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  borderRadius: "var(--radius)",
+                  border: "none",
+                  background: "var(--primary)",
+                  color: "var(--text-inverse)",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Add Holding
+              </button>
+            }
+          />
+          <HoldingTypeGuide />
+        </>
       ) : (
         orderedTypes.map((type) => {
           const typeHoldings = grouped[type];
