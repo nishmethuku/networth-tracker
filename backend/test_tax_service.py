@@ -130,9 +130,25 @@ def test_fifo_and_lifo_give_different_gains_from_the_same_transactions():
 
 
 def test_estimate_tax_liability_applies_long_term_exemption():
-    result = estimate_tax_liability(short_term_gain=0.0, long_term_gain=150000.0, country="India")
-    # India's long_term_exemption is 100000, so only 50000 is taxable at 10%
-    assert result["long_term_tax"] == 5000.0
+    result = estimate_tax_liability(short_term_gain=0.0, long_term_gain=225000.0, country="India")
+    # India's exemption is Rs 1.25 lakh, so only 100000 is taxable at 12.5%
+    assert result["long_term_tax"] == 12500.0
+
+
+def test_india_short_term_rate_is_20_percent():
+    assert estimate_tax_liability(100000.0, 0.0, "India")["short_term_tax"] == 20000.0
+
+
+def test_india_gold_needs_two_years_for_long_term():
+    from backend.tax_service import holding_period_years
+    txs = [
+        _tx("buy", date(2023, 1, 1), 10, 100, tx_id=1),
+        _tx("sell", date(2024, 6, 1), 10, 120, tx_id=2),
+    ]
+    assert holding_period_years("India", "commodity") == 2
+    assert holding_period_years("India", "stock") == 1
+    assert _fifo_holding_period_splits(txs, 1)[0]["long_term_qty"] == 10
+    assert _fifo_holding_period_splits(txs, 2)[0]["short_term_qty"] == 10
 
 
 def test_estimate_tax_liability_ignores_losses():

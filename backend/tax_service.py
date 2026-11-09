@@ -18,28 +18,44 @@ from .holdings_service import QUANTITY_BASED_TYPES, compute_position
 from .models import Holding, HoldingTransaction
 
 
-def _one_year_later(d: date) -> date:
+def _years_later(d: date, years: int = 1) -> date:
     """d's calendar anniversary one year later — used instead of a fixed
     365-day threshold, which misclassifies any holding period spanning a
     Feb 29: e.g. bought 2024-01-01 (a leap year) and sold exactly one
     calendar year later on 2025-01-01 is 366 days apart, which a flat
     365-day cutoff would wrongly call long-term."""
     try:
-        return d.replace(year=d.year + 1)
+        return d.replace(year=d.year + years)
     except ValueError:
-        # d itself is Feb 29 — land on Feb 28 in the (non-leap) next year.
-        return d.replace(month=2, day=28, year=d.year + 1)
+        # d itself is Feb 29 — land on Feb 28 in the (non-leap) target year.
+        return d.replace(month=2, day=28, year=d.year + years)
+
+
+def _one_year_later(d: date) -> date:
+    return _years_later(d, 1)
+
+
+def holding_period_years(country: str, asset_type: str) -> int:
+    """Years a lot must be held to count as long-term. One year everywhere,
+    except India physical gold and other commodities, which need two."""
+    if country == "India" and asset_type == "commodity":
+        return 2
+    return 1
 
 
 TAX_DISCLAIMER = (
-    "Rough estimate only, not tax advice. Short/long-term is classified using a uniform "
-    "one-calendar-year holding period and liability uses flat illustrative rates — actual "
-    "rules vary by country, asset class, and income bracket. Consult a tax professional."
+    "Rough estimate only, not tax advice. Short/long-term uses a one-year holding period "
+    "(two years for gold and other commodities in India). Liability uses flat rates: India "
+    "uses the listed-equity rules (20% short-term, 12.5% long-term above Rs 1.25 lakh a year), "
+    "so debt funds, gold and crypto will differ. Consult a tax professional."
 )
 
 # Flat, illustrative rates — not each country's real bracket/exemption structure.
 TAX_RATES = {
-    "India": {"short_term_rate": 0.15, "long_term_rate": 0.10, "long_term_exemption": 100000},
+    # India, FY2026-27 rules for listed equity and equity mutual funds: short-term 20%,
+    # long-term 12.5% on gains above Rs 1.25 lakh a year. Debt funds, gold and crypto
+    # are taxed differently and are only approximated by these rates.
+    "India": {"short_term_rate": 0.20, "long_term_rate": 0.125, "long_term_exemption": 125000},
     "United States": {"short_term_rate": 0.24, "long_term_rate": 0.15, "long_term_exemption": 0},
     # Long-term rate assumes a ~32.5% marginal rate with Australia's 50% CGT discount applied.
     "Australia": {"short_term_rate": 0.325, "long_term_rate": 0.1625, "long_term_exemption": 0},
@@ -63,7 +79,7 @@ def financial_year_label(d: date, country: str) -> str:
     return str(d.year)
 
 
-def _fifo_holding_period_splits(transactions: List[HoldingTransaction]) -> List[Dict]:
+def _fifo_holding_period_splits(transactions: List[HoldingTransaction], years: int = 1) -> List[Dict]:
     """One entry per sell, in chronological order (matching
     compute_position's realized_events order): how much of that sell's
     quantity was held for more than one calendar year (long-term) vs not
@@ -89,7 +105,7 @@ def _fifo_holding_period_splits(transactions: List[HoldingTransaction]) -> List[
                 if lot["remaining"] <= 0:
                     continue
                 take = min(lot["remaining"], remaining_to_sell)
-                if t.transaction_date > _one_year_later(lot["date"]):
+                if t.transaction_date > _years_later(lot["date"], years):
                     long_term_qty += take
                 else:
                     short_term_qty += take
@@ -103,7 +119,7 @@ def _fifo_holding_period_splits(transactions: List[HoldingTransaction]) -> List[
 COST_BASIS_METHODS = ("average", "fifo", "lifo")
 
 
-def _lot_matched_realized_events(transactions: List[HoldingTransaction], method: str) -> tuple:
+def _lot_matched_realized_events(transactions: List[HoldingTransaction], method: str, years: int = 1) -> tuple:
     """Alternative to compute_position's average-cost method: consumes buy
     lots in FIFO (oldest first) or LIFO (newest first) order, so the taxable
     gain amount itself — not just the short/long split — reflects which
@@ -141,7 +157,7 @@ def _lot_matched_realized_events(transactions: List[HoldingTransaction], method:
                     continue
                 take = min(lot["remaining"], remaining_to_sell)
                 gain += (t.price_per_unit - lot["cost_per_unit"]) * take
-                if t.transaction_date > _one_year_later(lot["date"]):
+                if t.transaction_date > _years_later(lot["date"], years):
                     long_term_qty += take
                 else:
                     short_term_qty += take
@@ -193,12 +209,13 @@ def get_tax_summary(user_id=None, household_id=None, cost_basis_method: str = "a
 
     for holding_id, holding in quantity_holdings.items():
         transactions = HoldingTransaction.query.filter_by(holding_id=holding_id).filter(HoldingTransaction.deleted_at.is_(None)).all()
+        years = holding_period_years(holding.country, holding.asset_type)
         if cost_basis_method in ("fifo", "lifo"):
-            realized_events, holding_period_splits = _lot_matched_realized_events(transactions, cost_basis_method)
+            realized_events, holding_period_splits = _lot_matched_realized_events(transactions, cost_basis_method, years)
         else:
             position = compute_position(transactions)
             realized_events = position["realized_events"]
-            holding_period_splits = _fifo_holding_period_splits(transactions)
+            holding_period_splits = _fifo_holding_period_splits(transactions, years)
 
         for event, split in zip(realized_events, holding_period_splits):
             fy = financial_year_label(event["date"], holding.country)

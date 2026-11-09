@@ -26,6 +26,7 @@ def test_route_table_is_complete(app):
     paths = {r.rule for r in rules}
     for expected in (
         "/health",
+        "/alerts/test-email",
         "/dashboard",
         "/holdings",
         "/budget/entries",

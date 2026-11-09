@@ -351,6 +351,10 @@ export async function unsubscribeFromPush(endpoint: string) {
   return api.delete("/push/subscribe", { endpoint });
 }
 
+export async function sendTestEmail() {
+  return api.post("/alerts/test-email", {});
+}
+
 export async function sendTestPush(endpoint: string) {
   return api.post("/push/test", { endpoint });
 }

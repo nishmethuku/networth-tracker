@@ -102,11 +102,11 @@ def test_fifo_splits_a_sell_across_lots_of_different_ages():
 
 def test_estimate_tax_liability_india_applies_lt_exemption():
     result = estimate_tax_liability(short_term_gain=100000, long_term_gain=150000, country="India")
-    # LT taxable = 150000 - 100000 exemption = 50000 @ 10% = 5000
-    # ST = 100000 @ 15% = 15000
-    assert result["short_term_tax"] == 15000.0
-    assert result["long_term_tax"] == 5000.0
-    assert result["total_tax"] == 20000.0
+    # LT taxable = 150000 - 125000 exemption = 25000 @ 12.5% = 3125
+    # ST = 100000 @ 20% = 20000
+    assert result["short_term_tax"] == 20000.0
+    assert result["long_term_tax"] == 3125.0
+    assert result["total_tax"] == 23125.0
 
 
 def test_estimate_tax_liability_ignores_net_losses():

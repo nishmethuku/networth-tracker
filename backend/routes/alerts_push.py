@@ -137,6 +137,29 @@ def register(app, h):
         db.session.commit()
         return jsonify({"message": "Unsubscribed"}), 200
 
+    @app.route("/alerts/test-email", methods=["POST"])
+    @require_auth
+    @limiter.limit("3 per minute")
+    def alerts_test_email():
+        """Proves alert emails really arrive: sends one to the signed-in user's address and says
+        plainly when the server has no email provider configured."""
+        from .. import email_service
+        from ..alert_service import _user_email
+
+        if not email_service.RESEND_API_KEY:
+            return jsonify({"error": "Email is not set up on the server yet, so alert emails are not being sent. Push notifications still work."}), 400
+        to_email = _user_email(g.user_id)
+        if not to_email:
+            return jsonify({"error": "No email address found for your account."}), 400
+        sent = email_service.send(
+            to_email,
+            "Test email from Net Worth Tracker",
+            "<p>This is a test. If you can read it, your alert emails will reach this inbox.</p>",
+        )
+        if not sent:
+            return jsonify({"error": "The email provider refused the message. Check the sender setup."}), 502
+        return jsonify({"message": f"Sent to {to_email}"}), 200
+
     @app.route("/push/test", methods=["POST"])
     @require_auth
     @limiter.limit("5 per minute")
