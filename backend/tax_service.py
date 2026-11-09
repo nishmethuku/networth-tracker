@@ -74,6 +74,11 @@ def _fifo_holding_period_splits(transactions: List[HoldingTransaction]) -> List[
     for t in sorted(transactions, key=lambda t: (t.transaction_date, t.id or 0)):
         if t.transaction_type == "buy":
             lots.append({"date": t.transaction_date, "remaining": t.quantity})
+        elif t.transaction_type == "split":
+            for lot in lots:
+                lot["remaining"] *= t.quantity
+        elif t.transaction_type == "bonus":
+            lots.append({"date": t.transaction_date, "remaining": t.quantity})
         elif t.transaction_type == "sell":
             remaining_to_sell = t.quantity
             short_term_qty = 0.0
@@ -116,6 +121,13 @@ def _lot_matched_realized_events(transactions: List[HoldingTransaction], method:
         if t.transaction_type == "buy":
             cost_per_unit = t.price_per_unit + (t.fees / t.quantity if t.quantity else 0.0)
             lots.append({"date": t.transaction_date, "remaining": t.quantity, "cost_per_unit": cost_per_unit})
+        elif t.transaction_type == "split":
+            if t.quantity > 0:
+                for lot in lots:
+                    lot["remaining"] *= t.quantity
+                    lot["cost_per_unit"] /= t.quantity
+        elif t.transaction_type == "bonus":
+            lots.append({"date": t.transaction_date, "remaining": t.quantity, "cost_per_unit": 0.0})
         elif t.transaction_type == "sell":
             consume_order = lots if method == "fifo" else list(reversed(lots))
             remaining_to_sell = t.quantity

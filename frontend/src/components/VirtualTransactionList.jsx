@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { getAssetTypeLabel } from "../constants/enums";
+import { isShareChangeTransactionType, describeShareChange } from "../constants/enums";
 
 const ROW_HEIGHT = 56;
 const COLUMNS = "1fr 1.6fr 0.9fr 1fr 1.2fr 1.2fr 1.3fr";
@@ -83,10 +84,16 @@ export default function VirtualTransactionList({ transactions, onEdit, onDelete 
                 >
                   {t.transactionType}
                 </div>
-                <div style={{ fontFamily: "var(--font-mono)" }}>{t.quantity.toFixed(4)}</div>
-                <div style={{ fontFamily: "var(--font-mono)" }}>{formatCurrencyForDisplay(t.pricePerUnit, t.currency)}</div>
+                <div style={{ fontFamily: "var(--font-mono)" }}>
+                  {isShareChangeTransactionType(t.transactionType) ? describeShareChange(t) : t.quantity.toFixed(4)}
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)" }}>
+                  {isShareChangeTransactionType(t.transactionType) ? "-" : formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
+                </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-                  {formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
+                  {isShareChangeTransactionType(t.transactionType)
+                    ? "-"
+                    : formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
                 </div>
                 <div style={{ display: "flex", gap: "0.4rem" }}>
                   <button

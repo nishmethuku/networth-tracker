@@ -27,7 +27,27 @@ export const TRANSACTION_TYPES = [
   { value: "sell", label: "Sell" },
   { value: "dividend", label: "Dividend" },
   { value: "interest", label: "Interest" },
+  { value: "split", label: "Stock split" },
+  { value: "bonus", label: "Bonus shares" },
 ];
+// Split and bonus change how many shares are held but move no money, so the
+// forms hide price and fees for them and the lists show "-" instead of a price.
+export const SHARE_CHANGE_TRANSACTION_TYPES = ["split", "bonus"];
+
+export function isShareChangeTransactionType(transactionType) {
+  return SHARE_CHANGE_TRANSACTION_TYPES.includes(transactionType);
+}
+
+export function quantityLabelFor(transactionType) {
+  if (transactionType === "split") return "New shares per 1 old (2 for a 2-for-1 split)";
+  if (transactionType === "bonus") return "Free shares received";
+  return "Quantity";
+}
+
+export function describeShareChange(t) {
+  if (t.transactionType === "split") return `${Number(t.quantity)}-for-1 split`;
+  return `+${Number(t.quantity)} bonus shares`;
+}
 export const INCOME_TRANSACTION_TYPES = ["dividend", "interest"];
 
 export function isIncomeTransactionType(transactionType) {

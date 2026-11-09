@@ -23,7 +23,14 @@ VALUATION_BASED_TYPES = ("real_estate", "fixed_deposit", "ppf", "epf", "retirals
 # that doesn't — a holding's share count and average cost are untouched by
 # a dividend, but the amount still counts as real money received (folded
 # into income_received below, and into XIRR/net-flow as a positive inflow).
-TRANSACTION_TYPES = ("buy", "sell", "dividend", "interest")
+#
+# split and bonus change the share count but never the money put in. For a
+# split the quantity field is the ratio (2 for a 2-for-1 split, 0.1 for a
+# 1-for-10 reverse split); for a bonus it is the number of free shares
+# received. Neither is a cash flow, and total cost stays exactly the same,
+# so the average cost per share falls.
+TRANSACTION_TYPES = ("buy", "sell", "dividend", "interest", "split", "bonus")
+SHARE_CHANGE_TYPES = ("split", "bonus")
 INCOME_TRANSACTION_TYPES = ("dividend", "interest")
 
 
@@ -55,6 +62,11 @@ def compute_position(transactions: List[HoldingTransaction]) -> Dict:
             realized_events.append({"date": t.transaction_date, "amount": event_gain, "quantity": sell_qty})
             total_cost -= avg_cost * sell_qty
             quantity -= sell_qty
+        elif t.transaction_type == "split":
+            if t.quantity > 0:
+                quantity *= t.quantity
+        elif t.transaction_type == "bonus":
+            quantity += t.quantity
         elif t.transaction_type in INCOME_TRANSACTION_TYPES:
             income_received += t.quantity * t.price_per_unit - t.fees
 
@@ -81,6 +93,11 @@ def sells_more_than_held(transactions: List[HoldingTransaction]) -> bool:
             if t.quantity > quantity + 1e-9:
                 return True
             quantity -= t.quantity
+        elif t.transaction_type == "split":
+            if t.quantity > 0:
+                quantity *= t.quantity
+        elif t.transaction_type == "bonus":
+            quantity += t.quantity
     return False
 
 
@@ -91,6 +108,8 @@ def _transaction_cash_flows(transactions: List[HoldingTransaction]):
     just as much as a sale is, so XIRR should reflect it."""
     flows = []
     for t in transactions:
+        if t.transaction_type in SHARE_CHANGE_TYPES:
+            continue  # no money moves on a split or bonus
         amount = t.quantity * t.price_per_unit + (t.fees if t.transaction_type == "buy" else -t.fees)
         flows.append((t.transaction_date, -amount if t.transaction_type == "buy" else amount))
     return flows
@@ -588,6 +607,8 @@ def get_monthly_net_flow(
         holding = holdings_by_id.get(tx.holding_id)
         if not holding:
             continue
+        if tx.transaction_type in SHARE_CHANGE_TYPES:
+            continue  # no money moves on a split or bonus
         base = tx.quantity * tx.price_per_unit
         fees = tx.fees or 0.0
         # Same fee handling as _transaction_cash_flows/compute_position: a

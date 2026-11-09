@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.finance import xirr
 from backend.holdings_service import (
+    _transaction_cash_flows,
     build_dashboard,
     build_deposit_valuation,
     build_funding_valuation,
@@ -819,3 +820,35 @@ def test_sells_more_than_held_flags_only_real_oversells():
     assert sells_more_than_held([buy, too_big]) is True
     # Selling before the buy happened means nothing was held yet.
     assert sells_more_than_held([buy, early_sell]) is True
+
+
+def test_split_multiplies_shares_and_keeps_total_cost():
+    pos = compute_position([
+        _tx("buy", date(2024, 1, 1), 10, 100, tx_id=1),
+        _tx("split", date(2024, 6, 1), 2, 0, tx_id=2),
+    ])
+    assert pos["quantity"] == 20
+    assert pos["cost_basis"] == 1000
+    assert pos["avg_cost"] == 50
+
+
+def test_bonus_adds_free_shares_and_lowers_average_cost():
+    pos = compute_position([
+        _tx("buy", date(2024, 1, 1), 10, 100, tx_id=1),
+        _tx("bonus", date(2024, 6, 1), 5, 0, tx_id=2),
+    ])
+    assert pos["quantity"] == 15
+    assert pos["cost_basis"] == 1000
+    assert round(pos["avg_cost"], 4) == round(1000 / 15, 4)
+
+
+def test_split_and_bonus_have_no_cash_flow_and_sell_after_split_is_allowed():
+    txs = [
+        _tx("buy", date(2024, 1, 1), 10, 100, tx_id=1),
+        _tx("split", date(2024, 6, 1), 2, 0, tx_id=2),
+        _tx("sell", date(2024, 7, 1), 20, 60, tx_id=3),
+    ]
+    assert len(_transaction_cash_flows(txs)) == 2
+    assert sells_more_than_held(txs) is False
+    assert compute_position(txs)["realized_gain"] == 200  # (60 - 50) * 20
+    assert sells_more_than_held(txs + [_tx("sell", date(2024, 8, 1), 1, 60, tx_id=4)]) is True

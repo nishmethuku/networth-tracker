@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateTransaction, ApiError } from "../api";
 import { useToast } from "../contexts/ToastContext";
 import useIsMobile from "../hooks/useIsMobile";
-import { TRANSACTION_TYPES, isIncomeTransactionType } from "../constants/enums";
+import { TRANSACTION_TYPES, isIncomeTransactionType, isShareChangeTransactionType, quantityLabelFor } from "../constants/enums";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -54,6 +54,7 @@ export default function EditTransactionModal({ transaction, onClose }) {
   });
 
   const isIncome = isIncomeTransactionType(form.transaction_type);
+  const isShareChange = isShareChangeTransactionType(form.transaction_type);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -61,8 +62,8 @@ export default function EditTransactionModal({ transaction, onClose }) {
       transaction_type: form.transaction_type,
       transaction_date: form.transaction_date,
       quantity: isIncome ? 1 : parseFloat(form.quantity),
-      price_per_unit: parseFloat(form.price_per_unit),
-      fees: parseFloat(form.fees || 0),
+      price_per_unit: isShareChange ? 0 : parseFloat(form.price_per_unit),
+      fees: isShareChange ? 0 : parseFloat(form.fees || 0),
       notes: form.notes || null,
     });
   }
@@ -107,7 +108,7 @@ export default function EditTransactionModal({ transaction, onClose }) {
         {!isIncome && (
           <div>
             <label htmlFor="edit-tx-quantity" style={labelStyle}>
-              Quantity
+              {quantityLabelFor(form.transaction_type)}
             </label>
             <input
               id="edit-tx-quantity"
@@ -121,35 +122,39 @@ export default function EditTransactionModal({ transaction, onClose }) {
             />
           </div>
         )}
-        <div>
-          <label htmlFor="edit-tx-price" style={labelStyle}>
-            {isIncome ? "Amount" : "Price / unit"}
-          </label>
-          <input
-            id="edit-tx-price"
-            type="number"
-            step="any"
-            min="0"
-            value={form.price_per_unit}
-            onChange={(e) => setForm({ ...form, price_per_unit: e.target.value })}
-            style={inputStyle}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="edit-tx-fees" style={labelStyle}>
-            Fees
-          </label>
-          <input
-            id="edit-tx-fees"
-            type="number"
-            step="any"
-            min="0"
-            value={form.fees}
-            onChange={(e) => setForm({ ...form, fees: e.target.value })}
-            style={inputStyle}
-          />
-        </div>
+        {!isShareChange && (
+          <div>
+            <label htmlFor="edit-tx-price" style={labelStyle}>
+              {isIncome ? "Amount" : "Price / unit"}
+            </label>
+            <input
+              id="edit-tx-price"
+              type="number"
+              step="any"
+              min="0"
+              value={form.price_per_unit}
+              onChange={(e) => setForm({ ...form, price_per_unit: e.target.value })}
+              style={inputStyle}
+              required
+            />
+          </div>
+        )}
+        {!isShareChange && (
+          <div>
+            <label htmlFor="edit-tx-fees" style={labelStyle}>
+              Fees
+            </label>
+            <input
+              id="edit-tx-fees"
+              type="number"
+              step="any"
+              min="0"
+              value={form.fees}
+              onChange={(e) => setForm({ ...form, fees: e.target.value })}
+              style={inputStyle}
+            />
+          </div>
+        )}
         <div style={{ display: "flex", gap: "0.625rem", justifyContent: "flex-end", marginTop: "0.25rem" }}>
           <button
             type="button"
