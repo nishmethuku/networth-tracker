@@ -97,6 +97,7 @@ def test_earliest_activity():
 
 def test_net_quantity_scales_for_later_split_to_match_adjusted_prices():
     from datetime import date as d
+
     from backend.history_backfill import net_quantity_on
     txs = [(d(2024, 1, 1), "buy", 10), (d(2024, 6, 1), "split", 2)]
     assert net_quantity_on(txs, d(2024, 3, 1)) == 20

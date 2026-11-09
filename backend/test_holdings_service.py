@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.finance import xirr
 from backend.holdings_service import (
+    _transaction_cash_flows,
     build_dashboard,
     build_deposit_valuation,
     build_funding_valuation,
@@ -18,7 +19,6 @@ from backend.holdings_service import (
     compute_position,
     get_monthly_net_flow,
     list_holdings_with_metrics,
-    _transaction_cash_flows,
     sells_more_than_held,
 )
 from backend.models import Holding, HoldingTransaction, HoldingValuation
