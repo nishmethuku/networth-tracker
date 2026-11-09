@@ -102,3 +102,34 @@ def test_price_alert_skips_conversion_when_currencies_already_match():
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
+
+
+def _run_check(alert, price, home="USD"):
+    mock_alert_query = MagicMock()
+    mock_alert_query.filter_by.return_value.all.return_value = [alert]
+    with patch.object(alert_service, "PriceAlert") as mock_alert_model, \
+         patch.object(alert_service, "price_service") as mock_price_service, \
+         patch.object(alert_service, "db"), \
+         patch.object(alert_service, "_user_email", return_value=None):
+        mock_alert_model.query = mock_alert_query
+        mock_price_service.get_current_price.return_value = price
+        mock_price_service.price_home_currency.return_value = home
+        mock_price_service.convert.side_effect = lambda amount, *_: amount
+        return alert_service.check_all_alerts()
+
+
+def test_price_above_alert_fires_only_when_price_reaches_the_target():
+    below = _alert(symbol="MSFT", currency="USD", threshold=900.0, alert_type="price_above")
+    assert _run_check(below, 500.0)["alerts_triggered"] == 0
+    assert below.status == "active"
+    hit = _alert(symbol="MSFT", currency="USD", threshold=900.0, alert_type="price_above")
+    assert _run_check(hit, 900.0)["alerts_triggered"] == 1
+    assert hit.status == "triggered"
+
+
+def test_price_below_alert_fires_only_when_price_falls_to_the_target():
+    still_high = _alert(symbol="MSFT", currency="USD", threshold=300.0, alert_type="price_below")
+    assert _run_check(still_high, 500.0)["alerts_triggered"] == 0
+    dropped = _alert(symbol="MSFT", currency="USD", threshold=300.0, alert_type="price_below")
+    assert _run_check(dropped, 299.0)["alerts_triggered"] == 1
+    assert dropped.status == "triggered"

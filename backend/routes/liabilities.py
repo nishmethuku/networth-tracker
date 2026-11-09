@@ -212,7 +212,7 @@ def register(app, h):
             source_holding = get_authorized_holding(funding_source_id, require_write=True)
             source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
             try:
-                funding_valuation = build_funding_valuation(source_holding, source_valuations, amount, currency, paid_on, g.user_id)
+                funding_valuation = build_funding_valuation(source_holding, source_valuations, amount, currency, paid_on, g.user_id, require_funds=True)
             except ValueError as e:
                 db.session.rollback()
                 return jsonify({"error": str(e)}), 400

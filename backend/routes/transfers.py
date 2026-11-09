@@ -57,6 +57,7 @@ def register(app, h):
                 paid_on,
                 g.user_id,
                 notes=f"Transfer to {target.name}",
+                require_funds=True,
             )
             into = build_deposit_valuation(
                 target,

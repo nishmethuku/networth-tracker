@@ -149,3 +149,15 @@ def test_cannot_sell_more_than_is_held(client):
     assert a(client, "put", f"/transactions/{tid}", {"quantity": 999}).status_code == 400
     assert a(client, "put", f"/transactions/{tid}", {"quantity": 10}).status_code == 200
     assert a(client, "get", f"/holdings/{hid}").get_json()["quantity"] == 0
+
+
+def test_cannot_move_or_pay_more_than_the_account_holds(client):
+    src, dst = cash_account_today(client, "Small Checking", 100), cash_account_today(client, "Other Savings", 50)
+    too_much = move(client, src, dst, 500)
+    assert too_much.status_code == 400
+    assert "Not enough" in too_much.get_json()["error"]
+    assert balance(client, src) == 100 and balance(client, dst) == 50
+    assert move(client, src, dst, 100).status_code == 201
+    card = a(client, "post", "/liabilities", {"name": "Small Visa", "liability_type": "credit_card", "currency": "USD", "current_balance": 400}).get_json()["id"]
+    assert a(client, "post", f"/liabilities/{card}/payments", {"amount": 300, "funding_source_holding_id": src}).status_code == 400
+    assert a(client, "post", f"/liabilities/{card}/payments", {"amount": 30, "funding_source_holding_id": dst}).status_code == 201

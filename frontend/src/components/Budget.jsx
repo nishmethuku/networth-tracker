@@ -506,7 +506,8 @@ export default function Budget() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteBudgetEntry,
+    // Put the money back on the card, loan or cash account the entry moved, as the Expenses page does.
+    mutationFn: (e) => deleteBudgetEntry(e.id, { reverse: !!(e.chargedLiabilityId || e.fundingHoldingId || e.linkedLiabilityId) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-entries"] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
@@ -670,7 +671,7 @@ export default function Budget() {
                       {formatCurrencyForDisplay(e.amount, e.currency, { alwaysCents: true })}
                     </span>
                     <button
-                      onClick={() => deleteMutation.mutate(e.id)}
+                      onClick={() => deleteMutation.mutate(e)}
                       style={{
                         fontSize: "0.75rem",
                         background: "transparent",

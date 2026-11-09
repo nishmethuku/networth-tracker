@@ -181,6 +181,7 @@ def build_funding_valuation(
     on_date: date,
     acting_user_id,
     notes: str = "Used to fund a purchase",
+    require_funds: bool = False,
 ) -> HoldingValuation:
     """
     Build (uncommitted) the valuation entry that records spending money out
@@ -211,6 +212,11 @@ def build_funding_valuation(
     prior = [v for v in existing_valuations if v.valuation_date <= on_date]
     baseline = max(prior, key=valuation_order).value if prior else 0.0
     converted_amount = price_service.convert(amount, amount_currency, source_holding.currency)
+    if require_funds and converted_amount > baseline + 0.005:
+        raise ValueError(
+            f"Not enough in {source_holding.name}: it holds {baseline:,.2f} {source_holding.currency} "
+            f"and this needs {converted_amount:,.2f}. Check the amount, or update the balance first."
+        )
 
     return HoldingValuation(
         holding_id=source_holding.id,
