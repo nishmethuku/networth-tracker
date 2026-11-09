@@ -1,7 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { buildGuidedPayloads } from "../GuidedSetup";
 
-const base = { country: "India", date: "2026-01-02", symbol: " reliance.ns ", metal: "silver", quantity: "10", price: "2500", name: " HDFC ", value: "50000", savingsType: "ppf" };
+const base = {
+  country: "India",
+  date: "2026-01-02",
+  symbol: " reliance.ns ",
+  metal: "silver",
+  quantity: "10",
+  price: "2500",
+  name: " HDFC ",
+  value: "50000",
+  savingsType: "ppf",
+};
 
 describe("buildGuidedPayloads", () => {
   it("builds a stock purchase", () => {
