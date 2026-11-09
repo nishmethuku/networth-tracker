@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAlerts, createAlert, updateAlert, deleteAlert, fetchHoldings, ApiError } from "../api";
 import Card from "./Card";
 import PushNotificationCard from "./PushNotificationCard";
+import EmailTestCard from "./EmailTestCard";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
@@ -96,6 +97,10 @@ export default function Alerts() {
 
       <div style={{ marginBottom: "1.5rem" }}>
         <PushNotificationCard />
+      </div>
+
+      <div style={{ marginBottom: "1.5rem" }}>
+        <EmailTestCard />
       </div>
 
       <Card>

@@ -207,3 +207,24 @@ def test_holding_can_be_removed_for_good_only_after_it_was_deleted(client):
     assert a(client, "delete", f"/holdings/{hid}/permanent").status_code == 200
     assert hid not in [d["id"] for d in a(client, "get", "/holdings/deleted").get_json()]
     assert a(client, "post", f"/holdings/{hid}/restore").status_code == 404
+
+
+def test_test_email_says_plainly_when_email_is_not_set_up(client, monkeypatch):
+    from backend import email_service
+
+    monkeypatch.setattr(email_service, "RESEND_API_KEY", None)
+    r = a(client, "post", "/alerts/test-email", {})
+    assert r.status_code == 400
+    assert "not set up" in r.get_json()["error"]
+
+
+def test_test_email_sends_when_configured(client, monkeypatch):
+    from backend import alert_service, email_service
+
+    monkeypatch.setattr(email_service, "RESEND_API_KEY", "key")
+    monkeypatch.setattr(alert_service, "_user_email", lambda uid: "me@example.com")
+    sent = []
+    monkeypatch.setattr(email_service, "send", lambda to, subject, html, attachments=None: sent.append(to) or True)
+    r = a(client, "post", "/alerts/test-email", {})
+    assert r.status_code == 200, r.get_json()
+    assert sent == ["me@example.com"]

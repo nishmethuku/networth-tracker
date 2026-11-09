@@ -5,6 +5,7 @@
 - The India tax estimate now uses the current listed-equity rules: 20% on gains from holdings sold within a year, 12.5% on longer holdings, with the first Rs 1.25 lakh of long-term gains each financial year tax-free.
 - Gold and other commodities held in India count as long-term only after two years.
 - Debt funds, gold and crypto are taxed differently in real life, and the page says so. It is an estimate, not tax advice.
+- **Send test email** on the Alerts page sends a real email to your address, and says plainly if email is not set up on the server.
 - The benchmark card can now compare against the Sensex as well as the Nifty 50 and the S&P 500.
 
 ## Stock splits and bonus shares
