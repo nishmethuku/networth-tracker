@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { ASSET_TYPES, ASSET_TYPE_LABELS } from "../constants/enums";
 
 // What to type for each kind of holding, in plain words. Shown to people who have nothing added yet.
@@ -34,17 +35,24 @@ export const HOLDING_TYPE_HELP = [
 /** A collapsed, plain-language "what do I type for this?" list. */
 export default function HoldingTypeGuide() {
   return (
-    <details style={{ maxWidth: "640px", margin: "0 auto 2rem", color: "var(--text-secondary)" }}>
-      <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--text)" }}>
-        Not sure what to enter? See an example for each type
-      </summary>
-      <ul style={{ listStyle: "none", padding: 0, margin: "0.75rem 0 0", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-        {HOLDING_TYPE_HELP.map(([type, text]) => (
-          <li key={type} style={{ lineHeight: 1.5 }}>
-            <strong style={{ color: "var(--text)" }}>{ASSET_TYPE_LABELS[type]}:</strong> {text}
-          </li>
-        ))}
-      </ul>
-    </details>
+    <>
+      <p style={{ textAlign: "center", margin: "0 auto 1rem" }}>
+        <Link to="/start" style={{ fontWeight: 600 }}>
+          Not sure where to start? Add your first holding step by step
+        </Link>
+      </p>
+      <details style={{ maxWidth: "640px", margin: "0 auto 2rem", color: "var(--text-secondary)" }}>
+        <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--text)" }}>
+          Not sure what to enter? See an example for each type
+        </summary>
+        <ul style={{ listStyle: "none", padding: 0, margin: "0.75rem 0 0", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+          {HOLDING_TYPE_HELP.map(([type, text]) => (
+            <li key={type} style={{ lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--text)" }}>{ASSET_TYPE_LABELS[type]}:</strong> {text}
+            </li>
+          ))}
+        </ul>
+      </details>
+    </>
   );
 }

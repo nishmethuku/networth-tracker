@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import HoldingTypeGuide, { HOLDING_TYPE_HELP } from "../HoldingTypeGuide";
 import { ASSET_TYPES, ASSET_TYPE_LABELS } from "../../constants/enums";
 
@@ -9,7 +10,11 @@ describe("HoldingTypeGuide", () => {
   });
 
   it("shows each type by the same name as the Add Holding list", () => {
-    render(<HoldingTypeGuide />);
+    render(
+      <MemoryRouter>
+        <HoldingTypeGuide />
+      </MemoryRouter>,
+    );
     for (const label of Object.values(ASSET_TYPE_LABELS)) {
       expect(screen.getByText(`${label}:`)).toBeTruthy();
     }
