@@ -115,7 +115,7 @@ def test_unparseable_number_is_an_error_not_zero():
 
 
 def test_invalid_currency_and_country_default_rather_than_error():
-    csv_text = HEADER + "Stocks,Amma,,AAPL,Buy,1/1/2024,10,150,GBP,United Kingdom\n"
+    csv_text = HEADER + "Stocks,Amma,,AAPL,Buy,1/1/2024,10,150,JPY,United Kingdom\n"
     result = parse_simple_csv(csv_text)
     assert result["errors"] == []
     assert result["rows"][0]["currency"] == "USD"
