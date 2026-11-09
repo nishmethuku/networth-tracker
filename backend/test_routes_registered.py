@@ -43,6 +43,7 @@ def test_route_table_is_complete(app):
         "/accounts",
         "/holdings/deleted",
         "/holdings/<int:holding_id>/restore",
+        "/holdings/<int:holding_id>/permanent",
     ):
         assert expected in paths, expected
 

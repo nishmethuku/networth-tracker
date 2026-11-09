@@ -194,3 +194,16 @@ def test_deleted_holding_can_be_restored_with_its_purchases(client):
     assert hid not in [d["id"] for d in a(client, "get", "/holdings/deleted").get_json()]
     assert a(client, "post", f"/holdings/{hid}/restore").status_code == 400
     assert first
+
+
+def test_holding_can_be_removed_for_good_only_after_it_was_deleted(client):
+    from backend.test_categories_and_entry_edit import b
+
+    hid = a(client, "post", "/holdings", {"asset_type": "cash", "name": "Forever", "country": "United States", "account": "Bank", "currency": "USD"}).get_json()["id"]
+    a(client, "post", f"/holdings/{hid}/valuations", {"valuation_date": date.today().isoformat(), "value": 10})
+    assert a(client, "delete", f"/holdings/{hid}/permanent").status_code == 400  # not deleted yet
+    assert a(client, "delete", f"/holdings/{hid}").status_code == 200
+    assert b(client, "delete", f"/holdings/{hid}/permanent").status_code in (403, 404)
+    assert a(client, "delete", f"/holdings/{hid}/permanent").status_code == 200
+    assert hid not in [d["id"] for d in a(client, "get", "/holdings/deleted").get_json()]
+    assert a(client, "post", f"/holdings/{hid}/restore").status_code == 404

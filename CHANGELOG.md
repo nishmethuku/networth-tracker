@@ -1,5 +1,9 @@
 # Changelog
 
+## Delete for good
+
+- In **Recently deleted**, each holding now has **Delete for good**, which removes it and its purchases for good after a confirmation.
+
 ## Indian number format, restore deleted holdings, more currencies, Help
 
 - **Rupee amounts** now group the Indian way (2,12,50,000) and totals show as lakhs and crores (₹2.13 Cr).

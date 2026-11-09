@@ -517,6 +517,19 @@ def create_app():
         db.session.commit()
         return jsonify(holding.to_dict()), 200
 
+    @app.route("/holdings/<int:holding_id>/permanent", methods=["DELETE"])
+    @require_auth
+    def delete_holding_forever(holding_id):
+        """Removes a holding that is already in "Recently deleted" for good, with its purchases and history."""
+        holding = Holding.query.get_or_404(holding_id)
+        if str(holding.user_id) != str(g.user_id):
+            abort(403)
+        if holding.deleted_at is None:
+            return jsonify({"error": "Delete it first, then it can be removed for good"}), 400
+        db.session.delete(holding)
+        db.session.commit()
+        return jsonify({"message": "Deleted for good"}), 200
+
     @app.route("/holdings/<int:holding_id>/sip-projection", methods=["GET"])
     @require_auth
     def sip_projection(holding_id):
