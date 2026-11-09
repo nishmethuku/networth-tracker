@@ -52,6 +52,7 @@ const CONCENTRATION_THRESHOLD_PCT = 25;
 const BENCHMARKS = [
   { value: "SPY", label: "S&P 500 (SPY)" },
   { value: "NIFTYBEES.NS", label: "Nifty 50 (NIFTYBEES)" },
+  { value: "SENSEXETF.NS", label: "Sensex (SENSEXETF)" },
 ];
 
 function BenchmarkCard() {

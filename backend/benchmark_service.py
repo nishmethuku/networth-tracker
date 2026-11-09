@@ -34,6 +34,7 @@ from .models import Holding, HoldingTransaction
 BENCHMARKS = {
     "SPY": {"label": "S&P 500 (SPY)", "currency": "USD"},
     "NIFTYBEES.NS": {"label": "Nifty 50 (NIFTYBEES)", "currency": "INR"},
+    "SENSEXETF.NS": {"label": "Sensex (SENSEXETF)", "currency": "INR"},
 }
 
 
