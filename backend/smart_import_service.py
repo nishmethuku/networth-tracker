@@ -37,7 +37,7 @@ VALID_ASSET_TYPES = (
     "real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit",
 )
 VALID_COUNTRIES = ("United States", "India", "Australia")
-VALID_CURRENCIES = ("USD", "INR", "AUD")
+VALID_CURRENCIES = ("USD", "INR", "AUD", "GBP", "EUR", "CAD")
 VALID_TRANSACTION_TYPES = ("buy", "sell")
 
 

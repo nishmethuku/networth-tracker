@@ -27,7 +27,7 @@ function formatYAxis(value, currency) {
   if (isPrivacyOn()) return "";
   const num = Math.round(safeNumber(value));
   const abs = Math.abs(num);
-  const symbol = currency === "INR" ? "₹" : currency === "AUD" ? "A$" : "$";
+  const symbol = { INR: "₹", AUD: "A$", GBP: "£", EUR: "€", CAD: "C$" }[currency] || "$";
   if (abs >= 1e6) return `${symbol}${(abs / 1e6).toFixed(1)}M`;
   if (abs >= 1e3) return `${symbol}${Math.round(abs / 1e3)}K`;
   return `${symbol}${abs}`;

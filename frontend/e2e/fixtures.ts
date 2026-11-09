@@ -163,6 +163,8 @@ async function mockBackend(page: Page, opts: MockOptions = {}) {
     if (route.request().method() === "GET") return json(route, holdings);
     return route.continue();
   });
+  // Registered after the broad /holdings** route above, so it wins (Playwright tries the newest route first).
+  await page.route(`${API_BASE}/holdings/deleted**`, (route) => json(route, []));
   await page.route(`${API_BASE}/net-worth-history**`, (route) => json(route, []));
   // Transactions.jsx always requests pagination (?page=&per_page=), so the
   // real backend always returns this shape for it, not a bare array.

@@ -3,6 +3,8 @@ export interface AttentionHolding {
   label: string;
   quantityBased: boolean;
   currentPrice: number | null;
+  /** Priced by the person, not live (gold and metals): needs a reminder like a hand-entered value. */
+  handPriced?: boolean;
   /** ISO timestamp of the last edit or valuation. */
   updatedAt: string;
 }
@@ -40,7 +42,7 @@ export function needsAttention(holdings: AttentionHolding[] | null | undefined, 
   }
 
   const stale = holdings.filter((h) => {
-    if (h.quantityBased) return false;
+    if (h.quantityBased && !h.handPriced) return false;
     const d = daysSince(h.updatedAt, now);
     return d != null && d >= STALE_DAYS;
   });

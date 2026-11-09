@@ -38,7 +38,7 @@ VALID_ASSET_TYPES = (
     "real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit",
 )
 VALID_COUNTRIES = ("United States", "India", "Australia")
-VALID_CURRENCIES = ("USD", "INR", "AUD")
+VALID_CURRENCIES = ("USD", "INR", "AUD", "GBP", "EUR", "CAD")
 
 # Common real-world variants for a family filling this in by hand or
 # pasting out of a bank/broker statement -- mapped to the strict
@@ -52,6 +52,7 @@ CURRENCY_ALIASES = {
     "RS": "INR", "RS.": "INR", "RUPEE": "INR", "RUPEES": "INR", "INR.": "INR", "₹": "INR",
     "US$": "USD", "USD$": "USD", "$": "USD", "DOLLAR": "USD", "DOLLARS": "USD",
     "A$": "AUD", "AUD$": "AUD", "AU$": "AUD",
+    "£": "GBP", "POUND": "GBP", "POUNDS": "GBP", "€": "EUR", "EURO": "EUR", "EUROS": "EUR", "C$": "CAD", "CA$": "CAD",
 }
 
 ASSET_TYPE_ALIASES = {

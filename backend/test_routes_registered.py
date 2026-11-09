@@ -41,6 +41,8 @@ def test_route_table_is_complete(app):
         "/api/ai/chat",
         "/alerts",
         "/accounts",
+        "/holdings/deleted",
+        "/holdings/<int:holding_id>/restore",
     ):
         assert expected in paths, expected
 

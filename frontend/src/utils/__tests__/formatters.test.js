@@ -153,3 +153,24 @@ describe("todayISO", () => {
     expect(todayISO()).toBe(expected);
   });
 });
+
+describe("Indian number format and more currencies", () => {
+  it("groups rupees in lakhs and crores", () => {
+    expect(formatCurrencyForDisplay(21250000, "INR", { includeCode: false })).toBe("₹2,12,50,000");
+    expect(formatCurrencyForDisplay(1234567, "INR", { includeCode: false })).toBe("₹12,34,567");
+  });
+  it("keeps western grouping for dollars", () => {
+    expect(formatCurrencyForDisplay(21250000, "USD", { includeCode: false })).toBe("$21,250,000");
+  });
+  it("shows rupee totals as lakhs and crores in compact form", async () => {
+    const { formatCurrencyCompact } = await import("../formatters");
+    expect(formatCurrencyCompact(150000, "INR")).toBe("₹1.5 L INR");
+    expect(formatCurrencyCompact(21250000, "INR")).toBe("₹2.13 Cr INR");
+    expect(formatCurrencyCompact(50000, "INR")).toBe("₹50K INR");
+  });
+  it("has symbols for pounds, euros and Canadian dollars", () => {
+    expect(formatCurrencyForDisplay(1000, "GBP", { includeCode: false })).toBe("£1,000");
+    expect(formatCurrencyForDisplay(1000, "EUR", { includeCode: false })).toBe("€1,000");
+    expect(formatCurrencyForDisplay(1000, "CAD", { includeCode: false })).toBe("C$1,000");
+  });
+});

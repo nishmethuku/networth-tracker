@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import Card from "./Card";
@@ -209,7 +209,10 @@ function PeriodReturn({ series, currency }) {
 export default function HoldingDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
-  const [showAddForm, setShowAddForm] = useState(false);
+  // "?sell=1" (from the Sell button on a purchase row) opens the form ready to record a sale.
+  const [searchParams] = useSearchParams();
+  const openToSell = searchParams.get("sell") === "1";
+  const [showAddForm, setShowAddForm] = useState(openToSell);
   const [editing, setEditing] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
   const [deletingTx, setDeletingTx] = useState(null);
@@ -425,7 +428,7 @@ export default function HoldingDetail() {
         {showAddForm && (
           <Card>
             {quantityBased ? (
-              <AddTransactionForm holding={holding} onDone={() => setShowAddForm(false)} />
+              <AddTransactionForm holding={holding} onDone={() => setShowAddForm(false)} initialType={openToSell ? "sell" : "buy"} />
             ) : (
               <AddValuationForm holding={holding} onDone={() => setShowAddForm(false)} />
             )}

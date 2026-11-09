@@ -71,7 +71,7 @@ export const ASSET_TYPE_OPTIONS = Object.values(ASSET_TYPES).map((value) => ({
 
 export const COUNTRIES = ["Australia", "United States", "India"];
 
-export const CURRENCIES = ["USD", "INR", "AUD"];
+export const CURRENCIES = ["USD", "INR", "AUD", "GBP", "EUR", "CAD"];
 
 export const ACCOUNT_TYPES = ["Brokerage", "Retirement", "Savings", "Checking", "Investment", "Other"];
 

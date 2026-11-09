@@ -39,6 +39,7 @@ const AllocationAdvisor = lazy(() => import("./components/ai/AllocationAdvisor")
 const WhatIf = lazy(() => import("./components/WhatIf"));
 const Income = lazy(() => import("./components/Income"));
 const Settings = lazy(() => import("./components/Settings"));
+const Help = lazy(() => import("./components/Help"));
 const Budget = lazy(() => import("./components/Budget"));
 const Expenses = lazy(() => import("./components/Expenses"));
 const ImportSpreadsheet = lazy(() => import("./components/ImportSpreadsheet"));
@@ -403,6 +404,9 @@ function AppShell() {
             </Link>
           )}
           {user && <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{user.email}</span>}
+          <Link to="/help" aria-label="Help" style={{ color: "var(--text-secondary)", fontSize: "1.125rem", lineHeight: 1 }}>
+            ❓
+          </Link>
           <Link to="/settings" aria-label="Settings" style={{ color: "var(--text-secondary)", fontSize: "1.125rem", lineHeight: 1 }}>
             ⚙️
           </Link>
@@ -449,6 +453,7 @@ function AppShell() {
               <Route path="what-if" element={<WhatIf />} />
               <Route path="income" element={<Income />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="help" element={<Help />} />
               <Route path="review" element={<YearInReview />} />
               <Route path="household" element={<Household />} />
               <Route path="accounts" element={<Accounts />} />

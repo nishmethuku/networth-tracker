@@ -575,7 +575,7 @@ export function demoGet(endpoint: string): any {
         created_at: "2025-01-01T00:00:00Z",
       },
     ];
-  if (path === "/exchange-rates") return { base: "USD", rates: { USD: 1, INR: 83, AUD: 1.5 } };
+  if (path === "/exchange-rates") return { base: "USD", rates: { USD: 1, INR: 83, AUD: 1.5, GBP: 0.79, EUR: 0.92, CAD: 1.36 } };
   if (path === "/benchmark")
     return { portfolio_xirr: 0.12, benchmark_xirr: 0.1, benchmark_symbol: "SPY", benchmark_label: "S&P 500 (SPY)" };
   if (path === "/tax-summary") return { rows: [], disclaimer: null, cost_basis_method: params.get("cost_basis_method") || "average" };

@@ -16,7 +16,10 @@ export default function NeedsAttentionCard({ holdings }) {
         label: h.symbol || h.name || "A holding",
         quantityBased: isQuantityBased(h.assetType),
         currentPrice: h.currentPrice ?? null,
-        updatedAt: h.updatedAt || "",
+        handPriced: h.assetType === "commodity",
+        // Gold and metals are valued at the price the person entered, so the newest purchase
+        // counts as an update too, not only an edit of the holding itself.
+        updatedAt: [h.updatedAt, ...(h.cashFlows || []).map((c) => c.date)].filter(Boolean).sort().pop() || "",
       })),
     );
     if ((holdings || []).length > 0 && backupDue(readLastBackup(), todayISO())) {

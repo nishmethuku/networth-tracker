@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 
 import sentry_sdk
@@ -476,6 +476,47 @@ def create_app():
         db.session.commit()
         return jsonify({"message": "Holding deleted"}), 200
 
+    DELETED_HOLDING_DAYS = 30
+
+    @app.route("/holdings/deleted", methods=["GET"])
+    @require_auth
+    def list_deleted_holdings():
+        """Holdings the caller deleted in the last 30 days, so a mistake can be undone."""
+        cutoff = datetime.utcnow() - timedelta(days=DELETED_HOLDING_DAYS)
+        rows = (
+            Holding.query.filter(
+                Holding.user_id == g.user_id, Holding.deleted_at.isnot(None), Holding.deleted_at >= cutoff
+            )
+            .order_by(Holding.deleted_at.desc())
+            .all()
+        )
+        return jsonify([
+            {
+                "id": h.id, "name": h.name, "symbol": h.symbol, "asset_type": h.asset_type,
+                "account": h.account, "currency": h.currency, "deleted_at": h.deleted_at.isoformat(),
+            }
+            for h in rows
+        ])
+
+    @app.route("/holdings/<int:holding_id>/restore", methods=["POST"])
+    @require_auth
+    def restore_holding(holding_id):
+        holding = Holding.query.get_or_404(holding_id)
+        if str(holding.user_id) != str(g.user_id):
+            abort(403)
+        if holding.deleted_at is None:
+            return jsonify({"error": "This holding is not deleted"}), 400
+        if holding.deleted_at < datetime.utcnow() - timedelta(days=DELETED_HOLDING_DAYS):
+            return jsonify({"error": "It was deleted more than 30 days ago and cannot be restored"}), 400
+        # Bring back only the transactions that went with it. Ones deleted on their own earlier
+        # have a different timestamp and stay deleted.
+        HoldingTransaction.query.filter_by(holding_id=holding.id, deleted_at=holding.deleted_at).update(
+            {"deleted_at": None}, synchronize_session=False
+        )
+        holding.deleted_at = None
+        db.session.commit()
+        return jsonify(holding.to_dict()), 200
+
     @app.route("/holdings/<int:holding_id>/sip-projection", methods=["GET"])
     @require_auth
     def sip_projection(holding_id):
@@ -796,7 +837,7 @@ def create_app():
     @require_auth
     def get_exchange_rates():
         base = request.args.get("base", "USD").upper()
-        targets = ["USD", "INR", "AUD"]
+        targets = ["USD", "INR", "AUD", "GBP", "EUR", "CAD"]
         rates = {t: (1.0 if t == base else price_service.get_rate(base, t)) for t in targets}
         return jsonify({"base": base, "rates": rates})
 
