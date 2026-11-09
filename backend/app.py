@@ -550,7 +550,7 @@ def create_app():
             total_cost = tx.quantity * tx.price_per_unit + tx.fees
             try:
                 funding_valuation = build_funding_valuation(
-                    source_holding, source_valuations, total_cost, tx.currency, tx.transaction_date, g.user_id
+                    source_holding, source_valuations, total_cost, tx.currency, tx.transaction_date, g.user_id, require_funds=True
                 )
             except ValueError as e:
                 db.session.rollback()
