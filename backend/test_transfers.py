@@ -102,6 +102,9 @@ def test_valuation_row_can_be_edited(client):
     assert a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["value"] == 650
     assert a(client, "put", f"/valuations/{vid}", {"valuation_date": "nope"}).status_code == 400
     assert a(client, "put", f"/valuations/{vid}", {"value": ""}).status_code == 400
+    # Text must be rejected, not quietly saved as 0.
+    assert a(client, "put", f"/valuations/{vid}", {"value": "abc"}).status_code == 400
+    assert a(client, "get", f"/holdings/{hid}/valuations").get_json()[0]["value"] == 650
 
 
 def test_other_user_cannot_edit_a_valuation_row(client):

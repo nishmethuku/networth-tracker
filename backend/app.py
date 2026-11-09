@@ -701,7 +701,13 @@ def create_app():
         if "value" in data:
             if data["value"] in (None, ""):
                 return jsonify({"error": "value is required"}), 400
-            val.value = safe_float(data["value"])
+            try:
+                new_value = float(data["value"])
+            except (TypeError, ValueError):
+                return jsonify({"error": "value must be a number"}), 400
+            if new_value != new_value or new_value in (float("inf"), float("-inf")):
+                return jsonify({"error": "value must be a number"}), 400
+            val.value = new_value
         if "notes" in data:
             val.notes = data["notes"]
         db.session.commit()
