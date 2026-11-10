@@ -352,7 +352,7 @@ function RecordPaymentForm({ liability, onDone }) {
   const [source, setSource] = useState("");
   const sourceTouched = useRef(false);
 
-  const { data: cashHoldings } = useQuery({
+  const { data: cashHoldings, isLoading: loadingAccounts } = useQuery({
     queryKey: ["holdings", "cash"],
     queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
   });
@@ -399,7 +399,7 @@ function RecordPaymentForm({ liability, onDone }) {
 
   // With cash accounts to choose from, the person must say which one paid (or that none did), so a
   // payment is never recorded against no account by accident.
-  const mustChoose = (cashHoldings || []).length > 0 && source === "";
+  const mustChoose = loadingAccounts || ((cashHoldings || []).length > 0 && source === "");
   const valid = parseFloat(amount) > 0 && !mustChoose;
   const idBase = `pay-${liability.id}`;
 
@@ -454,7 +454,7 @@ function RecordPaymentForm({ liability, onDone }) {
             style={inputStyle}
           >
             <option value="" disabled>
-              Choose an account
+              {loadingAccounts ? "Loading your accounts..." : "Choose an account"}
             </option>
             <option value="none">Not from an account (only lower the balance)</option>
             {(cashHoldings || []).map((c) => (
@@ -468,7 +468,9 @@ function RecordPaymentForm({ liability, onDone }) {
       </div>
       <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.6rem 0 0" }}>
         This lowers the balance
-        {source === "" ? (
+        {loadingAccounts ? (
+          ". Loading your accounts, the first load can take a few seconds"
+        ) : source === "" ? (
           ". Choose which account the money came from"
         ) : source !== "none" ? (
           " and takes the money out of the account you picked"
