@@ -541,10 +541,17 @@ def build_dashboard(
         # a single test-share bought for ₹20 has an astronomical unrealised
         # return that drowns out the real portfolio XIRR. Mirrors the
         # frontend's MIN_MEANINGFUL_COST_BASIS = 100 threshold.
+        # Measured on what was ever bought, not on what is still held: a stock that was
+        # fully sold has a current cost basis of 0, but its gains and losses still belong
+        # in the portfolio's overall return.
+        bought_by_holding: Dict[int, float] = {}
+        for t in all_transactions:
+            if t.transaction_type == "buy":
+                bought_by_holding[t.holding_id] = bought_by_holding.get(t.holding_id, 0.0) + t.quantity * t.price_per_unit
         meaningful_ids = {
             h["id"] for h in holdings_with_metrics
             if h["asset_type"] in QUANTITY_BASED_TYPES
-            and (h.get("cost_basis") or 0) >= 100
+            and bought_by_holding.get(h["id"], 0.0) >= 100
         }
         meaningful_txns = [t for t in all_transactions if t.holding_id in meaningful_ids]
         tradeable_value = sum(

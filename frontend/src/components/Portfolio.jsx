@@ -11,6 +11,8 @@ import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import HoldingCard from "./HoldingCard";
 import HoldingTypeGuide from "./HoldingTypeGuide";
 import RecentlyDeleted from "./RecentlyDeleted";
+import RenameAccount from "./RenameAccount";
+import { splitCurrentAndSold } from "../utils/soldPositions";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
@@ -111,7 +113,7 @@ function fresh(h) {
   return freshness(h.updatedAt);
 }
 
-function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sortKey, sortDir, onSort }) {
+function HoldingsTable({ holdings, xirrHoldings, assetType, navigate, onDelete, currency, sortKey, sortDir, onSort }) {
   const quantityBased = isQuantityBased(assetType);
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState({});
@@ -122,11 +124,15 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
   const keyOf = (h) => `${h.symbol || h.name}|${h.currency}`;
   // One overall figure for the whole group: pooled over every dated purchase, not an average of per-lot XIRRs.
   let overall = null;
-  if (quantityBased && holdings.length > 1) {
-    const flows = holdings.flatMap((h) => h.cashFlows || []);
-    const totalValue = holdings.reduce((s, h) => s + (h.displayValue || 0), 0);
+  // Sold positions are included here even when hidden from the list: money made or lost on a stock
+  // you no longer hold is still part of how the whole portfolio has performed.
+  const forReturn = xirrHoldings || holdings;
+  const soldCount = forReturn.length - holdings.length;
+  if (quantityBased && forReturn.length > 1) {
+    const flows = forReturn.flatMap((h) => h.cashFlows || []);
+    const totalValue = forReturn.reduce((s, h) => s + (h.displayValue || 0), 0);
     const pooled = pooledXirr(flows, totalValue);
-    overall = pooled != null ? { returnPct: pooled * 100, isXirr: true } : computeGroupedReturn(holdings);
+    overall = pooled != null ? { returnPct: pooled * 100, isXirr: true } : computeGroupedReturn(forReturn);
   }
   const overallLine =
     overall && overall.returnPct != null ? (
@@ -135,7 +141,8 @@ function HoldingsTable({ holdings, assetType, navigate, onDelete, currency, sort
         <strong style={{ color: overall.returnPct >= 0 ? "var(--success)" : "var(--danger)" }}>{formatPercent(overall.returnPct)}</strong>
         <span style={{ color: "var(--text-muted)" }}>
           {" "}
-          across {positions.length} {positions.length === 1 ? "stock" : "stocks"} ({holdings.length} purchases)
+          across {positions.length} {positions.length === 1 ? "stock" : "stocks"} ({holdings.length} purchases
+          {soldCount > 0 ? `, plus ${soldCount} sold ${soldCount === 1 ? "purchase" : "purchases"} counted in the return` : ""})
         </span>
       </div>
     ) : null;
@@ -395,6 +402,22 @@ export default function Portfolio() {
   // rarely spans types (a brokerage doesn't also hold your real estate).
   // Keyed by asset type; an empty/missing value means "All accounts".
   const [accountFilters, setAccountFilters] = useState({});
+  // "current" hides stocks that were fully sold; "all" shows them. The return figures count them either way.
+  const [holdingView, setHoldingViewState] = useState(() => {
+    try {
+      return localStorage.getItem("portfolio-holding-view") === "all" ? "all" : "current";
+    } catch {
+      return "current";
+    }
+  });
+  const setHoldingView = (v) => {
+    setHoldingViewState(v);
+    try {
+      localStorage.setItem("portfolio-holding-view", v);
+    } catch {
+      /* storage can be blocked */
+    }
+  };
   const [searchParams, setSearchParams] = useSearchParams();
   const sortKey = searchParams.get("sort");
   const sortDir = searchParams.get("dir") === "asc" ? "asc" : "desc";
@@ -782,7 +805,12 @@ export default function Portfolio() {
           const typeHoldings = grouped[type];
           const accounts = [...new Set(typeHoldings.map((h) => h.account).filter(Boolean))].sort();
           const selectedAccount = accountFilters[type] || "";
-          const displayedHoldings = selectedAccount ? typeHoldings.filter((h) => h.account === selectedAccount) : typeHoldings;
+          const inAccount = selectedAccount ? typeHoldings.filter((h) => h.account === selectedAccount) : typeHoldings;
+          const { current: currentHoldings, soldPositions } = isQuantityBased(type)
+            ? splitCurrentAndSold(inAccount)
+            : { current: inAccount, soldPositions: 0 };
+          const displayedHoldings = holdingView === "current" ? currentHoldings : inAccount;
+          const renameTarget = selectedAccount || (accounts.length === 1 ? accounts[0] : "");
           const { buyValue, gainAmount } = groupBuyValueAndGain(displayedHoldings);
           const totalValue = displayedHoldings.reduce((sum, h) => sum + (h.displayValue || 0), 0);
 
@@ -799,6 +827,40 @@ export default function Portfolio() {
                 }}
               >
                 <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text)" }}>{getAssetTypeLabel(type)}</h2>
+                {isQuantityBased(type) && (
+                  <div role="group" aria-label="Show current or all holdings" style={{ display: "flex", gap: "0.25rem" }}>
+                    {[
+                      ["current", "Current"],
+                      ["all", soldPositions > 0 ? `All (${soldPositions} sold)` : "All"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setHoldingView(value)}
+                        aria-pressed={holdingView === value}
+                        style={{
+                          padding: "0.35rem 0.75rem",
+                          borderRadius: "var(--radius-sm)",
+                          border: "1px solid var(--border)",
+                          background: holdingView === value ? "var(--primary)" : "var(--card)",
+                          color: holdingView === value ? "var(--text-inverse)" : "var(--text)",
+                          fontSize: "0.8125rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {renameTarget && (
+                  <RenameAccount
+                    key={renameTarget}
+                    accountName={renameTarget}
+                    householdId={currentHouseholdId}
+                    onRenamed={(newName) => selectedAccount && setAccountFilters({ ...accountFilters, [type]: newName })}
+                  />
+                )}
                 {accounts.length > 0 && (
                   <select
                     value={selectedAccount}
@@ -876,6 +938,7 @@ export default function Portfolio() {
               <Card>
                 <HoldingsTable
                   holdings={displayedHoldings}
+                  xirrHoldings={inAccount}
                   assetType={type}
                   navigate={navigate}
                   onDelete={setDeleteTarget}
