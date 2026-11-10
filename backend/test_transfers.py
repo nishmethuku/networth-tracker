@@ -246,3 +246,14 @@ def test_deleted_transaction_can_be_restored_but_not_into_an_oversell(client):
     assert r.status_code == 400 and "more than you hold" in r.get_json()["error"]
     assert a(client, "post", f"/transactions/{buy_id}/restore", {}).status_code == 200
     assert a(client, "post", f"/transactions/{sell_id}/restore", {}).status_code == 200
+
+
+def test_undo_window_check_handles_timezone_aware_dates():
+    from datetime import datetime, timedelta, timezone
+
+    from backend.app import _deleted_too_long_ago
+
+    now = datetime.now(timezone.utc)
+    assert _deleted_too_long_ago(now - timedelta(days=1)) is False
+    assert _deleted_too_long_ago(now - timedelta(days=31)) is True
+    assert _deleted_too_long_ago(datetime.utcnow() - timedelta(days=1)) is False

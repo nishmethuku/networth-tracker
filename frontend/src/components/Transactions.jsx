@@ -370,6 +370,7 @@ export default function Transactions() {
       <ConfirmDeleteModal
         isOpen={!!deletingTx}
         title="Delete Transaction?"
+        undoable
         assetName={deletingTx ? `this ${deletingTx.transactionType} of ${deletingTx.holdingSymbol || deletingTx.holdingName}` : ""}
         onConfirm={() => deleteMutation.mutate(deletingTx)}
         onCancel={() => setDeletingTx(null)}

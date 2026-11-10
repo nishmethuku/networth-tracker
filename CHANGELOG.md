@@ -2,6 +2,8 @@
 
 ## Undo a deleted transaction
 
+- Fixed: pressing Undo gave a server error on the live site (a date comparison crashed). The delete box now mentions the Undo button.
+
 - Deleting a purchase or sale now shows an **Undo** button for 8 seconds. A deleted transaction can be restored for 30 days, unless restoring it would leave you selling more than you hold (restore the earlier purchase first).
 
 ## Errors stay readable, benchmark note
