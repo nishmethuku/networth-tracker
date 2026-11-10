@@ -852,3 +852,23 @@ def test_split_and_bonus_have_no_cash_flow_and_sell_after_split_is_allowed():
     assert sells_more_than_held(txs) is False
     assert compute_position(txs)["realized_gain"] == 200  # (60 - 50) * 20
     assert sells_more_than_held(txs + [_tx("sell", date(2024, 8, 1), 1, 60, tx_id=4)]) is True
+
+
+def test_dashboard_xirr_counts_fully_sold_holdings():
+    """A stock that was bought and fully sold has 0 cost basis now, but its profit still belongs in the overall XIRR."""
+    h1, h2 = _holding(asset_type="stock"), _holding(asset_type="stock")
+    h1.id, h2.id = 1, 2
+    metrics = [
+        {"id": 1, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 1000.0, "cost_basis": 1000.0},
+        {"id": 2, "asset_type": "stock", "country": "United States", "currency": "USD", "display_value": 0.0, "cost_basis": 0.0},
+    ]
+    year_ago, now = date.today() - timedelta(days=365), date.today()
+    flat_buy = _tx("buy", year_ago, 10, 100.0)  # holding 1: bought 1000, still worth 1000
+    winner_buy = _tx("buy", year_ago, 10, 100.0)
+    winner_buy.holding_id = 2
+    winner_sell = _tx("sell", now, 10, 200.0)
+    winner_sell.holding_id = 2
+    result = build_dashboard(metrics, {1: h1, 2: h2}, all_transactions=[flat_buy, winner_buy, winner_sell])
+    # 2000 in, 2000 (sale) + 1000 (still held) out a year later: about 41% a year, not 0%
+    assert result["portfolio_xirr"] is not None
+    assert result["portfolio_xirr"] > 0.3

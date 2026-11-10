@@ -1,5 +1,11 @@
 # Changelog
 
+## Sold stocks, rename account
+
+- **Current | All switch** on Stocks, Mutual Funds, Crypto and Gold: it defaults to Current, which hides anything you sold completely. All brings them back.
+- Sold stocks still count in the returns. The overall XIRR on the Portfolio page and on the Net Worth page now includes positions that were fully sold (the Net Worth figure used to drop them).
+- **Rename account** button next to each section's account picker, so an account like "Account 1" can be renamed right from Portfolio.
+
 ## Numbers stay current
 
 - Every successful change (add, edit, delete, payment, import, transfer) now refreshes net worth, accounts, cards, charts and lists everywhere, so no screen can keep showing old values.
