@@ -72,7 +72,7 @@ export default function AddEntryForm({ categories, currency }) {
   // Cash accounts to pay an expense out of — picking one adjusts that
   // account's balance automatically instead of updating it by hand later.
   // Same mechanism as funding a holding purchase from cash.
-  const { data: cashHoldings } = useQuery({
+  const { data: cashHoldings, isLoading: loadingCash } = useQuery({
     queryKey: ["holdings", "cash"],
     queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
     enabled: entryType === "expense",
@@ -91,7 +91,7 @@ export default function AddEntryForm({ categories, currency }) {
   // Liabilities this expense can pay down — picking one reduces that
   // liability's balance automatically instead of a separate manual edit,
   // same mechanism as the cash-funding-source field above.
-  const { data: liabilities } = useQuery({
+  const { data: liabilities, isLoading: loadingCards } = useQuery({
     queryKey: ["liabilities", currency],
     queryFn: () => fetchLiabilities({ currency }),
     enabled: entryType === "expense",
@@ -100,6 +100,8 @@ export default function AddEntryForm({ categories, currency }) {
   // Credit cards are something you charge a purchase to. Their bills are paid from the
   // Liabilities page, so "Pays down" lists only the other kinds (a card bill logged as an
   // expense would count the same spending twice).
+  // Until the accounts arrive, saving would record the expense with no account and change no balance.
+  const loadingAccounts = entryType === "expense" && (loadingCash || loadingCards);
   const cards = (liabilities || []).filter((l) => l.liabilityType === "credit_card" || l.liabilityType === "line_of_credit");
   const payable = (liabilities || []).filter((l) => l.liabilityType !== "credit_card" && l.liabilityType !== "line_of_credit");
 
@@ -258,6 +260,11 @@ export default function AddEntryForm({ categories, currency }) {
             ))}
           </select>
         </div>
+        {loadingAccounts && (
+          <p role="status" style={{ gridColumn: "1 / -1", margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+            Loading your accounts and cards, the first load can take a few seconds...
+          </p>
+        )}
         {entryType === "expense" && (cashHoldings?.length > 0 || cards.length > 0) && (
           <div>
             <label
@@ -376,7 +383,7 @@ export default function AddEntryForm({ categories, currency }) {
 
       <button
         type="submit"
-        disabled={mutation.isPending}
+        disabled={mutation.isPending || loadingAccounts}
         style={{
           marginTop: "1rem",
           padding: "0.75rem 1.5rem",

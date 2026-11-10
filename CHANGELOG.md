@@ -1,5 +1,11 @@
 # Changelog
 
+## Numbers stay current
+
+- Every successful change (add, edit, delete, payment, import, transfer) now refreshes net worth, accounts, cards, charts and lists everywhere, so no screen can keep showing old values.
+- Screens also refresh when you come back to the tab or app, and data is treated as fresh for 1 minute instead of 5.
+- The Budget add-expense form also waits for your accounts and cards to load before it can be saved.
+
 ## Payments wait for your accounts
 
 - On a slow first load, the "Paid from" list was still empty and a card payment or expense could be saved with no account, so no money came out. Both forms now show "Loading your accounts..." and cannot be saved until the list has arrived.

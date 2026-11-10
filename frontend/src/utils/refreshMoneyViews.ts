@@ -16,6 +16,16 @@ const KEYS = [
   "monthly-flow",
   "emergency-fund",
   "transfers",
+  "goals",
+  "transactions",
+  "holding-transactions",
+  "accounts",
+  "milestones",
+  "sip-projection",
+  "allocation-drift",
+  "benchmark",
+  "income-summary",
+  "tax-summary",
 ];
 
 /** Call after adding, editing, deleting, undoing or splitting an entry so nothing on screen goes stale. */
