@@ -113,6 +113,12 @@ function BenchmarkCard() {
           </div>
         </div>
       )}
+      {benchmark && benchmark.buysSkipped > 0 && benchmark.benchmarkXirr != null && (
+        <p style={{ margin: "0.75rem 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+          {benchmark.buysSkipped} of {benchmark.buysSkipped + benchmark.buysUsed} purchases had no index price for their date, so they are
+          left out of the index figure.
+        </p>
+      )}
     </Card>
   );
 }

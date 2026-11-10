@@ -1,5 +1,10 @@
 # Changelog
 
+## Errors stay readable, benchmark note
+
+- Error messages now stay on screen for 10 seconds instead of 3.5, so there is time to read what went wrong.
+- The benchmark card says when some purchases had no index price for their date and were left out of the index figure.
+
 ## Sold stocks, rename account
 
 - **Current | All switch** on Stocks, Mutual Funds, Crypto and Gold: it defaults to Current, which hides anything you sold completely. All brings them back.

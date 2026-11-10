@@ -54,7 +54,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     toasts,
     dismiss,
     success: (message, duration, action) => push(message, "success", duration, action),
-    error: (message, duration) => push(message, "error", duration),
+    // Errors stay longer than other messages so there is time to read what went wrong.
+    error: (message, duration) => push(message, "error", duration ?? 10000),
     info: (message, duration, action) => push(message, "info", duration, action),
   };
 
