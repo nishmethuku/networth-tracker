@@ -653,6 +653,30 @@ def create_app():
         db.session.commit()
         return jsonify({"message": "Transaction deleted"}), 200
 
+    @app.route("/transactions/<int:transaction_id>/restore", methods=["POST"])
+    @require_auth
+    def restore_transaction(transaction_id):
+        """Undo for a deleted purchase or sale. Only works for a transaction deleted on its own
+        (not as part of deleting a holding) in the last 30 days."""
+        tx = HoldingTransaction.query.get_or_404(transaction_id)
+        get_authorized_holding(tx.holding_id, require_write=True)
+        if tx.deleted_at is None:
+            return jsonify({"error": "This transaction is not deleted"}), 400
+        if tx.deleted_at < datetime.utcnow() - timedelta(days=DELETED_HOLDING_DAYS):
+            return jsonify({"error": "It was deleted more than 30 days ago and cannot be restored"}), 400
+        holding = Holding.query.get(tx.holding_id)
+        if holding.deleted_at is not None:
+            return jsonify({"error": "Restore the holding first"}), 400
+        tx.deleted_at = None
+        ledger = HoldingTransaction.query.filter(
+            HoldingTransaction.holding_id == tx.holding_id, HoldingTransaction.deleted_at.is_(None)
+        ).all()
+        if sells_more_than_held(ledger):
+            db.session.rollback()
+            return jsonify({"error": "Restoring this would leave you selling more than you hold. Restore the earlier purchase first."}), 400
+        db.session.commit()
+        return jsonify(tx.to_dict()), 200
+
     @app.route("/transactions", methods=["GET"])
     @require_auth
     def list_all_transactions():

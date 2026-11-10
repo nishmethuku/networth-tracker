@@ -27,6 +27,7 @@ def test_route_table_is_complete(app):
     for expected in (
         "/health",
         "/alerts/test-email",
+        "/transactions/<int:transaction_id>/restore",
         "/dashboard",
         "/holdings",
         "/budget/entries",

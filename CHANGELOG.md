@@ -1,5 +1,9 @@
 # Changelog
 
+## Undo a deleted transaction
+
+- Deleting a purchase or sale now shows an **Undo** button for 8 seconds. A deleted transaction can be restored for 30 days, unless restoring it would leave you selling more than you hold (restore the earlier purchase first).
+
 ## Errors stay readable, benchmark note
 
 - Error messages now stay on screen for 10 seconds instead of 3.5, so there is time to read what went wrong.

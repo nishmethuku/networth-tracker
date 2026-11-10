@@ -228,3 +228,21 @@ def test_test_email_sends_when_configured(client, monkeypatch):
     r = a(client, "post", "/alerts/test-email", {})
     assert r.status_code == 200, r.get_json()
     assert sent == ["me@example.com"]
+
+
+def test_deleted_transaction_can_be_restored_but_not_into_an_oversell(client):
+    h = a(client, "post", "/holdings", {"asset_type": "stock", "symbol": "UNDO1", "name": "UNDO1", "country": "United States", "account": "U", "currency": "USD"}).get_json()["id"]
+    buy = {"transaction_type": "buy", "transaction_date": "2025-01-02", "quantity": 10, "price_per_unit": 100, "currency": "USD"}
+    buy_id = a(client, "post", f"/holdings/{h}/transactions", buy).get_json()["id"]
+    sell_id = a(client, "post", f"/holdings/{h}/transactions", {**buy, "transaction_type": "sell", "transaction_date": "2025-06-02", "quantity": 4}).get_json()["id"]
+    # Delete the sale, then bring it back.
+    assert a(client, "delete", f"/transactions/{sell_id}").status_code == 200
+    assert a(client, "post", f"/transactions/{sell_id}/restore", {}).status_code == 200
+    assert a(client, "post", f"/transactions/{sell_id}/restore", {}).status_code == 400  # already restored
+    # Delete both; restoring the sale before the purchase would oversell.
+    a(client, "delete", f"/transactions/{sell_id}")
+    a(client, "delete", f"/transactions/{buy_id}")
+    r = a(client, "post", f"/transactions/{sell_id}/restore", {})
+    assert r.status_code == 400 and "more than you hold" in r.get_json()["error"]
+    assert a(client, "post", f"/transactions/{buy_id}/restore", {}).status_code == 200
+    assert a(client, "post", f"/transactions/{sell_id}/restore", {}).status_code == 200
