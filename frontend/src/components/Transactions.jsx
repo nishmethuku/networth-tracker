@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { fetchAllTransactions, fetchHoldings, deleteTransaction, ApiError } from "../api";
+import { fetchAllTransactions, fetchHoldings, deleteTransaction, restoreTransaction, ApiError } from "../api";
 import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
@@ -52,7 +52,20 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["holding-transactions", String(tx.holdingId)] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      toast.success("Transaction deleted");
+      toast.success("Transaction deleted", 8000, {
+        label: "Undo",
+        onClick: () =>
+          restoreTransaction(tx.id)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ["holding", String(tx.holdingId)] });
+              queryClient.invalidateQueries({ queryKey: ["holding-transactions", String(tx.holdingId)] });
+              queryClient.invalidateQueries({ queryKey: ["holdings"] });
+              queryClient.invalidateQueries({ queryKey: ["transactions"] });
+              queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+              toast.success("Transaction restored");
+            })
+            .catch((err) => toast.error(err instanceof ApiError ? err.message : "Could not undo that")),
+      });
       setDeletingTx(null);
     },
     onError: (err) => {

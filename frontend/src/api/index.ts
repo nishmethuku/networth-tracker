@@ -122,6 +122,10 @@ export async function deleteTransaction(id: number | string) {
   await api.delete(`/transactions/${id}`);
 }
 
+export async function restoreTransaction(id: number | string) {
+  return api.post(`/transactions/${id}/restore`, {});
+}
+
 export interface TransactionFilters {
   assetType?: string;
   country?: string;

@@ -19,6 +19,7 @@ import {
   fetchHoldingPriceHistory,
   createValuation,
   deleteTransaction,
+  restoreTransaction,
   deleteValuation,
   updateValuation,
   ApiError,
@@ -267,11 +268,23 @@ export default function HoldingDetail() {
 
   const deleteTxMutation = useMutation({
     mutationFn: deleteTransaction,
-    onSuccess: () => {
+    onSuccess: (_data, txId) => {
       queryClient.invalidateQueries({ queryKey: ["holding", id] });
       queryClient.invalidateQueries({ queryKey: ["holding-transactions", id] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
-      toast.success("Transaction deleted");
+      toast.success("Transaction deleted", 8000, {
+        label: "Undo",
+        onClick: () =>
+          restoreTransaction(txId)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ["holding", id] });
+              queryClient.invalidateQueries({ queryKey: ["holding-transactions", id] });
+              queryClient.invalidateQueries({ queryKey: ["holdings"] });
+              queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+              toast.success("Transaction restored");
+            })
+            .catch((err) => toast.error(err instanceof ApiError ? err.message : "Could not undo that")),
+      });
       setDeletingTx(null);
     },
     onError: (err) => {
