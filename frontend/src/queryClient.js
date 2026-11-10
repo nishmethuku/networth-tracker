@@ -1,7 +1,8 @@
 /**
  * React Query client configuration
  */
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryClient } from "@tanstack/react-query";
+import { refreshMoneyViews } from "./utils/refreshMoneyViews";
 import { ApiError } from "./api/client";
 
 // client.js already gives a timed-out/network-level GET one full retry at
@@ -16,11 +17,19 @@ export function shouldRetryQuery(failureCount, error) {
   return failureCount < 1;
 }
 
+// Any successful change (add, edit, delete, payment, import) refreshes every number that depends on
+// money, so net worth, accounts, cards and charts can never be left showing old values because one
+// screen forgot to refresh them.
 export const queryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    onSuccess: () => {
+      refreshMoneyViews(queryClient);
+    },
+  }),
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60, // 1 minute
+      refetchOnWindowFocus: true, // coming back to the tab or app shows current numbers
       retry: shouldRetryQuery,
     },
   },
