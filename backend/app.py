@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import sentry_sdk
@@ -92,6 +92,17 @@ _ERROR_CODES = {
     429: "rate_limited",
     500: "internal_error",
 }
+
+
+DELETED_HOLDING_DAYS = 30
+
+
+def _deleted_too_long_ago(deleted_at):
+    """True when deleted_at is older than the undo window. Postgres hands back timezone-aware
+    values, so compare on naive UTC to avoid a TypeError."""
+    if deleted_at.tzinfo is not None:
+        deleted_at = deleted_at.astimezone(timezone.utc).replace(tzinfo=None)
+    return deleted_at < datetime.utcnow() - timedelta(days=DELETED_HOLDING_DAYS)
 
 
 def create_app():
@@ -476,7 +487,6 @@ def create_app():
         db.session.commit()
         return jsonify({"message": "Holding deleted"}), 200
 
-    DELETED_HOLDING_DAYS = 30
 
     @app.route("/holdings/deleted", methods=["GET"])
     @require_auth
@@ -506,7 +516,7 @@ def create_app():
             abort(403)
         if holding.deleted_at is None:
             return jsonify({"error": "This holding is not deleted"}), 400
-        if holding.deleted_at < datetime.utcnow() - timedelta(days=DELETED_HOLDING_DAYS):
+        if _deleted_too_long_ago(holding.deleted_at):
             return jsonify({"error": "It was deleted more than 30 days ago and cannot be restored"}), 400
         # Bring back only the transactions that went with it. Ones deleted on their own earlier
         # have a different timestamp and stay deleted.
@@ -662,7 +672,7 @@ def create_app():
         get_authorized_holding(tx.holding_id, require_write=True)
         if tx.deleted_at is None:
             return jsonify({"error": "This transaction is not deleted"}), 400
-        if tx.deleted_at < datetime.utcnow() - timedelta(days=DELETED_HOLDING_DAYS):
+        if _deleted_too_long_ago(tx.deleted_at):
             return jsonify({"error": "It was deleted more than 30 days ago and cannot be restored"}), 400
         holding = Holding.query.get(tx.holding_id)
         if holding.deleted_at is not None:

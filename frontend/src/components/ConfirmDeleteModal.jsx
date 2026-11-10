@@ -6,7 +6,7 @@ import useIsMobile from "../hooks/useIsMobile";
  * renders as a bottom sheet (slides up, drag-to-dismiss) instead of a
  * centered modal — matches how native mobile UIs surface confirmations.
  */
-export default function ConfirmDeleteModal({ isOpen, onConfirm, onCancel, assetName, title = "Delete Asset?" }) {
+export default function ConfirmDeleteModal({ isOpen, onConfirm, onCancel, assetName, title = "Delete Asset?", undoable = false }) {
   const isMobile = useIsMobile();
 
   const Buttons = (
@@ -90,7 +90,8 @@ export default function ConfirmDeleteModal({ isOpen, onConfirm, onCancel, assetN
               <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--border-dark)", margin: "0 auto 1rem" }} />
               <h3 style={{ marginBottom: "0.75rem", fontSize: "1.125rem", fontWeight: 700, color: "var(--text)" }}>{title}</h3>
               <p style={{ marginBottom: "1.5rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                Are you sure you want to delete <strong>{assetName}</strong>? This action cannot be undone.
+                Are you sure you want to delete <strong>{assetName}</strong>?{" "}
+                {undoable ? "You can press Undo for a few seconds right after." : "This action cannot be undone."}
               </p>
               {Buttons}
             </motion.div>
@@ -116,7 +117,8 @@ export default function ConfirmDeleteModal({ isOpen, onConfirm, onCancel, assetN
               >
                 <h3 style={{ marginBottom: "1rem", fontSize: "1.25rem", fontWeight: 700, color: "var(--text)" }}>{title}</h3>
                 <p style={{ marginBottom: "1.5rem", color: "var(--text-secondary)", lineHeight: "1.6" }}>
-                  Are you sure you want to delete <strong>{assetName}</strong>? This action cannot be undone.
+                  Are you sure you want to delete <strong>{assetName}</strong>?{" "}
+                  {undoable ? "You can press Undo for a few seconds right after." : "This action cannot be undone."}
                 </p>
                 {Buttons}
               </div>
