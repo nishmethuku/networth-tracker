@@ -66,12 +66,12 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     queryFn: () => fetchBudgetCategories({ householdId: currentHouseholdId }),
     enabled: open,
   });
-  const { data: cashHoldings } = useQuery({
+  const { data: cashHoldings, isLoading: loadingCash } = useQuery({
     queryKey: ["holdings", "cash"],
     queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
     enabled: open,
   });
-  const { data: liabilities } = useQuery({
+  const { data: liabilities, isLoading: loadingCards } = useQuery({
     queryKey: ["liabilities", currency],
     queryFn: () => fetchLiabilities({ currency }),
     enabled: open,
@@ -113,6 +113,9 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
     const balance = account.currentValue;
     return typeof balance === "number" && spend > balance ? { name: account.name, balance, currency: account.currency } : null;
   }, [amount, paidFrom, cashHoldings, currency]);
+
+  // Until the accounts arrive, saving would record the expense with no account and take no money out.
+  const loadingAccounts = loadingCash || loadingCards;
 
   const cards = useMemo(
     () => (liabilities || []).filter((l) => l.liabilityType === "credit_card" || l.liabilityType === "line_of_credit"),
@@ -265,6 +268,10 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
   });
 
   function submit(another) {
+    if (loadingAccounts) {
+      setError("Your accounts are still loading. Wait a moment, then save again.");
+      return;
+    }
     let input = { amount, category, description, date, currency, paidFrom };
     if (parsed && typed.trim()) {
       input = {
@@ -507,6 +514,11 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
                 ))}
               </datalist>
 
+              {loadingAccounts && (
+                <p role="status" style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+                  Loading your accounts, the first load can take a few seconds...
+                </p>
+              )}
               {(cashHoldings?.length > 0 || cards.length > 0) && (
                 <div>
                   <label htmlFor="qa-paid" style={labelStyle}>
@@ -565,7 +577,7 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
               <button
                 type="submit"
-                disabled={mutation.isPending}
+                disabled={mutation.isPending || loadingAccounts}
                 style={{
                   flex: 1,
                   minWidth: "8rem",
@@ -584,7 +596,7 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
               </button>
               <button
                 type="button"
-                disabled={mutation.isPending}
+                disabled={mutation.isPending || loadingAccounts}
                 onClick={() => submit(true)}
                 style={{
                   padding: "0.8rem 1rem",

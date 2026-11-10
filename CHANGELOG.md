@@ -1,5 +1,9 @@
 # Changelog
 
+## Payments wait for your accounts
+
+- On a slow first load, the "Paid from" list was still empty and a card payment or expense could be saved with no account, so no money came out. Both forms now show "Loading your accounts..." and cannot be saved until the list has arrived.
+
 ## Guided first holding
 
 - New **Add your first holding** page (linked from the empty Dashboard and Portfolio). Pick one of four plain choices, a stock, gold or silver, a bank account, or property/FD/PPF/EPF, then fill only a few boxes.
