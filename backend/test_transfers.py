@@ -257,3 +257,17 @@ def test_undo_window_check_handles_timezone_aware_dates():
     assert _deleted_too_long_ago(now - timedelta(days=1)) is False
     assert _deleted_too_long_ago(now - timedelta(days=31)) is True
     assert _deleted_too_long_ago(datetime.utcnow() - timedelta(days=1)) is False
+
+
+def test_failed_historical_price_lookup_is_not_retried_right_away(monkeypatch):
+    from datetime import date
+
+    from backend import price_service
+
+    calls = []
+    monkeypatch.setattr(price_service, "get_historical_price_from_yahoo", lambda s, d: calls.append(s))
+    monkeypatch.setattr(price_service, "get_historical_price_from_finnhub", lambda s, d: None)
+    monkeypatch.setattr(price_service.PriceHistory, "query", type("Q", (), {"filter_by": lambda self, **k: type("R", (), {"first": lambda self: None})()})())
+    assert price_service.get_historical_price("stock", "NOSUCH", date(2026, 1, 2), "INR") is None
+    assert price_service.get_historical_price("stock", "NOSUCH", date(2026, 1, 2), "INR") is None
+    assert len(calls) == 1
