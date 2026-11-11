@@ -1,5 +1,10 @@
 # Changelog
 
+## App no longer freezes after the server wakes up
+
+- The server now handles several requests at once per worker, so one slow background job can no longer make the whole app (even the health check) time out.
+- Price lookups that fail are remembered for 6 hours instead of being retried on every load, which stops the flood of failed requests for Indian stocks.
+
 ## Undo a deleted transaction
 
 - Fixed: pressing Undo gave a server error on the live site (a date comparison crashed). The delete box now mentions the Undo button.

@@ -6,6 +6,7 @@ miss, and writes the result back — so repeat lookups and the daily snapshot
 job don't re-hit rate-limited free tiers every time.
 """
 import logging
+import time
 from datetime import date, datetime, timedelta
 from typing import Optional
 
@@ -26,6 +27,22 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Lookups that found nothing are remembered for a few hours. Without this, every dashboard
+# load and cron job re-calls Yahoo and Finnhub for the same symbols that always fail (many
+# Indian symbols), which ties up the workers and makes the whole app time out.
+_MISS_TTL_SECONDS = 6 * 3600
+_historical_misses = {}
+
+
+def _recently_missed(key):
+    expires = _historical_misses.get(key)
+    if expires is None:
+        return False
+    if expires < time.time():
+        _historical_misses.pop(key, None)
+        return False
+    return True
 
 
 def get_current_price(asset_type: str, symbol: str, currency: str = "USD") -> Optional[float]:
@@ -123,6 +140,10 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
     if cached:
         return cached.price
 
+    miss_key = (asset_type, symbol, target_date, currency)
+    if _recently_missed(miss_key):
+        return None
+
     price = None
     source = None
     if asset_type == "crypto":
@@ -144,6 +165,8 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
 
     if price is not None:
         _cache_price(asset_type, symbol, target_date, price, currency, source)
+    else:
+        _historical_misses[miss_key] = time.time() + _MISS_TTL_SECONDS
     return price
 
 
