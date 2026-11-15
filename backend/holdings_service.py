@@ -213,6 +213,7 @@ def build_funding_valuation(
     acting_user_id,
     notes: str = "Used to fund a purchase",
     require_funds: bool = False,
+    apply_to_current: bool = False,
 ) -> HoldingValuation:
     """
     Build (uncommitted) the valuation entry that records spending money out
@@ -242,6 +243,12 @@ def build_funding_valuation(
     # itself doesn't exist yet (see smart_import_service.py).
     prior = [v for v in existing_valuations if v.valuation_date <= on_date]
     baseline = max(prior, key=valuation_order).value if prior else 0.0
+    if apply_to_current:
+        # Live entries (an expense or income logged in the app) must change the balance the account
+        # shows now, even when the entry is dated earlier than the newest recorded balance.
+        newest = max(existing_valuations, key=valuation_order)
+        baseline = newest.value
+        on_date = max(on_date, newest.valuation_date)
     converted_amount = price_service.convert(amount, amount_currency, source_holding.currency)
     if require_funds and converted_amount > baseline + 0.005:
         raise ValueError(
@@ -267,6 +274,7 @@ def build_deposit_valuation(
     on_date: date,
     acting_user_id,
     notes: str = "Deposited from income",
+    apply_to_current: bool = False,
 ) -> HoldingValuation:
     """
     Build (uncommitted) the valuation entry that records money being
@@ -288,6 +296,10 @@ def build_deposit_valuation(
     # build_funding_valuation above.
     prior = [v for v in existing_valuations if v.valuation_date <= on_date]
     starting_value = max(prior, key=valuation_order).value if prior else 0.0
+    if apply_to_current and existing_valuations:
+        newest = max(existing_valuations, key=valuation_order)
+        starting_value = newest.value
+        on_date = max(on_date, newest.valuation_date)
     converted_amount = price_service.convert(amount, amount_currency, target_holding.currency)
 
     return HoldingValuation(

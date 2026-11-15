@@ -4,6 +4,7 @@ import os
 from datetime import date
 
 from flask import g, jsonify, request
+from sqlalchemy import func
 
 from ..auth import require_auth
 from ..holdings_service import (
@@ -118,7 +119,7 @@ def register(app, h):
     def get_liabilities():
         household_id_param = request.args.get("household_id")
         display_currency = request.args.get("currency", "USD").upper()
-        liabilities = scoped_liabilities_query(household_id_param).order_by(Liability.created_at.desc()).all()
+        liabilities = scoped_liabilities_query(household_id_param).order_by(func.lower(Liability.name), Liability.id).all()
         if any(catch_up(li) for li in liabilities):
             db.session.commit()
         return jsonify(list_liabilities_with_display(liabilities, display_currency=display_currency))

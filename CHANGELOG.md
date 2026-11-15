@@ -1,5 +1,12 @@
 # Changelog
 
+## Fixes from the issues sheet
+
+- Expenses and income logged with an earlier date now change the balance the account shows today, and deleting the entry puts exactly that amount back. Before, an entry dated earlier than the newest saved balance was ignored by the current balance.
+- Adding a cash account that already exists (same name, account and currency) is refused with a clear message instead of creating a duplicate. Names are trimmed of stray spaces when saved.
+- Deleting an account now works on names with a stray space and removes every duplicate entry, so deleted accounts no longer stay on the list.
+- Liabilities are listed A to Z by name.
+
 ## Merge duplicate accounts, price bare Indian tickers
 
 - Renaming an account to a name that already exists now offers to merge the two instead of failing. Every holding moves into the existing account and the duplicate disappears.

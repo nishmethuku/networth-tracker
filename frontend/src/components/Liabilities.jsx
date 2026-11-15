@@ -23,6 +23,7 @@ import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference
 import { CURRENCIES, LIABILITY_TYPE_OPTIONS, getLiabilityTypeLabel } from "../constants/enums";
 import { projectPayoff, monthsToPayoff } from "../utils/debtPayoff";
 import { refreshMoneyViews } from "../utils/refreshMoneyViews";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   width: "100%",
@@ -828,7 +829,7 @@ export default function Liabilities() {
       ) : (
         <Card title="Total liabilities" value={formatCurrencyCompact(total, currency)}>
           <div style={{ marginTop: "1rem" }}>
-            {liabilities.map((l) => (
+            {sortAz(liabilities, (l) => l.name).map((l) => (
               <LiabilityRow
                 key={l.id}
                 liability={l}

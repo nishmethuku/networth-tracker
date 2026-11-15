@@ -267,7 +267,8 @@ def register(app, h):
             source_valuations = HoldingValuation.query.filter_by(holding_id=source_holding.id).all()
             try:
                 funding_valuation = build_funding_valuation(
-                    source_holding, source_valuations, entry.amount, entry.currency, entry.entry_date, g.user_id
+                    source_holding, source_valuations, entry.amount, entry.currency, entry.entry_date, g.user_id,
+                    apply_to_current=True,
                 )
             except ValueError as e:
                 db.session.rollback()
@@ -293,7 +294,8 @@ def register(app, h):
             target_valuations = HoldingValuation.query.filter_by(holding_id=deposit_target.id).all()
             try:
                 deposit_valuation = build_deposit_valuation(
-                    deposit_target, target_valuations, entry.amount, entry.currency, entry.entry_date, g.user_id
+                    deposit_target, target_valuations, entry.amount, entry.currency, entry.entry_date, g.user_id,
+                    apply_to_current=True,
                 )
             except ValueError as e:
                 db.session.rollback()
@@ -333,7 +335,7 @@ def register(app, h):
                 source = get_authorized_holding(entry.funding_holding_id, require_write=True)
                 valuations = HoldingValuation.query.filter_by(holding_id=source.id).all()
                 refund = build_deposit_valuation(
-                    source, valuations, amount, currency, date.today(), acting_user_id, notes="Put back after editing an expense"
+                    source, valuations, amount, currency, date.today(), acting_user_id, notes="Put back after editing an expense", apply_to_current=True,
                 )
                 db.session.add(refund)
                 done["funding_source"] = refund.to_dict()
@@ -341,7 +343,7 @@ def register(app, h):
             target = get_authorized_holding(entry.deposit_target_holding_id, require_write=True)
             if target.asset_type == "cash":
                 valuations = HoldingValuation.query.filter_by(holding_id=target.id).all()
-                draw = build_funding_valuation(target, valuations, amount, currency, date.today(), acting_user_id)
+                draw = build_funding_valuation(target, valuations, amount, currency, date.today(), acting_user_id, apply_to_current=True)
                 db.session.add(draw)
                 done["deposit_target"] = draw.to_dict()
         entry.charged_liability_id = None
@@ -441,7 +443,7 @@ def register(app, h):
                     adjusted["charged_liability"] = apply_charge(new_card, new_amount, new_currency).to_dict()
                 if new_source:
                     valuations = HoldingValuation.query.filter_by(holding_id=new_source.id).all()
-                    valuation = build_funding_valuation(new_source, valuations, new_amount, new_currency, new_date, g.user_id)
+                    valuation = build_funding_valuation(new_source, valuations, new_amount, new_currency, new_date, g.user_id, apply_to_current=True)
                     db.session.add(valuation)
                     entry.funding_holding_id = new_source.id
                     adjusted["funding_source"] = valuation.to_dict()
@@ -449,7 +451,7 @@ def register(app, h):
                     entry.deposit_target_holding_id = new_target.id
                     if new_target.asset_type == "cash":
                         valuations = HoldingValuation.query.filter_by(holding_id=new_target.id).all()
-                        valuation = build_deposit_valuation(new_target, valuations, new_amount, new_currency, new_date, g.user_id)
+                        valuation = build_deposit_valuation(new_target, valuations, new_amount, new_currency, new_date, g.user_id, apply_to_current=True)
                         db.session.add(valuation)
                         adjusted["deposit_target"] = valuation.to_dict()
             else:
@@ -482,7 +484,7 @@ def register(app, h):
                             if abs(delta) > 0.004:
                                 valuations = HoldingValuation.query.filter_by(holding_id=source.id).all()
                                 builder = build_funding_valuation if delta > 0 else build_deposit_valuation
-                                kwargs = {} if delta > 0 else {"notes": "Adjusted after editing an entry"}
+                                kwargs = {"apply_to_current": True} if delta > 0 else {"notes": "Adjusted after editing an entry", "apply_to_current": True}
                                 valuation = builder(source, valuations, abs(delta), source.currency, date.today(), g.user_id, **kwargs)
                                 db.session.add(valuation)
                                 adjusted["funding_source" if entry.funding_holding_id else "deposit_target"] = valuation.to_dict()
@@ -531,7 +533,7 @@ def register(app, h):
                     valuations = HoldingValuation.query.filter_by(holding_id=source.id).all()
                     refund = build_deposit_valuation(
                         source, valuations, entry.amount, entry.currency, date.today(), g.user_id,
-                        notes="Put back after deleting an expense",
+                        notes="Put back after deleting an expense", apply_to_current=True,
                     )
                     db.session.add(refund)
                     reversed_items["funding_source"] = refund.to_dict()
