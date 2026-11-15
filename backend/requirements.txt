@@ -12,7 +12,7 @@ gunicorn==22.0.0
 pandas==2.3.3
 requests==2.34.2
 mftool
-google-genai==2.18.1
+google-genai==2.33.0
 Flask-Limiter==3.8.0
 openpyxl==3.1.5
 pdfplumber==0.11.10
