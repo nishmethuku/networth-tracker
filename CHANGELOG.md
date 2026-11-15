@@ -1,5 +1,9 @@
 # Changelog
 
+## Failed price lookups no longer pin the server
+
+- A stock price that could not be found is now remembered for 30 minutes instead of 5. Before, a portfolio with many unresolvable symbols made the server retry them in an endless loop, which kept the CPU at its limit and made the app time out for everyone.
+
 ## App no longer freezes after the server wakes up
 
 - The server now handles several requests at once per worker, so one slow background job can no longer make the whole app (even the health check) time out.
