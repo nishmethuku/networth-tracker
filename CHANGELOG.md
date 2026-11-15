@@ -1,5 +1,11 @@
 # Changelog
 
+## Math audit
+
+- If the exchange-rate service cannot be reached, the newest saved rate is used. Before, the amount was left unconverted, so rupees could be counted as dollars.
+- The portfolio return now pairs every transaction with its own currency, even when a stock split sits in the history.
+- Checked the buy, sell, split, bonus and dividend position math against an independent calculation on 3,000 random histories with no differences.
+
 ## Fixes from the issues sheet
 
 - Expenses and income logged with an earlier date now change the balance the account shows today, and deleting the entry puts exactly that amount back. Before, an entry dated earlier than the newest saved balance was ignored by the current balance.

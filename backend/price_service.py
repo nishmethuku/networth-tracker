@@ -207,7 +207,33 @@ def get_rate(from_currency: str, to_currency: str, target_date: Optional[date] =
             # session isn't left poisoned, and just return the rate we
             # already fetched (it's the same day's rate either way).
             db.session.rollback()
+    if rate is None and target_date is None:
+        # The rate service is down or slow. A rate a few days old is far closer to the truth than
+        # no rate, which would leave amounts unconverted (rupees counted as dollars).
+        return _latest_stored_rate(from_currency, to_currency)
     return rate
+
+
+def _latest_stored_rate(from_currency: str, to_currency: str) -> Optional[float]:
+    """The newest saved rate for this pair, or the inverse of the newest saved reverse pair."""
+    try:
+        direct = (
+            ExchangeRate.query.filter_by(base_currency=from_currency, quote_currency=to_currency)
+            .order_by(ExchangeRate.rate_date.desc())
+            .first()
+        )
+        if direct and direct.rate:
+            return direct.rate
+        reverse = (
+            ExchangeRate.query.filter_by(base_currency=to_currency, quote_currency=from_currency)
+            .order_by(ExchangeRate.rate_date.desc())
+            .first()
+        )
+        if reverse and reverse.rate:
+            return 1.0 / reverse.rate
+    except Exception:
+        db.session.rollback()
+    return None
 
 
 def get_cache_status() -> dict:

@@ -108,3 +108,37 @@ def test_bare_rupee_ticker_is_priced_as_an_nse_stock():
     assert price_service._with_exchange_suffix("INFY.NS", "INR") == "INFY.NS"
     assert price_service._with_exchange_suffix("500325", "INR") == "500325"
     assert price_service._with_exchange_suffix("AAPL", "USD") == "AAPL"
+
+
+def test_convert_uses_the_last_saved_rate_when_no_fresh_rate_is_available():
+    """No rate must never mean 'treat rupees as dollars'."""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock, patch
+
+    from backend import price_service
+
+    model = MagicMock()
+    model.query.filter_by.return_value.first.return_value = None  # nothing saved for today
+    ordered = model.query.filter_by.return_value.order_by.return_value
+    ordered.first.return_value = SimpleNamespace(rate=0.012)
+    with patch.object(price_service, "ExchangeRate", model), patch.object(price_service, "_fetch_exchange_rate", return_value=None):
+        assert price_service.convert(1000.0, "INR", "USD") == 12.0
+
+
+def test_portfolio_xirr_pairs_each_flow_with_its_own_currency_even_with_a_split():
+    from datetime import date
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from backend import holdings_service
+
+    def tx(kind, qty, price, cur):
+        return SimpleNamespace(transaction_type=kind, quantity=qty, price_per_unit=price, fees=0.0, currency=cur, transaction_date=date(2025, 1, 1))
+
+    txns = [tx("split", 2, 0, "USD"), tx("buy", 1, 8500.0, "INR")]
+    seen = []
+    with patch.object(holdings_service, "XIRR_ENABLED", True), \
+         patch.object(holdings_service.price_service, "convert", side_effect=lambda a, f, t: seen.append((a, f)) or a), \
+         patch.object(holdings_service, "xirr", return_value=0.1):
+        holdings_service.portfolio_xirr(txns, 100.0, "USD")
+    assert seen == [(-8500.0, "INR")]

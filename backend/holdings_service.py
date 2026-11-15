@@ -345,11 +345,12 @@ def portfolio_xirr(
     """
     if not XIRR_ENABLED:
         return None
-    raw_flows = _transaction_cash_flows(all_transactions)
-    cash_flows = [
-        (flow_date, price_service.convert(amount, tx.currency, display_currency))
-        for (flow_date, amount), tx in zip(raw_flows, all_transactions)
-    ]
+    # Convert each flow with its own transaction's currency. Splits and bonuses carry no cash, so
+    # pairing the flows with the transactions by position would shift every currency after one.
+    cash_flows = []
+    for tx in all_transactions:
+        for flow_date, amount in _transaction_cash_flows([tx]):
+            cash_flows.append((flow_date, price_service.convert(amount, tx.currency, display_currency)))
     if total_current_value > 0:
         cash_flows.append((date.today(), total_current_value))
     return xirr(cash_flows)
