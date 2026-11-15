@@ -7,7 +7,7 @@
 ## Portfolio tidy-up and account fixes
 
 - Portfolio lists are sorted by name A to Z by default, and the account names in the filter are sorted too. Clicking a column header still sorts by that column.
-- Each asset type on the Portfolio page now opens and closes with an arrow. Sections with more than 8 holdings start closed.
+- Each asset type on the Portfolio page now opens and closes with an arrow. They all start closed.
 - Deleting the last holding in an account now removes the account from the Accounts list as well.
 - Renaming an account no longer fails because of a stray space or different capital letters, and when a real clash exists the message says which account it is.
 

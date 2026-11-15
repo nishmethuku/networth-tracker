@@ -405,7 +405,7 @@ export default function Portfolio() {
   // rarely spans types (a brokerage doesn't also hold your real estate).
   // Keyed by asset type; an empty/missing value means "All accounts".
   const [accountFilters, setAccountFilters] = useState({});
-  // Which asset-type sections are open. Unset means "open if short, closed if long".
+  // Which asset-type sections are open. Unset means closed.
   const [openTypes, setOpenTypes] = useState({});
   // "current" hides stocks that were fully sold; "all" shows them. The return figures count them either way.
   const [holdingView, setHoldingViewState] = useState(() => {
@@ -820,7 +820,7 @@ export default function Portfolio() {
             ? splitCurrentAndSold(inAccount)
             : { current: inAccount, soldPositions: 0 };
           const displayedHoldings = holdingView === "current" ? currentHoldings : inAccount;
-          const isOpen = openTypes[type] ?? typeHoldings.length <= 8;
+          const isOpen = openTypes[type] ?? false;
           const renameTarget = selectedAccount || (accounts.length === 1 ? accounts[0] : "");
           const { buyValue, gainAmount } = groupBuyValueAndGain(displayedHoldings);
           const totalValue = displayedHoldings.reduce((sum, h) => sum + (h.displayValue || 0), 0);
