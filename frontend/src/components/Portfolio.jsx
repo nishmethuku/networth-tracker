@@ -15,7 +15,7 @@ import RenameAccount from "./RenameAccount";
 import { splitCurrentAndSold } from "../utils/soldPositions";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
-import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
+import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatDateISO, formatPercent, safeNumber, todayISO } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, CURRENCIES, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 import { groupLots } from "../utils/groupHoldings";
@@ -395,7 +395,7 @@ export default function Portfolio() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
+  const [currency, setCurrency] = useDisplayCurrencyPreference();
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [aiFilter, setAiFilter] = useState(
     location.state?.aiFilterSpec ? { spec: location.state.aiFilterSpec, query: location.state.aiFilterQuery } : null,

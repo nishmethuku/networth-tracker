@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-quer
 import { useTranslation } from "react-i18next";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import useIsMobile from "../hooks/useIsMobile";
-import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
+import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
 import { useAuth } from "../contexts/AuthContext";
 import { useHousehold } from "../contexts/HouseholdContext";
 import Card from "./Card";
@@ -133,7 +133,7 @@ export default function Dashboard() {
   const { currentHouseholdId } = useHousehold();
   const isMobile = useIsMobile();
   const { t } = useTranslation();
-  const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
+  const [currency, setCurrency] = useDisplayCurrencyPreference();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const queryClient = useQueryClient();
 

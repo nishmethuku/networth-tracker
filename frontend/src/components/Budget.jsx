@@ -23,7 +23,7 @@ import {
   ApiError,
 } from "../api";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
-import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
+import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatDateISO } from "../utils/formatters";
 import { groupBreakdown } from "../utils/categoryTree";
 import { sortAz } from "../utils/sortAz";
@@ -484,7 +484,7 @@ function AIInsightsCard({ currency }) {
 }
 
 export default function Budget() {
-  const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
+  const [currency, setCurrency] = useDisplayCurrencyPreference();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const toast = useToast();
