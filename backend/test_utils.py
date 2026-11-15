@@ -102,3 +102,21 @@ def test_nse_stock_falls_back_to_nse_sources_when_yahoo_has_nothing():
          patch("backend.utils._get_price_from_nsepy") as nsepy:
         assert _fetch_price_with_fallbacks("DEEPAKNTR.NS", "stock") == 99.0
     nsepy.assert_not_called()
+
+
+def test_failed_price_lookup_is_remembered_longer_than_a_good_one(monkeypatch):
+    from backend import utils
+
+    utils._PRICE_CACHE.clear()
+    calls = []
+    monkeypatch.setattr(utils, "_fetch_price_with_fallbacks", lambda t, a=None: calls.append(t))
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(utils, "time", lambda: clock["now"])
+    assert utils.get_current_stock_price("NOSUCHSYM") is None
+    clock["now"] += utils._CACHE_TTL + 60  # past the normal 5 minutes
+    assert utils.get_current_stock_price("NOSUCHSYM") is None
+    assert len(calls) == 1
+    clock["now"] += utils._NEGATIVE_CACHE_TTL
+    utils.get_current_stock_price("NOSUCHSYM")
+    assert len(calls) == 2
+    utils._PRICE_CACHE.clear()

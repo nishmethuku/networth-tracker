@@ -90,7 +90,20 @@ FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY")
 # Price cache: {ticker: (price, timestamp)}
 # Cache prices for 5 minutes to avoid repeated API calls
 _PRICE_CACHE = {}
+
+
+def _without_token(exc) -> str:
+    """Error text with any API token in the URL blanked, so keys never reach the logs."""
+    import re
+
+    return re.sub(r"(token=)[^&\s]+", r"\1***", str(exc))
+
+
 _CACHE_TTL = 300  # 5 minutes in seconds
+# A lookup that found no price is remembered much longer. A portfolio with a hundred symbols
+# that never resolve takes longer than 5 minutes to loop through on the free server, so with
+# the short TTL the failures expired before the loop ended and it ran forever, pinning the CPU.
+_NEGATIVE_CACHE_TTL = 1800  # 30 minutes
 
 
 def _get_price_from_finnhub(ticker: str, asset_type: str = None):
@@ -169,7 +182,7 @@ def _get_price_from_finnhub(ticker: str, asset_type: str = None):
         logger.warning("Finnhub timeout for %s", ticker)
         return None
     except requests.exceptions.RequestException as e:
-        logger.warning("Finnhub network error for %s: %s", ticker, e)
+        logger.warning("Finnhub network error for %s: %s", ticker, _without_token(e))
         return None
     except (ValueError, TypeError) as e:
         logger.warning("Finnhub data parsing error for %s: %s", ticker, e)
@@ -322,7 +335,7 @@ def get_historical_price_from_finnhub(ticker: str, target_date: date):
         price = float(data["c"][-1])
         return price if price > 0 else None
     except Exception as e:
-        logger.warning("Finnhub historical price fetch failed for %s: %s", ticker, e)
+        logger.warning("Finnhub historical price fetch failed for %s: %s", ticker, _without_token(e))
         return None
 
 
@@ -438,7 +451,8 @@ def get_current_stock_price(ticker: str, asset_type: str = None):
     cache_key = f"{ticker}_{asset_type or 'stock'}"  # Include asset_type in cache key
     if cache_key in _PRICE_CACHE:
         cached_price, cached_time = _PRICE_CACHE[cache_key]
-        if current_time - cached_time < _CACHE_TTL:
+        ttl = _CACHE_TTL if cached_price else _NEGATIVE_CACHE_TTL
+        if current_time - cached_time < ttl:
             return cached_price
         # Cache expired, remove it
         del _PRICE_CACHE[cache_key]
