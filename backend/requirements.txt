@@ -9,7 +9,7 @@ cryptography
 certifi
 python-dotenv==1.2.2
 gunicorn==22.0.0
-pandas==2.3.3
+pandas==3.1.1
 requests==2.34.2
 mftool
 google-genai==2.18.1
