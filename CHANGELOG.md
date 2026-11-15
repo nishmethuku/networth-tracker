@@ -1,5 +1,15 @@
 # Changelog
 
+## XIRR paused
+
+- XIRR (annualized return) is switched off for now. It was the heaviest calculation on every page and the free server cannot keep up. The Annualized column shows a dash, the dashboard hides the overall XIRR and the benchmark comparison, and the Portfolio page shows the simple overall return. Set `XIRR_ENABLED=true` on Render to bring it back.
+
+## Much lighter server
+
+- The server runs one process with 8 threads instead of two processes. The free server has a tenth of a CPU and 512 MB, so a second process only doubled memory use. Price and rate caches are now shared, too.
+- Removed the three NSE stock libraries (nselib, nsepython, nsepy). NSE blocks the hosting provider, so they only added slow failures; Yahoo prices Indian stocks. They also made the server start slowly and use about 100 MB more memory.
+- Pandas, PDF reading and mutual fund tools now load only when someone imports a file or looks up a fund. Startup memory dropped from about 450 MB to about 120 MB.
+
 ## Prices-as-of note stays accurate
 
 - Live prices that load are now saved once a day. The Market prices may be out of date line on the dashboard looks at the newest saved price, and it had frozen on Oct 25 because the nightly lookups kept failing for symbols that cannot be priced. It now moves forward whenever any holding gets a live price.

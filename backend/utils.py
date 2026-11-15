@@ -7,6 +7,7 @@ doesn't re-hit rate-limited free tiers. price_service.py layers a
 persistent DB cache on top of this for repeat lookups across requests.
 """
 import concurrent.futures
+import importlib.util
 import logging
 import os
 from datetime import date, timedelta
@@ -32,28 +33,6 @@ def _with_timeout(fn, timeout, *args, **kwargs):
     finally:
         executor.shutdown(wait=False)
 
-# Optional NSE library imports for Indian stocks (multiple fallbacks)
-try:
-    from nsepy import get_history as nsepy_get_history
-    NSEPY_AVAILABLE = True
-except ImportError:
-    NSEPY_AVAILABLE = False
-    nsepy_get_history = None
-
-try:
-    from nselib import get_quote
-    NSELIB_AVAILABLE = True
-except ImportError:
-    NSELIB_AVAILABLE = False
-    get_quote = None
-
-try:
-    from nsepython import nsefetch
-    NSEPYTHON_AVAILABLE = True
-except ImportError:
-    NSEPYTHON_AVAILABLE = False
-    nsefetch = None
-
 # Optional mftool import for Indian mutual funds.
 # Do NOT call Mftool() here — its __init__ calls get_scheme_codes(), which
 # fetches the full AMFI scheme list over HTTP.  Running that at module import
@@ -61,13 +40,9 @@ except ImportError:
 # without --preload, since workers also import the module).  Use
 # get_mf_instance() below instead, which defers the HTTP call to first use.
 _Mftool = None
-try:
-    from mftool import Mftool as _Mftool
-    MFTOOL_AVAILABLE = True
-    logger.info("mftool package available; instance will be created on first use")
-except ImportError as e:
-    MFTOOL_AVAILABLE = False
-    logger.warning("mftool import failed: %s", e)
+# Importing mftool pulls in pandas and takes seconds, so only check that it is installed here
+# and import it on first use (see get_mf_instance).
+MFTOOL_AVAILABLE = importlib.util.find_spec("mftool") is not None
 
 mf = None  # kept for backward compat — always None now; use get_mf_instance()
 _mf_singleton = None
@@ -76,9 +51,11 @@ _mf_singleton = None
 def get_mf_instance():
     """Lazy mftool singleton.  Mftool.__init__ fetches the AMFI scheme list
     over HTTP, so initialization is deferred until the first search request."""
-    global _mf_singleton
-    if _mf_singleton is None and _Mftool is not None:
+    global _mf_singleton, _Mftool
+    if _mf_singleton is None and MFTOOL_AVAILABLE:
         try:
+            if _Mftool is None:
+                from mftool import Mftool as _Mftool
             _mf_singleton = _with_timeout(_Mftool, 15)
             logger.info("mftool initialized on first use")
         except Exception as e:
@@ -190,122 +167,6 @@ def _get_price_from_finnhub(ticker: str, asset_type: str = None):
     except Exception as e:
         logger.warning("Finnhub price fetch failed for %s: %s", ticker, e)
         return None
-
-def _get_price_from_nselib(ticker: str):
-    """
-    Get current price from nselib for Indian NSE stocks.
-    nselib is compatible with the new NSE website.
-    """
-    if not NSELIB_AVAILABLE:
-        return None
-    
-    try:
-        # Remove .NS or .NSE suffix if present
-        symbol = ticker.upper().replace(".NS", "").replace(".NSE", "")
-        
-        # Get quote data
-        quote_data = get_quote(symbol)
-        if not quote_data:
-            return None
-        
-        # Extract last price from quote
-        price = quote_data.get("lastPrice") or quote_data.get("lastprice") or quote_data.get("ltp")
-        if price is None:
-            return None
-        
-        price = float(price)
-        if not price or price == 0:
-            return None
-        return price
-    except Exception as e:
-        logger.warning("nselib price fetch failed for %s: %s", ticker, e)
-        return None
-
-
-
-def _get_price_from_nsepython(ticker: str):
-    """
-    Get current price from nsepython for Indian NSE stocks.
-    Supports both live and historical data.
-    """
-    if not NSEPYTHON_AVAILABLE:
-        return None
-    
-    try:
-        # Remove .NS or .NSE suffix if present
-        symbol = ticker.upper().replace(".NS", "").replace(".NSE", "")
-        
-        # Fetch quote data
-        quote_url = f"https://www.nseindia.com/api/quote-equity?symbol={symbol}"
-        data = _with_timeout(nsefetch, 5, quote_url)
-        
-        if not data:
-            return None
-        
-        # Extract price from response
-        price = data.get("priceInfo", {}).get("lastPrice") or data.get("lastPrice")
-        if price is None:
-            return None
-        
-        price = float(price)
-        if not price or price == 0:
-            return None
-        return price
-    except Exception as e:
-        logger.warning("nsepython price fetch failed for %s: %s", ticker, e)
-        return None
-
-
-
-def _get_price_from_nsepy(ticker: str):
-    """
-    Get current price from NSEpy for Indian NSE stocks.
-    Works for tickers ending in .NS or .NSE, or without suffix for NSE stocks.
-    """
-    if not NSEPY_AVAILABLE:
-        return None
-    
-    try:
-        # Remove .NS or .NSE suffix if present, NSEpy expects just the symbol
-        symbol = ticker.upper().replace(".NS", "").replace(".NSE", "")
-        
-        # Get the latest trading day's data (last 5 days to account for weekends/holidays)
-        end_date = date.today()
-        start_date = end_date - timedelta(days=5)
-        
-        # Fetch historical data
-        hist = _with_timeout(nsepy_get_history, 5, symbol=symbol, start=start_date, end=end_date)
-        
-        if hist is None or hist.empty:
-            return None
-        
-        # Get the latest close price
-        price = float(hist["Close"].iloc[-1])
-        if not price or price == 0:
-            return None
-        return price
-    except Exception as e:
-        logger.warning("NSEpy price fetch failed for %s: %s", ticker, e)
-        return None
-
-
-def get_historical_price_from_nsepy(ticker: str, target_date: date):
-    """Historical close price for an NSE stock on/just before target_date.
-    Widens the lookback window to cover weekends/holidays."""
-    if not NSEPY_AVAILABLE:
-        return None
-    try:
-        symbol = ticker.upper().replace(".NS", "").replace(".NSE", "")
-        start_date = target_date - timedelta(days=7)
-        hist = _with_timeout(nsepy_get_history, 5, symbol=symbol, start=start_date, end=target_date)
-        if hist is None or hist.empty:
-            return None
-        price = float(hist["Close"].iloc[-1])
-        return price if price > 0 else None
-    except Exception as e:
-        logger.warning("NSEpy historical price fetch failed for %s: %s", ticker, e)
-        return None
-
 
 def get_historical_price_from_finnhub(ticker: str, target_date: date):
     """
@@ -427,8 +288,7 @@ def get_current_stock_price(ticker: str, asset_type: str = None):
     
     For Indian NSE stocks (.NS, .NSE):
     1. Yahoo Finance (works from the hosting provider)
-    2. nselib, 3. nsepython, 4. NSEpy (NSE blocks datacenters, fallbacks only)
-    5. Finnhub (if FINNHUB_API_KEY is set)
+    2. Finnhub (if FINNHUB_API_KEY is set)
     
     For Indian Mutual Funds (AMFI scheme codes):
     1. mftool (AMFI NAV data)
@@ -494,22 +354,7 @@ def _fetch_price_with_fallbacks(ticker: str, asset_type: str = None):
         if price:
             return price
 
-        # 2) nselib (compatible with the new NSE website)
-        price = _get_price_from_nselib(ticker)
-        if price:
-            return price
-
-        # 3) nsepython (supports live data)
-        price = _get_price_from_nsepython(ticker)
-        if price:
-            return price
-
-        # 4) NSEpy (historical data)
-        price = _get_price_from_nsepy(ticker)
-        if price:
-            return price
-
-        # 5) Finnhub (free tier does not cover NSE, kept for paid keys)
+        # 2) Finnhub (free tier does not cover NSE, kept for paid keys)
         price = _get_price_from_finnhub(ticker, asset_type)
         if price:
             return price

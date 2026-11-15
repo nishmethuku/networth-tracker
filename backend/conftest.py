@@ -9,3 +9,12 @@ def _clear_price_miss_cache():
     price_service._historical_misses.clear()
     yield
     price_service._historical_misses.clear()
+
+
+@pytest.fixture(autouse=True)
+def _xirr_on_for_tests(monkeypatch):
+    """XIRR is switched off in production for now; the tests still exercise the real maths."""
+    from backend import benchmark_service, holdings_service
+
+    monkeypatch.setattr(holdings_service, "XIRR_ENABLED", True)
+    monkeypatch.setattr(benchmark_service, "XIRR_ENABLED", True)

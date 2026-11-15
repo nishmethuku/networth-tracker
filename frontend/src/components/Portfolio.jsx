@@ -113,6 +113,9 @@ function fresh(h) {
   return freshness(h.updatedAt);
 }
 
+// XIRR is paused for now to keep the free server fast; the simple overall return still shows.
+const XIRR_PAUSED = true;
+
 function HoldingsTable({ holdings, xirrHoldings, assetType, navigate, onDelete, currency, sortKey, sortDir, onSort }) {
   const quantityBased = isQuantityBased(assetType);
   const isMobile = useIsMobile();
@@ -131,7 +134,7 @@ function HoldingsTable({ holdings, xirrHoldings, assetType, navigate, onDelete, 
   if (quantityBased && forReturn.length > 1) {
     const flows = forReturn.flatMap((h) => h.cashFlows || []);
     const totalValue = forReturn.reduce((s, h) => s + (h.displayValue || 0), 0);
-    const pooled = pooledXirr(flows, totalValue);
+    const pooled = XIRR_PAUSED ? null : pooledXirr(flows, totalValue);
     overall = pooled != null ? { returnPct: pooled * 100, isXirr: true } : computeGroupedReturn(forReturn);
   }
   const overallLine =
