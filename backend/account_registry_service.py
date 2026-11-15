@@ -87,7 +87,11 @@ def delete_account(account_id, user_id=None, household_id=None) -> bool:
     return True
 
 
-def rename_account(user_id, old_name: str, new_name: str, household_id=None) -> int:
+class AccountExists(ValueError):
+    """The new name is already used by another account (renaming into it would merge the two)."""
+
+
+def rename_account(user_id, old_name: str, new_name: str, household_id=None, merge: bool = False) -> int:
     """Renames an account -- updates every holding filed under old_name to
     new_name (Holding.account is a plain string, not a foreign key, so
     this is a bulk string update rather than editing one row) and, if a
@@ -111,20 +115,25 @@ def rename_account(user_id, old_name: str, new_name: str, household_id=None) -> 
 
     others = [a for a in list_accounts(user_id, household_id) if a["name"].strip().lower() != old_name.lower()]
     clash = next((a for a in others if a["name"].strip().lower() == new_name.lower()), None)
-    if clash:
+    if clash and not merge:
         n = clash["holding_count"]
-        raise ValueError(
-            f"Another account is already called '{clash['name'].strip()}' ({n} holding{'' if n == 1 else 's'}). "
-            "Pick a different name, or delete that account first."
+        raise AccountExists(
+            f"Another account is already called '{clash['name'].strip()}' ({n} holding{'' if n == 1 else 's'})."
         )
+    if clash:
+        new_name = clash["name"]  # merge into the existing spelling
 
     names = {old_raw, old_name}
     holdings = _holdings_query(user_id, household_id).filter(Holding.account.in_(names)).all()
     for holding in holdings:
         holding.account = new_name
 
+    target_registered = clash is not None and clash["id"] is not None
     for registered in _registered_query(user_id, household_id).filter(Account.name.in_(names)).all():
-        registered.name = new_name
+        if target_registered:
+            db.session.delete(registered)  # the account being merged into is already registered
+        else:
+            registered.name = new_name
 
     db.session.commit()
     return len(holdings)

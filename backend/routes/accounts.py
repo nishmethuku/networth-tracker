@@ -4,7 +4,14 @@ import os
 
 from flask import abort, g, jsonify, request
 
-from ..account_registry_service import create_account, delete_account, delete_account_and_holdings, list_accounts, rename_account
+from ..account_registry_service import (
+    AccountExists,
+    create_account,
+    delete_account,
+    delete_account_and_holdings,
+    list_accounts,
+    rename_account,
+)
 from ..auth import require_auth
 from ..household_service import (
     get_member_household_ids,
@@ -94,16 +101,18 @@ def register(app, h):
         by name, like delete-with-holdings above, for the same reason
         (most account names were never formally registered)."""
         data = request.get_json(force=True)
-        old_name = (data.get("old_name") or "").strip()
+        old_name = data.get("old_name") or ""
         new_name = (data.get("new_name") or "").strip()
         household_id = data.get("household_id")
         validate_household_id_for_write(household_id)
-        if not old_name:
+        if not old_name.strip():
             return jsonify({"error": "old_name is required"}), 400
         if not new_name:
             return jsonify({"error": "new_name is required"}), 400
         try:
-            updated_count = rename_account(g.user_id, old_name, new_name, household_id)
+            updated_count = rename_account(g.user_id, old_name, new_name, household_id, merge=bool(data.get("merge")))
+        except AccountExists as e:
+            return jsonify({"error": str(e), "code": "account_exists"}), 409
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
-        return jsonify({"message": f"Renamed to '{new_name}'", "holdings_updated": updated_count}), 200
+        return jsonify({"message": f"{'Merged into' if data.get('merge') else 'Renamed to'} '{new_name}'", "holdings_updated": updated_count}), 200

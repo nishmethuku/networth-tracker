@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { renameAccount, ApiError } from "../api";
+import { ApiError } from "../api";
+import { renameOrMerge } from "../utils/renameOrMerge";
 import { useToast } from "../contexts/ToastContext";
 
 const buttonStyle = {
@@ -21,7 +22,7 @@ export default function RenameAccount({ accountName, householdId, onRenamed }) {
   const [value, setValue] = useState(accountName);
 
   const mutation = useMutation({
-    mutationFn: (newName) => renameAccount(accountName, newName, householdId).then((r) => ({ ...r, newName })),
+    mutationFn: (newName) => renameOrMerge(accountName, newName, householdId).then((r) => ({ ...r, newName })),
     onSuccess: (result) => {
       onRenamed?.(result.newName);
       toast.success(result?.message || "Renamed");

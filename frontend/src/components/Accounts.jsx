@@ -8,8 +8,9 @@ import TransferMoney from "./TransferMoney";
 import { useToast } from "../contexts/ToastContext";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
-import { fetchAccounts, fetchHoldings, createAccount, deleteAccount, deleteAccountAndHoldings, renameAccount, ApiError } from "../api";
+import { fetchAccounts, fetchHoldings, createAccount, deleteAccount, deleteAccountAndHoldings, ApiError } from "../api";
 import { formatCurrencyForDisplay } from "../utils/formatters";
+import { renameOrMerge } from "../utils/renameOrMerge";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -69,7 +70,7 @@ export default function Accounts() {
   });
 
   const renameMutation = useMutation({
-    mutationFn: ({ oldName, newName }) => renameAccount(oldName, newName, currentHouseholdId),
+    mutationFn: ({ oldName, newName }) => renameOrMerge(oldName, newName, currentHouseholdId),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["holdings"] });
