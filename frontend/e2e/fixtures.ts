@@ -237,3 +237,13 @@ export function localISO(d: Date = new Date()): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${m}-${day}`;
 }
+
+/** Portfolio sections start closed; open every one so a test can see the holdings tables. */
+export async function openAllSections(page: Page) {
+  const closed = page.getByRole("button", { name: /^Show / });
+  await closed
+    .first()
+    .waitFor({ state: "visible", timeout: 10000 })
+    .catch(() => {});
+  while ((await closed.count()) > 0) await closed.first().click();
+}
