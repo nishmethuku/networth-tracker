@@ -1,5 +1,9 @@
 # Changelog
 
+## Pages no longer wait minutes for prices
+
+- Live price lookups now have a 10 second limit per page load. If some prices are not back in time, those holdings show their last stored price and the lookup keeps going in the background so the next load has it. Before, one account with many unpriceable symbols could hold the dashboard on loading boxes for everyone.
+
 ## Failed price lookups no longer pin the server
 
 - A stock price that could not be found is now remembered for 30 minutes instead of 5. Before, a portfolio with many unresolvable symbols made the server retry them in an endless loop, which kept the CPU at its limit and made the app time out for everyone.
