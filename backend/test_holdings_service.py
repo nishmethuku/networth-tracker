@@ -910,3 +910,38 @@ def test_live_prices_are_saved_once_per_day(monkeypatch):
     holdings_service._remember_live_prices({("stock", "SAVEME", "USD"): 56.0})  # same day: not written again
     assert [(a[0], a[1], a[3], a[5]) for a in saved] == [("stock", "SAVEME", 55.5, "live")]
     holdings_service._saved_live_prices.clear()
+
+
+def _cash_with_balances(*rows):
+    from datetime import date
+    from types import SimpleNamespace
+
+    from backend.models import HoldingValuation
+
+    holding = SimpleNamespace(id=7, asset_type="cash", currency="USD", name="Checking")
+    vals = [HoldingValuation(id=i + 1, holding_id=7, valuation_date=date(*d), value=v, currency="USD") for i, (d, v) in enumerate(rows)]
+    return holding, vals
+
+
+def test_backdated_expense_lowers_the_balance_the_account_shows_now():
+    """An expense dated before the newest recorded balance must still reduce the current balance."""
+    from datetime import date
+
+    from backend.holdings_service import build_funding_valuation
+
+    holding, vals = _cash_with_balances(((2026, 11, 1), 500.0), ((2026, 11, 10), 400.0))
+    v = build_funding_valuation(holding, vals, 50.0, "USD", date(2026, 11, 5), "u", apply_to_current=True)
+    assert v.value == 350.0
+    assert v.valuation_date == date(2026, 11, 10)
+
+
+def test_deleting_that_expense_puts_the_money_back_on_the_current_balance():
+    from datetime import date
+
+    from backend.holdings_service import build_deposit_valuation, build_funding_valuation
+
+    holding, vals = _cash_with_balances(((2026, 11, 1), 500.0), ((2026, 11, 10), 400.0))
+    spent = build_funding_valuation(holding, vals, 50.0, "USD", date(2026, 11, 5), "u", apply_to_current=True)
+    spent.id = 3
+    refund = build_deposit_valuation(holding, vals + [spent], 50.0, "USD", date(2026, 11, 15), "u", apply_to_current=True)
+    assert refund.value == 400.0

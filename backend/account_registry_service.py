@@ -82,7 +82,9 @@ def delete_account(account_id, user_id=None, household_id=None) -> bool:
     if in_use:
         raise ValueError(f"'{account.name}' still has holdings -- move or delete those first")
 
-    db.session.delete(account)
+    # Duplicate rows with the same name go too, otherwise the account would stay on the list.
+    for row in _registered_query(user_id, household_id).filter_by(name=account.name).all():
+        db.session.delete(row)
     db.session.commit()
     return True
 
@@ -149,11 +151,13 @@ def delete_account_and_holdings(user_id, name: str, household_id=None) -> int:
     directly into a holding) -- see list_accounts' docstring. Returns the
     number of holdings deleted; 0 with no error if the name didn't exist
     or had nothing under it."""
-    name = (name or "").strip()
+    raw = name or ""
+    name = raw.strip()
     if not name:
         raise ValueError("name is required")
+    names = {raw, name}  # a stored name can carry a stray space the list showed as-is
 
-    holdings = _holdings_query(user_id, household_id).filter_by(account=name).all()
+    holdings = _holdings_query(user_id, household_id).filter(Holding.account.in_(names)).all()
     now = datetime.utcnow()
     for holding in holdings:
         holding.deleted_at = now
@@ -161,8 +165,8 @@ def delete_account_and_holdings(user_id, name: str, household_id=None) -> int:
             HoldingTransaction.deleted_at.is_(None)
         ).update({"deleted_at": now}, synchronize_session=False)
 
-    registered = _registered_query(user_id, household_id).filter_by(name=name).first()
-    if registered:
+    # Every registry row with this name, so a duplicate row cannot keep the account on the list.
+    for registered in _registered_query(user_id, household_id).filter(Account.name.in_(names)).all():
         db.session.delete(registered)
 
     db.session.commit()

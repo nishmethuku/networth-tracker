@@ -83,10 +83,10 @@ def register(app, h):
         (not DELETE) because it needs a body and this isn't idempotent in
         the DELETE sense -- it's a bulk mutation, not a resource removal."""
         data = request.get_json(force=True)
-        name = (data.get("name") or "").strip()
+        name = data.get("name") or ""  # exactly as listed: a name with a stray space must still match
         household_id = data.get("household_id")
         validate_household_id_for_write(household_id)
-        if not name:
+        if not name.strip():
             return jsonify({"error": "name is required"}), 400
         try:
             deleted_count = delete_account_and_holdings(g.user_id, name, household_id)

@@ -11,6 +11,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
 from sentry_sdk.integrations.flask import FlaskIntegration
+from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -369,6 +370,21 @@ def create_app():
         sip_frequency = data.get("sip_frequency")
         if sip_frequency and sip_frequency not in ("weekly", "monthly", "quarterly"):
             return jsonify({"error": "sip_frequency must be weekly, monthly, or quarterly"}), 400
+
+        # Stray spaces would make "HDFC" and "HDFC " look like two different accounts.
+        data["name"] = str(data["name"]).strip()
+        data["account"] = str(data["account"]).strip()
+
+        # A retry (a slow save pressed twice) must not create the same cash account again.
+        if data["asset_type"] == "cash":
+            same = scoped_holdings_query(household_id).filter(
+                Holding.asset_type == "cash",
+                func.lower(func.trim(Holding.name)) == data["name"].lower(),
+                func.lower(func.trim(Holding.account)) == data["account"].lower(),
+                Holding.currency == data["currency"],
+            ).first()
+            if same:
+                return jsonify({"error": f"'{data['name']}' already exists in {data['account']}", "code": "duplicate_holding"}), 409
 
         holding = Holding(
             user_id=g.user_id,
