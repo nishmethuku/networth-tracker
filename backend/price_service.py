@@ -44,6 +44,15 @@ def _recently_missed(key):
     return True
 
 
+def _with_exchange_suffix(symbol: str, currency: str) -> str:
+    """A bare ticker held in rupees (RELIANCE, HDFCBANK) is an NSE stock; the price sources only find
+    it as RELIANCE.NS. Symbols that already have a suffix, and numeric BSE codes, are left alone."""
+    s = (symbol or "").strip()
+    if currency == "INR" and s and "." not in s and not s.isdigit():
+        return f"{s.upper()}.NS"
+    return symbol
+
+
 def get_current_price(asset_type: str, symbol: str, currency: str = "USD") -> Optional[float]:
     """
     Live price for any priced asset type. Stock/mutual_fund prices come back
@@ -51,7 +60,9 @@ def get_current_price(asset_type: str, symbol: str, currency: str = "USD") -> Op
     funds), same as the original single-asset model; crypto/commodity prices
     are fetched directly in the requested currency.
     """
-    if asset_type in ("stock", "mutual_fund"):
+    if asset_type == "stock":
+        return get_current_stock_price(_with_exchange_suffix(symbol, currency), asset_type=asset_type)
+    if asset_type == "mutual_fund":
         return get_current_stock_price(symbol, asset_type=asset_type)
     if asset_type == "crypto":
         return get_crypto_price(symbol, currency=currency.lower())

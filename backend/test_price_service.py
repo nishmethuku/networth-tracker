@@ -99,3 +99,12 @@ def test_get_rate_rolls_back_on_concurrent_insert_race():
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])
+
+
+def test_bare_rupee_ticker_is_priced_as_an_nse_stock():
+    from backend import price_service
+
+    assert price_service._with_exchange_suffix("reliance", "INR") == "RELIANCE.NS"
+    assert price_service._with_exchange_suffix("INFY.NS", "INR") == "INFY.NS"
+    assert price_service._with_exchange_suffix("500325", "INR") == "500325"
+    assert price_service._with_exchange_suffix("AAPL", "USD") == "AAPL"

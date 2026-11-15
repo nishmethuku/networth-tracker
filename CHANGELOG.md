@@ -1,5 +1,10 @@
 # Changelog
 
+## Merge duplicate accounts, price bare Indian tickers
+
+- Renaming an account to a name that already exists now offers to merge the two instead of failing. Every holding moves into the existing account and the duplicate disappears.
+- Indian stocks entered without the .NS ending (for example RELIANCE held in rupees) are now priced as NSE stocks. Before, they never got a live price, which threw off totals.
+
 ## Dropdowns sorted A to Z
 
 - Every dropdown that lists names (accounts, holdings, cards, categories, currencies, countries, languages) is now in A to Z order. Dropdowns with a natural order, such as years or time ranges, are unchanged.
