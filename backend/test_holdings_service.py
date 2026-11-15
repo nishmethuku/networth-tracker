@@ -872,3 +872,4 @@ def test_dashboard_xirr_counts_fully_sold_holdings():
     # 2000 in, 2000 (sale) + 1000 (still held) out a year later: about 41% a year, not 0%
     assert result["portfolio_xirr"] is not None
     assert result["portfolio_xirr"] > 0.3
+

@@ -8,7 +8,7 @@ fixed_deposit, ppf, epf, retirals, cash, loan, credit) instead of one frozen
 buy price/quantity.
 """
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
@@ -29,6 +29,9 @@ VALUATION_BASED_TYPES = ("real_estate", "fixed_deposit", "ppf", "epf", "retirals
 # 1-for-10 reverse split); for a bonus it is the number of free shares
 # received. Neither is a cash flow, and total cost stays exactly the same,
 # so the average cost per share falls.
+# Most a page will wait for live prices before falling back to stored ones.
+LIVE_PRICE_BUDGET_SECONDS = 10
+
 TRANSACTION_TYPES = ("buy", "sell", "dividend", "interest", "split", "bonus")
 SHARE_CHANGE_TYPES = ("split", "bonus")
 INCOME_TRANSACTION_TYPES = ("dividend", "interest")
@@ -356,8 +359,15 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
 
     price_cache: Dict[tuple, Optional[float]] = {}
     if quantity_keys:
-        with ThreadPoolExecutor(max_workers=min(8, len(quantity_keys))) as pool:
-            fetched = pool.map(lambda k: price_service.get_current_price(k[0], k[1], k[2]), quantity_keys)
+        # Live lookups get a hard time budget. On the free server a portfolio with many symbols
+        # that never resolve could keep a page waiting for minutes. Anything not back in time is
+        # treated as "no live price" (the holding falls back to its stored price) and the lookup
+        # keeps running in the background, so the next load finds it in the cache.
+        pool = ThreadPoolExecutor(max_workers=min(8, len(quantity_keys)))
+        futures = [pool.submit(price_service.get_current_price, k[0], k[1], k[2]) for k in quantity_keys]
+        wait(futures, timeout=LIVE_PRICE_BUDGET_SECONDS)
+        pool.shutdown(wait=False)
+        fetched = [f.result() if f.done() and not f.exception() else None for f in futures]
         # Keyed on the full (asset_type, symbol, currency) triple, not just
         # (asset_type, symbol) -- get_current_price returns crypto/commodity
         # prices *in the requested currency*, so a 2-tuple key collapsed two
