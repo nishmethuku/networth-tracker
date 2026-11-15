@@ -17,6 +17,7 @@ import { useHousehold } from "../contexts/HouseholdContext";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
 import { isShareChangeTransactionType, describeShareChange } from "../constants/enums";
+import { sortAz } from "../utils/sortAz";
 
 const VIRTUALIZE_THRESHOLD = 50;
 
@@ -167,7 +168,7 @@ export default function Transactions() {
                   style={{ ...inputStyle, flex: 1, maxWidth: 360 }}
                 >
                   <option value="">Select a holding…</option>
-                  {(tradeableHoldings || []).map((h) => (
+                  {sortAz(tradeableHoldings, (h) => h.symbol || h.name).map((h) => (
                     <option key={h.id} value={h.id}>
                       {h.symbol || h.name}
                       {h.account ? ` — ${h.account}` : ""} ({h.currency})
@@ -237,7 +238,7 @@ export default function Transactions() {
           style={inputStyle}
         >
           <option value="">All Countries</option>
-          {COUNTRIES.map((c) => (
+          {sortAz(COUNTRIES).map((c) => (
             <option key={c} value={c}>
               {c}
             </option>

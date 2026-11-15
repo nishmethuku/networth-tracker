@@ -5,6 +5,7 @@ import { useToast } from "../contexts/ToastContext";
 import { fetchHoldings, fetchTransfers, createTransfer, deleteTransfer, ApiError } from "../api";
 import { formatCurrencyForDisplay } from "../utils/formatters";
 import { refreshMoneyViews } from "../utils/refreshMoneyViews";
+import { sortAz } from "../utils/sortAz";
 
 const fieldStyle = {
   padding: "0.625rem 0.875rem",
@@ -68,7 +69,7 @@ export default function TransferMoney() {
     create.mutate({ from_holding_id: from, to_holding_id: to, amount: value, transfer_date: date, note: note.trim() || undefined });
   }
 
-  const options = (cash || []).map((c) => (
+  const options = sortAz(cash, (c) => c.name).map((c) => (
     <option key={c.id} value={c.id}>
       {c.name}
       {c.account ? ` (${c.account})` : ""}

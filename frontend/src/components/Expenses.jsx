@@ -42,6 +42,7 @@ import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference
 import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
 import { groupByDay, monthOf, monthTotals, shiftMonth } from "../utils/entryGroups";
 import { refreshMoneyViews } from "../utils/refreshMoneyViews";
+import { sortAz } from "../utils/sortAz";
 
 function lastDayOf(month) {
   const [y, m] = month.split("-").map(Number);
@@ -394,7 +395,7 @@ export default function Expenses() {
       >
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text)" }}>Expenses</h1>
         <select aria-label="Display currency" value={currency} onChange={(e) => setCurrency(e.target.value)} style={selectStyle}>
-          {CURRENCIES.map((c) => (
+          {sortAz(CURRENCIES).map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -543,7 +544,7 @@ export default function Expenses() {
             style={selectStyle}
           >
             <option value="">All categories</option>
-            {categoryChoices.map((c) => (
+            {sortAz(categoryChoices, getBudgetCategoryLabel).map((c) => (
               <option key={c} value={c}>
                 {getBudgetCategoryLabel(c)}
               </option>
@@ -551,7 +552,7 @@ export default function Expenses() {
           </select>
           <select aria-label="Filter by paid from" value={paidWith} onChange={(e) => setPaidWith(e.target.value)} style={selectStyle}>
             <option value="">All accounts and cards</option>
-            {paidWithChoices.map((c) => (
+            {sortAz(paidWithChoices, (c) => c.label).map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
               </option>

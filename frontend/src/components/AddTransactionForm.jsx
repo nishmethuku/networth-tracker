@@ -5,6 +5,7 @@ import TagSuggestionCard from "./ai/TagSuggestionCard";
 import { fetchHoldings, createTransaction, priceLookup } from "../api";
 import { formatCurrencyForDisplay, todayISO } from "../utils/formatters";
 import { TRANSACTION_TYPES, isIncomeTransactionType, isShareChangeTransactionType, quantityLabelFor } from "../constants/enums";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -247,7 +248,7 @@ export default function AddTransactionForm({ holding, onDone, initialType = "buy
             title="Deducts this purchase's cost from the selected account's balance"
           >
             <option value="">— none —</option>
-            {cashHoldings.map((c) => (
+            {sortAz(cashHoldings, (c) => c.name).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
                 {c.account ? ` (${c.account})` : ""}

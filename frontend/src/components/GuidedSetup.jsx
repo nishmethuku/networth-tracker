@@ -5,6 +5,7 @@ import { createHolding, createTransaction, createValuation, ApiError } from "../
 import { useToast } from "../contexts/ToastContext";
 import { COUNTRIES } from "../constants/enums";
 import { currencyForCountry, todayISO } from "../utils/formatters";
+import { sortAz } from "../utils/sortAz";
 
 export const SETUP_KINDS = [
   { id: "shares", title: "A stock or share I bought", hint: "Like Apple, Reliance or a company on the stock market" },
@@ -128,7 +129,7 @@ export default function GuidedSetup() {
   const countryField = (
     <Field id="gs-country" label="Which country is it in?">
       <select id="gs-country" value={v.country} onChange={set("country")} style={inputStyle}>
-        {COUNTRIES.map((c) => (
+        {sortAz(COUNTRIES).map((c) => (
           <option key={c} value={c}>
             {c}
           </option>

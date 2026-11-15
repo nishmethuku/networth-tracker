@@ -6,6 +6,7 @@ import { getAssetTypeLabel, CURRENCIES } from "../../constants/enums";
 import { todayISO } from "../../utils/formatters";
 import CategoryPicker from "./CategoryPicker";
 import { refreshMoneyViews } from "../../utils/refreshMoneyViews";
+import { sortAz } from "../../utils/sortAz";
 
 const field = {
   width: "100%",
@@ -187,7 +188,7 @@ export default function EditEntryModal({ entry, categories, onClose }) {
                   Currency
                 </label>
                 <select id="ee-currency" value={currency} onChange={(e) => setCurrency(e.target.value)} style={field}>
-                  {CURRENCIES.map((c) => (
+                  {sortAz(CURRENCIES).map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -226,13 +227,13 @@ export default function EditEntryModal({ entry, categories, onClose }) {
                 </label>
                 <select id="ee-paid-from" value={paidFrom} onChange={(e) => setPaidFrom(e.target.value)} style={field}>
                   <option value="">— none —</option>
-                  {(cashHoldings || []).map((c) => (
+                  {sortAz(cashHoldings, (c) => c.name).map((c) => (
                     <option key={c.id} value={String(c.id)}>
                       {c.name}
                       {c.account ? ` (${c.account})` : ""}
                     </option>
                   ))}
-                  {cards.map((l) => (
+                  {sortAz(cards, (l) => l.name).map((l) => (
                     <option key={`card-${l.id}`} value={`card:${l.id}`}>
                       {l.name} (credit card)
                     </option>
@@ -247,7 +248,7 @@ export default function EditEntryModal({ entry, categories, onClose }) {
                 </label>
                 <select id="ee-pays-down" value={paysDown} onChange={(e) => setPaysDown(e.target.value)} style={field}>
                   <option value="">— none —</option>
-                  {payable.map((l) => (
+                  {sortAz(payable, (l) => l.name).map((l) => (
                     <option key={l.id} value={String(l.id)}>
                       {l.name}
                     </option>
@@ -262,7 +263,7 @@ export default function EditEntryModal({ entry, categories, onClose }) {
                 </label>
                 <select id="ee-deposit" value={depositInto} onChange={(e) => setDepositInto(e.target.value)} style={field}>
                   <option value="">— none —</option>
-                  {(allHoldings || []).map((h) => (
+                  {sortAz(allHoldings, (h) => h.symbol || h.name).map((h) => (
                     <option key={h.id} value={String(h.id)}>
                       {h.symbol || h.name}
                       {h.account ? ` (${h.account})` : ""}

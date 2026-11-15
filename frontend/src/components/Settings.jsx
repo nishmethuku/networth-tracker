@@ -29,6 +29,7 @@ import {
 } from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { SUPPORTED_LANGUAGES, setLanguage } from "../i18n";
+import { sortAz } from "../utils/sortAz";
 
 const sectionStyle = { marginBottom: "1.5rem" };
 const rowStyle = {
@@ -307,7 +308,7 @@ export default function Settings() {
                 fontSize: "0.875rem",
               }}
             >
-              {SUPPORTED_LANGUAGES.map((l) => (
+              {sortAz(SUPPORTED_LANGUAGES, (l) => l.label).map((l) => (
                 <option key={l.code} value={l.code}>
                   {l.label}
                 </option>
@@ -329,7 +330,7 @@ export default function Settings() {
                 fontSize: "0.875rem",
               }}
             >
-              {CURRENCIES.map((c) => (
+              {sortAz(CURRENCIES).map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

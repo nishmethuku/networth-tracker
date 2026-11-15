@@ -6,6 +6,7 @@ import EmptyState from "./EmptyState";
 import { useToast } from "../contexts/ToastContext";
 import { smartImportParse, smartImportConfirm, ApiError } from "../api";
 import { ASSET_TYPE_OPTIONS, COUNTRIES, CURRENCIES, isQuantityBased } from "../constants/enums";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   padding: "0.5rem 0.625rem",
@@ -294,7 +295,7 @@ export default function ImportSpreadsheet() {
                           onChange={(e) => updateRow(r._key, "currency", e.target.value)}
                           style={inputStyle}
                         >
-                          {CURRENCIES.map((c) => (
+                          {sortAz(CURRENCIES).map((c) => (
                             <option key={c} value={c}>
                               {c}
                             </option>

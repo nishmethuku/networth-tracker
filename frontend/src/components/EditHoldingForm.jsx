@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../contexts/ToastContext";
 import { updateHolding, ApiError } from "../api";
 import { COUNTRIES, CURRENCIES } from "../constants/enums";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -103,7 +104,7 @@ export default function EditHoldingForm({ holding, onDone }) {
           Country
         </label>
         <select id="edit-country" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} style={inputStyle}>
-          {COUNTRIES.map((c) => (
+          {sortAz(COUNTRIES).map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -120,7 +121,7 @@ export default function EditHoldingForm({ holding, onDone }) {
           onChange={(e) => setForm({ ...form, currency: e.target.value })}
           style={inputStyle}
         >
-          {CURRENCIES.map((c) => (
+          {sortAz(CURRENCIES).map((c) => (
             <option key={c} value={c}>
               {c}
             </option>

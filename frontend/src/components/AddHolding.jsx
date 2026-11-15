@@ -19,6 +19,7 @@ import { ASSET_TYPE_OPTIONS, COUNTRIES, CURRENCIES, isQuantityBased } from "../c
 import { currencyForCountry, todayISO } from "../utils/formatters";
 import { holdingSchema } from "../utils/holdingSchema";
 import NumericInput from "./NumericInput";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   width: "100%",
@@ -258,7 +259,7 @@ export default function AddHolding() {
     queryFn: () => fetchAccounts(),
     staleTime: 1000 * 60,
   });
-  const accountSuggestions = (registeredAccounts || []).map((a) => a.name).sort();
+  const accountSuggestions = sortAz((registeredAccounts || []).map((a) => a.name));
   const blankAccountHint = `Leave blank to use "${defaultAccountName(registeredAccounts)}"`;
 
   // Cash holdings to offer as a funding source for the initial buy -- e.g.
@@ -478,7 +479,7 @@ export default function AddHolding() {
                 style={{ ...fieldStyle(touchedFields.country, errors.country), cursor: "pointer" }}
               >
                 <option value="">Select country...</option>
-                {COUNTRIES.map((c) => (
+                {sortAz(COUNTRIES).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -493,7 +494,7 @@ export default function AddHolding() {
               </label>
               <select id="holding-currency" {...register("currency")} style={{ ...inputStyle, cursor: "pointer" }}>
                 <option value="">Auto (from country)</option>
-                {CURRENCIES.map((c) => (
+                {sortAz(CURRENCIES).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -727,7 +728,7 @@ export default function AddHolding() {
                 title="Deducts this purchase's cost from the selected account's balance"
               >
                 <option value="">— none —</option>
-                {cashHoldings.map((c) => (
+                {sortAz(cashHoldings, (c) => c.name).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                     {c.account ? ` (${c.account})` : ""}

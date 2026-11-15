@@ -6,6 +6,7 @@ import EmptyState from "./EmptyState";
 import { useToast } from "../contexts/ToastContext";
 import { bankStatementParse, bankStatementConfirm, fetchBudgetCategories, ApiError } from "../api";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   padding: "0.5rem 0.625rem",
@@ -167,7 +168,7 @@ export default function ImportBankStatement() {
               Currency
             </label>
             <select id="statement-currency" value={currency} onChange={(e) => setCurrency(e.target.value)} style={inputStyle}>
-              {CURRENCIES.map((c) => (
+              {sortAz(CURRENCIES).map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

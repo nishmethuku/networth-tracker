@@ -26,6 +26,7 @@ import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatCurrencyCompact, formatDateISO } from "../utils/formatters";
 import { groupBreakdown } from "../utils/categoryTree";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -390,7 +391,7 @@ function SpendingLimitsCard({ currency, limitStatus }) {
             style={{ ...inputStyle, flex: 1, minWidth: "140px" }}
           >
             <option value="">Add a limit for...</option>
-            {availableCategories.map((c) => (
+            {sortAz(availableCategories, getBudgetCategoryLabel).map((c) => (
               <option key={c} value={c}>
                 {getBudgetCategoryLabel(c)}
               </option>
@@ -554,7 +555,7 @@ export default function Budget() {
             onChange={(e) => setCurrency(e.target.value)}
             style={{ ...inputStyle, width: "auto" }}
           >
-            {CURRENCIES.map((c) => (
+            {sortAz(CURRENCIES).map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
