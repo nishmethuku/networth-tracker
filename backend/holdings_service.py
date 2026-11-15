@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 
 from . import price_service
 from .finance import xirr
-from .models import Holding, HoldingTransaction, HoldingValuation
+from .models import Holding, HoldingTransaction, HoldingValuation, db
 
 QUANTITY_BASED_TYPES = ("stock", "mutual_fund", "crypto", "commodity")
 VALUATION_BASED_TYPES = ("real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit")
@@ -332,6 +332,32 @@ def portfolio_xirr(
     return xirr(cash_flows)
 
 
+
+_saved_live_prices = set()
+
+
+def _remember_live_prices(price_cache):
+    """Save today's live prices so the "prices as of" note and the nightly job see them.
+
+    Live lookups only ever lived in memory, so the stored-price date froze whenever the
+    historical lookups failed. Runs on the request thread (the lookups themselves run in
+    worker threads without a database session), saves each symbol at most once a day per
+    process, and never lets a storage problem break the page.
+    """
+    today = date.today()
+    for (asset_type, symbol, currency), price in price_cache.items():
+        if not price or price <= 0 or asset_type not in ("stock", "mutual_fund", "crypto"):
+            continue
+        key = (asset_type, symbol, today, currency)
+        if key in _saved_live_prices:
+            continue
+        try:
+            price_service._cache_price(asset_type, symbol, today, price, currency, "live")
+            _saved_live_prices.add(key)
+        except Exception:
+            db.session.rollback()
+            break
+
 def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = "USD") -> List[Dict]:
     """
     Attach live-priced metrics to each holding (in its native currency) plus
@@ -375,6 +401,7 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
         # holding in USD, another in INR) onto one arbitrary price, off by
         # the exchange rate (~85x for USD/INR).
         price_cache = dict(zip(quantity_keys, fetched))
+        _remember_live_prices(price_cache)
 
     quantity_holding_ids = [h.id for h in holdings if h.asset_type in QUANTITY_BASED_TYPES]
     valuation_holding_ids = [h.id for h in holdings if h.asset_type not in QUANTITY_BASED_TYPES]

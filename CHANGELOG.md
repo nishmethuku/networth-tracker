@@ -1,5 +1,9 @@
 # Changelog
 
+## Prices-as-of note stays accurate
+
+- Live prices that load are now saved once a day. The Market prices may be out of date line on the dashboard looks at the newest saved price, and it had frozen on Oct 25 because the nightly lookups kept failing for symbols that cannot be priced. It now moves forward whenever any holding gets a live price.
+
 ## Pages no longer wait minutes for prices
 
 - Live price lookups now have a 10 second limit per page load. If some prices are not back in time, those holdings show their last stored price and the lookup keeps going in the background so the next load has it. Before, one account with many unpriceable symbols could hold the dashboard on loading boxes for everyone.
