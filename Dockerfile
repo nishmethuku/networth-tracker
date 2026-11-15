@@ -2,7 +2,7 @@
 # The frontend is a separate Vercel deployment (frontend/) — this image only
 # serves the Flask API.
 
-FROM python:3.12-slim
+FROM python:3.15-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
