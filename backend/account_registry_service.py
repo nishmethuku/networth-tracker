@@ -95,7 +95,10 @@ def rename_account(user_id, old_name: str, new_name: str, household_id=None) -> 
     Returns the number of holdings updated. Works by name for the same
     reason delete_account_and_holdings does: most account names were
     never formally registered."""
-    old_name = (old_name or "").strip()
+    # Match the old name exactly as stored (a stray space in it must not stop the rename), but
+    # compare names ignoring case and surrounding spaces when looking for a clash.
+    old_raw = old_name or ""
+    old_name = old_raw.strip()
     new_name = (new_name or "").strip()
     if not old_name:
         raise ValueError("old_name is required")
@@ -103,19 +106,24 @@ def rename_account(user_id, old_name: str, new_name: str, household_id=None) -> 
         raise ValueError("new_name is required")
     if len(new_name) > 64:
         raise ValueError("new_name must be 64 characters or fewer")
-    if old_name == new_name:
+    if old_raw == new_name:
         return 0
 
-    existing_names = {a["name"].lower() for a in list_accounts(user_id, household_id) if a["name"].lower() != old_name.lower()}
-    if new_name.lower() in existing_names:
-        raise ValueError(f"'{new_name}' already exists")
+    others = [a for a in list_accounts(user_id, household_id) if a["name"].strip().lower() != old_name.lower()]
+    clash = next((a for a in others if a["name"].strip().lower() == new_name.lower()), None)
+    if clash:
+        n = clash["holding_count"]
+        raise ValueError(
+            f"Another account is already called '{clash['name'].strip()}' ({n} holding{'' if n == 1 else 's'}). "
+            "Pick a different name, or delete that account first."
+        )
 
-    holdings = _holdings_query(user_id, household_id).filter_by(account=old_name).all()
+    names = {old_raw, old_name}
+    holdings = _holdings_query(user_id, household_id).filter(Holding.account.in_(names)).all()
     for holding in holdings:
         holding.account = new_name
 
-    registered = _registered_query(user_id, household_id).filter_by(name=old_name).first()
-    if registered:
+    for registered in _registered_query(user_id, household_id).filter(Account.name.in_(names)).all():
         registered.name = new_name
 
     db.session.commit()
@@ -150,3 +158,18 @@ def delete_account_and_holdings(user_id, name: str, household_id=None) -> int:
 
     db.session.commit()
     return len(holdings)
+
+
+def forget_account_if_unused(user_id, name, household_id=None) -> bool:
+    """Drops the registered Account row for this name once no holding uses it any more, so deleting
+    the last holding of an account also takes the account off the Accounts list. Does not commit."""
+    name = (name or "").strip()
+    if not name:
+        return False
+    if _holdings_query(user_id, household_id).filter_by(account=name).first() is not None:
+        return False
+    registered = _registered_query(user_id, household_id).filter_by(name=name).first()
+    if not registered:
+        return False
+    db.session.delete(registered)
+    return True
