@@ -405,6 +405,8 @@ export default function Portfolio() {
   // rarely spans types (a brokerage doesn't also hold your real estate).
   // Keyed by asset type; an empty/missing value means "All accounts".
   const [accountFilters, setAccountFilters] = useState({});
+  // Which asset-type sections are open. Unset means "open if short, closed if long".
+  const [openTypes, setOpenTypes] = useState({});
   // "current" hides stocks that were fully sold; "all" shows them. The return figures count them either way.
   const [holdingView, setHoldingViewState] = useState(() => {
     try {
@@ -422,8 +424,11 @@ export default function Portfolio() {
     }
   };
   const [searchParams, setSearchParams] = useSearchParams();
-  const sortKey = searchParams.get("sort");
-  const sortDir = searchParams.get("dir") === "asc" ? "asc" : "desc";
+  // Names A to Z until a column is clicked.
+  const sortParam = searchParams.get("sort");
+  const sortKey = sortParam || "name";
+  const dirParam = searchParams.get("dir");
+  const sortDir = dirParam ? (dirParam === "asc" ? "asc" : "desc") : sortParam ? "desc" : "asc";
 
   function handleSort(key) {
     const next = new URLSearchParams(searchParams);
@@ -806,13 +811,16 @@ export default function Portfolio() {
       ) : (
         orderedTypes.map((type) => {
           const typeHoldings = grouped[type];
-          const accounts = [...new Set(typeHoldings.map((h) => h.account).filter(Boolean))].sort();
+          const accounts = [...new Set(typeHoldings.map((h) => h.account).filter(Boolean))].sort((a, b) =>
+            a.localeCompare(b, undefined, { sensitivity: "base" }),
+          );
           const selectedAccount = accountFilters[type] || "";
           const inAccount = selectedAccount ? typeHoldings.filter((h) => h.account === selectedAccount) : typeHoldings;
           const { current: currentHoldings, soldPositions } = isQuantityBased(type)
             ? splitCurrentAndSold(inAccount)
             : { current: inAccount, soldPositions: 0 };
           const displayedHoldings = holdingView === "current" ? currentHoldings : inAccount;
+          const isOpen = openTypes[type] ?? typeHoldings.length <= 8;
           const renameTarget = selectedAccount || (accounts.length === 1 ? accounts[0] : "");
           const { buyValue, gainAmount } = groupBuyValueAndGain(displayedHoldings);
           const totalValue = displayedHoldings.reduce((sum, h) => sum + (h.displayValue || 0), 0);
@@ -829,7 +837,30 @@ export default function Portfolio() {
                   marginBottom: "0.75rem",
                 }}
               >
-                <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text)" }}>{getAssetTypeLabel(type)}</h2>
+                <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text)", margin: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenTypes({ ...openTypes, [type]: !isOpen })}
+                    aria-expanded={isOpen}
+                    aria-label={`${isOpen ? "Hide" : "Show"} ${getAssetTypeLabel(type)}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      font: "inherit",
+                      color: "inherit",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span aria-hidden="true" style={{ fontSize: "0.75rem" }}>
+                      {isOpen ? "▼" : "▶"}
+                    </span>
+                    {getAssetTypeLabel(type)}
+                  </button>
+                </h2>
                 {isQuantityBased(type) && (
                   <div role="group" aria-label="Show current or all holdings" style={{ display: "flex", gap: "0.25rem" }}>
                     {[
@@ -938,19 +969,21 @@ export default function Portfolio() {
                 </div>
               )}
 
-              <Card>
-                <HoldingsTable
-                  holdings={displayedHoldings}
-                  xirrHoldings={inAccount}
-                  assetType={type}
-                  navigate={navigate}
-                  onDelete={setDeleteTarget}
-                  currency={currency}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                />
-              </Card>
+              {isOpen && (
+                <Card>
+                  <HoldingsTable
+                    holdings={displayedHoldings}
+                    xirrHoldings={inAccount}
+                    assetType={type}
+                    navigate={navigate}
+                    onDelete={setDeleteTarget}
+                    currency={currency}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={handleSort}
+                  />
+                </Card>
+              )}
             </div>
           );
         })

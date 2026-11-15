@@ -32,6 +32,7 @@ _log_handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 
 from . import price_service
+from .account_registry_service import forget_account_if_unused
 from .auth import require_auth
 from .benchmark_service import get_benchmark_comparison
 from .holdings_service import (
@@ -484,6 +485,9 @@ def create_app():
         HoldingTransaction.query.filter_by(holding_id=holding.id).filter(
             HoldingTransaction.deleted_at.is_(None)
         ).update({"deleted_at": now}, synchronize_session=False)
+        db.session.flush()
+        # If that was the last holding in its account, the account itself goes too.
+        forget_account_if_unused(holding.user_id, holding.account, holding.household_id)
         db.session.commit()
         return jsonify({"message": "Holding deleted"}), 200
 
