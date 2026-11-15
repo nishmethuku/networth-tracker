@@ -18,3 +18,11 @@ def _xirr_on_for_tests(monkeypatch):
 
     monkeypatch.setattr(holdings_service, "XIRR_ENABLED", True)
     monkeypatch.setattr(benchmark_service, "XIRR_ENABLED", True)
+
+
+@pytest.fixture(autouse=True)
+def _no_stored_prices_by_default(monkeypatch):
+    """Most tests have no database; with none stored, every price comes from the (mocked) live lookup."""
+    from backend import holdings_service
+
+    monkeypatch.setattr(holdings_service, "_recent_stored_prices", lambda keys: {})
