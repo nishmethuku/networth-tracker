@@ -1,5 +1,9 @@
 # Changelog
 
+## Prices refresh once a day
+
+- Stock, fund and crypto prices are no longer looked up on every page load. A price saved today is used as is; the first load of the day fetches fresh ones and saves them. This takes most price traffic off the free server. Change the window with `PRICE_REFRESH_DAYS` on Render.
+
 ## XIRR paused
 
 - XIRR (annualized return) is switched off for now. It was the heaviest calculation on every page and the free server cannot keep up. The Annualized column shows a dash, the dashboard hides the overall XIRR and the benchmark comparison, and the Portfolio page shows the simple overall return. Set `XIRR_ENABLED=true` on Render to bring it back.

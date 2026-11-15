@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 
 from . import price_service
 from .finance import xirr
-from .models import Holding, HoldingTransaction, HoldingValuation, db
+from .models import Holding, HoldingTransaction, HoldingValuation, PriceHistory, db
 
 QUANTITY_BASED_TYPES = ("stock", "mutual_fund", "crypto", "commodity")
 VALUATION_BASED_TYPES = ("real_estate", "fixed_deposit", "ppf", "epf", "retirals", "cash", "loan", "credit")
@@ -36,6 +36,10 @@ XIRR_ENABLED = os.environ.get("XIRR_ENABLED", "").strip().lower() == "true"
 
 # Most a page will wait for live prices before falling back to stored ones.
 LIVE_PRICE_BUDGET_SECONDS = 10
+# Prices do not need to be real time. A price stored within this many days (1 = today's) is used as is,
+# and only older (or missing) ones are looked up live and saved again. This keeps the free server
+# from doing price lookups on every page load.
+PRICE_REFRESH_DAYS = int(os.environ.get("PRICE_REFRESH_DAYS", "1"))
 
 TRANSACTION_TYPES = ("buy", "sell", "dividend", "interest", "split", "bonus")
 SHARE_CHANGE_TYPES = ("split", "bonus")
@@ -365,6 +369,30 @@ def _remember_live_prices(price_cache):
             db.session.rollback()
             break
 
+def _recent_stored_prices(keys):
+    """Latest stored price per (asset_type, symbol, currency) that is within the last PRICE_REFRESH_DAYS days."""
+    if not keys or PRICE_REFRESH_DAYS <= 0:
+        return {}
+    cutoff = date.today() - timedelta(days=PRICE_REFRESH_DAYS - 1)
+    symbols = list({k[1] for k in keys})
+    try:
+        rows = (
+            PriceHistory.query.filter(PriceHistory.symbol.in_(symbols), PriceHistory.price_date >= cutoff)
+            .order_by(PriceHistory.price_date.asc())
+            .all()
+        )
+    except Exception:
+        db.session.rollback()
+        return {}
+    wanted = set(keys)
+    found = {}
+    for r in rows:  # ascending, so the newest row for each key wins
+        key = (r.asset_type, r.symbol, r.currency)
+        if key in wanted and r.price and r.price > 0:
+            found[key] = r.price
+    return found
+
+
 def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = "USD") -> List[Dict]:
     """
     Attach live-priced metrics to each holding (in its native currency) plus
@@ -390,7 +418,8 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
     """
     quantity_keys = list({(h.asset_type, h.symbol, h.currency) for h in holdings if h.asset_type in QUANTITY_BASED_TYPES})
 
-    price_cache: Dict[tuple, Optional[float]] = {}
+    price_cache: Dict[tuple, Optional[float]] = _recent_stored_prices(quantity_keys)
+    quantity_keys = [k for k in quantity_keys if k not in price_cache]
     if quantity_keys:
         # Live lookups get a hard time budget. On the free server a portfolio with many symbols
         # that never resolve could keep a page waiting for minutes. Anything not back in time is
@@ -407,8 +436,9 @@ def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = 
         # holdings of the same symbol in different currencies (e.g. one BTC
         # holding in USD, another in INR) onto one arbitrary price, off by
         # the exchange rate (~85x for USD/INR).
-        price_cache = dict(zip(quantity_keys, fetched))
-        _remember_live_prices(price_cache)
+        live_prices = dict(zip(quantity_keys, fetched))
+        _remember_live_prices(live_prices)
+        price_cache.update(live_prices)
 
     quantity_holding_ids = [h.id for h in holdings if h.asset_type in QUANTITY_BASED_TYPES]
     valuation_holding_ids = [h.id for h in holdings if h.asset_type not in QUANTITY_BASED_TYPES]
