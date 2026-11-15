@@ -38,7 +38,7 @@ import { isNonSpendingCategory } from "../utils/nonSpending";
 import { biggestFirst, filterByAmount, filterEntries } from "../utils/filterEntries";
 import { entriesToCsv } from "../utils/entriesCsv";
 import { getBudgetCategoryLabel, CURRENCIES } from "../constants/enums";
-import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
+import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
 import { formatCurrencyForDisplay, formatDateISO, todayISO } from "../utils/formatters";
 import { groupByDay, monthOf, monthTotals, shiftMonth } from "../utils/entryGroups";
 import { refreshMoneyViews } from "../utils/refreshMoneyViews";
@@ -84,7 +84,7 @@ function monthLabel(month) {
 
 /** Where you log and review spending. Budget keeps the totals, limits and subscriptions. */
 export default function Expenses() {
-  const [currency, setCurrency] = useState(getDefaultDisplayCurrency);
+  const [currency, setCurrency] = useDisplayCurrencyPreference();
   const thisMonth = monthOf(todayISO());
   const [month, setMonth] = useState(thisMonth);
   const [search, setSearch] = useState("");

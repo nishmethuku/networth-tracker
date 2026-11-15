@@ -1,5 +1,9 @@
 # Changelog
 
+## Currency choice is remembered
+
+- Picking a display currency on the Dashboard, Portfolio, Expenses, Budget or Insights page is now saved, so moving between pages or going back no longer resets it to USD.
+
 ## Math audit
 
 - If the exchange-rate service cannot be reached, the newest saved rate is used. Before, the amount was left unconverted, so rupees could be counted as dollars.
