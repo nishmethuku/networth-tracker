@@ -1,4 +1,4 @@
-import { test, expect, mockBackend, sampleHolding } from "./fixtures";
+import { test, expect, mockBackend, sampleHolding, openAllSections } from "./fixtures";
 
 const holdings = [
   { ...sampleHolding, id: 1, symbol: "AAPL", name: "Apple Inc", display_value: 1500, total_gain: 500 },
@@ -9,6 +9,7 @@ const holdings = [
 test("clicking the Value column header sorts holdings, and toggles direction on repeat click", async ({ mockedPage: page }) => {
   await mockBackend(page, { holdings });
   await page.goto("/portfolio");
+  await openAllSections(page);
 
   const rows = () => page.locator("table tbody tr");
   await expect(rows()).toHaveCount(3);
@@ -29,6 +30,7 @@ test("clicking the Value column header sorts holdings, and toggles direction on 
 test("the filter input narrows holdings by name/ticker, debounced", async ({ mockedPage: page }) => {
   await mockBackend(page, { holdings });
   await page.goto("/portfolio");
+  await openAllSections(page);
 
   const filterInput = page.getByPlaceholder("Filter by name, ticker, or account...");
   await filterInput.fill("MSFT");
@@ -43,6 +45,7 @@ test("the filter input narrows holdings by name/ticker, debounced", async ({ moc
 test("the delete button is hidden until the row is hovered", async ({ mockedPage: page }) => {
   await mockBackend(page, { holdings });
   await page.goto("/portfolio");
+  await openAllSections(page);
 
   const firstDeleteBtn = page.locator("table tbody tr").first().getByRole("button", { name: "Delete" });
   await expect(firstDeleteBtn).toHaveCSS("opacity", "0");
