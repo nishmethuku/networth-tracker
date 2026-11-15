@@ -713,6 +713,31 @@ def test_list_holdings_with_metrics_keeps_prices_separate_by_currency():
     assert by_id[2]["current_price"] == 5000000.0
 
 
+def test_list_holdings_with_metrics_uses_a_price_saved_today_without_a_live_lookup(monkeypatch):
+    """Prices refresh once a day: a stored price from today must be used and no live lookup made."""
+    from unittest.mock import patch
+
+    from backend import holdings_service
+
+    stock = _holding(asset_type="stock")
+    stock.id = 1
+    stock.symbol = "AAPL"
+    stock.currency = "USD"
+    monkeypatch.setattr(holdings_service, "_recent_stored_prices", lambda keys: {("stock", "AAPL", "USD"): 123.0})
+
+    with patch("backend.holdings_service.HoldingTransaction") as mock_tx_model, \
+         patch("backend.holdings_service.HoldingValuation") as mock_val_model, \
+         patch("backend.holdings_service.price_service") as mock_price_service:
+        mock_tx_model.query.filter.return_value.all.return_value = []
+        mock_val_model.query.filter.return_value.all.return_value = []
+        mock_price_service.convert.side_effect = lambda amount, *_: amount
+
+        results = list_holdings_with_metrics([stock], display_currency="USD")
+
+    assert results[0]["current_price"] == 123.0
+    mock_price_service.get_current_price.assert_not_called()
+
+
 def test_list_holdings_with_metrics_computes_display_x_fields_via_real_conversion():
     """A holding in a non-display currency must have its display_value
     (and display_cost_basis/display_realized_gain/display_unrealized_gain)
