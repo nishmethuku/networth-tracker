@@ -1,5 +1,9 @@
 # Changelog
 
+## Dropdowns sorted A to Z
+
+- Every dropdown that lists names (accounts, holdings, cards, categories, currencies, countries, languages) is now in A to Z order. Dropdowns with a natural order, such as years or time ranges, are unchanged.
+
 ## Portfolio tidy-up and account fixes
 
 - Portfolio lists are sorted by name A to Z by default, and the account names in the filter are sorted too. Clicking a column header still sorts by that column.

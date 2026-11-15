@@ -8,6 +8,7 @@ import { getAssetTypeLabel, CURRENCIES } from "../../constants/enums";
 import { formatCurrencyForDisplay, todayISO } from "../../utils/formatters";
 import CategoryPicker from "./CategoryPicker";
 import { refreshMoneyViews } from "../../utils/refreshMoneyViews";
+import { sortAz } from "../../utils/sortAz";
 
 const RECURRING_FREQUENCIES = [
   { value: "weekly", label: "Weekly" },
@@ -253,7 +254,7 @@ export default function AddEntryForm({ categories, currency }) {
             Currency
           </label>
           <select id="budget-currency" {...register("currency")} style={inputStyle}>
-            {CURRENCIES.map((c) => (
+            {sortAz(CURRENCIES).map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -280,13 +281,13 @@ export default function AddEntryForm({ categories, currency }) {
               title="Deducts this expense from the selected account's balance, or adds it to the selected credit card's balance"
             >
               <option value="">— none —</option>
-              {(cashHoldings || []).map((c) => (
+              {sortAz(cashHoldings, (c) => c.name).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                   {c.account ? ` (${c.account})` : ""}
                 </option>
               ))}
-              {cards.map((l) => (
+              {sortAz(cards, (l) => l.name).map((l) => (
                 <option key={`card-${l.id}`} value={`card:${l.id}`}>
                   {l.name} (credit card)
                 </option>
@@ -309,7 +310,7 @@ export default function AddEntryForm({ categories, currency }) {
               title="Reduces the selected liability's balance by this expense amount"
             >
               <option value="">— none —</option>
-              {payable.map((l) => (
+              {sortAz(payable, (l) => l.name).map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
                 </option>
@@ -332,7 +333,7 @@ export default function AddEntryForm({ categories, currency }) {
               title="Adds this income to the selected account's balance (cash accounts) or just tags this entry with it (any other account type)"
             >
               <option value="">— none —</option>
-              {depositTargets.map((h) => (
+              {sortAz(depositTargets, (h) => h.symbol || h.name).map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.symbol || h.name}
                   {h.account ? ` (${h.account})` : ""}

@@ -8,6 +8,7 @@ import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import EmptyState from "./EmptyState";
 import { isQuantityBased } from "../constants/enums";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   padding: "0.625rem 0.875rem",
@@ -143,7 +144,7 @@ export default function Alerts() {
               required
             >
               <option value="">Select a holding...</option>
-              {quantityHoldings.map((h) => (
+              {sortAz(quantityHoldings, (h) => h.symbol || h.name).map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.symbol || h.name}
                   {h.account ? ` — ${h.account}` : ""} ({h.currency})

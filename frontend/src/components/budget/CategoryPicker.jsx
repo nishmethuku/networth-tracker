@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { getBudgetCategoryLabel } from "../../constants/enums";
 import { orderCategoryOptions } from "../../utils/categoryTree";
+import { sortAz } from "../../utils/sortAz";
 
 // With this many categories a plain dropdown is slow to scroll, so a search box appears above it.
 const SEARCH_AT = 12;
@@ -57,7 +58,7 @@ export default function CategoryPicker({ idPrefix, names, parents, value, onChan
           style={fieldStyle}
         >
           {tops.length === 0 && <option value="">No categories yet</option>}
-          {tops.map((o) => (
+          {sortAz(tops, (o) => o.label).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
@@ -84,7 +85,7 @@ export default function CategoryPicker({ idPrefix, names, parents, value, onChan
           style={fieldStyle}
         >
           <option value="">{subs.length === 0 ? "No subcategories" : "None"}</option>
-          {subs.map((o) => (
+          {sortAz(subs, (o) => o.label).map((o) => (
             <option key={o.value} value={o.value}>
               {subLabel(o)}
             </option>

@@ -13,6 +13,7 @@ import { useHousehold } from "../contexts/HouseholdContext";
 import { fetchNetWorthHistory, ApiError } from "../api";
 import { CURRENCIES } from "../constants/enums";
 import { getDefaultDisplayCurrency } from "../hooks/useDisplayCurrencyPreference";
+import { sortAz } from "../utils/sortAz";
 
 const inputStyle = {
   padding: "0.5rem 0.875rem",
@@ -64,7 +65,7 @@ export default function Insights() {
             onChange={(e) => setCurrency(e.target.value)}
             style={{ ...inputStyle, width: "auto" }}
           >
-            {CURRENCIES.map((c) => (
+            {sortAz(CURRENCIES).map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>

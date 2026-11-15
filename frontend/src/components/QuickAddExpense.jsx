@@ -25,6 +25,7 @@ import { findDuplicate } from "../utils/duplicateCheck";
 import { parseQuickEntry } from "../utils/quickEntryParser";
 import { buildExpensePayload, loadLast, saveLast, validateQuickAdd, yesterdayOf } from "../utils/quickAdd";
 import { refreshMoneyViews } from "../utils/refreshMoneyViews";
+import { sortAz } from "../utils/sortAz";
 
 const fieldStyle = {
   width: "100%",
@@ -464,7 +465,7 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
                 onChange={(e) => setCurrency(e.target.value)}
                 style={{ ...fieldStyle, width: "auto" }}
               >
-                {CURRENCIES.map((c) => (
+                {sortAz(CURRENCIES).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -526,13 +527,13 @@ export default function QuickAddExpense({ open, onOpen, onClose }) {
                   </label>
                   <select id="qa-paid" value={paidFrom} onChange={(e) => setPaidFrom(e.target.value)} style={fieldStyle}>
                     <option value="">None (just log it)</option>
-                    {(cashHoldings || []).map((c) => (
+                    {sortAz(cashHoldings, (c) => c.name).map((c) => (
                       <option key={c.id} value={String(c.id)}>
                         {c.name}
                         {c.account ? ` (${c.account})` : ""}
                       </option>
                     ))}
-                    {cards.map((c) => (
+                    {sortAz(cards, (c) => c.name).map((c) => (
                       <option key={`card-${c.id}`} value={`card:${c.id}`}>
                         {c.name} (credit card)
                       </option>
