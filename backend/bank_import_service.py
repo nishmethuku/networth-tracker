@@ -11,9 +11,6 @@ import json
 from datetime import date
 from typing import Dict, List, Optional
 
-import pandas as pd
-import pdfplumber
-
 from . import ai_service
 from .budget_service import EXPENSE_CATEGORIES, INCOME_CATEGORIES, category_exists, list_categories, resolve_category
 from .models import BudgetEntry, db
@@ -23,6 +20,8 @@ VALID_FREQUENCIES = ("weekly", "monthly", "quarterly", "yearly")
 
 
 def _extract_from_tabular(file_bytes: bytes, filename: str) -> str:
+    import pandas as pd  # loaded on first use: it costs memory and boot time
+
     buf = io.BytesIO(file_bytes)
     if filename.lower().endswith(".csv"):
         df = pd.read_csv(buf)
@@ -35,6 +34,8 @@ def _extract_from_tabular(file_bytes: bytes, filename: str) -> str:
 
 
 def _extract_from_pdf(file_bytes: bytes) -> str:
+    import pdfplumber  # loaded on first use
+
     """Bank statement PDFs usually have a clean transaction table; when
     pdfplumber can detect one we render it as CSV-like rows (much denser
     and more reliable for the AI prompt than raw text), falling back to

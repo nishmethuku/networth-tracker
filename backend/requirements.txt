@@ -9,9 +9,6 @@ cryptography
 certifi
 python-dotenv==1.2.2
 gunicorn==22.0.0
-nsepy==0.8
-nselib
-nsepython
 pandas==2.3.3
 requests==2.34.2
 mftool

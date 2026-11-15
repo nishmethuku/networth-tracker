@@ -19,7 +19,6 @@ from .utils import (
     get_crypto_price,
     get_current_stock_price,
     get_historical_price_from_finnhub,
-    get_historical_price_from_nsepy,
     get_historical_price_from_yahoo,
 )
 from .utils import (
@@ -156,10 +155,7 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
         yahoo_symbol = symbol
         price = get_historical_price_from_yahoo(yahoo_symbol, target_date)
         source = "yahoo"
-        if price is None and (symbol.upper().endswith(".NS") or symbol.upper().endswith(".NSE")):
-            price = get_historical_price_from_nsepy(symbol, target_date)
-            source = "nsepy"
-        elif price is None and asset_type == "stock":
+        if price is None:
             price = get_historical_price_from_finnhub(symbol, target_date)
             source = "finnhub"
 

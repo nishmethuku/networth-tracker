@@ -24,8 +24,6 @@ import json
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
-import pandas as pd
-
 from . import ai_service
 from .holdings_service import QUANTITY_BASED_TYPES, build_deposit_valuation, build_funding_valuation
 from .models import Holding, HoldingTransaction, HoldingValuation, db
@@ -42,6 +40,8 @@ VALID_TRANSACTION_TYPES = ("buy", "sell")
 
 
 def extract_sheet_text(file_bytes: bytes, filename: str) -> str:
+    import pandas as pd  # loaded on first use: it costs memory and boot time
+
     """Renders every sheet/tab of the uploaded file as a compact CSV-ish
     text block for the AI prompt. Blank rows/columns are dropped so a
     typically sparse personal spreadsheet doesn't waste prompt space."""

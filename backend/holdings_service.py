@@ -7,6 +7,7 @@ crypto, commodity) or valuation history (everything else: real_estate,
 fixed_deposit, ppf, epf, retirals, cash, loan, credit) instead of one frozen
 buy price/quantity.
 """
+import os
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import date, timedelta
@@ -29,6 +30,10 @@ VALUATION_BASED_TYPES = ("real_estate", "fixed_deposit", "ppf", "epf", "retirals
 # 1-for-10 reverse split); for a bonus it is the number of free shares
 # received. Neither is a cash flow, and total cost stays exactly the same,
 # so the average cost per share falls.
+# XIRR is switched off for now: it is the heaviest calculation on every page load, and the
+# free server (a tenth of a CPU) cannot keep up. Set XIRR_ENABLED=true to turn it back on.
+XIRR_ENABLED = os.environ.get("XIRR_ENABLED", "").strip().lower() == "true"
+
 # Most a page will wait for live prices before falling back to stored ones.
 LIVE_PRICE_BUDGET_SECONDS = 10
 
@@ -144,7 +149,7 @@ def calculate_holding_metrics(
     # Skip XIRR for positions held less than 30 days — annualizing a 1%
     # two-day gain into ~1800% is technically correct but misleading.
     holding_period_days = (date.today() - cash_flows[0][0]).days if cash_flows else 0
-    holding_xirr = xirr(cash_flows) if holding_period_days >= 30 else None
+    holding_xirr = xirr(cash_flows) if XIRR_ENABLED and holding_period_days >= 30 else None
 
     return {
         "quantity": quantity,
@@ -322,6 +327,8 @@ def portfolio_xirr(
     produces a meaningless XIRR (a real 20% gain rendering as -98%, in one
     observed case with a single INR holding on a USD dashboard).
     """
+    if not XIRR_ENABLED:
+        return None
     raw_flows = _transaction_cash_flows(all_transactions)
     cash_flows = [
         (flow_date, price_service.convert(amount, tx.currency, display_currency))

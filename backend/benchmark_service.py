@@ -27,7 +27,7 @@ from typing import Dict, Optional
 
 from . import price_service
 from .finance import xirr
-from .holdings_service import QUANTITY_BASED_TYPES, list_holdings_with_metrics
+from .holdings_service import QUANTITY_BASED_TYPES, XIRR_ENABLED, list_holdings_with_metrics
 from .holdings_service import portfolio_xirr as _portfolio_xirr
 from .models import Holding, HoldingTransaction
 
@@ -110,6 +110,10 @@ def get_benchmark_comparison(user_id, benchmark_symbol: str = "SPY", household_i
     buys = [t for t in all_transactions if t.transaction_type == "buy"]
     if not buys:
         return None
+    if not XIRR_ENABLED:
+        # The whole comparison is XIRR against XIRR, and replaying every buy against the index
+        # is the expensive part, so skip it while XIRR is paused.
+        return None
 
     # Benchmark leg stays buy-only (see replay_buys_into_cash_flows'
     # docstring) -- there's no sensible way to model "you sold some of the
@@ -126,7 +130,7 @@ def get_benchmark_comparison(user_id, benchmark_symbol: str = "SPY", household_i
 
     benchmark_value_native = benchmark_units * current_benchmark_price
     benchmark_value_usd = price_service.convert(benchmark_value_native, benchmark_currency, "USD")
-    benchmark_xirr = xirr(benchmark_cash_flows + [(date.today(), benchmark_value_usd)])
+    benchmark_xirr = xirr(benchmark_cash_flows + [(date.today(), benchmark_value_usd)]) if XIRR_ENABLED else None
 
     holdings_with_metrics = list_holdings_with_metrics(quantity_holdings, display_currency="USD")
     # Exclude near-zero cost basis holdings from the portfolio XIRR leg —
