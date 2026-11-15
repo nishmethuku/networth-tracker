@@ -873,3 +873,15 @@ def test_dashboard_xirr_counts_fully_sold_holdings():
     assert result["portfolio_xirr"] is not None
     assert result["portfolio_xirr"] > 0.3
 
+
+
+def test_live_prices_are_saved_once_per_day(monkeypatch):
+    from backend import holdings_service, price_service
+
+    holdings_service._saved_live_prices.clear()
+    saved = []
+    monkeypatch.setattr(price_service, "_cache_price", lambda *args: saved.append(args))
+    holdings_service._remember_live_prices({("stock", "SAVEME", "USD"): 55.5, ("stock", "NOPRICE", "USD"): None, ("commodity", "GOLD", "USD"): 9.0})
+    holdings_service._remember_live_prices({("stock", "SAVEME", "USD"): 56.0})  # same day: not written again
+    assert [(a[0], a[1], a[3], a[5]) for a in saved] == [("stock", "SAVEME", 55.5, "live")]
+    holdings_service._saved_live_prices.clear()
