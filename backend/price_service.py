@@ -163,10 +163,12 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
         price = _get_mftool_historical_nav(symbol, target_date)
         source = "mftool"
     elif asset_type == "stock":
-        yahoo_symbol = symbol
+        yahoo_symbol = _with_exchange_suffix(symbol, currency)
         price = get_historical_price_from_yahoo(yahoo_symbol, target_date)
         source = "yahoo"
-        if price is None:
+        if price is None and "." not in yahoo_symbol:
+            # Finnhub's candle endpoint only covers US tickers (and is paid-only), so asking it
+            # about an Indian symbol is a guaranteed wasted call.
             price = get_historical_price_from_finnhub(symbol, target_date)
             source = "finnhub"
 

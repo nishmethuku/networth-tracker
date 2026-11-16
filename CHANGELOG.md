@@ -1,5 +1,9 @@
 # Changelog
 
+## Fewer wasted price lookups
+
+- Past prices for Indian stocks entered without the .NS ending are now looked up as NSE stocks, and the US-only price source is no longer asked about Indian symbols. This removes a batch of guaranteed failures from every dashboard load.
+
 ## Currency choice is remembered
 
 - Picking a display currency on the Dashboard, Portfolio, Expenses, Budget or Insights page is now saved, so moving between pages or going back no longer resets it to USD.
