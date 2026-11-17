@@ -390,7 +390,7 @@ def test_build_dashboard_all_negative_movers_land_in_losers_not_gainers():
             "display_value": 1000.0, "quantity": 10, "symbol": name, "name": name, "current_price": current,
         })
 
-    with patch("backend.holdings_service.price_service.get_historical_price", return_value=100.0):
+    with patch("backend.holdings_service._past_prices", side_effect=lambda cands, cutoff: {(c["asset_type"], c["symbol"], c["currency"]): 100.0 for c in cands}):
         result = build_dashboard(metrics, holdings_by_id)
 
     assert result["top_gainers"] == []
@@ -415,7 +415,7 @@ def test_build_dashboard_gainers_and_losers_never_overlap():
             "display_value": 1000.0, "quantity": 10, "symbol": name, "name": name, "current_price": current,
         })
 
-    with patch("backend.holdings_service.price_service.get_historical_price", return_value=100.0):
+    with patch("backend.holdings_service._past_prices", side_effect=lambda cands, cutoff: {(c["asset_type"], c["symbol"], c["currency"]): 100.0 for c in cands}):
         result = build_dashboard(metrics, holdings_by_id)
 
     gainer_symbols = {m["symbol"] for m in result["top_gainers"]}
@@ -900,16 +900,37 @@ def test_dashboard_xirr_counts_fully_sold_holdings():
 
 
 
-def test_live_prices_are_saved_once_per_day(monkeypatch):
+def test_live_prices_are_saved_once_per_day_in_one_batch(monkeypatch):
     from backend import holdings_service, price_service
 
     holdings_service._saved_live_prices.clear()
-    saved = []
-    monkeypatch.setattr(price_service, "_cache_price", lambda *args: saved.append(args))
-    holdings_service._remember_live_prices({("stock", "SAVEME", "USD"): 55.5, ("stock", "NOPRICE", "USD"): None, ("commodity", "GOLD", "USD"): 9.0})
+    batches = []
+    monkeypatch.setattr(price_service, "cache_prices_bulk", lambda rows: batches.append(list(rows)))
+    holdings_service._remember_live_prices({
+        ("stock", "SAVEME", "USD"): 55.5, ("stock", "AND-ONE", "USD"): 7.0,
+        ("stock", "NOPRICE", "USD"): None, ("commodity", "GOLD", "USD"): 9.0,
+    })
     holdings_service._remember_live_prices({("stock", "SAVEME", "USD"): 56.0})  # same day: not written again
-    assert [(a[0], a[1], a[3], a[5]) for a in saved] == [("stock", "SAVEME", 55.5, "live")]
+    assert len(batches) == 1
+    assert sorted((r[0], r[1], r[3], r[4], r[5]) for r in batches[0]) == [
+        ("stock", "AND-ONE", 7.0, "USD", "live"),
+        ("stock", "SAVEME", 55.5, "USD", "live"),
+    ]
     holdings_service._saved_live_prices.clear()
+
+
+def test_a_failed_batch_save_does_not_mark_prices_as_saved(monkeypatch):
+    from backend import holdings_service, price_service
+
+    holdings_service._saved_live_prices.clear()
+
+    def boom(rows):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(price_service, "cache_prices_bulk", boom)
+    monkeypatch.setattr(holdings_service.db.session, "rollback", lambda: None)
+    holdings_service._remember_live_prices({("stock", "SAVEME", "USD"): 55.5})
+    assert holdings_service._saved_live_prices == set()
 
 
 def _cash_with_balances(*rows):
@@ -945,3 +966,41 @@ def test_deleting_that_expense_puts_the_money_back_on_the_current_balance():
     spent.id = 3
     refund = build_deposit_valuation(holding, vals + [spent], 50.0, "USD", date(2026, 11, 15), "u", apply_to_current=True)
     assert refund.value == 400.0
+
+
+def test_past_prices_uses_stored_rows_fetches_the_rest_in_parallel_and_saves_one_batch(monkeypatch):
+    from datetime import date as _date
+    from types import SimpleNamespace
+
+    from backend import holdings_service, price_service
+
+    cutoff = _date(2026, 10, 18)
+    candidates = [
+        {"asset_type": "stock", "symbol": "STORED", "currency": "USD"},
+        {"asset_type": "stock", "symbol": "FETCHME", "currency": "USD"},
+        {"asset_type": "stock", "symbol": "NOTFOUND", "currency": "USD"},
+        {"asset_type": "commodity", "symbol": "GOLD", "currency": "USD"},
+    ]
+    fake_rows = [SimpleNamespace(asset_type="stock", symbol="STORED", currency="USD", price=10.0)]
+
+    from unittest.mock import MagicMock
+
+    fake_model = MagicMock()
+    fake_model.query.filter.return_value.all.return_value = fake_rows
+    monkeypatch.setattr(holdings_service, "PriceHistory", fake_model)
+    fetched = []
+    monkeypatch.setattr(
+        price_service, "fetch_historical_price_uncached",
+        lambda a, s, d, c: (fetched.append(s), (20.0, "yahoo") if s == "FETCHME" else (None, None))[1],
+    )
+    saved = []
+    monkeypatch.setattr(price_service, "cache_prices_bulk", lambda rows: saved.append(list(rows)))
+    price_service._historical_misses.clear()
+
+    prices = holdings_service._past_prices(candidates, cutoff)
+
+    assert prices == {("stock", "STORED", "USD"): 10.0, ("stock", "FETCHME", "USD"): 20.0}
+    assert sorted(fetched) == ["FETCHME", "NOTFOUND"]  # the stored one and the metal are not fetched
+    assert saved == [[("stock", "FETCHME", cutoff, 20.0, "USD", "yahoo")]]
+    assert price_service._recently_missed(("stock", "NOTFOUND", cutoff, "USD"))
+    price_service._historical_misses.clear()

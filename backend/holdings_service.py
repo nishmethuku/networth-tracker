@@ -369,18 +369,72 @@ def _remember_live_prices(price_cache):
     process, and never lets a storage problem break the page.
     """
     today = date.today()
+    pending = {}
     for (asset_type, symbol, currency), price in price_cache.items():
         if not price or price <= 0 or asset_type not in ("stock", "mutual_fund", "crypto"):
             continue
         key = (asset_type, symbol, today, currency)
-        if key in _saved_live_prices:
-            continue
-        try:
-            price_service._cache_price(asset_type, symbol, today, price, currency, "live")
-            _saved_live_prices.add(key)
-        except Exception:
-            db.session.rollback()
-            break
+        if key not in _saved_live_prices:
+            pending[key] = price
+    if not pending:
+        return
+    try:
+        price_service.cache_prices_bulk(
+            [(asset_type, symbol, day, price, currency, "live") for (asset_type, symbol, day, currency), price in pending.items()]
+        )
+        _saved_live_prices.update(pending)
+    except Exception:
+        db.session.rollback()
+
+def _past_prices(candidates, cutoff):
+    """{(asset_type, symbol, currency): price on `cutoff`} for the dashboard movers.
+
+    One query reads every stored price, the ones missing are fetched in parallel (within the
+    same time budget as live prices), and the fetched ones are saved in one batch. Looking them
+    up one at a time cost a query and a slow network call per stock on the first dashboard
+    load of each day.
+    """
+    keys = {(h["asset_type"], h["symbol"], h["currency"]) for h in candidates if h["asset_type"] != "commodity"}
+    prices = {}
+    if not keys:
+        return prices
+    try:
+        rows = PriceHistory.query.filter(
+            PriceHistory.symbol.in_({k[1] for k in keys}), PriceHistory.price_date == cutoff
+        ).all()
+    except Exception:
+        db.session.rollback()
+        rows = []
+    stored = {(r.asset_type, r.symbol, r.currency): r.price for r in rows}
+    missing = []
+    for key in keys:
+        if key in stored:
+            prices[key] = stored[key]
+        elif not price_service._recently_missed((key[0], key[1], cutoff, key[2])):
+            missing.append(key)
+    if not missing:
+        return prices
+
+    pool = ThreadPoolExecutor(max_workers=min(8, len(missing)))
+    futures = {pool.submit(price_service.fetch_historical_price_uncached, k[0], k[1], cutoff, k[2]): k for k in missing}
+    wait(list(futures), timeout=LIVE_PRICE_BUDGET_SECONDS)
+    pool.shutdown(wait=False, cancel_futures=True)
+    to_save = []
+    for future, key in futures.items():
+        if not future.done() or future.exception():
+            continue  # not back in time: leave it for the next load
+        price, source = future.result()
+        if price is not None and price > 0:
+            prices[key] = price
+            to_save.append((key[0], key[1], cutoff, price, key[2], source))
+        else:
+            price_service.remember_miss((key[0], key[1], cutoff, key[2]))
+    try:
+        price_service.cache_prices_bulk(to_save)
+    except Exception:
+        db.session.rollback()
+    return prices
+
 
 def _recent_stored_prices(keys):
     """Latest stored price per (asset_type, symbol, currency) that is within the last PRICE_REFRESH_DAYS days."""
@@ -599,8 +653,10 @@ def build_dashboard(
     # with more than a handful of holdings.
     MAX_MOVER_LOOKUPS = 15
     mover_candidates.sort(key=lambda h: h["display_value"], reverse=True)
-    for h in mover_candidates[:MAX_MOVER_LOOKUPS]:
-        past_price = price_service.get_historical_price(h["asset_type"], h["symbol"], cutoff, h["currency"])
+    top_candidates = mover_candidates[:MAX_MOVER_LOOKUPS]
+    past_prices = _past_prices(top_candidates, cutoff)
+    for h in top_candidates:
+        past_price = past_prices.get((h["asset_type"], h["symbol"], h["currency"]))
         if past_price and past_price > 0 and h.get("current_price"):
             pct_change = ((h["current_price"] - past_price) / past_price) * 100.0
             movers.append({
