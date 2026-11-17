@@ -515,6 +515,8 @@ export interface Goal {
   targetAmount: number;
   currency: string;
   targetDate: string | null;
+  /** Typed-in "saved so far" for a savings goal; null means progress follows net worth. */
+  savedAmount: number | null;
   createdAt: string;
 }
 
@@ -526,6 +528,7 @@ export function mapGoal(g: any): Goal | null {
     targetAmount: safeNumber(g.target_amount),
     currency: g.currency ?? "USD",
     targetDate: g.target_date ?? null,
+    savedAmount: g.saved_amount == null ? null : safeNumber(g.saved_amount),
     createdAt: g.created_at ?? "",
   };
 }

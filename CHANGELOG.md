@@ -1,5 +1,12 @@
 # Changelog
 
+## Broker import, money sent home, savings goals and a trust page
+
+- Import from your broker: upload the holdings download from Zerodha (Console or Kite), Groww, Fidelity or Interactive Brokers, or any file with a symbol, quantity and average cost column. No AI is used, so there is no daily limit. You review the list before anything is saved, and stocks already in the account start unticked so a second import cannot double the quantity.
+- Money sent home: a new page to log transfers to family abroad. It shows the rate you really got, fees paid, the best and worst rate, this year's total and the last 12 months, per currency pair. It never changes a balance. Included in data export, restore and delete-all.
+- Savings goals: a goal can now carry a "saved so far" amount, so a trip or a down payment shows progress and a monthly amount needed, even if your net worth is far above or below the target.
+- A plain-language "Is my data safe?" page, open without signing in and linked from the sign-in screen and Settings. It lists what is protected and, honestly, what is not covered yet.
+
 ## Fewer wasted price lookups
 
 - Past prices for Indian stocks entered without the .NS ending are now looked up as NSE stocks, and the US-only price source is no longer asked about Indian symbols. This removes a batch of guaranteed failures from every dashboard load.

@@ -27,12 +27,14 @@ import MilestoneCelebration from "./components/MilestoneCelebration";
 import Dashboard from "./components/Dashboard";
 const PrivacyPolicy = lazy(() => import("./components/PrivacyPolicy"));
 const TermsOfUse = lazy(() => import("./components/TermsOfUse"));
+const TrustPage = lazy(() => import("./components/TrustPage"));
 const Portfolio = lazy(() => import("./components/Portfolio"));
 const HoldingDetail = lazy(() => import("./components/HoldingDetail"));
 const AddHolding = lazy(() => import("./components/AddHolding"));
 const Transactions = lazy(() => import("./components/Transactions"));
 const Liabilities = lazy(() => import("./components/Liabilities"));
 const ImportCsv = lazy(() => import("./components/ImportCsv"));
+const ImportBroker = lazy(() => import("./components/ImportBroker"));
 const Alerts = lazy(() => import("./components/Alerts"));
 const TaxSummary = lazy(() => import("./components/TaxSummary"));
 const AllocationAdvisor = lazy(() => import("./components/ai/AllocationAdvisor"));
@@ -48,6 +50,7 @@ const ImportBankStatement = lazy(() => import("./components/ImportBankStatement"
 const Insights = lazy(() => import("./components/Insights"));
 const Household = lazy(() => import("./components/Household"));
 const Accounts = lazy(() => import("./components/Accounts"));
+const Remittances = lazy(() => import("./components/Remittances"));
 import Login from "./components/Login";
 import ResetPassword from "./components/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -358,6 +361,7 @@ function AppShell() {
           <MoreMenu
             items={[
               { to: "/add-holding", label: t("nav.addHolding") },
+              { to: "/import-broker", label: "Import from broker" },
               { to: "/import", label: t("nav.importCsv") },
               { to: "/alerts", label: t("nav.alerts") },
               { to: "/tax-summary", label: t("nav.taxSummary") },
@@ -368,6 +372,7 @@ function AppShell() {
               { to: "/review", label: t("nav.review") },
               { to: "/household", label: t("nav.household") },
               { to: "/accounts", label: t("nav.accounts") },
+              { to: "/remittances", label: "Money sent home" },
             ]}
           />
           <button
@@ -447,6 +452,7 @@ function AppShell() {
               <Route path="import-spreadsheet" element={<ImportSpreadsheet />} />
               <Route path="import-bank-statement" element={<ImportBankStatement />} />
               <Route path="import" element={<ImportCsv />} />
+              <Route path="import-broker" element={<ImportBroker />} />
               <Route path="alerts" element={<Alerts />} />
               <Route path="tax-summary" element={<TaxSummary />} />
               <Route path="insights" element={<Insights />} />
@@ -459,6 +465,7 @@ function AppShell() {
               <Route path="review" element={<YearInReview />} />
               <Route path="household" element={<Household />} />
               <Route path="accounts" element={<Accounts />} />
+              <Route path="remittances" element={<Remittances />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
@@ -482,6 +489,14 @@ function AppRoutes() {
         element={
           <Suspense fallback={null}>
             <PrivacyPolicy />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/security"
+        element={
+          <Suspense fallback={null}>
+            <TrustPage />
           </Suspense>
         }
       />

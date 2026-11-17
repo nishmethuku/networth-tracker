@@ -16,17 +16,21 @@ def list_goals(user_id) -> List[Dict]:
     return [g.to_dict() for g in goals]
 
 
-def create_goal(user_id, name: str, target_amount: float, currency: str, target_date: Optional[date]) -> Dict:
+def create_goal(user_id, name: str, target_amount: float, currency: str, target_date: Optional[date],
+                saved_amount: Optional[float] = None) -> Dict:
     if not name or not name.strip():
         raise ValueError("name is required")
     if target_amount <= 0:
         raise ValueError("target_amount must be positive")
+    if saved_amount is not None and saved_amount < 0:
+        raise ValueError("saved_amount can't be negative")
     goal = Goal(
         user_id=user_id,
         name=name.strip(),
         target_amount=target_amount,
         currency=currency,
         target_date=target_date,
+        saved_amount=saved_amount,
     )
     db.session.add(goal)
     db.session.commit()
@@ -49,6 +53,10 @@ def update_goal(goal_id, user_id, **fields) -> Dict:
         goal.currency = fields["currency"]
     if "target_date" in fields:
         goal.target_date = fields["target_date"]
+    if "saved_amount" in fields:
+        if fields["saved_amount"] is not None and fields["saved_amount"] < 0:
+            raise ValueError("saved_amount can't be negative")
+        goal.saved_amount = fields["saved_amount"]
     db.session.commit()
     return goal.to_dict()
 

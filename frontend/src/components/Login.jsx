@@ -511,7 +511,8 @@ export default function Login() {
           </>
         )}
         <p style={{ textAlign: "center", fontSize: "0.8125rem", color: "var(--text-muted)", margin: "1.25rem 0 0" }}>
-          By continuing you agree to the <a href="/terms">terms</a> and <a href="/privacy">privacy policy</a>.
+          By continuing you agree to the <a href="/terms">terms</a> and <a href="/privacy">privacy policy</a>.{" "}
+          <a href="/security">Is my data safe?</a>
         </p>
       </div>
     </div>

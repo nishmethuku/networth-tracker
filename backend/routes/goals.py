@@ -23,6 +23,14 @@ DIGEST_SECRET = os.environ.get("DIGEST_SECRET") or SNAPSHOT_SECRET
 logger = logging.getLogger("networth_tracker")
 
 
+def _saved(data):
+    """saved_amount is optional: blank or missing means "measure progress against net worth"."""
+    raw = data.get("saved_amount")
+    if raw is None or raw == "":
+        return None
+    return safe_float(raw)
+
+
 def register(app, h):
     @app.route("/goals", methods=["GET"])
     @require_auth
@@ -40,6 +48,7 @@ def register(app, h):
                 target_amount=safe_float(data.get("target_amount")),
                 currency=data.get("currency", "USD"),
                 target_date=date.fromisoformat(data["target_date"]) if data.get("target_date") else None,
+                saved_amount=_saved(data),
             )
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
@@ -58,6 +67,8 @@ def register(app, h):
             fields["currency"] = data["currency"]
         if "target_date" in data:
             fields["target_date"] = date.fromisoformat(data["target_date"]) if data["target_date"] else None
+        if "saved_amount" in data:
+            fields["saved_amount"] = _saved(data)
         try:
             goal = update_goal(goal_id, g.user_id, **fields)
         except ValueError as e:

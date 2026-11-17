@@ -20,7 +20,17 @@ export const QUICK_PAGES: QuickPage[] = [
   { to: "/tax-summary", title: "Tax summary", keywords: ["gains", "capital", "harvest", "taxes"] },
   { to: "/alerts", title: "Alerts", keywords: ["price", "notify", "notifications"] },
   { to: "/accounts", title: "Accounts", keywords: ["brokerage", "bank", "institutions"] },
+  {
+    to: "/remittances",
+    title: "Money sent home",
+    keywords: ["remittance", "remit", "wise", "remitly", "send money", "family", "india", "transfer abroad", "exchange rate", "fees"],
+  },
   { to: "/household", title: "Household", keywords: ["family", "share", "members", "invite"] },
+  {
+    to: "/import-broker",
+    title: "Import from broker",
+    keywords: ["zerodha", "groww", "fidelity", "ibkr", "interactive brokers", "stocks", "holdings", "upload"],
+  },
   { to: "/import", title: "Import CSV", keywords: ["upload", "csv", "file"] },
   { to: "/import-spreadsheet", title: "Import spreadsheet", keywords: ["excel", "xlsx", "upload"] },
   { to: "/import-bank-statement", title: "Import bank statement", keywords: ["pdf", "statement", "upload"] },

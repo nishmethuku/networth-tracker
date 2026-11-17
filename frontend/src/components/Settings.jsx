@@ -502,7 +502,7 @@ export default function Settings() {
             </button>
           </div>
           <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginTop: "1rem", marginBottom: 0 }}>
-            <Link to="/privacy">Privacy policy</Link> · <Link to="/terms">Terms of use</Link>
+            <Link to="/security">Is my data safe?</Link> · <Link to="/privacy">Privacy policy</Link> · <Link to="/terms">Terms of use</Link>
           </p>
         </Card>
       </div>

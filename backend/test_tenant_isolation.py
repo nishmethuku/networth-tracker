@@ -133,6 +133,10 @@ def world(client):
     assert r.status_code == 201, r.get_json()
     ids["goal"] = r.get_json()["id"]
 
+    r = a("post", "/remittances", {"sent_date": "2026-01-05", "recipient": f"{MARKER} mom", "amount_sent": 500, "currency_sent": "USD", "amount_received": 41000, "currency_received": "INR", "fee": 3})
+    assert r.status_code == 201, r.get_json()
+    ids["remittance"] = r.get_json()["id"]
+
     r = a("post", "/alerts", {"alert_type": "net_worth_above", "threshold": 12345})
     assert r.status_code == 201, r.get_json()
     ids["alert"] = r.get_json()["id"]
@@ -158,7 +162,7 @@ def world(client):
 def snapshot_of_a(client):
     """A's view of her own data, for before/after comparison."""
     out = {}
-    for path in ("/holdings", "/liabilities", "/budget/entries", "/budget/categories", "/budget/limits", "/goals", "/alerts", "/accounts"):
+    for path in ("/holdings", "/liabilities", "/budget/entries", "/budget/categories", "/budget/limits", "/goals", "/remittances", "/alerts", "/accounts"):
         r = call(client, "token-a", "get", path)
         assert r.status_code == 200, (path, r.status_code)
         out[path] = r.get_json()
@@ -187,6 +191,8 @@ def attacks(ids):
         ("delete", f"/accounts/{ids['account']}", None),
         ("put", f"/goals/{ids['goal']}", {"name": "pwned", "target_amount": 1}),
         ("delete", f"/goals/{ids['goal']}", None),
+        ("put", f"/remittances/{ids['remittance']}", {"recipient": "pwned"}),
+        ("delete", f"/remittances/{ids['remittance']}", None),
         ("put", f"/budget/entries/{ids['entry']}", {"amount": 1}),
         ("delete", f"/budget/entries/{ids['entry']}", None),
         ("delete", f"/budget/categories/{ids['category']}", None),
@@ -238,6 +244,7 @@ def test_user_b_lists_and_exports_never_contain_user_a_data(client, world):
         "/budget/limits",
         "/budget/summary",
         "/goals",
+        "/remittances",
         "/alerts",
         "/accounts",
         "/milestones",
