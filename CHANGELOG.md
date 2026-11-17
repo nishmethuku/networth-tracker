@@ -1,5 +1,9 @@
 # Changelog
 
+## Fewer refreshes when switching tabs
+
+- Page data is now treated as fresh for five minutes instead of one. Switching back to the tab within that time no longer re-runs every query, which cuts requests to the free server. Anything you add, edit or delete still refreshes the numbers right away.
+
 ## Tax summary loads faster
 
 - The Tax summary page read each stock's transactions with a separate query, 101 queries for 100 stocks. It now reads them all in one, 2 queries in total.

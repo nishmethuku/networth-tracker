@@ -28,8 +28,11 @@ export const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60, // 1 minute
-      refetchOnWindowFocus: true, // coming back to the tab or app shows current numbers
+      // Prices update once a day and every change made in the app refreshes the money views itself,
+      // so five minutes is safe. At one minute, each trip back to the tab re-ran every page query
+      // against a server that has a small share of one CPU.
+      staleTime: 1000 * 60 * 5,
+      refetchOnWindowFocus: true, // coming back after the data is stale shows current numbers
       retry: shouldRetryQuery,
     },
   },
