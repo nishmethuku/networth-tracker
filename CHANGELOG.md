@@ -1,5 +1,9 @@
 # Changelog
 
+## Tax summary loads faster
+
+- The Tax summary page read each stock's transactions with a separate query, 101 queries for 100 stocks. It now reads them all in one, 2 queries in total.
+
 ## Faster first load of the day
 
 - The first Portfolio load of each day made about 300 database queries for 100 stocks (a save and a reload per stock). Prices are now saved in one batch, which takes 5 queries.

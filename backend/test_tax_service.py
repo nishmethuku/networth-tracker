@@ -187,3 +187,21 @@ def test_bonus_shares_have_zero_cost_and_own_holding_date():
     events, splits = _lot_matched_realized_events(txs, "lifo")
     assert events[0]["amount"] == 1000  # sells the free shares first
     assert splits[0]["short_term_qty"] == 10
+
+
+def test_tax_summary_reads_all_transactions_in_one_query(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from backend import tax_service
+
+    holdings = [SimpleNamespace(id=i, asset_type="stock", country="United States", symbol=f"S{i}", name=f"S{i}") for i in (1, 2, 3)]
+    fake_holding = MagicMock()
+    fake_holding.query.filter_by.return_value.filter.return_value.all.return_value = holdings
+    monkeypatch.setattr(tax_service, "Holding", fake_holding)
+    fake_tx = MagicMock()
+    fake_tx.query.filter.return_value.all.return_value = []
+    monkeypatch.setattr(tax_service, "HoldingTransaction", fake_tx)
+
+    assert tax_service.get_tax_summary(user_id="u") == []
+    assert fake_tx.query.filter.call_count == 1  # not one per holding

@@ -207,8 +207,15 @@ def get_tax_summary(user_id=None, household_id=None, cost_basis_method: str = "a
 
     buckets: Dict[tuple, Dict] = {}
 
+    # One query for every holding's transactions, not one query per holding.
+    transactions_by_holding: Dict[int, List[HoldingTransaction]] = {hid: [] for hid in quantity_holdings}
+    for tx in HoldingTransaction.query.filter(
+        HoldingTransaction.holding_id.in_(list(quantity_holdings)), HoldingTransaction.deleted_at.is_(None)
+    ).all():
+        transactions_by_holding[tx.holding_id].append(tx)
+
     for holding_id, holding in quantity_holdings.items():
-        transactions = HoldingTransaction.query.filter_by(holding_id=holding_id).filter(HoldingTransaction.deleted_at.is_(None)).all()
+        transactions = transactions_by_holding[holding_id]
         years = holding_period_years(holding.country, holding.asset_type)
         if cost_basis_method in ("fifo", "lifo"):
             realized_events, holding_period_splits = _lot_matched_realized_events(transactions, cost_basis_method, years)
