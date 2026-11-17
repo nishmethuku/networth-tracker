@@ -1,5 +1,10 @@
 # Changelog
 
+## Faster first load of the day
+
+- The first Portfolio load of each day made about 300 database queries for 100 stocks (a save and a reload per stock). Prices are now saved in one batch, which takes 5 queries.
+- The Dashboard's "top movers" looked up 15 past prices one after another. They now come from one query, and any missing ones are fetched in parallel and saved in one batch. In a test with the price sites unreachable, the Dashboard went from 3.7 seconds to 0.6.
+
 ## Broker import, money sent home, savings goals and a trust page
 
 - Import from your broker: upload the holdings download from Zerodha (Console or Kite), Groww, Fidelity or Interactive Brokers, or any file with a symbol, quantity and average cost column. No AI is used, so there is no daily limit. You review the list before anything is saved, and stocks already in the account start unticked so a second import cannot double the quantity.

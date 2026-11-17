@@ -113,6 +113,46 @@ def _cache_price(asset_type: str, symbol: str, price_date: date, price: float, c
         db.session.rollback()
 
 
+def cache_prices_bulk(rows):
+    """Save many (asset_type, symbol, price_date, price, currency, source) rows in two queries.
+
+    One SELECT finds the rows that already exist, then the new ones are inserted and the
+    existing ones updated in a single commit. It runs on its own session so the request's
+    session is not committed: a commit there expires every loaded holding, and reading them
+    again afterwards costs one query each. Saving one price at a time cost about three
+    queries per symbol, which is a few seconds for 100 stocks on the first load of a day.
+    """
+    rows = list(rows)
+    if not rows:
+        return
+    from sqlalchemy.orm import Session
+
+    with Session(db.engine) as session:
+        try:
+            symbols = {r[1] for r in rows}
+            dates = {r[2] for r in rows}
+            existing = {
+                (p.asset_type, p.symbol, p.price_date, p.currency): p
+                for p in session.query(PriceHistory)
+                .filter(PriceHistory.symbol.in_(symbols), PriceHistory.price_date.in_(dates))
+                .all()
+            }
+            for asset_type, symbol, price_date, price, currency, source in rows:
+                found = existing.get((asset_type, symbol, price_date, currency))
+                if found:
+                    found.price = price
+                    found.source = source
+                else:
+                    session.add(PriceHistory(
+                        asset_type=asset_type, symbol=symbol, price_date=price_date,
+                        price=price, currency=currency, source=source,
+                    ))
+            session.commit()
+        except IntegrityError:
+            # A concurrent request saved the same day's price first: harmless.
+            session.rollback()
+
+
 def _get_mftool_historical_nav(scheme_code: str, target_date: date) -> Optional[float]:
     from .utils import MFTOOL_AVAILABLE, mf
     if not MFTOOL_AVAILABLE or not mf:
@@ -154,6 +194,22 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
     if _recently_missed(miss_key):
         return None
 
+    price, source = fetch_historical_price_uncached(asset_type, symbol, target_date, currency)
+
+    if price is not None:
+        _cache_price(asset_type, symbol, target_date, price, currency, source)
+    else:
+        remember_miss(miss_key)
+    return price
+
+
+def remember_miss(miss_key) -> None:
+    _historical_misses[miss_key] = time.time() + _MISS_TTL_SECONDS
+
+
+def fetch_historical_price_uncached(asset_type: str, symbol: str, target_date: date, currency: str = "USD"):
+    """(price, source) straight from the outside price sources. Touches no database, so it is
+    safe to run in worker threads and in parallel."""
     price = None
     source = None
     if asset_type == "crypto":
@@ -171,12 +227,7 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
             # about an Indian symbol is a guaranteed wasted call.
             price = get_historical_price_from_finnhub(symbol, target_date)
             source = "finnhub"
-
-    if price is not None:
-        _cache_price(asset_type, symbol, target_date, price, currency, source)
-    else:
-        _historical_misses[miss_key] = time.time() + _MISS_TTL_SECONDS
-    return price
+    return price, source
 
 
 def get_rate(from_currency: str, to_currency: str, target_date: Optional[date] = None) -> Optional[float]:
