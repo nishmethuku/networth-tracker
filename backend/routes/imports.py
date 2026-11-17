@@ -1,11 +1,14 @@
 """Routes: imports. Moved out of app.py unchanged; shared helpers come in through `h`."""
 import logging
 import os
+from datetime import date
 
 from flask import g, jsonify, request
 
 from ..auth import require_auth
 from ..bank_import_service import confirm_bank_import, parse_statement
+from ..broker_import_service import parse_broker_file
+from ..models import Holding
 from ..simple_csv_import_service import parse_simple_csv
 from ..smart_import_service import confirm_smart_import, parse_spreadsheet
 
@@ -53,6 +56,47 @@ def register(app, h):
                     "error": "Couldn't read this file as text. Try re-saving it as \"CSV UTF-8\" from Excel/Sheets and uploading again."
                 }), 400
         result = parse_simple_csv(text)
+        return jsonify(result)
+
+    @app.route("/import/broker-parse", methods=["POST"])
+    @require_auth
+    @limiter.limit("30 per hour")
+    def import_broker_parse():
+        """Deterministic (no AI) read of a broker holdings download --
+        Zerodha, Groww, Fidelity, Interactive Brokers, or any symbol/quantity/
+        average-cost table. Confirm goes through /import/smart-confirm, same
+        as the CSV import, so an existing holding is topped up, not forked."""
+        file = request.files.get("file")
+        if not file or not file.filename:
+            return jsonify({"error": "file is required"}), 400
+        household_id = request.form.get("household_id") or None
+        validate_household_id_for_write(household_id)
+        account = (request.form.get("account") or "").strip()
+        as_of = None
+        if request.form.get("as_of"):
+            try:
+                as_of = date.fromisoformat(request.form["as_of"])
+            except ValueError:
+                return jsonify({"error": "as_of must be a date like 2026-11-17"}), 400
+        currency = (request.form.get("currency") or "USD").upper()
+        country = request.form.get("country") or "United States"
+
+        existing = {
+            ((hold.account or "").strip().lower(), (hold.symbol or "").upper())
+            for hold in Holding.query.filter(
+                Holding.user_id == g.user_id,
+                Holding.household_id == household_id,
+                Holding.asset_type == "stock",
+                Holding.deleted_at.is_(None),
+            ).all()
+        }
+        try:
+            result = parse_broker_file(
+                file.read(), file.filename, account, as_of, existing,
+                default_currency=currency, default_country=country,
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
         return jsonify(result)
 
     @app.route("/import/smart-parse", methods=["POST"])

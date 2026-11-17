@@ -9,6 +9,7 @@ const TITLES: Record<string, string> = {
   "/import-spreadsheet": "Import spreadsheet",
   "/import-bank-statement": "Import bank statement",
   "/import": "Import CSV",
+  "/import-broker": "Import from broker",
   "/alerts": "Alerts",
   "/tax-summary": "Tax summary",
   "/insights": "Insights",
@@ -21,6 +22,7 @@ const TITLES: Record<string, string> = {
   "/start": "Add your first holding",
   "/household": "Household",
   "/accounts": "Accounts",
+  "/remittances": "Money sent home",
 };
 
 export const APP_NAME = "Personal Net Worth Tracker";

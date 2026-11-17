@@ -10,6 +10,13 @@ test("privacy policy and terms open without signing in", async ({ page }) => {
   await expect(page.getByText("Not financial advice", { exact: true })).toBeVisible();
 });
 
+test("the trust page opens without signing in and says what is not covered", async ({ page }) => {
+  await page.goto("/security");
+  await expect(page.getByRole("heading", { name: "Is my data safe?" })).toBeVisible();
+  await expect(page.getByText("We never sell your data")).toBeVisible();
+  await expect(page.getByText("No independent security audit")).toBeVisible();
+});
+
 test("deleting the account needs the typed phrase and sends it", async ({ mockedPage: page }) => {
   let body: any = null;
   await page.route(`${API_BASE}/account`, (route) => {
@@ -26,7 +33,7 @@ test("deleting the account needs the typed phrase and sends it", async ({ mocked
   await expect.poll(() => body).toEqual({ confirm: "DELETE ACCOUNT" });
 });
 
-for (const path of ["/privacy", "/terms"]) {
+for (const path of ["/privacy", "/terms", "/security"]) {
   for (const theme of ["light", "dark"]) {
     test(`${path} passes the accessibility scan in ${theme} mode`, async ({ page }) => {
       await page.goto(path);

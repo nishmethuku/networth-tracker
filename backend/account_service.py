@@ -38,8 +38,10 @@ from .models import (
     NetWorthSnapshot,
     PriceAlert,
     PushSubscription,
+    Remittance,
     db,
 )
+from .remittance_service import clean as clean_remittance
 from .services import safe_float
 
 
@@ -69,6 +71,7 @@ def export_user_data(user_id) -> Dict:
     accounts = Account.query.filter_by(user_id=user_id).all()
     liabilities = Liability.query.filter_by(user_id=user_id).all()
     transfers = AccountTransfer.query.filter_by(user_id=user_id).all()
+    remittances = Remittance.query.filter_by(user_id=user_id).all()
     goals = Goal.query.filter_by(user_id=user_id).all()
     allocation_targets = AllocationTarget.query.filter_by(user_id=user_id).all()
     push_subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
@@ -91,6 +94,7 @@ def export_user_data(user_id) -> Dict:
         "budget_categories": [c.to_dict() for c in budget_categories],
         "liabilities": [liability.to_dict() for liability in liabilities],
         "account_transfers": [t.to_dict() for t in transfers],
+        "remittances": [r.to_dict() for r in remittances],
         "goals": [g.to_dict() for g in goals],
         "allocation_targets": [t.to_dict() for t in allocation_targets],
         "push_subscriptions": [p.to_dict() for p in push_subscriptions],
@@ -150,6 +154,7 @@ def delete_all_user_data(user_id) -> Dict:
     snapshots_count = NetWorthSnapshot.query.filter_by(user_id=user_id).delete()
     liabilities_count = Liability.query.filter_by(user_id=user_id).delete()
     AccountTransfer.query.filter_by(user_id=user_id).delete()
+    remittances_count = Remittance.query.filter_by(user_id=user_id).delete()
     goals_count = Goal.query.filter_by(user_id=user_id).delete()
     allocation_targets_count = AllocationTarget.query.filter_by(user_id=user_id).delete()
     budget_entries_count = BudgetEntry.query.filter_by(user_id=user_id).delete()
@@ -177,6 +182,7 @@ def delete_all_user_data(user_id) -> Dict:
         "net_worth_snapshots_deleted": snapshots_count,
         "accounts_deleted": accounts_count,
         "liabilities_deleted": liabilities_count,
+        "remittances_deleted": remittances_count,
         "goals_deleted": goals_count,
         "allocation_targets_deleted": allocation_targets_count,
         "budget_entries_deleted": budget_entries_count,
@@ -393,6 +399,7 @@ def restore_user_data(user_id, data: Dict) -> Dict:
             target_amount=safe_float(row["target_amount"]),
             currency=row.get("currency", "USD"),
             target_date=_parse_date(row.get("target_date")),
+            saved_amount=safe_float(row["saved_amount"]) if row.get("saved_amount") is not None else None,
         ))
         goals_restored += 1
 
@@ -457,6 +464,16 @@ def restore_user_data(user_id, data: Dict) -> Dict:
         ))
         budget_entries_restored += 1
 
+    remittances_restored = 0
+    for row in data.get("remittances", []):
+        try:
+            cleaned = clean_remittance({**row, "sent_date": row.get("sent_date")})
+        except (ValueError, TypeError, AttributeError):
+            _skip("remittances")
+            continue
+        db.session.add(Remittance(user_id=user_id, **cleaned))
+        remittances_restored += 1
+
     db.session.commit()
 
     return {
@@ -469,6 +486,7 @@ def restore_user_data(user_id, data: Dict) -> Dict:
         "net_worth_snapshots_restored": snapshots_restored,
         "accounts_restored": accounts_restored,
         "goals_restored": goals_restored,
+        "remittances_restored": remittances_restored,
         "allocation_targets_restored": allocation_targets_restored,
         "budget_categories_restored": budget_categories_restored,
         "budget_limits_restored": budget_limits_restored,

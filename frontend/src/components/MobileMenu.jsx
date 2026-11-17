@@ -16,6 +16,7 @@ const MENU_LINKS = [
   { to: "/add-holding", labelKey: "nav.addHolding", icon: "➕" },
   { to: "/liabilities", labelKey: "nav.liabilities", icon: "🏦" },
   { to: "/insights", labelKey: "nav.insights", icon: "📈" },
+  { to: "/import-broker", label: "Import from broker", icon: "🏦" },
   { to: "/import", labelKey: "nav.importCsv", icon: "📥" },
   { to: "/import-bank-statement", label: "Import statement", icon: "✨" },
   { to: "/alerts", labelKey: "nav.alerts", icon: "🔔" },
@@ -26,6 +27,7 @@ const MENU_LINKS = [
   { to: "/review", labelKey: "nav.review", icon: "🎉" },
   { to: "/household", labelKey: "nav.household", icon: "👪" },
   { to: "/accounts", labelKey: "nav.accounts", icon: "🏷️" },
+  { to: "/remittances", label: "Money sent home", icon: "🌏" },
   { to: "/help", label: "Help", icon: "❓" },
   { to: "/settings", labelKey: "nav.settings", icon: "⚙️" },
 ];

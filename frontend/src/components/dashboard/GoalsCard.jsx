@@ -31,16 +31,32 @@ function daysRemaining(targetDate) {
   return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
 
+/** Months until `targetDate` (at least 1), or null when there is no date or it has passed. */
+function monthsLeft(targetDate) {
+  const days = daysRemaining(targetDate);
+  if (days == null || days <= 0) return null;
+  return Math.max(1, Math.round(days / 30.4375));
+}
+
 function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete, onEdit }) {
-  const sameCurrency = goal.currency === displayCurrency;
-  const pct = sameCurrency && goal.targetAmount > 0 ? Math.min(100, (currentNetWorth / goal.targetAmount) * 100) : null;
-  const remaining = sameCurrency ? Math.max(0, goal.targetAmount - currentNetWorth) : null;
+  // A savings goal carries its own "saved so far", in the goal's own currency,
+  // so it needs no currency match. Otherwise progress follows net worth.
+  const hasSaved = goal.savedAmount != null;
+  const base = hasSaved ? goal.savedAmount : currentNetWorth;
+  const sameCurrency = hasSaved || goal.currency === displayCurrency;
+  const pct = sameCurrency && goal.targetAmount > 0 ? Math.min(100, (base / goal.targetAmount) * 100) : null;
+  const remaining = sameCurrency ? Math.max(0, goal.targetAmount - base) : null;
   const days = daysRemaining(goal.targetDate);
+  const savingsMonths = hasSaved ? monthsLeft(goal.targetDate) : null;
   const needed =
     sameCurrency && remaining > 0 && goal.targetDate
-      ? requiredMonthly(currentNetWorth, goal.targetAmount, goal.targetDate, todayISO())
+      ? hasSaved
+        ? savingsMonths
+          ? remaining / savingsMonths
+          : null
+        : requiredMonthly(base, goal.targetAmount, goal.targetDate, todayISO())
       : null;
-  const eta = sameCurrency && remaining > 0 ? goalEta(history, currentNetWorth, goal.targetAmount, todayISO()) : null;
+  const eta = sameCurrency && !hasSaved && remaining > 0 ? goalEta(history, base, goal.targetAmount, todayISO()) : null;
 
   return (
     <div style={{ padding: "0.75rem 0", borderBottom: "1px solid var(--border-light)" }}>
@@ -115,8 +131,8 @@ function GoalRow({ goal, currentNetWorth, displayCurrency, history, onDelete, on
           </div>
           {needed != null && needed > 0 && (
             <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.25rem" }}>
-              To hit it by the target date, add about {formatCurrencyForDisplay(needed, goal.currency, { includeCode: false })} a month
-              (assuming 5% growth).
+              To hit it by the target date, save about {formatCurrencyForDisplay(needed, goal.currency, { includeCode: false })} a month
+              {hasSaved ? "." : " (assuming 5% growth)."}
             </div>
           )}
           {eta && (
@@ -140,8 +156,14 @@ function AddGoalForm({ onDone, defaultCurrency, goal }) {
   const editing = !!goal;
   const [form, setForm] = useState(
     editing
-      ? { name: goal.name, target_amount: String(goal.targetAmount), currency: goal.currency, target_date: goal.targetDate || "" }
-      : { name: "", target_amount: "", currency: defaultCurrency, target_date: "" },
+      ? {
+          name: goal.name,
+          target_amount: String(goal.targetAmount),
+          currency: goal.currency,
+          target_date: goal.targetDate || "",
+          saved_amount: goal.savedAmount == null ? "" : String(goal.savedAmount),
+        }
+      : { name: "", target_amount: "", currency: defaultCurrency, target_date: "", saved_amount: "" },
   );
 
   const mutation = useMutation({
@@ -151,6 +173,7 @@ function AddGoalForm({ onDone, defaultCurrency, goal }) {
         target_amount: parseFloat(form.target_amount),
         currency: form.currency,
         target_date: form.target_date || null,
+        saved_amount: form.saved_amount === "" ? null : parseFloat(form.saved_amount),
       };
       return editing ? updateGoal(goal.id, payload) : createGoal(payload);
     },
@@ -183,7 +206,7 @@ function AddGoalForm({ onDone, defaultCurrency, goal }) {
         <input
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="e.g., Retirement"
+          placeholder="e.g., India trip"
           style={inputStyle}
           required
         />
@@ -198,6 +221,20 @@ function AddGoalForm({ onDone, defaultCurrency, goal }) {
           onChange={(e) => setForm({ ...form, target_amount: e.target.value })}
           style={inputStyle}
           required
+        />
+      </div>
+      <div>
+        <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)", display: "block", marginBottom: "0.2rem" }}>
+          Saved so far (optional)
+        </label>
+        <input
+          type="number"
+          step="any"
+          min="0"
+          value={form.saved_amount}
+          onChange={(e) => setForm({ ...form, saved_amount: e.target.value })}
+          placeholder="blank = use net worth"
+          style={inputStyle}
         />
       </div>
       <div>
@@ -279,7 +316,7 @@ export default function GoalsCard({ currentNetWorth, displayCurrency, history })
   return (
     <Card title="Goals">
       {!goals || goals.length === 0 ? (
-        <EmptyState message="No goals yet — set a net worth target to track progress toward it." />
+        <EmptyState message="No goals yet — add a savings goal (a trip, a down payment) or a net worth target." />
       ) : (
         <div>
           {goals.map((goal) => (

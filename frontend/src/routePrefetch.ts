@@ -8,6 +8,7 @@ const loaders: Record<string, () => Promise<unknown>> = {
   "/budget": () => import("./components/Budget"),
   "/expenses": () => import("./components/Expenses"),
   "/import": () => import("./components/ImportCsv"),
+  "/import-broker": () => import("./components/ImportBroker"),
   "/alerts": () => import("./components/Alerts"),
   "/tax-summary": () => import("./components/TaxSummary"),
   "/insights": () => import("./components/Insights"),
@@ -17,6 +18,7 @@ const loaders: Record<string, () => Promise<unknown>> = {
   "/settings": () => import("./components/Settings"),
   "/household": () => import("./components/Household"),
   "/accounts": () => import("./components/Accounts"),
+  "/remittances": () => import("./components/Remittances"),
 };
 
 const started = new Set<string>();

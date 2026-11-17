@@ -461,6 +461,21 @@ export async function simpleCsvParse(file: File) {
 }
 
 /**
+ * Deterministic (no AI) read of a broker holdings download (Zerodha, Groww,
+ * Fidelity, Interactive Brokers, or any symbol/quantity/average-cost table).
+ * Confirms through smartImportConfirm, same as the CSV import.
+ */
+export async function brokerImportParse(file: File, opts: { account: string; asOf?: string; currency?: string; country?: string }) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("account", opts.account);
+  if (opts.asOf) formData.append("as_of", opts.asOf);
+  if (opts.currency) formData.append("currency", opts.currency);
+  if (opts.country) formData.append("country", opts.country);
+  return uploadWithColdStartRetry("/import/broker-parse", formData);
+}
+
+/**
  * AI features (copilot chat, allocation advisor, transaction categorizer, NL search).
  * All require owner/editor household role server-side and return a clean
  * 503/{configured:false} shape until GEMINI_API_KEY is set — never a crash.
@@ -608,6 +623,26 @@ export async function updateGoal(id: number | string, payload: any) {
 
 export async function deleteGoal(id: number | string) {
   await api.delete(`/goals/${id}`);
+}
+
+/**
+ * Remittances: a log of money sent to family abroad, with the real rate,
+ * fees and yearly totals worked out server-side.
+ */
+export async function fetchRemittances() {
+  return api.get("/remittances");
+}
+
+export async function createRemittance(payload: any) {
+  return api.post("/remittances", payload);
+}
+
+export async function updateRemittance(id: number | string, payload: any) {
+  return api.put(`/remittances/${id}`, payload);
+}
+
+export async function deleteRemittance(id: number | string) {
+  await api.delete(`/remittances/${id}`);
 }
 
 /**

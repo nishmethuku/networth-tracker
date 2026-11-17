@@ -595,6 +595,9 @@ class Goal(db.Model):
     target_amount = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
     currency = db.Column(db.String(8), nullable=False)
     target_date = db.Column(db.Date, nullable=True)
+    # Typed-in "saved so far" for a savings goal (a trip, a down payment). When
+    # set, progress is measured against this instead of total net worth.
+    saved_amount = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=True)
 
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
 
@@ -606,6 +609,44 @@ class Goal(db.Model):
             "target_amount": self.target_amount,
             "currency": self.currency,
             "target_date": self.target_date.isoformat() if self.target_date else None,
+            "saved_amount": self.saved_amount,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class Remittance(db.Model):
+    """One transfer of money to family or a person abroad (for example USD sent, INR received).
+    A log only: it never changes a balance, so it is not counted as spending or income.
+    amount_sent is the total that left the person's account including any fee."""
+    __tablename__ = "remittances"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False, index=True)
+    sent_date = db.Column(db.Date, nullable=False)
+    recipient = db.Column(db.String(80), nullable=False)
+    provider = db.Column(db.String(60))
+    amount_sent = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
+    currency_sent = db.Column(db.String(8), nullable=False)
+    amount_received = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False)
+    currency_received = db.Column(db.String(8), nullable=False)
+    fee = db.Column(db.Numeric(18, 4, asdecimal=False), nullable=False, default=0)
+    note = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+
+    def to_dict(self):
+        rate = (self.amount_received / self.amount_sent) if self.amount_sent else None
+        return {
+            "id": self.id,
+            "sent_date": self.sent_date.isoformat(),
+            "recipient": self.recipient,
+            "provider": self.provider,
+            "amount_sent": self.amount_sent,
+            "currency_sent": self.currency_sent,
+            "amount_received": self.amount_received,
+            "currency_received": self.currency_received,
+            "fee": self.fee or 0,
+            "effective_rate": round(rate, 4) if rate is not None else None,
+            "note": self.note,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

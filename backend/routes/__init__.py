@@ -12,6 +12,7 @@ from . import (
     jobs,
     liabilities,
     milestones,
+    remittances,
     search,
     sync,
     transfers,
@@ -34,3 +35,4 @@ def register_all(app, h):
     budget.register(app, h)
     sync.register(app, h)
     transfers.register(app, h)
+    remittances.register(app, h)
