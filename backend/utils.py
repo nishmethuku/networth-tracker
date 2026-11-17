@@ -175,7 +175,8 @@ def get_historical_price_from_finnhub(ticker: str, target_date: date):
     the free tier — it's paid-only despite live quotes working fine.
     get_historical_price_from_yahoo is the primary historical source now.
     """
-    if not FINNHUB_API_KEY:
+    # Paid-only endpoint: skip the guaranteed 403 unless a paid plan is opted into.
+    if not FINNHUB_API_KEY or os.getenv("FINNHUB_CANDLES_ENABLED", "").lower() not in ("1", "true", "yes"):
         return None
     try:
         import calendar
@@ -233,7 +234,10 @@ def get_historical_price_from_yahoo(ticker: str, target_date: date):
         price = float(closes[-1])
         return price if price > 0 else None
     except Exception as e:
-        logger.warning("Yahoo historical price fetch failed for %s: %s", ticker, e)
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        # 404 means the ticker is unknown or delisted: expected, not worth a warning.
+        log = logger.info if status == 404 else logger.warning
+        log("Yahoo historical price fetch failed for %s: %s", ticker, e)
         return None
 
 
