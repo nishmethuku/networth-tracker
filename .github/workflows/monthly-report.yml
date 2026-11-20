@@ -26,7 +26,7 @@ jobs:
             -H "X-Snapshot-Secret: ${{ secrets.SNAPSHOT_SECRET }}")
           echo "Response ($status):"
           cat /tmp/response.json
-          if [ "$status" != "200" ]; then
+          if [ "$status" != "200" ] && [ "$status" != "202" ]; then
             echo "Monthly report request failed with status $status"
             exit 1
           fi
