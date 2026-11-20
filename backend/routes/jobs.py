@@ -3,6 +3,7 @@ import hmac
 import html
 import logging
 import os
+import threading
 
 from flask import jsonify, request
 
@@ -26,6 +27,35 @@ SNAPSHOT_SECRET = os.environ.get("SNAPSHOT_SECRET")
 DIGEST_SECRET = os.environ.get("DIGEST_SECRET") or SNAPSHOT_SECRET
 
 logger = logging.getLogger("networth_tracker")
+
+_running_jobs = set()
+_running_lock = threading.Lock()
+
+
+def _run_in_background(app, name, fn):
+    """Run a slow email job off the request thread.
+
+    The weekly digest takes minutes on Render's free tier. Running it inside the
+    request tied up a worker thread (and most of the 0.1 CPU) while people were
+    using the app, and the cron call timed out. Returns False if the same job is
+    already running, so a repeated trigger cannot double-send emails."""
+    with _running_lock:
+        if name in _running_jobs:
+            return False
+        _running_jobs.add(name)
+
+    def _target():
+        try:
+            with app.app_context():
+                fn()
+        except Exception:
+            logger.exception("Background job %s failed", name)
+        finally:
+            with _running_lock:
+                _running_jobs.discard(name)
+
+    threading.Thread(target=_target, name=name, daemon=True).start()
+    return True
 
 
 def register(app, h):
@@ -52,8 +82,8 @@ def register(app, h):
         provided = request.headers.get("X-Snapshot-Secret")
         if not DIGEST_SECRET or not provided or not hmac.compare_digest(provided, DIGEST_SECRET):
             return jsonify({"error": "Unauthorized"}), 401
-        digests = build_weekly_digest()
-        return jsonify({"digests_built": len(digests)}), 200
+        started = _run_in_background(app, "weekly-digest", build_weekly_digest)
+        return jsonify({"started": started, "already_running": not started}), 202
 
     @app.route("/internal/monthly-report", methods=["POST"])
     @limiter.limit("10 per minute")
@@ -63,8 +93,8 @@ def register(app, h):
         provided = request.headers.get("X-Snapshot-Secret")
         if not DIGEST_SECRET or not provided or not hmac.compare_digest(provided, DIGEST_SECRET):
             return jsonify({"error": "Unauthorized"}), 401
-        reports = build_monthly_report()
-        return jsonify({"reports_built": len(reports)}), 200
+        started = _run_in_background(app, "monthly-report", build_monthly_report)
+        return jsonify({"started": started, "already_running": not started}), 202
 
     @app.route("/internal/unsubscribe", methods=["GET"])
     @limiter.limit("30 per minute")
