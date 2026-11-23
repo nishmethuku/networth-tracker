@@ -433,7 +433,7 @@ export default function Expenses() {
         )}
       </div>
 
-      <CategoryManager categories={categories} />
+      <CategoryManager categories={categories} currency={currency} />
 
       <div
         style={{

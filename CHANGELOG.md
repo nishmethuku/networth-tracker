@@ -1,5 +1,9 @@
 # Changelog
 
+## Set a monthly limit right on each category
+
+- In Expenses, Manage categories, every expense category now has a Set limit button. Pick an amount and the limit shows up on the Budget page with its progress bar. You can change or clear it from the same place.
+
 ## Fewer refreshes when switching tabs
 
 - Page data is now treated as fresh for five minutes instead of one. Switching back to the tab within that time no longer re-runs every query, which cuts requests to the free server. Anything you add, edit or delete still refreshes the numbers right away.

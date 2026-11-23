@@ -1,9 +1,19 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "../Card";
 import { useToast } from "../../contexts/ToastContext";
 import { useHousehold } from "../../contexts/HouseholdContext";
-import { createBudgetCategory, updateBudgetCategory, deleteBudgetCategory, restoreDefaultCategories, ApiError } from "../../api";
+import {
+  createBudgetCategory,
+  updateBudgetCategory,
+  deleteBudgetCategory,
+  restoreDefaultCategories,
+  fetchBudgetLimits,
+  createBudgetLimit,
+  deleteBudgetLimit,
+  ApiError,
+} from "../../api";
+import { formatCurrencyForDisplay } from "../../utils/formatters";
 import { getBudgetCategoryLabel } from "../../constants/enums";
 import { orderCategoryOptions } from "../../utils/categoryTree";
 
@@ -40,7 +50,7 @@ const tabStyle = (active) => ({
  * Add, rename, move and remove categories and the subcategories inside them.
  * Every category is editable, including the ones the app started you with.
  */
-export default function CategoryManager({ categories }) {
+export default function CategoryManager({ categories, currency = "USD" }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { currentHouseholdId } = useHousehold();
@@ -51,6 +61,14 @@ export default function CategoryManager({ categories }) {
   const [editing, setEditing] = useState(null); // { id, name, parent }
   const [deleting, setDeleting] = useState(null); // { id, name }
   const [moveTo, setMoveTo] = useState("");
+  const [limitEdit, setLimitEdit] = useState(null); // { category, amount }
+
+  const { data: limits } = useQuery({
+    queryKey: ["budget-limits", currentHouseholdId],
+    queryFn: () => fetchBudgetLimits({ householdId: currentHouseholdId }),
+    enabled: open,
+  });
+  const limitByCategory = useMemo(() => Object.fromEntries((limits || []).map((l) => [l.category, l])), [limits]);
 
   // The "Manage categories" link in the add form opens this card.
   useEffect(() => {
@@ -129,6 +147,98 @@ export default function CategoryManager({ categories }) {
     },
     onError: fail("Could not remove the category"),
   });
+
+  const saveLimit = useMutation({
+    // Setting a limit for a category that already has one replaces it.
+    mutationFn: ({ category, amount, existing }) =>
+      createBudgetLimit({
+        category,
+        monthly_limit: parseFloat(amount),
+        currency: existing?.currency || currency,
+        household_id: currentHouseholdId,
+      }),
+    onSuccess: (limit) => {
+      queryClient.invalidateQueries({ queryKey: ["budget-limits"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      setLimitEdit(null);
+      toast.success(`Limit set for ${getBudgetCategoryLabel(limit.category)}`);
+    },
+    onError: fail("Could not set that limit"),
+  });
+
+  const clearLimit = useMutation({
+    mutationFn: (id) => deleteBudgetLimit(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-limits"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      toast.success("Limit removed");
+    },
+    onError: fail("Could not remove that limit"),
+  });
+
+  function renderLimit(o) {
+    if (entryType !== "expense") return null;
+    const existing = limitByCategory[o.value];
+    const label = getBudgetCategoryLabel(o.value);
+    if (limitEdit && limitEdit.category === o.value) {
+      const amount = parseFloat(limitEdit.amount);
+      return (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (amount > 0) saveLimit.mutate({ category: o.value, amount: limitEdit.amount, existing });
+          }}
+          style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", margin: "0.4rem 0 0" }}
+        >
+          <input
+            autoFocus
+            type="number"
+            step="any"
+            min="0"
+            value={limitEdit.amount}
+            onChange={(e) => setLimitEdit({ ...limitEdit, amount: e.target.value })}
+            placeholder="Monthly limit"
+            aria-label={`Monthly limit for ${label}`}
+            style={{ ...inputStyle, flex: "0 1 10rem" }}
+          />
+          <button type="submit" disabled={!(amount > 0) || saveLimit.isPending} style={primaryButton}>
+            {saveLimit.isPending ? "Saving…" : "Save limit"}
+          </button>
+          <button type="button" onClick={() => setLimitEdit(null)} style={smallButton}>
+            Cancel
+          </button>
+        </form>
+      );
+    }
+    return (
+      <>
+        {existing && (
+          <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+            Limit {formatCurrencyForDisplay(existing.monthlyLimit, existing.currency, { alwaysCents: true })}/mo
+          </span>
+        )}
+        <button
+          type="button"
+          style={smallButton}
+          aria-label={`${existing ? "Change" : "Set"} the monthly limit for ${label}`}
+          onClick={() => setLimitEdit({ category: o.value, amount: existing ? String(existing.monthlyLimit) : "" })}
+        >
+          {existing ? "Change limit" : "Set limit"}
+        </button>
+        {existing && (
+          <button
+            type="button"
+            style={smallButton}
+            aria-label={`Remove the monthly limit for ${label}`}
+            disabled={clearLimit.isPending}
+            onClick={() => clearLimit.mutate(existing.id)}
+          >
+            Clear limit
+          </button>
+        )}
+      </>
+    );
+  }
 
   function startAdd(parent) {
     setEditing(null);
@@ -262,6 +372,7 @@ export default function CategoryManager({ categories }) {
             {isChild ? "↳ " : ""}
             {row.label}
           </span>
+          {!isEditing && !isDeleting && renderLimit(o)}
           {custom && !isEditing && !isDeleting && (
             <>
               <button
