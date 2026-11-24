@@ -26,3 +26,12 @@ def _no_stored_prices_by_default(monkeypatch):
     from backend import holdings_service
 
     monkeypatch.setattr(holdings_service, "_recent_stored_prices", lambda keys: {})
+
+
+@pytest.fixture(autouse=True)
+def _fresh_holding_metrics_cache():
+    """Each test starts with no reused per-holding results, so tests that reuse ids never see another test's numbers."""
+    from backend import holdings_service
+
+    holdings_service._bump_data_version()
+    yield
