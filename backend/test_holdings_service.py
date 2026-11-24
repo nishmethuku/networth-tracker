@@ -1003,4 +1003,5 @@ def test_past_prices_uses_stored_rows_fetches_the_rest_in_parallel_and_saves_one
     assert sorted(fetched) == ["FETCHME", "NOTFOUND"]  # the stored one and the metal are not fetched
     assert saved == [[("stock", "FETCHME", cutoff, 20.0, "USD", "yahoo")]]
     assert price_service._recently_missed(("stock", "NOTFOUND", cutoff, "USD"))
+    assert price_service._recently_missed(("stock", "NOTFOUND", cutoff + timedelta(days=1), "USD"))
     price_service._historical_misses.clear()
