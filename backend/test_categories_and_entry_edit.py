@@ -344,3 +344,23 @@ def test_someone_else_cannot_point_my_entry_at_their_account(client):
     assert r.status_code in (403, 404)
     assert balance(client, mine) == 100
     assert USER_B  # imported for the cross-user checks above
+
+
+def test_income_can_only_go_into_a_cash_or_bank_account(client):
+    r = a(client, "post", "/holdings", {
+        "asset_type": "stock", "name": "Some Stock", "symbol": "ZZTEST", "country": "United States",
+        "account": "Brokerage", "currency": "USD", "quantity": 1, "purchase_price": 10,
+    })
+    assert r.status_code in (200, 201), r.get_json()
+    stock = r.get_json()["id"]
+    r = a(client, "post", "/budget/entries", {
+        "entry_type": "income", "category": "paycheck", "amount": 100, "entry_date": "2026-01-02",
+        "currency": "USD", "deposit_target_holding_id": stock,
+    })
+    assert r.status_code == 400
+    assert "cash or bank" in r.get_json()["error"]
+    cash = cash_account(client, "Deposit ok", 10)
+    made = entry(client, entry_type="income", category="paycheck", amount=100)
+    r = a(client, "put", f"/budget/entries/{made['id']}", {"deposit_target_holding_id": stock})
+    assert r.status_code == 400
+    assert balance(client, cash) == 10

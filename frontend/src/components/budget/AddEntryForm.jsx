@@ -1,12 +1,13 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import NumericInput from "../NumericInput";
 import { useToast } from "../../contexts/ToastContext";
 import { createBudgetEntry, fetchHoldings, fetchLiabilities, ApiError } from "../../api";
-import { getAssetTypeLabel, CURRENCIES } from "../../constants/enums";
+import { CURRENCIES } from "../../constants/enums";
 import { formatCurrencyForDisplay, todayISO } from "../../utils/formatters";
 import CategoryPicker from "./CategoryPicker";
+import TransferEntryForm from "./TransferEntryForm";
 import { refreshMoneyViews } from "../../utils/refreshMoneyViews";
 import { sortAz } from "../../utils/sortAz";
 
@@ -47,6 +48,7 @@ export default function AddEntryForm({ categories, currency }) {
     },
   });
   const entryType = watch("entry_type");
+  const [transferMode, setTransferMode] = useState(false);
   const categoryValue = watch("category");
   const isRecurring = watch("is_recurring");
   const categoryOptions = useMemo(
@@ -79,13 +81,11 @@ export default function AddEntryForm({ categories, currency }) {
     enabled: entryType === "expense",
   });
 
-  // Every holding, to deposit income "into" -- a cash target's balance
-  // actually gets bumped (same mechanism as the funding source above); a
-  // non-cash target (a stock/brokerage account) just tags the entry for
-  // record-keeping, since it has no stored balance to add to.
+  // Cash and bank accounts to deposit income "into" -- the account's balance goes up by the
+  // amount (same mechanism as the funding source above). Other account types are not offered.
   const { data: depositTargets } = useQuery({
-    queryKey: ["holdings", "all"],
-    queryFn: () => fetchHoldings({ summary: true }),
+    queryKey: ["holdings", "cash"],
+    queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
     enabled: entryType === "income",
   });
 
@@ -181,6 +181,56 @@ export default function AddEntryForm({ categories, currency }) {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add entry"),
   });
 
+  const transferTab = (
+    <button
+      type="button"
+      aria-pressed={transferMode}
+      onClick={() => setTransferMode(true)}
+      style={{
+        ...inputStyle,
+        cursor: "pointer",
+        background: transferMode ? "var(--primary-light)" : "var(--bg)",
+        color: transferMode ? "var(--primary)" : "var(--text)",
+        fontWeight: 600,
+      }}
+    >
+      ⇄ Transfer
+    </button>
+  );
+
+  if (transferMode) {
+    return (
+      <div>
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+          <button
+            type="button"
+            onClick={() => {
+              setTransferMode(false);
+              setValue("entry_type", "income");
+              setValue("category", categories?.income?.[0] || "");
+            }}
+            style={{ ...inputStyle, cursor: "pointer", background: "var(--bg)", color: "var(--text)", fontWeight: 600 }}
+          >
+            + Income
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTransferMode(false);
+              setValue("entry_type", "expense");
+              setValue("category", categories?.expense?.[0] || "");
+            }}
+            style={{ ...inputStyle, cursor: "pointer", background: "var(--bg)", color: "var(--text)", fontWeight: 600 }}
+          >
+            − Expense
+          </button>
+          {transferTab}
+        </div>
+        <TransferEntryForm inputStyle={inputStyle} />
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit((data) => mutation.mutate(data))}>
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
@@ -216,6 +266,7 @@ export default function AddEntryForm({ categories, currency }) {
         >
           − Expense
         </button>
+        {transferTab}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem" }}>
@@ -330,14 +381,13 @@ export default function AddEntryForm({ categories, currency }) {
               id="budget-deposit-target"
               {...register("deposit_target_holding_id")}
               style={inputStyle}
-              title="Adds this income to the selected account's balance (cash accounts) or just tags this entry with it (any other account type)"
+              title="Adds this income to the selected cash or bank account's balance"
             >
               <option value="">— none —</option>
               {sortAz(depositTargets, (h) => h.symbol || h.name).map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.symbol || h.name}
                   {h.account ? ` (${h.account})` : ""}
-                  {h.assetType !== "cash" ? ` · ${getAssetTypeLabel(h.assetType)}` : ""}
                 </option>
               ))}
             </select>

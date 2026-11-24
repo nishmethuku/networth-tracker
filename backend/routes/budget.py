@@ -241,6 +241,8 @@ def register(app, h):
         # IntegrityError when the next query autoflushes the session.
         deposit_target_id = data.get("deposit_target_holding_id") if entry_type == "income" else None
         deposit_target = get_authorized_holding(deposit_target_id, require_write=True) if deposit_target_id else None
+        if deposit_target and deposit_target.asset_type != "cash":
+            return jsonify({"error": "Income can only be deposited into a cash or bank account"}), 400
 
         entry = BudgetEntry(
             user_id=g.user_id,
@@ -422,6 +424,9 @@ def register(app, h):
                     return jsonify({"error": "Only a credit card or line of credit can be charged"}), 400
                 new_source = get_authorized_holding(wanted["funding"], require_write=True) if wanted["funding"] else None
                 new_target = get_authorized_holding(wanted["deposit"], require_write=True) if wanted["deposit"] else None
+                if new_target and new_target.asset_type != "cash" and new_target.id != entry.deposit_target_holding_id:
+                    # An older entry already tagged to another kind of account keeps its tag; a new pick must be cash.
+                    return jsonify({"error": "Income can only be deposited into a cash or bank account"}), 400
             except HTTPException:
                 db.session.rollback()
                 return jsonify({"error": "You cannot use that account"}), 403
