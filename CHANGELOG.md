@@ -1,5 +1,9 @@
 # Changelog
 
+## BSE stocks are priced
+
+- Indian stocks on the BSE (symbols ending in .BO or .BSE, or a 6-digit BSE code) now get prices from BSE. NSE stocks are priced as before.
+
 ## A shorter Expenses page
 
 - Removed the Suggested limits, Recurring suggestions, Spending patterns and Month review cards from Expenses. Limits are set per category, and Subscriptions already lists recurring items.

@@ -54,11 +54,19 @@ def _recently_missed(key):
     return True
 
 
+_INDIAN_SUFFIXES = (".NS", ".NSE", ".BO", ".BSE")
+
+
 def _with_exchange_suffix(symbol: str, currency: str) -> str:
     """A bare ticker held in rupees (RELIANCE, HDFCBANK) is an NSE stock; the price sources only find
-    it as RELIANCE.NS. Symbols that already have a suffix, and numeric BSE codes, are left alone."""
+    it as RELIANCE.NS. A six digit BSE code held in rupees (500325) becomes 500325.BO, and the
+    .BSE spelling becomes .BO, which is what Yahoo calls the Bombay exchange."""
     s = (symbol or "").strip()
-    if currency == "INR" and s and "." not in s and not s.isdigit():
+    if s.upper().endswith(".BSE"):
+        return f"{s[:-4].upper()}.BO"
+    if currency == "INR" and s and "." not in s:
+        if s.isdigit():
+            return f"{s}.BO" if len(s) == 6 else symbol
         return f"{s.upper()}.NS"
     return symbol
 
@@ -93,7 +101,7 @@ def price_home_currency(asset_type: str, symbol: str) -> Optional[str]:
         return "INR"
     if asset_type == "stock":
         s = (symbol or "").strip().upper()
-        return "INR" if s.endswith(".NS") or s.endswith(".NSE") else "USD"
+        return "INR" if s.endswith(_INDIAN_SUFFIXES) else "USD"
     return None
 
 
