@@ -35,13 +35,14 @@ const CACHEABLE_API_PATH_PREFIXES = [
 // and showed nothing new until the next visit. Found on the live site:
 // a new holding, transaction, alert and edit all "saved" but did not show
 // up until a reload. Now a fresh answer from the server always wins; the
-// saved copy is used only when the network fails or is slower than 8s
-// (offline, or a sleeping backend), which keeps the offline behavior.
+// saved copy is used only when the network fails (offline). There is no
+// slow-response cutoff: with one, a busy or waking backend (over 8s) made the
+// app show the OLD saved copy after a refresh, so changes looked missing for
+// minutes. The page's own request timeouts handle a slow server instead.
 registerRoute(
   ({ url, request }) => request.method === "GET" && CACHEABLE_API_PATH_PREFIXES.some((p) => url.pathname.startsWith(p)),
   new NetworkFirst({
     cacheName: "api-read-cache",
-    networkTimeoutSeconds: 8,
     plugins: [new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 60 * 30 })],
   }),
 );
