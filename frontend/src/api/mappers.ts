@@ -129,7 +129,7 @@ export interface LinkedLiabilityPayment {
 }
 
 export interface Transaction {
-  id: number;
+  id: number | string;
   holdingId: number;
   holdingName: string | null;
   holdingSymbol: string | null;

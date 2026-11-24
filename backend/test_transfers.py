@@ -282,3 +282,31 @@ def test_transactions_can_be_filtered_by_account(client):
     only_alpha = a(client, "get", "/transactions?account=alpha%20broker").get_json()
     assert {t["holding_symbol"] for t in only_alpha} == {"AAA"}
     assert {"AAA", "BBB"} <= {t["holding_symbol"] for t in everything}
+
+
+def test_transaction_log_lists_balance_updates_for_cash_accounts(client):
+    hid = cash_account_today(client, "Log Savings", 500)
+    everything = a(client, "get", "/transactions").get_json()
+    rows = [t for t in everything if t["holding_id"] == hid]
+    assert rows and rows[0]["transaction_type"] == "balance_update"
+    assert rows[0]["price_per_unit"] == 500
+    only_cash = a(client, "get", "/transactions?asset_type=stock").get_json()
+    assert all(t["holding_id"] != hid for t in only_cash)
+    paged = a(client, "get", "/transactions?page=1&per_page=5").get_json()
+    assert paged["total"] >= 1
+
+
+def test_transaction_log_includes_income_expenses_and_transfers(client):
+    src = cash_account_today(client, "Flow Checking", 300)
+    dst = cash_account_today(client, "Flow Savings", 0)
+    assert move(client, src, dst, 50).status_code == 201
+    today = date.today().isoformat()
+    for kind, amount, category in (("income", 900, "paycheck"), ("expense", 12, "food")):
+        r = a(client, "post", "/budget/entries", {"entry_type": kind, "entry_date": today, "amount": amount, "currency": "USD", "category": category, "description": f"flow {kind}"})
+        assert r.status_code == 201, r.get_json()
+    kinds = {t["transaction_type"] for t in a(client, "get", "/transactions").get_json()}
+    assert {"income", "expense", "transfer", "balance_update"} <= kinds
+    only = a(client, "get", "/transactions?asset_type=expense").get_json()
+    assert only and {t["transaction_type"] for t in only} == {"expense"}
+    only = a(client, "get", "/transactions?asset_type=transfer").get_json()
+    assert {t["transaction_type"] for t in only} == {"transfer"}

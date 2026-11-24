@@ -1,17 +1,29 @@
 import { Link } from "react-router-dom";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
-import { getAssetTypeLabel, isIncomeTransactionType, isShareChangeTransactionType, describeShareChange } from "../constants/enums";
+import {
+  getAssetTypeLabel,
+  isIncomeTransactionType,
+  isShareChangeTransactionType,
+  describeShareChange,
+  isReadOnlyTransaction,
+  transactionTypeLabel,
+} from "../constants/enums";
 
 export default function TransactionCard({ t, onEdit, onDelete }) {
   const isIncome = isIncomeTransactionType(t.transactionType);
   const isShareChange = isShareChangeTransactionType(t.transactionType);
+  const isBalance = isReadOnlyTransaction(t);
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "0.875rem 1rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
         <div style={{ minWidth: 0 }}>
-          <Link to={`/portfolio/${t.holdingId}`} style={{ fontWeight: 600, color: "var(--text)" }}>
-            {t.holdingSymbol || t.holdingName}
-          </Link>
+          {t.holdingId == null ? (
+            <span style={{ fontWeight: 600, color: "var(--text)", textTransform: "capitalize" }}>{t.holdingName}</span>
+          ) : (
+            <Link to={`/portfolio/${t.holdingId}`} style={{ fontWeight: 600, color: "var(--text)" }}>
+              {t.holdingSymbol || t.holdingName}
+            </Link>
+          )}
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
             {getAssetTypeLabel(t.assetType)} • {formatDateISO(t.transactionDate)}
           </div>
@@ -21,10 +33,10 @@ export default function TransactionCard({ t, onEdit, onDelete }) {
             fontSize: "0.75rem",
             fontWeight: 700,
             textTransform: "uppercase",
-            color: t.transactionType === "sell" ? "var(--danger)" : "var(--success)",
+            color: t.transactionType === "sell" || t.transactionType === "expense" ? "var(--danger)" : "var(--success)",
           }}
         >
-          {t.transactionType}
+          {transactionTypeLabel(t)}
         </span>
       </div>
       <div
@@ -36,7 +48,9 @@ export default function TransactionCard({ t, onEdit, onDelete }) {
           color: "var(--text-secondary)",
         }}
       >
-        {isShareChange ? (
+        {isBalance ? (
+          <span>{t.notes || "Balance set"}</span>
+        ) : isShareChange ? (
           <span>{describeShareChange(t)}</span>
         ) : isIncome ? (
           <span>Income received</span>
@@ -49,7 +63,7 @@ export default function TransactionCard({ t, onEdit, onDelete }) {
           {isShareChange ? "-" : formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
         </span>
       </div>
-      {(onEdit || onDelete) && (
+      {!isBalance && (onEdit || onDelete) && (
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
           {onEdit && (
             <button

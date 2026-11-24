@@ -488,7 +488,6 @@ export default function Expenses() {
         {insightsOpen ? "▾ Hide insights" : "▸ Show insights"}
       </button>
       <div style={{ display: insightsOpen ? "grid" : "none", gap: "1rem", marginBottom: "1rem" }}>
-        <SpendCalendar entries={entries} month={month} currency={currency} selected={day} onSelect={setDay} />
         <CategoryChanges entries={recent || entries} month={month} currency={currency} onPick={setCategoryFilter} />
         <MonthReview currency={currency} householdId={currentHouseholdId} month={month} />
         <SpendingPatterns currency={currency} householdId={currentHouseholdId} month={month} />
@@ -679,6 +678,9 @@ export default function Expenses() {
           ))}
         </div>
       )}
+      <div style={{ marginTop: "1.5rem" }}>
+        <SpendCalendar entries={entries} month={month} currency={currency} selected={day} onSelect={setDay} />
+      </div>
       {splitting && <SplitEntryModal entry={splitting} categories={categories} onClose={() => setSplitting(null)} />}
       {editing && <EditEntryModal entry={editing} categories={categories} onClose={() => setEditing(null)} />}
     </div>

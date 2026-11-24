@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
 import { getAssetTypeLabel } from "../constants/enums";
-import { isShareChangeTransactionType, describeShareChange } from "../constants/enums";
+import { isShareChangeTransactionType, describeShareChange, isReadOnlyTransaction, transactionTypeLabel } from "../constants/enums";
 
 const ROW_HEIGHT = 56;
 const COLUMNS = "1fr 1.6fr 0.9fr 1fr 1.2fr 1.2fr 1.3fr";
@@ -50,6 +50,7 @@ export default function VirtualTransactionList({ transactions, onEdit, onDelete 
         <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
           {virtualizer.getVirtualItems().map((row) => {
             const t = transactions[row.index];
+            const isBalance = isReadOnlyTransaction(t);
             return (
               <div
                 key={t.id}
@@ -70,22 +71,26 @@ export default function VirtualTransactionList({ transactions, onEdit, onDelete 
               >
                 <div>{formatDateISO(t.transactionDate)}</div>
                 <div>
-                  <Link to={`/portfolio/${t.holdingId}`} style={{ fontWeight: 600 }}>
-                    {t.holdingSymbol || t.holdingName}
-                  </Link>
+                  {t.holdingId == null ? (
+                    <span style={{ fontWeight: 600, textTransform: "capitalize" }}>{t.holdingName}</span>
+                  ) : (
+                    <Link to={`/portfolio/${t.holdingId}`} style={{ fontWeight: 600 }}>
+                      {t.holdingSymbol || t.holdingName}
+                    </Link>
+                  )}
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{getAssetTypeLabel(t.assetType)}</div>
                 </div>
                 <div
                   style={{
                     textTransform: "capitalize",
-                    color: t.transactionType === "sell" ? "var(--danger)" : "var(--success)",
+                    color: t.transactionType === "sell" || t.transactionType === "expense" ? "var(--danger)" : "var(--success)",
                     fontWeight: 600,
                   }}
                 >
-                  {t.transactionType}
+                  {transactionTypeLabel(t)}
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)" }}>
-                  {isShareChangeTransactionType(t.transactionType) ? describeShareChange(t) : t.quantity.toFixed(4)}
+                  {isBalance ? "-" : isShareChangeTransactionType(t.transactionType) ? describeShareChange(t) : t.quantity.toFixed(4)}
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)" }}>
                   {isShareChangeTransactionType(t.transactionType) ? "-" : formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
@@ -96,24 +101,30 @@ export default function VirtualTransactionList({ transactions, onEdit, onDelete 
                     : formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
                 </div>
                 <div style={{ display: "flex", gap: "0.4rem" }}>
-                  <button
-                    onClick={() => onEdit?.(t)}
-                    style={{
-                      fontSize: "0.75rem",
-                      background: "transparent",
-                      border: "1px solid var(--border)",
-                      color: "var(--text)",
-                      padding: "0.3rem 0.6rem",
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onDelete?.(t)}
-                    style={{ fontSize: "0.75rem", background: "var(--danger)", color: "var(--text-inverse)", padding: "0.3rem 0.6rem" }}
-                  >
-                    Delete
-                  </button>
+                  {isBalance ? (
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>View only</span>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onEdit?.(t)}
+                        style={{
+                          fontSize: "0.75rem",
+                          background: "transparent",
+                          border: "1px solid var(--border)",
+                          color: "var(--text)",
+                          padding: "0.3rem 0.6rem",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => onDelete?.(t)}
+                        style={{ fontSize: "0.75rem", background: "var(--danger)", color: "var(--text-inverse)", padding: "0.3rem 0.6rem" }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             );
