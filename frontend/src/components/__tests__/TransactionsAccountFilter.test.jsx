@@ -9,12 +9,13 @@ vi.mock("../../contexts/ToastContext", () => ({ useToast: () => ({ error: vi.fn(
 vi.mock("../../contexts/HouseholdContext", () => ({ useHousehold: () => ({ currentHouseholdId: null }) }));
 vi.mock("../../api", () => ({
   fetchAllTransactions: (f) => fetchAllTransactions(f),
-  fetchAccounts: () =>
+  fetchHoldings: () =>
     Promise.resolve([
-      { id: 1, name: "Zerodha" },
-      { id: 2, name: "Chase" },
+      { id: 1, assetType: "stock", account: "Zerodha" },
+      { id: 2, assetType: "stock", account: "Fidelity" },
+      { id: 3, assetType: "cash", account: "Chase" },
+      { id: 4, assetType: "real_estate", account: "" },
     ]),
-  fetchHoldings: () => Promise.resolve([]),
   deleteTransaction: vi.fn(),
   restoreTransaction: vi.fn(),
   ApiError: class ApiError extends Error {},
@@ -28,7 +29,7 @@ afterEach(() => {
 });
 
 describe("transactions account filter", () => {
-  it("lists accounts A to Z and filters by the one picked", async () => {
+  it("lists the accounts under the chosen type, A to Z, and filters by the one picked", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
@@ -37,10 +38,20 @@ describe("transactions account filter", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    const select = await screen.findByLabelText("Filter by account");
-    await waitFor(() => expect(select.querySelectorAll("option").length).toBe(3));
-    expect([...select.querySelectorAll("option")].map((o) => o.textContent)).toEqual(["All Accounts", "Chase", "Zerodha"]);
-    fireEvent.change(select, { target: { value: "Chase" } });
-    await waitFor(() => expect(fetchAllTransactions.mock.calls.some((c) => c[0].account === "Chase")).toBe(true));
+    const names = (select) => [...select.querySelectorAll("option")].map((o) => o.textContent);
+    const account = () => screen.getByLabelText("Filter by account");
+    await screen.findByLabelText("Filter by account");
+    await waitFor(() => expect(account().querySelectorAll("option").length).toBe(4));
+    expect(names(account())).toEqual(["All Accounts", "Chase", "Fidelity", "Zerodha"]);
+
+    fireEvent.change(screen.getByLabelText("Filter by asset type"), { target: { value: "stock" } });
+    await waitFor(() => expect(account().querySelectorAll("option").length).toBe(3));
+    expect(names(account())).toEqual(["All accounts in this type", "Fidelity", "Zerodha"]);
+
+    fireEvent.change(account(), { target: { value: "Fidelity" } });
+    await waitFor(() => expect(fetchAllTransactions.mock.calls.some((c) => c[0].account === "Fidelity")).toBe(true));
+
+    fireEvent.change(await screen.findByLabelText("Filter by asset type"), { target: { value: "cash" } });
+    await waitFor(() => expect(fetchAllTransactions.mock.calls.some((c) => c[0].assetType === "cash" && c[0].account === "")).toBe(true));
   });
 });

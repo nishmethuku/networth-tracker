@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { fetchAllTransactions, fetchAccounts, fetchHoldings, deleteTransaction, restoreTransaction, ApiError } from "../api";
+import { fetchAllTransactions, fetchHoldings, deleteTransaction, restoreTransaction, ApiError } from "../api";
 import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
@@ -86,12 +86,21 @@ export default function Transactions() {
     queryFn: () => fetchAllTransactions({ ...filters, householdId: currentHouseholdId, page, perPage: PER_PAGE }),
     staleTime: 1000 * 30,
   });
-  // Every account you have (bank, brokerage, real estate and so on), for the account filter.
-  const { data: accountList } = useQuery({
-    queryKey: ["accounts", currentHouseholdId],
-    queryFn: () => fetchAccounts({ householdId: currentHouseholdId }),
+  // The account filter sits under the type filter: pick a type (stock, cash, real estate...)
+  // and it lists only the accounts that hold that type. With no type picked it lists them all.
+  const { data: allHoldings } = useQuery({
+    queryKey: ["holdings", "summary", "USD", currentHouseholdId],
+    queryFn: () => fetchHoldings({ summary: true, householdId: currentHouseholdId }),
     staleTime: 1000 * 60 * 5,
   });
+  const accountNames = [
+    ...new Set(
+      (allHoldings || [])
+        .filter((h) => !filters.assetType || h.assetType === filters.assetType)
+        .map((h) => (h.account || "").trim())
+        .filter(Boolean),
+    ),
+  ];
   const transactions = result?.items;
   const totalPages = result?.totalPages || 1;
   const total = result?.total || 0;
@@ -227,7 +236,7 @@ export default function Transactions() {
         <select
           aria-label="Filter by asset type"
           value={filters.assetType}
-          onChange={(e) => updateFilters({ ...filters, assetType: e.target.value })}
+          onChange={(e) => updateFilters({ ...filters, assetType: e.target.value, account: "" })}
           style={inputStyle}
         >
           <option value="">All Types</option>
@@ -243,10 +252,10 @@ export default function Transactions() {
           onChange={(e) => updateFilters({ ...filters, account: e.target.value })}
           style={inputStyle}
         >
-          <option value="">All Accounts</option>
-          {sortAz(accountList || [], (a) => a.name).map((a) => (
-            <option key={a.name} value={a.name}>
-              {a.name}
+          <option value="">{filters.assetType ? "All accounts in this type" : "All Accounts"}</option>
+          {sortAz(accountNames).map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
         </select>

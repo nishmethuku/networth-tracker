@@ -1,5 +1,9 @@
 # Changelog
 
+## Accounts sit under the type on Transactions
+
+- On the Transactions page, pick a type (stock, cash, real estate and so on) and the Account filter next to it lists only the accounts in that type, A to Z. With no type picked it lists every account. Changing the type clears the account.
+
 ## Filter transactions by account
 
 - The Transactions page has a new account filter next to the type and country filters. It lists all of your accounts A to Z and shows only that account's transactions.
