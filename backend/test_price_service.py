@@ -142,3 +142,26 @@ def test_portfolio_xirr_pairs_each_flow_with_its_own_currency_even_with_a_split(
          patch.object(holdings_service, "xirr", return_value=0.1):
         holdings_service.portfolio_xirr(txns, 100.0, "USD")
     assert seen == [(-8500.0, "INR")]
+
+
+def test_unknown_yahoo_ticker_is_not_asked_about_again(monkeypatch):
+    from datetime import date
+
+    from backend import utils
+
+    calls = []
+
+    class _Resp:
+        status_code = 404
+
+        def raise_for_status(self):
+            import requests
+
+            raise requests.HTTPError("404", response=self)
+
+    monkeypatch.setattr(utils._yahoo_session, "get", lambda *a, **k: calls.append(1) or _Resp())
+    utils._yahoo_unknown.clear()
+    assert utils.get_historical_price_from_yahoo("GONE.NS", date.today()) is None
+    assert utils.get_historical_price_from_yahoo("GONE.NS", date.today()) is None
+    assert len(calls) == 1
+    utils._yahoo_unknown.clear()

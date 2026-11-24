@@ -1,5 +1,9 @@
 # Changelog
 
+## Stop the server grinding on dead tickers
+
+- The server looked up every delisted ticker (about 25 of your dad's old Indian stocks) again after each restart and every half hour, which kept its small CPU at 100 percent for 10+ minutes and made every page slow. A ticker Yahoo says it does not know is now left alone for a day, and price lookups reuse one connection instead of opening a new secure connection each time.
+
 ## Faster pages
 
 - Loading a page used to rebuild the same numbers for every holding several times over (dashboard, portfolio, income and so on), which is slow on the free server. The finished numbers are now reused for up to a minute, and any change you save refreshes them straight away.

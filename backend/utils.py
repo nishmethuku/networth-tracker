@@ -201,6 +201,28 @@ def get_historical_price_from_finnhub(ticker: str, target_date: date):
         return None
 
 
+# Yahoo answers 404 for a ticker it does not know (delisted, renamed). That will not change by the
+# next page load, so such a ticker is not asked about again for a day. Without this, every restart
+# re-asked about every dead ticker at once, which pinned the free server's CPU for minutes.
+_YAHOO_UNKNOWN_TTL = 24 * 3600
+_yahoo_unknown: dict = {}
+
+# One shared connection pool: a fresh HTTPS connection per lookup costs a full TLS handshake, which
+# is the expensive part on a tenth of a CPU. Reusing connections makes each lookup far cheaper.
+_yahoo_session = requests.Session()
+_yahoo_session.mount("https://", requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=8))
+
+
+def _yahoo_known_unknown(ticker: str) -> bool:
+    expires = _yahoo_unknown.get(ticker)
+    if expires is None:
+        return False
+    if expires < time():
+        _yahoo_unknown.pop(ticker, None)
+        return False
+    return True
+
+
 def get_historical_price_from_yahoo(ticker: str, target_date: date):
     """
     Historical daily close via Yahoo Finance's unofficial chart API — free,
@@ -210,6 +232,8 @@ def get_historical_price_from_yahoo(ticker: str, target_date: date):
     primary historical price source; Finnhub/NSEpy remain as fallbacks
     since this is an unofficial, undocumented endpoint that could change.
     """
+    if _yahoo_known_unknown(ticker.upper()):
+        return None
     try:
         import calendar
 
@@ -217,7 +241,7 @@ def get_historical_price_from_yahoo(ticker: str, target_date: date):
         period1 = calendar.timegm(start.timetuple())
         period2 = calendar.timegm((target_date + timedelta(days=1)).timetuple())
 
-        response = requests.get(
+        response = _yahoo_session.get(
             f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker.upper()}",
             params={"period1": period1, "period2": period2, "interval": "1d"},
             headers={"User-Agent": "Mozilla/5.0"},
@@ -235,6 +259,8 @@ def get_historical_price_from_yahoo(ticker: str, target_date: date):
         return price if price > 0 else None
     except Exception as e:
         status = getattr(getattr(e, "response", None), "status_code", None)
+        if status == 404:
+            _yahoo_unknown[ticker.upper()] = time() + _YAHOO_UNKNOWN_TTL
         # 404 means the ticker is unknown or delisted: expected, not worth a warning.
         log = logger.info if status == 404 else logger.warning
         log("Yahoo historical price fetch failed for %s: %s", ticker, e)
