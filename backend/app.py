@@ -710,18 +710,20 @@ def create_app():
     @app.route("/transactions", methods=["GET"])
     @require_auth
     def list_all_transactions():
-        """Global transaction log, filterable by asset type / date range / country."""
+        """Global transaction log, filterable by asset type / account / date range / country."""
         household_id_param = request.args.get("household_id")
         holdings = scoped_holdings_query(household_id_param).all()
         holdings_by_id = {h.id: h for h in holdings}
 
         asset_type = request.args.get("asset_type")
         country = request.args.get("country")
+        account = (request.args.get("account") or "").strip().lower()
         search = (request.args.get("search") or "").strip().lower()
         matching_ids = [
             h.id for h in holdings
             if (not asset_type or h.asset_type == asset_type)
             and (not country or h.country == country)
+            and (not account or (h.account or "").strip().lower() == account)
             and (not search or search in (h.symbol or "").lower() or search in h.name.lower())
         ]
 

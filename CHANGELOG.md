@@ -1,5 +1,9 @@
 # Changelog
 
+## Filter transactions by account
+
+- The Transactions page has a new account filter next to the type and country filters. It lists all of your accounts A to Z and shows only that account's transactions.
+
 ## Deposit income into cash or bank accounts, and transfers in the add-entry form
 
 - When you add income, Deposit into now lists only your cash and bank accounts. The server rejects any other kind of account, so a paycheck can no longer be pointed at a stock.
