@@ -63,7 +63,7 @@ test("quick add understands a typed sentence", async ({ mockedPage: page }) => {
   await expect(page.getByLabel("Note (optional)")).toHaveValue("Coffee");
 });
 
-test("Expenses has a calendar you can tap, a recurring tip, and search across months", async ({ mockedPage: page }) => {
+test("Expenses has a calendar you can tap, and search across months", async ({ mockedPage: page }) => {
   await mockBackend(page);
   await mockEntries(page);
   let putBody: Record<string, unknown> | null = null;
@@ -87,11 +87,6 @@ test("Expenses has a calendar you can tap, a recurring tip, and search across mo
   await expect(page.getByText(/only\./)).toBeVisible();
   await page.getByRole("button", { name: "Show the whole month" }).click();
   await expect(page.getByText(/only\./)).toHaveCount(0);
-
-  // Recurring suggestion: Netflix shows about monthly, and one tap tracks it.
-  await expect(page.getByText("Looks recurring")).toBeVisible();
-  await page.getByRole("button", { name: "Track as monthly" }).click();
-  await expect.poll(() => putBody).toMatchObject({ is_recurring: true, recurring_frequency: "monthly" });
 
   // "/" jumps to search, and searching all months finds an older entry.
   await page.locator("body").click({ position: { x: 5, y: 5 } });

@@ -142,13 +142,13 @@ test("the year card shows, and automatic bill logging runs once when switched on
     return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ count: 2, created: [] }) });
   });
 
-  await page.goto("/expenses");
+  await page.goto("/settings");
   await expect(page.getByText(/so far$/)).toBeVisible();
   await expect(page.getByLabel(/Top categories in/)).toContainText("Housing");
   expect(logCalls).toBe(0);
 
   await page.getByLabel(/Log my recurring bills automatically/).check();
-  await page.reload();
+  await page.goto("/expenses");
   await expect.poll(() => logCalls).toBe(1);
   await expect(page.getByText(/Logged 2 recurring bills/)).toBeVisible();
   await page.reload();
