@@ -25,13 +25,7 @@ import SpendCalendar from "./expenses/SpendCalendar";
 import CategoryChanges from "./expenses/CategoryChanges";
 import CategoryManager from "./expenses/CategoryManager";
 import SafeToSpend from "./expenses/SafeToSpend";
-import RecurringSuggestions from "./expenses/RecurringSuggestions";
-import SuggestedLimits from "./expenses/SuggestedLimits";
 import SplitEntryModal from "./expenses/SplitEntryModal";
-import YearReview from "./expenses/YearReview";
-import AutoLogSetting from "./expenses/AutoLogSetting";
-import SpendingPatterns from "./expenses/SpendingPatterns";
-import MonthReview from "./expenses/MonthReview";
 import { useRecentEntries } from "../hooks/useRecentEntries";
 import useIsMobile from "../hooks/useIsMobile";
 import { isNonSpendingCategory } from "../utils/nonSpending";
@@ -489,12 +483,6 @@ export default function Expenses() {
       </button>
       <div style={{ display: insightsOpen ? "grid" : "none", gap: "1rem", marginBottom: "1rem" }}>
         <CategoryChanges entries={recent || entries} month={month} currency={currency} onPick={setCategoryFilter} />
-        <MonthReview currency={currency} householdId={currentHouseholdId} month={month} />
-        <SpendingPatterns currency={currency} householdId={currentHouseholdId} month={month} />
-        <SuggestedLimits currency={currency} householdId={currentHouseholdId} />
-        <RecurringSuggestions currency={currency} householdId={currentHouseholdId} />
-        <AutoLogSetting currency={currency} householdId={currentHouseholdId} />
-        <YearReview currency={currency} householdId={currentHouseholdId} />
       </div>
 
       {day && (

@@ -1,5 +1,10 @@
 # Changelog
 
+## A shorter Expenses page
+
+- Removed the Suggested limits, Recurring suggestions, Spending patterns and Month review cards from Expenses. Limits are set per category, and Subscriptions already lists recurring items.
+- Auto-log and Year review moved to Settings.
+
 ## Transactions shows everything, Expenses calendar moved down
 
 - The Transactions page now lists income, expenses and transfers between accounts, plus every balance update on cash, bank and real estate accounts, so All Types shows everything. The Type filter also has Expenses, Income and Transfers. These rows are view only; edit them where you added them.

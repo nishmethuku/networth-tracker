@@ -14,6 +14,9 @@ import { useToast } from "../contexts/ToastContext";
 import { BACKUP_KEY } from "../utils/backupReminder";
 import InstallAppCard from "./InstallAppCard";
 import ConnectedBanks from "./ConnectedBanks";
+import AutoLogSetting from "./expenses/AutoLogSetting";
+import YearReview from "./expenses/YearReview";
+import { useHousehold } from "../contexts/HouseholdContext";
 import DataChecksCard from "./DataChecksCard";
 import useDisplayCurrencyPreference from "../hooks/useDisplayCurrencyPreference";
 import {
@@ -78,6 +81,7 @@ export default function Settings() {
   const { theme, toggleTheme, palette, setPalette } = useTheme();
   const { t, i18n } = useTranslation();
   const [currency, setCurrency] = useDisplayCurrencyPreference();
+  const { currentHouseholdId } = useHousehold();
   const toast = useToast();
   const queryClient = useQueryClient();
   const [confirmText, setConfirmText] = useState("");
@@ -341,6 +345,10 @@ export default function Settings() {
       </div>
 
       <div style={sectionStyle}>
+        <AutoLogSetting currency={currency} householdId={currentHouseholdId} />
+
+        <YearReview currency={currency} householdId={currentHouseholdId} />
+
         <Card title="Notifications">
           <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem", marginBottom: "0.75rem" }}>
             Price and net worth alerts are managed on the Alerts page.
