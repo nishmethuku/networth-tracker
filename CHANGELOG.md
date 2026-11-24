@@ -1,5 +1,9 @@
 # Changelog
 
+## Faster server location
+
+- The server now runs in Virginia, next to the database, instead of Oregon, so every page needs less waiting. The page security rules now allow the new server address.
+
 ## The app opens instantly
 
 - The app now keeps the last data it loaded on this device (for the signed-in person only, cleared on sign-out, expires after a day), so the Portfolio and Dashboard show real numbers the moment it opens while fresh ones load quietly in the background.
