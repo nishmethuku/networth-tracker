@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { updateBudgetEntry, fetchHoldings, fetchLiabilities, ApiError } from "../../api";
 import { useToast } from "../../contexts/ToastContext";
-import { getAssetTypeLabel, CURRENCIES } from "../../constants/enums";
+import { CURRENCIES } from "../../constants/enums";
 import { todayISO } from "../../utils/formatters";
 import CategoryPicker from "./CategoryPicker";
 import { refreshMoneyViews } from "../../utils/refreshMoneyViews";
@@ -64,9 +64,10 @@ export default function EditEntryModal({ entry, categories, onClose }) {
     queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
     enabled: entryType === "expense",
   });
-  const { data: allHoldings } = useQuery({
-    queryKey: ["holdings", "all"],
-    queryFn: () => fetchHoldings({ summary: true }),
+  // Income goes into a cash or bank account only.
+  const { data: depositChoices } = useQuery({
+    queryKey: ["holdings", "cash"],
+    queryFn: () => fetchHoldings({ assetType: "cash", summary: true }),
     enabled: entryType === "income",
   });
   const { data: liabilities } = useQuery({
@@ -256,20 +257,22 @@ export default function EditEntryModal({ entry, categories, onClose }) {
                 </select>
               </div>
             )}
-            {entryType === "income" && (allHoldings?.length > 0 || depositInto) && (
+            {entryType === "income" && (depositChoices?.length > 0 || depositInto) && (
               <div>
                 <label htmlFor="ee-deposit" style={label}>
                   Deposit into
                 </label>
                 <select id="ee-deposit" value={depositInto} onChange={(e) => setDepositInto(e.target.value)} style={field}>
                   <option value="">— none —</option>
-                  {sortAz(allHoldings, (h) => h.symbol || h.name).map((h) => (
+                  {sortAz(depositChoices, (h) => h.symbol || h.name).map((h) => (
                     <option key={h.id} value={String(h.id)}>
                       {h.symbol || h.name}
                       {h.account ? ` (${h.account})` : ""}
-                      {h.assetType !== "cash" ? ` · ${getAssetTypeLabel(h.assetType)}` : ""}
                     </option>
                   ))}
+                  {depositInto && !(depositChoices || []).some((h) => String(h.id) === depositInto) && (
+                    <option value={depositInto}>Current account (not a cash account)</option>
+                  )}
                 </select>
               </div>
             )}

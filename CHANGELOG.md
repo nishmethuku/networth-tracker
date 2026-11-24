@@ -1,5 +1,10 @@
 # Changelog
 
+## Deposit income into cash or bank accounts, and transfers in the add-entry form
+
+- When you add income, Deposit into now lists only your cash and bank accounts. The server rejects any other kind of account, so a paycheck can no longer be pointed at a stock.
+- The add-entry form on Expenses has a new Transfer tab next to Income and Expense. Pick the account the money leaves and the account it goes into, an amount and a date. Both balances change and it is not counted as spending or income.
+
 ## Fewer slow loads after midnight
 
 - Stocks the price sources do not know (such as delisted Indian tickers) are now remembered as not found for a full day, no matter what the date is. Before, every one of them was looked up again on the first page load of each day, which made that load slow on the free server.
