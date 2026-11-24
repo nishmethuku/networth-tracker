@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 import { queryClient } from "../queryClient.js";
+import { clearPersistedQueryCache } from "../lib/persistQueryCache.js";
 import { DEMO_USER, exitDemoMode, isDemoMode } from "../lib/demoMode";
 
 interface AuthContextValue {
@@ -97,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // no refetch at all, since React Query would find the old entries
     // still fresh.
     queryClient.clear();
+    clearPersistedQueryCache();
     // Same shared-device concern for the two bits of UI preference that
     // live in localStorage rather than React Query's cache: which
     // household is selected, and the preferred display currency. Clearing

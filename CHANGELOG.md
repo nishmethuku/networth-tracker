@@ -1,5 +1,10 @@
 # Changelog
 
+## The app opens instantly
+
+- The app now keeps the last data it loaded on this device (for the signed-in person only, cleared on sign-out, expires after a day), so the Portfolio and Dashboard show real numbers the moment it opens while fresh ones load quietly in the background.
+- A background job on the server now refreshes all stock prices every 30 minutes and saves them. Opening a page reads saved prices instead of looking up about 100 stocks on the web while you wait, and delisted tickers are no longer asked about on page loads.
+
 ## Stop the server grinding on dead tickers
 
 - The server looked up every delisted ticker (about 25 of your dad's old Indian stocks) again after each restart and every half hour, which kept its small CPU at 100 percent for 10+ minutes and made every page slow. A ticker Yahoo says it does not know is now left alone for a day, and price lookups reuse one connection instead of opening a new secure connection each time.

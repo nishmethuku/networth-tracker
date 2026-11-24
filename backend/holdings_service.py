@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from . import price_service
+from . import price_refresher, price_service
 from .finance import xirr
 from .models import Holding, HoldingTransaction, HoldingValuation, PriceHistory, db
 
@@ -442,6 +442,42 @@ def _past_prices(candidates, cutoff):
     return prices
 
 
+def _skip_keys_the_refresher_tried(price_cache, quantity_keys):
+    """The background refresher already tried these a moment ago (a dead ticker, or a price it saved
+    under another date), so the page does not wait on the web for them again: it uses the newest
+    price saved in the last week, or none. Returns the keys that still need a live lookup."""
+    tried = [k for k in quantity_keys if price_refresher.recently_attempted(k)]
+    if not tried:
+        return quantity_keys
+    price_cache.update(_latest_stored_prices(tried))
+    for k in tried:
+        price_cache.setdefault(k, None)
+    return [k for k in quantity_keys if k not in tried]
+
+
+def _latest_stored_prices(keys, days=7):
+    """Newest saved price per (asset_type, symbol, currency) within the last `days` days."""
+    if not keys:
+        return {}
+    cutoff = date.today() - timedelta(days=days)
+    try:
+        rows = (
+            PriceHistory.query.filter(PriceHistory.symbol.in_(list({k[1] for k in keys})), PriceHistory.price_date >= cutoff)
+            .order_by(PriceHistory.price_date.asc())
+            .all()
+        )
+    except Exception:
+        db.session.rollback()
+        return {}
+    wanted = set(keys)
+    found = {}
+    for r in rows:
+        key = (r.asset_type, r.symbol, r.currency)
+        if key in wanted and r.price and r.price > 0:
+            found[key] = r.price
+    return found
+
+
 def _recent_stored_prices(keys):
     """Latest stored price per (asset_type, symbol, currency) that is within the last PRICE_REFRESH_DAYS days."""
     if not keys or PRICE_REFRESH_DAYS <= 0:
@@ -535,6 +571,7 @@ def _list_holdings_with_metrics_uncached(holdings: List[Holding], display_curren
 
     price_cache: Dict[tuple, Optional[float]] = _recent_stored_prices(quantity_keys)
     quantity_keys = [k for k in quantity_keys if k not in price_cache]
+    quantity_keys = _skip_keys_the_refresher_tried(price_cache, quantity_keys)
     if quantity_keys:
         # Live lookups get a hard time budget. On the free server a portfolio with many symbols
         # that never resolve could keep a page waiting for minutes. Anything not back in time is
