@@ -391,6 +391,68 @@ function HoldingsTable({ holdings, xirrHoldings, assetType, navigate, onDelete, 
   );
 }
 
+function SectionOrderControl({ types, onMove }) {
+  const [open, setOpen] = useState(false);
+  if (types.length < 2) return null;
+  const btn = {
+    fontSize: "0.8125rem",
+    background: "transparent",
+    border: "1px solid var(--border)",
+    color: "var(--text)",
+    padding: "0.2rem 0.6rem",
+    cursor: "pointer",
+  };
+  return (
+    <div style={{ marginBottom: "1rem" }}>
+      <button type="button" style={btn} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {open ? "Done ordering" : "Change section order"}
+      </button>
+      {open && (
+        <ol style={{ listStyle: "none", margin: "0.75rem 0 0", padding: 0, display: "grid", gap: "0.4rem", maxWidth: "26rem" }}>
+          {types.map((t, i) => (
+            <li
+              key={t}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "0.5rem",
+                background: "var(--card)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: "0.4rem 0.75rem",
+                color: "var(--text)",
+              }}
+            >
+              <span>{getAssetTypeLabel(t)}</span>
+              <span style={{ display: "flex", gap: "0.4rem" }}>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={i === 0}
+                  aria-label={`Move ${getAssetTypeLabel(t)} up`}
+                  onClick={() => onMove(t, -1)}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  style={btn}
+                  disabled={i === types.length - 1}
+                  aria-label={`Move ${getAssetTypeLabel(t)} down`}
+                  onClick={() => onMove(t, 1)}
+                >
+                  ↓
+                </button>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default function Portfolio() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -405,6 +467,22 @@ export default function Portfolio() {
   // rarely spans types (a brokerage doesn't also hold your real estate).
   // Keyed by asset type; an empty/missing value means "All accounts".
   const [accountFilters, setAccountFilters] = useState({});
+  const [typeOrder, setTypeOrder] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("portfolio-type-order") || "[]");
+      return Array.isArray(saved) ? saved : [];
+    } catch {
+      return [];
+    }
+  });
+  const saveTypeOrder = (order) => {
+    setTypeOrder(order);
+    try {
+      localStorage.setItem("portfolio-type-order", JSON.stringify(order));
+    } catch {
+      /* storage can be blocked */
+    }
+  };
   // Which asset-type sections are open. Unset means closed.
   const [openTypes, setOpenTypes] = useState({});
   // "current" hides stocks that were fully sold; "all" shows them. The return figures count them either way.
@@ -496,7 +574,19 @@ export default function Portfolio() {
     return acc;
   }, {});
 
-  const orderedTypes = ASSET_TYPE_OPTIONS.map((o) => o.value).filter((t) => grouped[t]?.length);
+  // The person's own section order (saved in this browser). Types they never placed keep the default order after the placed ones.
+  const defaultOrder = ASSET_TYPE_OPTIONS.map((o) => o.value);
+  const fullOrder = [...typeOrder.filter((t) => defaultOrder.includes(t)), ...defaultOrder.filter((t) => !typeOrder.includes(t))];
+  const orderedTypes = fullOrder.filter((t) => grouped[t]?.length);
+  const moveType = (type, delta) => {
+    const visible = [...orderedTypes];
+    const i = visible.indexOf(type);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= visible.length) return;
+    [visible[i], visible[j]] = [visible[j], visible[i]];
+    const rest = fullOrder.filter((t) => !visible.includes(t));
+    saveTypeOrder([...visible, ...rest]);
+  };
 
   // Rollup by account and country — used in the summary totals panel.
   const byAccount = filteredHoldings.reduce((acc, h) => {
@@ -809,184 +899,187 @@ export default function Portfolio() {
           <HoldingTypeGuide />
         </>
       ) : (
-        orderedTypes.map((type) => {
-          const typeHoldings = grouped[type];
-          const accounts = [...new Set(typeHoldings.map((h) => h.account).filter(Boolean))].sort((a, b) =>
-            a.localeCompare(b, undefined, { sensitivity: "base" }),
-          );
-          const selectedAccount = accountFilters[type] || "";
-          const inAccount = selectedAccount ? typeHoldings.filter((h) => h.account === selectedAccount) : typeHoldings;
-          const { current: currentHoldings, soldPositions } = isQuantityBased(type)
-            ? splitCurrentAndSold(inAccount)
-            : { current: inAccount, soldPositions: 0 };
-          const displayedHoldings = holdingView === "current" ? currentHoldings : inAccount;
-          const isOpen = openTypes[type] ?? false;
-          const renameTarget = selectedAccount || (accounts.length === 1 ? accounts[0] : "");
-          const { buyValue, gainAmount } = groupBuyValueAndGain(displayedHoldings);
-          const totalValue = displayedHoldings.reduce((sum, h) => sum + (h.displayValue || 0), 0);
+        <>
+          <SectionOrderControl types={orderedTypes} onMove={moveType} />
+          {orderedTypes.map((type) => {
+            const typeHoldings = grouped[type];
+            const accounts = [...new Set(typeHoldings.map((h) => h.account).filter(Boolean))].sort((a, b) =>
+              a.localeCompare(b, undefined, { sensitivity: "base" }),
+            );
+            const selectedAccount = accountFilters[type] || "";
+            const inAccount = selectedAccount ? typeHoldings.filter((h) => h.account === selectedAccount) : typeHoldings;
+            const { current: currentHoldings, soldPositions } = isQuantityBased(type)
+              ? splitCurrentAndSold(inAccount)
+              : { current: inAccount, soldPositions: 0 };
+            const displayedHoldings = holdingView === "current" ? currentHoldings : inAccount;
+            const isOpen = openTypes[type] ?? false;
+            const renameTarget = selectedAccount || (accounts.length === 1 ? accounts[0] : "");
+            const { buyValue, gainAmount } = groupBuyValueAndGain(displayedHoldings);
+            const totalValue = displayedHoldings.reduce((sum, h) => sum + (h.displayValue || 0), 0);
 
-          return (
-            <div key={type} style={{ marginBottom: "2rem" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: "0.75rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text)", margin: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => setOpenTypes({ ...openTypes, [type]: !isOpen })}
-                    aria-expanded={isOpen}
-                    aria-label={`${isOpen ? "Hide" : "Show"} ${getAssetTypeLabel(type)}`}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      font: "inherit",
-                      color: "inherit",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span aria-hidden="true" style={{ fontSize: "0.75rem" }}>
-                      {isOpen ? "▼" : "▶"}
-                    </span>
-                    {getAssetTypeLabel(type)}
-                  </button>
-                </h2>
-                {isQuantityBased(type) && (
-                  <div role="group" aria-label="Show current or all holdings" style={{ display: "flex", gap: "0.25rem" }}>
-                    {[
-                      ["current", "Current"],
-                      ["all", soldPositions > 0 ? `All (${soldPositions} sold)` : "All"],
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setHoldingView(value)}
-                        aria-pressed={holdingView === value}
-                        style={{
-                          padding: "0.35rem 0.75rem",
-                          borderRadius: "var(--radius-sm)",
-                          border: "1px solid var(--border)",
-                          background: holdingView === value ? "var(--primary)" : "var(--card)",
-                          color: holdingView === value ? "var(--text-inverse)" : "var(--text)",
-                          fontSize: "0.8125rem",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {renameTarget && (
-                  <RenameAccount
-                    key={renameTarget}
-                    accountName={renameTarget}
-                    householdId={currentHouseholdId}
-                    onRenamed={(newName) => selectedAccount && setAccountFilters({ ...accountFilters, [type]: newName })}
-                  />
-                )}
-                {accounts.length > 0 && (
-                  <select
-                    value={selectedAccount}
-                    onChange={(e) => setAccountFilters({ ...accountFilters, [type]: e.target.value })}
-                    aria-label={`Filter ${getAssetTypeLabel(type)} by account`}
-                    style={{
-                      padding: "0.4rem 0.75rem",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--border)",
-                      background: "var(--card)",
-                      color: "var(--text)",
-                      fontSize: "0.8125rem",
-                    }}
-                  >
-                    <option value="">All accounts</option>
-                    {accounts.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {(accounts.length > 0 || displayedHoldings.length > 0) && (
+            return (
+              <div key={type} style={{ marginBottom: "2rem" }}>
                 <div
                   style={{
                     display: "flex",
-                    gap: "1.5rem",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                     flexWrap: "wrap",
+                    gap: "0.75rem",
                     marginBottom: "0.75rem",
-                    padding: "0.625rem 1rem",
-                    background: "var(--bg-secondary)",
-                    borderRadius: "var(--radius)",
-                    fontSize: "0.8125rem",
                   }}
                 >
-                  <span data-testid={`count-${type}`} style={{ color: "var(--text-secondary)" }}>
-                    {type === "cash" ? "Accounts" : "Holdings"}{" "}
-                    <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>{displayedHoldings.length}</strong>
-                  </span>
-                  {accounts.length > 1 && !selectedAccount && (
-                    <span style={{ color: "var(--text-secondary)" }}>
-                      {accounts.map((a) => `${a}: ${displayedHoldings.filter((h) => h.account === a).length}`).join(" · ")}
-                    </span>
-                  )}
-                  <span style={{ color: "var(--text-secondary)" }}>
-                    Total cost{" "}
-                    <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>
-                      {buyValue != null ? formatCurrencyForDisplay(buyValue, currency, { includeCode: false }) : "—"}
-                    </strong>
-                  </span>
-                  <span style={{ color: "var(--text-secondary)" }}>
-                    Current value{" "}
-                    <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>
-                      {formatCurrencyForDisplay(totalValue, currency, { includeCode: false })}
-                    </strong>
-                  </span>
-                  <span style={{ color: "var(--text-secondary)" }}>
-                    Profit/Loss{" "}
-                    <strong
+                  <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--text)", margin: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenTypes({ ...openTypes, [type]: !isOpen })}
+                      aria-expanded={isOpen}
+                      aria-label={`${isOpen ? "Hide" : "Show"} ${getAssetTypeLabel(type)}`}
                       style={{
-                        color: gainAmount == null ? "var(--text)" : gainAmount >= 0 ? "var(--success)" : "var(--danger)",
-                        fontFamily: "var(--font-mono)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        font: "inherit",
+                        color: "inherit",
+                        cursor: "pointer",
                       }}
                     >
-                      {gainAmount != null
-                        ? `${gainAmount >= 0 ? "+" : ""}${formatCurrencyForDisplay(gainAmount, currency, { includeCode: false })}`
-                        : "—"}
-                    </strong>
-                  </span>
+                      <span aria-hidden="true" style={{ fontSize: "0.75rem" }}>
+                        {isOpen ? "▼" : "▶"}
+                      </span>
+                      {getAssetTypeLabel(type)}
+                    </button>
+                  </h2>
+                  {isQuantityBased(type) && (
+                    <div role="group" aria-label="Show current or all holdings" style={{ display: "flex", gap: "0.25rem" }}>
+                      {[
+                        ["current", "Current"],
+                        ["all", soldPositions > 0 ? `All (${soldPositions} sold)` : "All"],
+                      ].map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setHoldingView(value)}
+                          aria-pressed={holdingView === value}
+                          style={{
+                            padding: "0.35rem 0.75rem",
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border)",
+                            background: holdingView === value ? "var(--primary)" : "var(--card)",
+                            color: holdingView === value ? "var(--text-inverse)" : "var(--text)",
+                            fontSize: "0.8125rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {renameTarget && (
+                    <RenameAccount
+                      key={renameTarget}
+                      accountName={renameTarget}
+                      householdId={currentHouseholdId}
+                      onRenamed={(newName) => selectedAccount && setAccountFilters({ ...accountFilters, [type]: newName })}
+                    />
+                  )}
+                  {accounts.length > 0 && (
+                    <select
+                      value={selectedAccount}
+                      onChange={(e) => setAccountFilters({ ...accountFilters, [type]: e.target.value })}
+                      aria-label={`Filter ${getAssetTypeLabel(type)} by account`}
+                      style={{
+                        padding: "0.4rem 0.75rem",
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border)",
+                        background: "var(--card)",
+                        color: "var(--text)",
+                        fontSize: "0.8125rem",
+                      }}
+                    >
+                      <option value="">All accounts</option>
+                      {accounts.map((a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-              )}
 
-              {isOpen && (
-                <Card>
-                  <HoldingsTable
-                    holdings={displayedHoldings}
-                    xirrHoldings={inAccount}
-                    assetType={type}
-                    navigate={navigate}
-                    onDelete={setDeleteTarget}
-                    currency={currency}
-                    sortKey={sortKey}
-                    sortDir={sortDir}
-                    onSort={handleSort}
-                  />
-                </Card>
-              )}
-            </div>
-          );
-        })
+                {(accounts.length > 0 || displayedHoldings.length > 0) && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "1.5rem",
+                      flexWrap: "wrap",
+                      marginBottom: "0.75rem",
+                      padding: "0.625rem 1rem",
+                      background: "var(--bg-secondary)",
+                      borderRadius: "var(--radius)",
+                      fontSize: "0.8125rem",
+                    }}
+                  >
+                    <span data-testid={`count-${type}`} style={{ color: "var(--text-secondary)" }}>
+                      {type === "cash" ? "Accounts" : "Holdings"}{" "}
+                      <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>{displayedHoldings.length}</strong>
+                    </span>
+                    {accounts.length > 1 && !selectedAccount && (
+                      <span style={{ color: "var(--text-secondary)" }}>
+                        {accounts.map((a) => `${a}: ${displayedHoldings.filter((h) => h.account === a).length}`).join(" · ")}
+                      </span>
+                    )}
+                    <span style={{ color: "var(--text-secondary)" }}>
+                      Total cost{" "}
+                      <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>
+                        {buyValue != null ? formatCurrencyForDisplay(buyValue, currency, { includeCode: false }) : "—"}
+                      </strong>
+                    </span>
+                    <span style={{ color: "var(--text-secondary)" }}>
+                      Current value{" "}
+                      <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>
+                        {formatCurrencyForDisplay(totalValue, currency, { includeCode: false })}
+                      </strong>
+                    </span>
+                    <span style={{ color: "var(--text-secondary)" }}>
+                      Profit/Loss{" "}
+                      <strong
+                        style={{
+                          color: gainAmount == null ? "var(--text)" : gainAmount >= 0 ? "var(--success)" : "var(--danger)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {gainAmount != null
+                          ? `${gainAmount >= 0 ? "+" : ""}${formatCurrencyForDisplay(gainAmount, currency, { includeCode: false })}`
+                          : "—"}
+                      </strong>
+                    </span>
+                  </div>
+                )}
+
+                {isOpen && (
+                  <Card>
+                    <HoldingsTable
+                      holdings={displayedHoldings}
+                      xirrHoldings={inAccount}
+                      assetType={type}
+                      navigate={navigate}
+                      onDelete={setDeleteTarget}
+                      currency={currency}
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </Card>
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
       <RecentlyDeleted />
     </div>

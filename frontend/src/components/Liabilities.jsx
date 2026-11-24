@@ -489,7 +489,7 @@ function RecordPaymentForm({ liability, onDone }) {
             borderRadius: "var(--radius)",
             border: "none",
             background: "var(--primary)",
-            color: "var(--on-primary, #fff)",
+            color: "var(--text-inverse)",
             fontWeight: 600,
             cursor: valid ? "pointer" : "not-allowed",
             opacity: valid ? 1 : 0.6,

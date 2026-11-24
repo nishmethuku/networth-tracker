@@ -678,7 +678,7 @@ export default function Expenses() {
           ))}
         </div>
       )}
-      <div style={{ marginTop: "1.5rem" }}>
+      <div style={{ marginTop: "1.5rem", display: insightsOpen ? "block" : "none" }}>
         <SpendCalendar entries={entries} month={month} currency={currency} selected={day} onSelect={setDay} />
       </div>
       {splitting && <SplitEntryModal entry={splitting} categories={categories} onClose={() => setSplitting(null)} />}
