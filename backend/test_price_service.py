@@ -106,7 +106,7 @@ def test_bare_rupee_ticker_is_priced_as_an_nse_stock():
 
     assert price_service._with_exchange_suffix("reliance", "INR") == "RELIANCE.NS"
     assert price_service._with_exchange_suffix("INFY.NS", "INR") == "INFY.NS"
-    assert price_service._with_exchange_suffix("500325", "INR") == "500325"
+    assert price_service._with_exchange_suffix("500325", "INR") == "500325.BO"
     assert price_service._with_exchange_suffix("AAPL", "USD") == "AAPL"
 
 

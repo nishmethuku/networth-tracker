@@ -95,8 +95,8 @@ def _get_price_from_finnhub(ticker: str, asset_type: str = None):
     # funds — not a transient error, so skip the call entirely instead of
     # logging a 403 on every price fetch.
     upper_ticker = (ticker or "").upper().strip()
-    if upper_ticker.endswith(".NS") or upper_ticker.endswith(".NSE"):
-        logger.debug("Skipping Finnhub for NSE-listed symbol %s (unsupported on free tier)", ticker)
+    if upper_ticker.endswith((".NS", ".NSE", ".BO", ".BSE")):
+        logger.debug("Skipping Finnhub for Indian-listed symbol %s (unsupported on free tier)", ticker)
         return None
     if asset_type == "mutual_fund":
         logger.debug("Skipping Finnhub for mutual fund symbol %s (unsupported on free tier)", ticker)
