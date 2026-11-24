@@ -8,6 +8,7 @@ import { RatesProvider } from "./contexts/RatesContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { HouseholdProvider } from "./contexts/HouseholdContext";
 import App from "./App.jsx";
+import PersistQueryCache from "./components/PersistQueryCache";
 import "./index.css";
 import "./styles/theme.css";
 import { queryClient } from "./queryClient.js";
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ThemeProvider>
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
+          <PersistQueryCache />
           <RatesProvider>
             <HouseholdProvider>
               <ToastProvider>

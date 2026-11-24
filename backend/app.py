@@ -1122,6 +1122,10 @@ def create_app():
     )
     register_all(app, h)
 
+    from .price_refresher import start_if_enabled as _start_price_refresher
+
+    _start_price_refresher(app)
+
     return app
 
 
