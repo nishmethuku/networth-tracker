@@ -1,5 +1,10 @@
 # Changelog
 
+## Faster pages
+
+- Loading a page used to rebuild the same numbers for every holding several times over (dashboard, portfolio, income and so on), which is slow on the free server. The finished numbers are now reused for up to a minute, and any change you save refreshes them straight away.
+- Fixed the Transactions Type filter: choosing Expenses, Income or Transfers showed only those, but also leaked balance updates and trades in some cases.
+
 ## BSE stocks are priced
 
 - Indian stocks on the BSE (symbols ending in .BO or .BSE, or a 6-digit BSE code) now get prices from BSE. NSE stocks are priced as before.

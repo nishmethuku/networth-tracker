@@ -7,11 +7,17 @@ crypto, commodity) or valuation history (everything else: real_estate,
 fixed_deposit, ppf, epf, retirals, cash, loan, credit) instead of one frozen
 buy price/quantity.
 """
+import copy
 import os
+import threading
+import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import date, timedelta
 from typing import Dict, List, Optional
+
+from sqlalchemy import event
+from sqlalchemy.orm import Session
 
 from . import price_service
 from .finance import xirr
@@ -460,7 +466,49 @@ def _recent_stored_prices(keys):
     return found
 
 
+# A page load fires several requests (dashboard, holdings, income, analytics) that each rebuild the
+# same per-holding numbers, which on the free server's tenth of a CPU is what makes pages slow.
+# The finished result is kept for a short time and reused. Any database commit (a new purchase, an
+# edit, a price refresh) bumps a counter that makes the saved result unusable at once, so a change
+# always shows right away. Single worker process, so one in-process copy is consistent.
+_METRICS_TTL_SECONDS = 60
+_METRICS_MAX_ENTRIES = 64
+_metrics_cache: Dict[tuple, tuple] = {}
+_metrics_lock = threading.Lock()
+_data_version = 0
+
+
+def _bump_data_version(_session=None):
+    global _data_version
+    with _metrics_lock:
+        _data_version += 1
+        _metrics_cache.clear()
+
+
+event.listen(Session, "after_commit", _bump_data_version)
+
+
 def list_holdings_with_metrics(holdings: List[Holding], display_currency: str = "USD") -> List[Dict]:
+    key = (tuple(sorted(h.id for h in holdings)), display_currency)
+    now = time.monotonic()
+    with _metrics_lock:
+        hit = _metrics_cache.get(key)
+        version = _data_version
+    if hit and hit[0] == version and now - hit[1] < _METRICS_TTL_SECONDS:
+        # Same order as the holdings passed in, copied so callers can change their copy freely.
+        by_id = {r["id"]: r for r in hit[2]}
+        if all(h.id in by_id for h in holdings):
+            return [copy.deepcopy(by_id[h.id]) for h in holdings]
+    results = _list_holdings_with_metrics_uncached(holdings, display_currency)
+    with _metrics_lock:
+        if version == _data_version and all("id" in r for r in results):
+            if len(_metrics_cache) >= _METRICS_MAX_ENTRIES:
+                _metrics_cache.clear()
+            _metrics_cache[key] = (version, now, copy.deepcopy(results))
+    return results
+
+
+def _list_holdings_with_metrics_uncached(holdings: List[Holding], display_currency: str = "USD") -> List[Dict]:
     """
     Attach live-priced metrics to each holding (in its native currency) plus
     a display_value converted to display_currency. Fetches each unique

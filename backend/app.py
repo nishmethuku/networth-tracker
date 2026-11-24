@@ -728,7 +728,8 @@ def create_app():
         search = (request.args.get("search") or "").strip().lower()
         matching_ids = [
             h.id for h in holdings
-            if (not asset_type or h.asset_type == asset_type)
+            if not flow_kind
+            and (not asset_type or h.asset_type == asset_type)
             and (not country or h.country == country)
             and (not account or (h.account or "").strip().lower() == account)
             and (not search or search in (h.symbol or "").lower() or search in h.name.lower())
