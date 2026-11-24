@@ -129,6 +129,7 @@ export async function restoreTransaction(id: number | string) {
 export interface TransactionFilters {
   assetType?: string;
   country?: string;
+  account?: string;
   householdId?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -161,6 +162,7 @@ export async function fetchAllTransactions(
   const params = new URLSearchParams();
   if (filters.assetType) params.append("asset_type", filters.assetType);
   if (filters.country) params.append("country", filters.country);
+  if (filters.account) params.append("account", filters.account);
   if (filters.householdId) params.append("household_id", filters.householdId);
   if (filters.dateFrom) params.append("date_from", filters.dateFrom);
   if (filters.dateTo) params.append("date_to", filters.dateTo);

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { fetchAllTransactions, fetchHoldings, deleteTransaction, restoreTransaction, ApiError } from "../api";
+import { fetchAllTransactions, fetchAccounts, fetchHoldings, deleteTransaction, restoreTransaction, ApiError } from "../api";
 import Card from "./Card";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
@@ -33,7 +33,7 @@ const inputStyle = {
 const PER_PAGE = 50;
 
 export default function Transactions() {
-  const [filters, setFilters] = useState({ assetType: "", country: "", dateFrom: "", dateTo: "", search: "" });
+  const [filters, setFilters] = useState({ assetType: "", country: "", account: "", dateFrom: "", dateTo: "", search: "" });
   const [page, setPage] = useState(1);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedHoldingId, setSelectedHoldingId] = useState("");
@@ -85,6 +85,12 @@ export default function Transactions() {
     queryKey: ["transactions", filters, currentHouseholdId, page],
     queryFn: () => fetchAllTransactions({ ...filters, householdId: currentHouseholdId, page, perPage: PER_PAGE }),
     staleTime: 1000 * 30,
+  });
+  // Every account you have (bank, brokerage, real estate and so on), for the account filter.
+  const { data: accountList } = useQuery({
+    queryKey: ["accounts", currentHouseholdId],
+    queryFn: () => fetchAccounts({ householdId: currentHouseholdId }),
+    staleTime: 1000 * 60 * 5,
   });
   const transactions = result?.items;
   const totalPages = result?.totalPages || 1;
@@ -232,6 +238,19 @@ export default function Transactions() {
           ))}
         </select>
         <select
+          aria-label="Filter by account"
+          value={filters.account}
+          onChange={(e) => updateFilters({ ...filters, account: e.target.value })}
+          style={inputStyle}
+        >
+          <option value="">All Accounts</option>
+          {sortAz(accountList || [], (a) => a.name).map((a) => (
+            <option key={a.name} value={a.name}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        <select
           aria-label="Filter by country"
           value={filters.country}
           onChange={(e) => updateFilters({ ...filters, country: e.target.value })}
@@ -262,7 +281,7 @@ export default function Transactions() {
           <button
             onClick={() => {
               setSearchDraft("");
-              updateFilters({ assetType: "", country: "", dateFrom: "", dateTo: "", search: "" });
+              updateFilters({ assetType: "", country: "", account: "", dateFrom: "", dateTo: "", search: "" });
             }}
             style={{ ...inputStyle, cursor: "pointer" }}
           >

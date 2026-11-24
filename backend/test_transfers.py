@@ -271,3 +271,14 @@ def test_failed_historical_price_lookup_is_not_retried_right_away(monkeypatch):
     assert price_service.get_historical_price("stock", "NOSUCH", date(2026, 1, 2), "INR") is None
     assert price_service.get_historical_price("stock", "NOSUCH", date(2026, 1, 2), "INR") is None
     assert len(calls) == 1
+
+
+def test_transactions_can_be_filtered_by_account(client):
+    buy = {"transaction_type": "buy", "transaction_date": "2025-01-02", "quantity": 1, "price_per_unit": 10, "currency": "USD"}
+    for symbol, account in (("AAA", "Alpha Broker"), ("BBB", "Beta Broker")):
+        hid = a(client, "post", "/holdings", {"asset_type": "stock", "symbol": symbol, "name": f"Filter {symbol}", "country": "United States", "account": account, "currency": "USD"}).get_json()["id"]
+        assert a(client, "post", f"/holdings/{hid}/transactions", buy).status_code == 201
+    everything = a(client, "get", "/transactions").get_json()
+    only_alpha = a(client, "get", "/transactions?account=alpha%20broker").get_json()
+    assert {t["holding_symbol"] for t in only_alpha} == {"AAA"}
+    assert {"AAA", "BBB"} <= {t["holding_symbol"] for t in everything}
