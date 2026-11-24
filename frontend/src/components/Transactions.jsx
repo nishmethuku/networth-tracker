@@ -15,7 +15,15 @@ import { useToast } from "../contexts/ToastContext";
 import useIsMobile from "../hooks/useIsMobile";
 import { useHousehold } from "../contexts/HouseholdContext";
 import { formatCurrencyForDisplay, formatDateISO } from "../utils/formatters";
-import { ASSET_TYPE_OPTIONS, COUNTRIES, getAssetTypeLabel, isQuantityBased } from "../constants/enums";
+import {
+  ASSET_TYPE_OPTIONS,
+  CASH_FLOW_FILTER_OPTIONS,
+  COUNTRIES,
+  getAssetTypeLabel,
+  isQuantityBased,
+  isReadOnlyTransaction,
+  transactionTypeLabel,
+} from "../constants/enums";
 import { isShareChangeTransactionType, describeShareChange } from "../constants/enums";
 import { sortAz } from "../utils/sortAz";
 
@@ -240,11 +248,14 @@ export default function Transactions() {
           style={inputStyle}
         >
           <option value="">All Types</option>
-          {ASSET_TYPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
+          {[...ASSET_TYPE_OPTIONS, ...CASH_FLOW_FILTER_OPTIONS]
+            .slice()
+            .sort((x, y) => x.label.localeCompare(y.label))
+            .map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
         </select>
         <select
           aria-label="Filter by account"
@@ -335,23 +346,31 @@ export default function Transactions() {
                   <tr key={t.id} style={{ borderBottom: "1px solid var(--border-light)" }}>
                     <td style={{ padding: "0.75rem 0.5rem" }}>{formatDateISO(t.transactionDate)}</td>
                     <td style={{ padding: "0.75rem 0.5rem" }}>
-                      <Link to={`/portfolio/${t.holdingId}`} style={{ fontWeight: 600 }}>
-                        {t.holdingSymbol || t.holdingName}
-                      </Link>
+                      {t.holdingId == null ? (
+                        <span style={{ fontWeight: 600, textTransform: "capitalize" }}>{t.holdingName}</span>
+                      ) : (
+                        <Link to={`/portfolio/${t.holdingId}`} style={{ fontWeight: 600 }}>
+                          {t.holdingSymbol || t.holdingName}
+                        </Link>
+                      )}
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{getAssetTypeLabel(t.assetType)}</div>
                     </td>
                     <td
                       style={{
                         padding: "0.75rem 0.5rem",
                         textTransform: "capitalize",
-                        color: t.transactionType === "sell" ? "var(--danger)" : "var(--success)",
+                        color: t.transactionType === "sell" || t.transactionType === "expense" ? "var(--danger)" : "var(--success)",
                         fontWeight: 600,
                       }}
                     >
-                      {t.transactionType}
+                      {transactionTypeLabel(t)}
                     </td>
                     <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
-                      {isShareChangeTransactionType(t.transactionType) ? describeShareChange(t) : t.quantity.toFixed(4)}
+                      {isReadOnlyTransaction(t)
+                        ? "-"
+                        : isShareChangeTransactionType(t.transactionType)
+                          ? describeShareChange(t)
+                          : t.quantity.toFixed(4)}
                     </td>
                     <td style={{ padding: "0.75rem 0.5rem", fontFamily: "var(--font-mono)" }}>
                       {isShareChangeTransactionType(t.transactionType) ? "-" : formatCurrencyForDisplay(t.pricePerUnit, t.currency)}
@@ -362,30 +381,36 @@ export default function Transactions() {
                         : formatCurrencyForDisplay(t.quantity * t.pricePerUnit, t.currency)}
                     </td>
                     <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }}>
-                      <button
-                        onClick={() => setEditingTx(t)}
-                        style={{
-                          fontSize: "0.8125rem",
-                          background: "transparent",
-                          border: "1px solid var(--border)",
-                          color: "var(--text)",
-                          padding: "0.35rem 0.75rem",
-                          marginRight: "0.4rem",
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeletingTx(t)}
-                        style={{
-                          fontSize: "0.8125rem",
-                          background: "var(--danger)",
-                          color: "var(--text-inverse)",
-                          padding: "0.35rem 0.75rem",
-                        }}
-                      >
-                        Delete
-                      </button>
+                      {isReadOnlyTransaction(t) ? (
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>View only</span>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setEditingTx(t)}
+                            style={{
+                              fontSize: "0.8125rem",
+                              background: "transparent",
+                              border: "1px solid var(--border)",
+                              color: "var(--text)",
+                              padding: "0.35rem 0.75rem",
+                              marginRight: "0.4rem",
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeletingTx(t)}
+                            style={{
+                              fontSize: "0.8125rem",
+                              background: "var(--danger)",
+                              color: "var(--text-inverse)",
+                              padding: "0.35rem 0.75rem",
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}

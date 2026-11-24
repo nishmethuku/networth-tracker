@@ -50,9 +50,26 @@ export function describeShareChange(t) {
 }
 export const INCOME_TRANSACTION_TYPES = ["dividend", "interest"];
 
+// Rows that are listed for completeness only (balance updates, income, expenses, transfers).
+// They have no buys or sells, so they cannot be edited or deleted from the Transactions page.
+export function isReadOnlyTransaction(t) {
+  return t.holdingId == null || t.transactionType === "balance_update";
+}
+
+export function transactionTypeLabel(t) {
+  return t.transactionType === "balance_update" ? "Balance" : t.transactionType;
+}
+
 export function isIncomeTransactionType(transactionType) {
   return INCOME_TRANSACTION_TYPES.includes(transactionType);
 }
+
+// Extra choices for the Transactions type filter: money in and out, not holdings.
+export const CASH_FLOW_FILTER_OPTIONS = [
+  { value: "expense", label: "Expenses" },
+  { value: "income", label: "Income" },
+  { value: "transfer", label: "Transfers" },
+];
 
 export const ASSET_TYPE_LABELS = {
   [ASSET_TYPES.STOCK]: "Stocks",
@@ -100,6 +117,7 @@ export function isValidAssetType(value) {
 }
 
 export function getAssetTypeLabel(value) {
+  if (value === "cash_flow") return "Cash flow";
   return ASSET_TYPE_LABELS[value] || value;
 }
 

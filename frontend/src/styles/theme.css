@@ -9,6 +9,7 @@
 /* Light Mode (Default) */
 [data-theme="light"],
 :root {
+  color-scheme: light;
   /* Background Colors */
   --bg: #faf7f2;
   --bg-secondary: rgba(255, 255, 255, 0.42);
@@ -76,6 +77,7 @@
 
 /* Dark Mode */
 [data-theme="dark"] {
+  color-scheme: dark;
   /* Background Colors */
   --bg: #1b1715;
   --bg-secondary: rgba(255, 255, 255, 0.06);
@@ -708,4 +710,11 @@ thead {
 .desktop-top-nav,
 .mobile-top-bar {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Dropdown lists and their options follow the theme instead of the browser default. */
+select option,
+select optgroup {
+  background-color: var(--card-solid);
+  color: var(--text);
 }

@@ -37,6 +37,7 @@ from .account_registry_service import forget_account_if_unused
 from .auth import require_auth
 from .benchmark_service import get_benchmark_comparison
 from .holdings_service import (
+    QUANTITY_BASED_TYPES,
     TRANSACTION_TYPES,
     build_dashboard,
     build_funding_valuation,
@@ -54,6 +55,8 @@ from .liability_service import (
     total_liabilities_display,
 )
 from .models import (
+    AccountTransfer,
+    BudgetEntry,
     Holding,
     HoldingTransaction,
     HoldingValuation,
@@ -716,6 +719,10 @@ def create_app():
         holdings_by_id = {h.id: h for h in holdings}
 
         asset_type = request.args.get("asset_type")
+        # "income", "expense" and "transfer" pick the cash-flow entries instead of a kind of holding.
+        flow_kind = asset_type if asset_type in ("income", "expense", "transfer") else None
+        if flow_kind:
+            asset_type = None
         country = request.args.get("country")
         account = (request.args.get("account") or "").strip().lower()
         search = (request.args.get("search") or "").strip().lower()
@@ -741,31 +748,132 @@ def create_app():
 
         query = query.order_by(HoldingTransaction.transaction_date.desc())
 
+        # Cash, bank, real estate and the like have no buys or sells: their history is the balance
+        # they were set to. Those updates are listed too, so choosing All Types or All Accounts
+        # really shows everything. They are read only here (edit them on the holding's own page).
+        balance_holding_ids = [h.id for h in holdings if h.id in matching_ids and h.asset_type not in QUANTITY_BASED_TYPES]
+        balance_rows = []
+        if balance_holding_ids:
+            val_query = HoldingValuation.query.filter(HoldingValuation.holding_id.in_(balance_holding_ids))
+            if date_from:
+                val_query = val_query.filter(HoldingValuation.valuation_date >= date.fromisoformat(date_from))
+            if date_to:
+                val_query = val_query.filter(HoldingValuation.valuation_date <= date.fromisoformat(date_to))
+            balance_rows = val_query.all()
+
+        # Income, expenses and transfers between accounts. They carry no account of their own in
+        # the filter, so they are left out when a specific account or country is chosen.
+        flow_rows = []
+        if not account and not country and (not asset_type or flow_kind):
+            entry_q = BudgetEntry.query.filter(BudgetEntry.user_id == g.user_id)
+            if household_id_param:
+                entry_q = BudgetEntry.query.filter(
+                    BudgetEntry.household_id == household_id_param, BudgetEntry.is_private == False  # noqa: E712
+                )
+            if flow_kind in ("income", "expense"):
+                entry_q = entry_q.filter(BudgetEntry.entry_type == flow_kind)
+            if date_from:
+                entry_q = entry_q.filter(BudgetEntry.entry_date >= date.fromisoformat(date_from))
+            if date_to:
+                entry_q = entry_q.filter(BudgetEntry.entry_date <= date.fromisoformat(date_to))
+            if search:
+                entry_q = entry_q.filter(db.or_(
+                    db.func.lower(BudgetEntry.category).contains(search),
+                    db.func.lower(db.func.coalesce(BudgetEntry.description, "")).contains(search),
+                ))
+            if flow_kind != "transfer":
+                for e in entry_q.limit(2000).all():
+                    flow_rows.append({
+                        "id": f"entry-{e.id}", "holding_id": None, "transaction_type": e.entry_type,
+                        "transaction_date": e.entry_date.isoformat(), "quantity": 1, "price_per_unit": e.amount,
+                        "currency": e.currency, "fees": 0, "notes": e.description, "tags": [],
+                        "created_at": e.created_at.isoformat() if getattr(e, "created_at", None) else None,
+                        "holding_name": e.category, "holding_symbol": None, "asset_type": "cash_flow", "country": None,
+                    })
+            if not flow_kind or flow_kind == "transfer":
+                tr_q = AccountTransfer.query.filter(AccountTransfer.user_id == g.user_id)
+                if date_from:
+                    tr_q = tr_q.filter(AccountTransfer.transfer_date >= date.fromisoformat(date_from))
+                if date_to:
+                    tr_q = tr_q.filter(AccountTransfer.transfer_date <= date.fromisoformat(date_to))
+                for tr in tr_q.limit(2000).all():
+                    label = f"{tr.from_name} to {tr.to_name}"
+                    if search and search not in label.lower():
+                        continue
+                    flow_rows.append({
+                        "id": f"transfer-{tr.id}", "holding_id": None, "transaction_type": "transfer",
+                        "transaction_date": tr.transfer_date.isoformat(), "quantity": 1, "price_per_unit": tr.amount,
+                        "currency": tr.currency, "fees": 0, "notes": tr.note,
+                        "tags": [], "created_at": tr.created_at.isoformat() if tr.created_at else None,
+                        "holding_name": label, "holding_symbol": None, "asset_type": "cash_flow", "country": None,
+                    })
+
+        def _balance_dict(v):
+            holding = holdings_by_id.get(v.holding_id)
+            return {
+                "id": f"balance-{v.id}",
+                "holding_id": v.holding_id,
+                "transaction_type": "balance_update",
+                "transaction_date": v.valuation_date.isoformat(),
+                "quantity": 1,
+                "price_per_unit": v.value,
+                "currency": v.currency,
+                "fees": 0,
+                "notes": v.notes,
+                "tags": [],
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+                "holding_name": holding.name if holding else None,
+                "holding_symbol": holding.symbol if holding else None,
+                "asset_type": holding.asset_type if holding else None,
+                "country": holding.country if holding else None,
+            }
+
         # Pagination is opt-in via ?page=: omitting it returns the full
         # array exactly as before (every existing caller keeps working
         # unchanged). A transaction log can grow into the thousands over
         # years of use, so a caller that does want to page through it
         # rather than fetch everything at once can with ?page=&per_page=.
         page_param = request.args.get("page")
-        if page_param:
-            page = max(1, int(page_param))
-            per_page = min(200, max(1, int(request.args.get("per_page", 50))))
-            total = query.count()
-            txs = query.offset((page - 1) * per_page).limit(per_page).all()
+        if balance_rows or flow_rows:
+            trade_dicts = []
+            for t in query.all():
+                holding = holdings_by_id.get(t.holding_id)
+                trade_dicts.append({
+                    **t.to_dict(),
+                    "holding_name": holding.name if holding else None,
+                    "holding_symbol": holding.symbol if holding else None,
+                    "asset_type": holding.asset_type if holding else None,
+                    "country": holding.country if holding else None,
+                })
+            merged = sorted(trade_dicts + [_balance_dict(v) for v in balance_rows] + flow_rows, key=lambda r: r["transaction_date"], reverse=True)
+            if page_param:
+                page = max(1, int(page_param))
+                per_page = min(200, max(1, int(request.args.get("per_page", 50))))
+                total = len(merged)
+                results = merged[(page - 1) * per_page: page * per_page]
+            else:
+                total = None
+                results = merged
         else:
-            total = None
-            txs = query.all()
+            if page_param:
+                page = max(1, int(page_param))
+                per_page = min(200, max(1, int(request.args.get("per_page", 50))))
+                total = query.count()
+                txs = query.offset((page - 1) * per_page).limit(per_page).all()
+            else:
+                total = None
+                txs = query.all()
 
-        results = []
-        for t in txs:
-            holding = holdings_by_id.get(t.holding_id)
-            results.append({
-                **t.to_dict(),
-                "holding_name": holding.name if holding else None,
-                "holding_symbol": holding.symbol if holding else None,
-                "asset_type": holding.asset_type if holding else None,
-                "country": holding.country if holding else None,
-            })
+            results = []
+            for t in txs:
+                holding = holdings_by_id.get(t.holding_id)
+                results.append({
+                    **t.to_dict(),
+                    "holding_name": holding.name if holding else None,
+                    "holding_symbol": holding.symbol if holding else None,
+                    "asset_type": holding.asset_type if holding else None,
+                    "country": holding.country if holding else None,
+                })
 
         if total is None:
             return jsonify(results)

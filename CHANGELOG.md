@@ -1,5 +1,12 @@
 # Changelog
 
+## Transactions shows everything, Expenses calendar moved down
+
+- The Transactions page now lists income, expenses and transfers between accounts, plus every balance update on cash, bank and real estate accounts, so All Types shows everything. The Type filter also has Expenses, Income and Transfers. These rows are view only; edit them where you added them.
+- On the Expenses page the calendar now sits at the bottom of the page.
+- Portfolio: a "Change section order" button lets you put Stocks, Cash and bank accounts, Gold and metals and the rest in the order you want. It is remembered on this device.
+- Dark mode: dropdown lists, date pickers and scrollbars now switch with the theme, and the button text on the Liabilities page is readable.
+
 ## Changes show up right after a refresh
 
 - When the server was slow (for example right after it woke up), the app gave up after 8 seconds and showed the last saved copy of your data, so a change you just made looked missing for minutes. It now waits for the server and only uses the saved copy when you are offline.
