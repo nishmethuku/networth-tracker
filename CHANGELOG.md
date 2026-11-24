@@ -1,5 +1,9 @@
 # Changelog
 
+## Fewer slow loads after midnight
+
+- Stocks the price sources do not know (such as delisted Indian tickers) are now remembered as not found for a full day, no matter what the date is. Before, every one of them was looked up again on the first page load of each day, which made that load slow on the free server.
+
 ## Set a monthly limit right on each category
 
 - In Expenses, Manage categories, every expense category now has a Set limit button. Pick an amount and the limit shows up on the Budget page with its progress bar. You can change or clear it from the same place.

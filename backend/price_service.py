@@ -30,11 +30,21 @@ logger = logging.getLogger(__name__)
 # Lookups that found nothing are remembered for a few hours. Without this, every dashboard
 # load and cron job re-calls Yahoo and Finnhub for the same symbols that always fail (many
 # Indian symbols), which ties up the workers and makes the whole app time out.
-_MISS_TTL_SECONDS = 6 * 3600
+_MISS_TTL_SECONDS = 24 * 3600
 _historical_misses = {}
 
 
+def _miss_key(key):
+    """(asset_type, symbol, date, currency) -> (asset_type, symbol, currency).
+
+    The date used to be part of the key, and the date moves every day, so every symbol that
+    never prices (delisted Indian tickers) was looked up again after midnight, dozens at once,
+    on the first page load of the day. A symbol the sources do not know stays unknown."""
+    return (key[0], key[1], key[3]) if len(key) == 4 else key
+
+
 def _recently_missed(key):
+    key = _miss_key(key)
     expires = _historical_misses.get(key)
     if expires is None:
         return False
@@ -204,7 +214,7 @@ def get_historical_price(asset_type: str, symbol: str, target_date: date, curren
 
 
 def remember_miss(miss_key) -> None:
-    _historical_misses[miss_key] = time.time() + _MISS_TTL_SECONDS
+    _historical_misses[_miss_key(miss_key)] = time.time() + _MISS_TTL_SECONDS
 
 
 def fetch_historical_price_uncached(asset_type: str, symbol: str, target_date: date, currency: str = "USD"):
